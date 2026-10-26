@@ -1,0 +1,104 @@
+# Reusable Deploy: installs the charts/sdg umbrella as release <repo>-<target> (DEVELOPER.md, Workflows)
+name: Reusable Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment (test or prod); omit for PRs
+        default: ''
+        type: string
+      target:
+        description: Deployment target; usually PR number, test or prod
+        default: ${{ github.event.number }}
+        type: string
+      tag:
+        description: Container tag
+        default: ${{ github.event.number }}
+        type: string
+      triggers:
+        description: Paths that trigger a deployment; omit to always deploy
+        default: ''
+        type: string
+
+    secrets:
+      oc_token:
+        description: OpenShift token
+        required: true
+    outputs:
+      triggered:
+        description: Has deployment been triggered?
+        value: ${{ jobs.deploy.outputs.triggered }}
+      url:
+        description: Public URL of the deployment
+        value: ${{ jobs.deploy.outputs.url }}
+
+permissions: {}
+
+jobs:
+  deploy:
+    name: Helm (${{ inputs.target }})
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+    outputs:
+      triggered: ${{ steps.deploy.outputs.triggered }}
+      url: ${{ steps.vars.outputs.url }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      TARGET: ${{ inputs.target }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      TAG: ${{ inputs.tag }}
+      REPOSITORY: ${{ github.repository }}
+      OC_NAMESPACE: ${{ vars.OC_NAMESPACE }}
+      OC_SERVER: ${{ vars.OC_SERVER }}
+      KEYCLOAK_ISSUER_URL: ${{ vars.KEYCLOAK_ISSUER_URL }}
+      KEYCLOAK_CLIENT_ID: ${{ vars.KEYCLOAK_CLIENT_ID }}
+      # Optional override; see scripts/deploy-values.sh
+      VAULT_SECRET_PATH: ${{ vars.VAULT_SECRET_PATH }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Release name, URL and values file come from one script, shared with scripts/charts-test.sh;
+      # release=, url= and values_file= become step outputs and env vars for the commands below
+      - name: Vars
+        id: vars
+        run: |
+          scripts/deploy-values.sh outputs | tee -a "$GITHUB_OUTPUT" >> "$GITHUB_ENV"
+          scripts/deploy-values.sh values > "${RUNNER_TEMP}/deploy-values.yaml"
+          echo "DEPLOY_VALUES=${RUNNER_TEMP}/deploy-values.yaml" >> "$GITHUB_ENV"
+
+      # The charts are verified with Helm 4; the runner image ships Helm 3
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.1.1
+
+      - name: Deploy
+        id: deploy
+        uses: bcgov/action-oc-runner@111868d1fc50db0a40417ba321d865ef5c931bbd # v1.7.0
+        with:
+          oc_namespace: ${{ vars.OC_NAMESPACE }}
+          oc_server: ${{ vars.OC_SERVER }}
+          oc_token: ${{ secrets.oc_token }}
+          triggers: ${{ inputs.triggers }}
+          commands: |
+            # A cancelled run leaves the release pending-*, which blocks every later upgrade
+            status="$(helm status "$release" -o json 2>/dev/null | jq -r .info.status || true)"
+            if [[ "$status" == pending-* ]]; then
+              echo "Release ${release} is ${status}; rolling back"
+              helm rollback "$release" --wait --timeout 5m || helm uninstall "$release" --wait --timeout 5m
+            fi
+
+            # file:// dependencies: leaf charts before the umbrella, which packages them
+            for chart in portal-web portal-api edge postgres valkey sdg; do
+              helm dependency build "charts/${chart}" > /dev/null
+            done
+
+            # A first install waits for PGO's cluster and the migrator's retries
+            helm upgrade --install "$release" charts/sdg \
+              -f "$values_file" -f "$DEPLOY_VALUES" \
+              --rollback-on-failure --timeout 15m
+            helm status "$release"

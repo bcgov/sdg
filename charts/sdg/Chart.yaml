@@ -1,0 +1,27 @@
+apiVersion: v2
+name: sdg
+description: 'Umbrella chart installing portal-web, portal-api, edge, postgres and valkey as one release.'
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: portal-web
+    version: 0.1.0
+    repository: file://../portal-web
+    condition: portal-web.enabled
+  - name: portal-api
+    version: 0.1.0
+    repository: file://../portal-api
+    condition: portal-api.enabled
+  - name: edge
+    version: 0.1.0
+    repository: file://../edge
+    condition: edge.enabled
+  - name: postgres
+    version: 0.1.0
+    repository: file://../postgres
+    condition: postgres.enabled
+  - name: valkey
+    version: 0.1.0
+    repository: file://../valkey
+    condition: valkey.enabled

@@ -1,0 +1,45 @@
+suite: portal-api networkpolicy
+templates:
+  - templates/networkpolicy.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.clientId: portal
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/portal-api
+  vault.serviceAccountName: abc123-vault
+tests:
+  - it: only accepts traffic from the edge on 3000
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: metadata.name
+          value: sdg-portal-api
+      - equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: portal-api
+            app.kubernetes.io/instance: sdg
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: edge
+                      app.kubernetes.io/instance: sdg
+              ports:
+                - port: 3000
+                  protocol: TCP
+
+  - it: omits the NetworkPolicy when disabled
+    set:
+      networkPolicy.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

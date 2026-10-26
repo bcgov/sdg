@@ -1,0 +1,106 @@
+# portal-api: the NestJS BFF (apps/portal-api), with the portal-database migrator as its initContainer.
+# Env contract: apps/portal-api/src/config/env.ts. Reached only through the edge.
+global:
+  image:
+    # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
+    registry: ''
+    # Image tag, e.g. a PR number (12), a commit SHA or a release version. Required here or in image.tag.
+    tag: ''
+  # Public hostname; APP_URL defaults to https://<host>.
+  host: ''
+
+fullnameOverride: ''
+replicaCount: 1
+# Deployment rollout strategy, e.g. { type: Recreate }. Empty: Kubernetes' default RollingUpdate.
+strategy: {}
+
+image:
+  registry: ''
+  name: portal-api
+  tag: ''
+  pullPolicy: IfNotPresent
+
+migrator:
+  image:
+    registry: ''
+    name: portal-database
+    tag: ''
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# Public origin of portal-web; the OIDC redirect URIs derive from it. Empty: https://<global.host>.
+appUrl: ''
+logLevel: info
+sessionTtlSeconds: 28800
+
+keycloak:
+  # Required, e.g. https://keycloak.example.com/realms/portal
+  issuerUrl: ''
+  # Required: the confidential client id. Its secret comes from Vault (or existingSecret).
+  clientId: ''
+
+# Crunchy PGO user Secret (<cluster>-pguser-<user>); use key pgbouncer-uri when PgBouncer is enabled.
+database:
+  secretName: '{{ .Release.Name }}-postgres-pguser-portal'
+  secretKey: uri
+  # PGO only accepts TLS and its uri has no sslmode: node-postgres reads PGSSLMODE (require = verified TLS).
+  sslMode: require
+  # PGO's CA (<cluster>-cluster-cert), trusted through NODE_EXTRA_CA_CERTS. Empty: the system trust store.
+  caSecretName: '{{ .Release.Name }}-postgres-cluster-cert'
+  caSecretKey: ca.crt
+
+# Secret written by the valkey chart.
+valkey:
+  secretName: '{{ .Release.Name }}-valkey'
+  secretKey: url
+
+# Secrets issued outside the cluster (SESSION_SECRET, KEYCLOAK_CLIENT_SECRET) via the Vault Agent Injector.
+# The agent init container renders /vault/secrets/portal-api.env (dotenv) and node loads it with --env-file.
+# Values must not contain ' or newlines.
+vault:
+  enabled: true
+  # Required when enabled, e.g. abc123-nonprod
+  role: ''
+  authPath: auth/k8s-silver
+  namespace: platform-services
+  # Required when enabled: KV v2 path, e.g. abc123-nonprod/portal-api
+  secretPath: ''
+  # Required when enabled: the service account Vault's role trusts, e.g. abc123-vault
+  serviceAccountName: ''
+  keys:
+    - SESSION_SECRET
+    - KEYCLOAK_CLIENT_SECRET
+  # The injector's defaults (250m CPU request) don't fit small namespace quotas; the init-only agent needs little.
+  agentResources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
+
+# Used when vault.enabled is false: a Secret holding the same keys, loaded with envFrom.
+existingSecret: ''
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 192Mi
+  limits:
+    memory: 384Mi
+
+networkPolicy:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

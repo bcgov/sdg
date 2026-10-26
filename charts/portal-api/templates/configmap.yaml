@@ -1,0 +1,17 @@
+# Non-secret env for src/config/env.ts. Secrets come from the Crunchy/valkey Secrets and Vault (deployment.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "api") | nindent 4 }}
+data:
+  NODE_ENV: production
+  PORT: '3000'
+  LOG_LEVEL: {{ .Values.logLevel | quote }}
+  APP_URL: {{ include "portal-api.appUrl" . | quote }}
+  # Ingress -> edge -> portal-api: trust X-Forwarded-* from the proxies.
+  TRUST_PROXY: 'true'
+  SESSION_TTL_SECONDS: {{ .Values.sessionTtlSeconds | quote }}
+  KEYCLOAK_ISSUER_URL: {{ .Values.keycloak.issuerUrl | required "keycloak.issuerUrl is required" | quote }}
+  KEYCLOAK_CLIENT_ID: {{ .Values.keycloak.clientId | required "keycloak.clientId is required" | quote }}

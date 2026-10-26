@@ -1,0 +1,8 @@
+{
+  "extends": "@repo/typescript-config/browser-library.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.lib.tsbuildinfo"
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/test-support"]
+}

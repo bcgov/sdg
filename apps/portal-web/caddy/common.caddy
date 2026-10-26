@@ -1,0 +1,48 @@
+# Snippets shared by Caddyfile (production) and Caddyfile.dev (compose). Import inside a site block.
+
+(logging) {
+	log {
+		output stdout
+		format console
+		level {$LOG_LEVEL:INFO}
+	}
+}
+
+(waf) {
+	coraza_waf {
+		directives `
+		Include /etc/caddy/coraza.conf
+		`
+	}
+}
+
+# Proxy requests to the API service
+(api_proxy) {
+	reverse_proxy /api* {$PORTAL_API_URL} {
+		header_up Host {http.reverse_proxy.upstream.hostport}
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+# Argument 1: extra script-src sources. Production passes "", Caddyfile.dev passes "'unsafe-inline'"
+# for Vite's React Refresh preamble. Caddy leaves a missing argument in place literally, so it is required.
+(security_headers) {
+	header {
+		-Server
+		X-Frame-Options "SAMEORIGIN"
+		X-XSS-Protection "1;mode=block"
+		# Default only (?): keeps portal-web's own caching (immutable hashed assets, no-cache HTML).
+		?Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate"
+		X-Content-Type-Options "nosniff"
+		Strict-Transport-Security "max-age=31536000"
+		# One line: a newline makes the value invalid, and Go's HTTP/2 server silently drops the whole header.
+		Content-Security-Policy "default-src 'self' https://*.gov.bc.ca; script-src 'self' https://*.gov.bc.ca {args[0]}; style-src 'self' https://fonts.googleapis.com https://use.fontawesome.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://fonts.googleapis.com https://www.w3.org https://*.gov.bc.ca https://*.tile.openstreetmap.org; frame-ancestors 'self'; form-action 'self'; block-all-mixed-content; connect-src 'self' https://*.gov.bc.ca wss://*.gov.bc.ca;"
+		Referrer-Policy "same-origin"
+		Permissions-Policy "fullscreen=(self), camera=(), microphone=()"
+		Cross-Origin-Resource-Policy "same-origin"
+		Cross-Origin-Opener-Policy "same-origin"
+		# credentialless clears ZAP 90004. require-corp would block no-cors
+		# cross-origin assets still allowed by the CSP (fonts, map tiles).
+		Cross-Origin-Embedder-Policy "credentialless"
+	}
+}

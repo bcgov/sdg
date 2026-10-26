@@ -1,0 +1,4 @@
+{
+  "extends": "../../../browser-library-build.json",
+  "include": ["src"]
+}

@@ -1,0 +1,49 @@
+{
+  "name": "root",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "typecheck": "tsc && tsc -p tests/load && turbo run typecheck",
+    "test": "turbo run test",
+    "test:all": "vitest run",
+    "test:e2e": "turbo run test:e2e",
+    "test:charts": "scripts/charts-test.sh",
+    "test:load": "tests/load/run.sh",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "lint:workflows": "actionlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "stack:trust": "scripts/trust-caddy-root.sh"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/k6": "catalog:",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "lefthook": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.14.0",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "^24.15.0",
+      "onFail": "download"
+    }
+  },
+  "engines": {
+    "node": ">=24.15.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "@repo/typescript-config/node-library.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.lib.tsbuildinfo",
+    // Nest decorators (src/nestjs) use the legacy decorator transform.
+    "experimentalDecorators": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/test-support"]
+}

@@ -1,0 +1,260 @@
+suite: edge
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+tests:
+  - it: runs the edge image with upstreams pointing at the release's services
+    template: templates/deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: sdg-edge
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/edge:pr-1
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PORTAL_API_URL
+            value: http://sdg-portal-api:3000
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PORTAL_WEB_URL
+            value: http://sdg-portal-web:8080
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOG_LEVEL
+            value: INFO
+
+  - it: upstream URLs can be overridden
+    template: templates/deployment.yaml
+    set:
+      upstreams.portalApi: http://api.other:3000
+      upstreams.portalWeb: http://web.other:8080
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PORTAL_API_URL
+            value: http://api.other:3000
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PORTAL_WEB_URL
+            value: http://web.other:8080
+
+  - it: listens on http 3000 and metrics 3003 and probes the http socket
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports
+          value:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: metrics
+              containerPort: 3003
+              protocol: TCP
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.tcpSocket.port
+          value: http
+
+  - it: runs restricted with a read-only root and writable Caddy/Coraza dirs
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value: [ALL]
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          value:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: coraza
+              mountPath: /tmp/coraza
+
+  - it: exposes only http on the Service that Routes target
+    template: templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-edge
+      - equal:
+          path: spec.ports
+          value:
+            - name: http
+              port: 3000
+              targetPort: http
+              protocol: TCP
+
+  # A Route without a target port (e.g. bcgov/actions-openshift/route-tls) can use every port of its Service.
+  - it: exposes metrics on a separate Service
+    template: templates/metrics-service.yaml
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: sdg-edge-metrics
+      - equal:
+          path: spec.ports
+          value:
+            - name: metrics
+              port: 3003
+              targetPort: metrics
+              protocol: TCP
+      - equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: edge
+            app.kubernetes.io/instance: sdg
+
+  - it: renders a standard Ingress that OpenShift turns into an edge-TLS Route on the default certificate (tls [{}])
+    template: templates/ingress.yaml
+    asserts:
+      - isKind:
+          of: Ingress
+      - isAPIVersion:
+          of: networking.k8s.io/v1
+      - equal:
+          path: metadata.annotations["route.openshift.io/termination"]
+          value: edge
+      - equal:
+          path: spec.rules
+          value:
+            - host: sdg.example.com
+              http:
+                paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: sdg-edge
+                        port:
+                          name: http
+      - equal:
+          path: spec.tls
+          value:
+            - {}
+      - notExists:
+          path: spec.ingressClassName
+
+  - it: ingress host, class, TLS secret and annotations are configurable
+    template: templates/ingress.yaml
+    set:
+      ingress.host: portal.gov.bc.ca
+      ingress.className: nginx
+      ingress.tls.secretName: portal-tls
+      ingress.annotations:
+        cert-manager.io/cluster-issuer: letsencrypt
+    asserts:
+      - equal:
+          path: spec.rules[0].host
+          value: portal.gov.bc.ca
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+      - equal:
+          path: spec.tls
+          value:
+            - hosts: [portal.gov.bc.ca]
+              secretName: portal-tls
+      - equal:
+          path: metadata.annotations
+          value:
+            cert-manager.io/cluster-issuer: letsencrypt
+
+  - it: fails without a host
+    template: templates/ingress.yaml
+    set:
+      global.host: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: ingress.host or global.host is required
+
+  - it: omits the Ingress when disabled
+    template: templates/ingress.yaml
+    set:
+      ingress.enabled: false
+      global.host: ''
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: accepts traffic on 3000 only from the router namespaces
+    template: templates/networkpolicy.yaml
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: edge
+            app.kubernetes.io/instance: sdg
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - namespaceSelector:
+                    matchLabels:
+                      network.openshift.io/policy-group: ingress
+              ports:
+                - port: 3000
+                  protocol: TCP
+
+  - it: router namespace selector is configurable
+    template: templates/networkpolicy.yaml
+    set:
+      networkPolicy.ingressNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    asserts:
+      - equal:
+          path: spec.ingress[0].from[0].namespaceSelector.matchLabels
+          value:
+            kubernetes.io/metadata.name: ingress-nginx
+
+  - it: renders a PodDisruptionBudget only when enabled
+    template: templates/pdb.yaml
+    set:
+      podDisruptionBudget.enabled: true
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: spec.minAvailable
+          value: 1
+
+  - it: leaves the rollout strategy to Kubernetes by default
+    template: templates/deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.strategy
+
+  - it: renders a strategy when set
+    template: templates/deployment.yaml
+    set:
+      strategy:
+        type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate

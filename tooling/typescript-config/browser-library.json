@@ -1,0 +1,9 @@
+{
+  "$schema": "https://www.schemastore.org/tsconfig",
+  "display": "Browser library, no framework (Vite library mode) — typecheck",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "erasableSyntaxOnly": true
+  }
+}

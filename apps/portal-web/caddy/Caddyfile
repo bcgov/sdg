@@ -1,0 +1,22 @@
+# Production edge: proxies /api to portal-api and everything else to portal-web (its own static-file image).
+# TLS terminates at the OpenShift route.
+{
+	metrics
+	auto_https off
+	admin 0.0.0.0:3003
+	order coraza_waf first
+}
+
+import common.caddy
+
+:3000 {
+	import logging
+
+	# Enable Coraza WAF
+	import waf
+
+	encode zstd gzip
+	import api_proxy
+	reverse_proxy {$PORTAL_WEB_URL}
+	import security_headers ""
+}

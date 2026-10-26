@@ -1,0 +1,4 @@
+# PROD (<plate>-prod, release <repo>-prod), layered on values.yaml by reusable-deploy.yml.
+# Chart defaults apply (1Gi Postgres data with max_wal_size 256MB, 1Gi backups, 256Mi Valkey); size production here, e.g.
+# postgres.instances.storage, postgres.instances.replicas, portal-api.replicaCount, *.podDisruptionBudget.enabled.
+{}

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: valkey
+description: 'valkey: a single Valkey instance for portal-api sessions.'
+type: application
+version: 0.1.0
+appVersion: '9.2'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

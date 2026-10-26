@@ -1,0 +1,67 @@
+name: Reusable Tests
+
+on:
+  workflow_call:
+    inputs:
+      ### Required
+      url:
+        description: Deployment URL, e.g. https://sdg-12.apps.gold.devops.gov.bc.ca (reusable-deploy.yml's url output)
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  # Through the edge: portal-web serves /, and /api/auth/me reaches portal-api (signed out, so no session store lookup)
+  smoke:
+    name: Smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Wait for portal-web and portal-api
+        env:
+          BASE_URL: ${{ inputs.url }}
+        run: |
+          for i in {1..30}; do
+            web=$(curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" "${BASE_URL}/" || true)
+            api=$(curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" "${BASE_URL}/api/auth/me" || true)
+            if [ "$web" = 200 ] && [ "$api" = 401 ]; then
+              echo "portal-web: ${web}, portal-api (signed out): ${api}"
+              exit 0
+            fi
+            echo "Waiting (portal-web HTTP ${web}, portal-api HTTP ${api}; want 200 and 401), retrying in 10s... ($i/30)"
+            sleep 10
+          done
+          echo "ERROR: ${BASE_URL} did not become healthy in time."
+          exit 1
+
+  e2e-tests:
+    name: E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - name: Install dependencies
+        run: |
+          npm install -g "pnpm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+          pnpm install --frozen-lockfile
+          pnpm --filter portal-web exec playwright install --with-deps chromium
+
+      - name: Run Tests
+        env:
+          E2E_BASE_URL: ${{ inputs.url }}/
+          CI: 'true'
+        run: pnpm --filter portal-web exec playwright test --project=chromium --reporter=html
+
+      - uses: actions/upload-artifact@v7
+        if: (! cancelled())
+        name: upload results
+        with:
+          name: playwright-report-chromium
+          path: apps/portal-web/playwright-report
+          retention-days: 7

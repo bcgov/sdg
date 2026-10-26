@@ -1,0 +1,149 @@
+name: Scheduled
+
+on:
+  schedule: [cron: '0 11 * * 6'] # 11:00 UTC (3 AM PST / 4 AM PDT), Saturdays
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  stale-branches:
+    name: Close Stale Branches & PRs
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/stale@v11
+        with:
+          days-before-stale: 14
+          days-before-close: 7
+          stale-label: stale
+          close-issue-message: >
+            This issue has been marked stale due to no activity for 14 days.
+            It will be closed in 7 days if no action is taken.
+            If you still need this, please reopen or comment to reset the timer.
+          close-pr-message: >
+            This PR has been marked stale due to no activity for 14 days.
+            It will be closed in 7 days if no action is taken.
+            If you still need this, please reopen or request review to reset the timer.
+          remove-stale-when-updated: true
+          operations-per-run: 100
+          debug-only: false
+
+  ageOutPRs:
+    name: PR Deployment Purge
+    env:
+      # https://tecadmin.net/getting-yesterdays-date-in-bash/
+      CUTOFF: '3 days ago'
+      REPO: ${{ github.event.repository.name }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    steps:
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.1.1
+
+      - name: Clean up PR Deployments
+        uses: bcgov/action-oc-runner@111868d1fc50db0a40417ba321d865ef5c931bbd # v1.7.0
+        with:
+          oc_namespace: ${{ vars.OC_NAMESPACE }}
+          oc_token: ${{ secrets.oc_token }}
+          oc_server: ${{ vars.OC_SERVER }}
+          commands: |
+            echo "Uninstall PR releases (${REPO}-<pr>) last updated before ${CUTOFF}"
+            BEFORE=$(date +%s -d "${CUTOFF}")
+
+            # Helm 4 prints RFC 3339; Helm 3 "2026-10-21 12:34:56.789 -0700 PDT" (keep the first 3 fields)
+            RELEASES=$(helm list --all -o json | jq -r --arg re "^${REPO}-[0-9]+$" \
+              '.[] | select(.name | test($re)) | "\(.name) \(.updated | split(" ")[0:3] | join(" "))"')
+            if [ -z "${RELEASES}" ]; then
+              echo "No PR releases found"
+              exit 0
+            fi
+            while read -r name updated; do
+              if [ "$(date +%s -d "${updated}")" -lt "${BEFORE}" ]; then
+                echo "Older than cutoff: ${name} (${updated})"
+                helm uninstall "${name}" --wait --timeout 5m
+              else
+                echo "Newer than cutoff: ${name} (${updated})"
+              fi
+            done <<< "${RELEASES}"
+
+  zap:
+    name: ZAP Scans
+    permissions:
+      contents: read
+      issues: write
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: TEST URL
+        id: test
+        env:
+          TARGET: test
+          ENVIRONMENT: test
+          REPOSITORY: ${{ github.repository }}
+          OC_SERVER: ${{ vars.OC_SERVER }}
+        run: scripts/deploy-values.sh outputs | tee -a "$GITHUB_OUTPUT"
+
+      - name: ZAP Scan
+        uses: zaproxy/action-full-scan@3c58388149901b9a03b7718852c5ba889646c27c # v0.13.0
+        with:
+          allow_issue_writing: true
+          issue_title: 'ZAP Security Report'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: ${{ steps.test.outputs.url }}
+
+  # k6 against TEST (tests/load; DEVELOPER.md, Load tests): after ZAP and one script at a time, so nothing
+  # else loads TEST's small quota meanwhile.  A breached threshold fails the job.
+  load-tests:
+    name: Load (${{ matrix.name }})
+    needs: [zap]
+    if: ${{ !cancelled() }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        name: [portal-web, portal-api]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: TEST URL
+        id: test
+        env:
+          TARGET: test
+          ENVIRONMENT: test
+          REPOSITORY: ${{ github.repository }}
+          OC_SERVER: ${{ vars.OC_SERVER }}
+        run: scripts/deploy-values.sh outputs | tee -a "$GITHUB_OUTPUT"
+
+      - uses: grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1 # v1.2.2
+        with:
+          k6-version: '2.3.0'
+
+      - name: Run k6
+        env:
+          BASE_URL: ${{ steps.test.outputs.url }}
+          K6_WEB_DASHBOARD: 'true'
+          K6_WEB_DASHBOARD_EXPORT: ${{ runner.temp }}/load-${{ matrix.name }}.html
+        run: tests/load/run.sh "${{ matrix.name }}"
+
+      - uses: actions/upload-artifact@v7
+        if: (! cancelled())
+        with:
+          name: load-${{ matrix.name }}
+          path: ${{ runner.temp }}/load-${{ matrix.name }}.html
+          retention-days: 14

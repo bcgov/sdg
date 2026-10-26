@@ -1,0 +1,5 @@
+{
+  "extends": "@repo/typescript-config/browser-library-build.json",
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/test-support"]
+}

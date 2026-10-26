@@ -1,0 +1,101 @@
+suite: sdg umbrella
+release:
+  name: sdg-12
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-12
+  global.host: sdg-12.apps.example.com
+  portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  portal-api.keycloak.clientId: portal
+  portal-api.vault.role: abc123-nonprod
+  portal-api.vault.secretPath: abc123-nonprod/portal-api
+  portal-api.vault.serviceAccountName: abc123-vault
+tests:
+  - it: global image settings reach every app image
+    template: charts/portal-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/portal-api:pr-12
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ghcr.io/acme/sdg/portal-database:pr-12
+
+  - it: portal-api secret references match the postgres and valkey chart names
+    template: charts/portal-api/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-portal
+                key: uri
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VALKEY_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-valkey
+                key: url
+
+  - it: the PGO cluster name yields the Secret portal-api reads
+    template: charts/postgres/templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-postgres
+      - equal:
+          path: spec.users[0].name
+          value: portal
+
+  - it: the valkey Secret is the one portal-api reads
+    template: charts/valkey/templates/secret.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-valkey
+
+  - it: edge upstreams match the portal-api and portal-web Service names
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PORTAL_API_URL
+            value: http://sdg-12-portal-api:3000
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PORTAL_WEB_URL
+            value: http://sdg-12-portal-web:8080
+
+  - it: portal-api and portal-web Services carry those names
+    template: charts/portal-api/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-portal-api
+
+  - it: portal-web Service carries its name
+    template: charts/portal-web/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-portal-web
+
+  - it: global.host drives the Ingress host and APP_URL
+    template: charts/edge/templates/ingress.yaml
+    asserts:
+      - equal:
+          path: spec.rules[0].host
+          value: sdg-12.apps.example.com
+
+  - it: global.host drives APP_URL
+    template: charts/portal-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.APP_URL
+          value: https://sdg-12.apps.example.com

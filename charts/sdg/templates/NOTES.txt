@@ -1,0 +1,10 @@
+{{ .Release.Name }} installed in {{ .Release.Namespace }}.
+{{- if index .Values "edge" "enabled" }}
+
+  URL: https://{{ .Values.global.host }}
+{{- end }}
+{{- if index .Values "postgres" "enabled" }}
+
+PostgreSQL ({{ .Release.Name }}-postgres) is created by the Crunchy operator; portal-api's migrator waits for it:
+  kubectl get postgrescluster {{ .Release.Name }}-postgres -n {{ .Release.Namespace }}
+{{- end }}

@@ -1,0 +1,226 @@
+suite: postgres
+release:
+  name: sdg
+tests:
+  - it: renders a PGO PostgresCluster named <release>-postgres on PostgreSQL 17 with PostGIS 3.5
+    template: templates/postgrescluster.yaml
+    asserts:
+      - isKind:
+          of: PostgresCluster
+      - isAPIVersion:
+          of: postgres-operator.crunchydata.com/v1beta1
+      - equal:
+          path: metadata.name
+          value: sdg-postgres
+      - equal:
+          path: spec.postgresVersion
+          value: 17
+      - equal:
+          path: spec.postGISVersion
+          value: '3.5'
+      - notExists:
+          path: spec.image
+
+  - it: creates the portal user owning the portal database
+    template: templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: spec.users
+          value:
+            - name: portal
+              databases: [portal]
+
+  - it: runs one db instance on a 1Gi RWO claim with pod and container security
+    template: templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: spec.instances[0].name
+          value: db
+      - equal:
+          path: spec.instances[0].replicas
+          value: 1
+      - equal:
+          path: spec.instances[0].dataVolumeClaimSpec
+          value:
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 1Gi
+      - exists:
+          path: spec.instances[0].resources.requests.memory
+
+  - it: runs the init SQL ConfigMap once on cluster creation
+    template: templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: spec.databaseInitSQL
+          value:
+            name: sdg-postgres-init-sql
+            key: init.sql
+
+  - it: backs up to a pgBackRest PVC repo keeping two full backups
+    template: templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: spec.backups.pgbackrest.repos[0].name
+          value: repo1
+      - equal:
+          path: spec.backups.pgbackrest.repos[0].volume.volumeClaimSpec.resources.requests.storage
+          value: 1Gi
+      - equal:
+          path: spec.backups.pgbackrest.global["repo1-retention-full"]
+          value: '2'
+      - equal:
+          path: spec.backups.pgbackrest.global["repo1-retention-full-type"]
+          value: count
+
+  - it: the operator chooses the plain image when postGISVersion is empty
+    template: templates/postgrescluster.yaml
+    set:
+      postGISVersion: ''
+    asserts:
+      - notExists:
+          path: spec.postGISVersion
+
+  - it: init SQL creates PostGIS and gives the app user the public schema
+    template: templates/init-sql.yaml
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: sdg-postgres-init-sql
+      - equal:
+          path: data["init.sql"]
+          value: |
+            \c portal
+            CREATE EXTENSION IF NOT EXISTS postgis;
+            ALTER SCHEMA public OWNER TO portal;
+
+  - it: init SQL skips PostGIS without postGISVersion
+    template: templates/init-sql.yaml
+    set:
+      postGISVersion: ''
+    asserts:
+      - equal:
+          path: data["init.sql"]
+          value: |
+            \c portal
+            ALTER SCHEMA public OWNER TO portal;
+
+  - it: lets portal-api reach 5432 and the cluster's own pods reach each other
+    template: templates/networkpolicy.yaml
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: spec.podSelector.matchLabels
+          value:
+            postgres-operator.crunchydata.com/cluster: sdg-postgres
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: portal-api
+                      app.kubernetes.io/instance: sdg
+              ports:
+                - port: 5432
+                  protocol: TCP
+            - from:
+                - podSelector:
+                    matchLabels:
+                      postgres-operator.crunchydata.com/cluster: sdg-postgres
+
+  - it: omits the NetworkPolicy when disabled
+    template: templates/networkpolicy.yaml
+    set:
+      networkPolicy.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: gives PGO's sidecars, repo host and backup jobs explicit resources (no LimitRange defaults)
+    template: templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: spec.instances[0].sidecars.replicaCertCopy.resources
+          value:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits: { memory: 32Mi }
+      - equal:
+          path: spec.backups.pgbackrest.sidecars.pgbackrest.resources
+          value:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits: { memory: 32Mi }
+      - equal:
+          path: spec.backups.pgbackrest.sidecars.pgbackrestConfig.resources
+          value:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits: { memory: 32Mi }
+      - equal:
+          path: spec.backups.pgbackrest.repoHost.resources
+          value:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { memory: 256Mi }
+      - equal:
+          path: spec.backups.pgbackrest.jobs.resources
+          value:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { memory: 256Mi }
+
+  - it: caps WAL by default so it can't fill a 1Gi data volume
+    template: templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: spec.patroni.dynamicConfiguration.postgresql.parameters
+          value:
+            max_wal_size: 256MB
+            min_wal_size: 64MB
+
+  - it: renders no patroni section without parameters
+    template: templates/postgrescluster.yaml
+    set:
+      parameters: null
+    asserts:
+      - notExists:
+          path: spec.patroni
+
+  - it: passes extra parameters through to Patroni
+    template: templates/postgrescluster.yaml
+    set:
+      parameters.shared_buffers: 32MB
+    asserts:
+      - equal:
+          path: spec.patroni.dynamicConfiguration.postgresql.parameters.shared_buffers
+          value: 32MB
+      - equal:
+          path: spec.patroni.dynamicConfiguration.postgresql.parameters.max_wal_size
+          value: 256MB
+
+  - it: keeps backups without the removal annotation by default
+    template: templates/postgrescluster.yaml
+    asserts:
+      - exists:
+          path: spec.backups.pgbackrest
+      - notExists:
+          path: metadata.annotations["postgres-operator.crunchydata.com/authorizeBackupRemoval"]
+
+  - it: omits backups and authorizes PGO to remove existing ones when disabled
+    template: templates/postgrescluster.yaml
+    set:
+      backups.enabled: false
+    asserts:
+      - notExists:
+          path: spec.backups
+      - equal:
+          path: metadata.annotations["postgres-operator.crunchydata.com/authorizeBackupRemoval"]
+          value: 'true'
+      - equal:
+          path: spec.instances[0].sidecars
+          value:
+            replicaCertCopy:
+              resources:
+                requests: { cpu: 5m, memory: 16Mi }
+                limits: { memory: 32Mi }

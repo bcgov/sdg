@@ -1,0 +1,4 @@
+{
+  "extends": "../../../node-library.json",
+  "include": ["src", "tool.config.ts"]
+}

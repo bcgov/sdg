@@ -1,0 +1,36 @@
+# portal-web: the built SPA served by Caddy on :8080 (apps/portal-web/Dockerfile). Reached only through the edge.
+global:
+  image:
+    # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
+    registry: ''
+    # Image tag, e.g. a PR number (12), a commit SHA or a release version. Required here or in image.tag.
+    tag: ''
+
+fullnameOverride: ''
+replicaCount: 1
+# Deployment rollout strategy, e.g. { type: Recreate }. Empty: Kubernetes' default RollingUpdate.
+strategy: {}
+
+image:
+  registry: ''
+  name: portal-web
+  tag: ''
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+networkPolicy:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

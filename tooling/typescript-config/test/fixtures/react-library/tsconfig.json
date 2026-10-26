@@ -1,0 +1,4 @@
+{
+  "extends": "../../../react-library.json",
+  "include": ["src", "tool.config.ts"]
+}

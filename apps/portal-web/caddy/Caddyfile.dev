@@ -1,0 +1,28 @@
+# Local dev (compose.yaml): https://sdg.localhost in front of the Vite dev server and portal-api.
+{
+	metrics
+	admin 0.0.0.0:3003
+	# Unprivileged ports: the image runs as a non-root user. compose.yaml publishes 8443 as the host's 443.
+	http_port 8080
+	https_port 8443
+	order coraza_waf first
+	# Certificates come from Caddy's local CA. It can't reach the host trust store from the container;
+	# trust the root manually (DEVELOPER.md, Local Stack).
+	skip_install_trust
+}
+
+import common.caddy
+
+sdg.localhost {
+	tls internal
+	import logging
+
+	# Enable Coraza WAF
+	import waf
+
+	encode zstd gzip
+	import api_proxy
+	# Everything else goes to Vite, HMR websocket included. The original Host is kept: Vite allows *.localhost.
+	reverse_proxy {$PORTAL_WEB_URL}
+	import security_headers "'unsafe-inline'"
+}

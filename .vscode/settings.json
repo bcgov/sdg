@@ -1,0 +1,36 @@
+{
+  // TypeScript 7 (native) language service — requires the TypeScriptTeam.native-preview extension
+  "js/ts.experimental.useTsgo": true,
+  "js/ts.preferences.importModuleSpecifier": "project-relative",
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+  "js/ts.preferences.autoImportFileExcludePatterns": ["**/dist/**"],
+
+  // oxc: oxfmt formats, oxlint lints and fixes
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit"
+  },
+  "oxc.typeAware": true,
+
+  "files.exclude": {
+    "**/.git": false,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/.turbo": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.turbo": true,
+    "**/playwright-report": true,
+    "**/test-results": true,
+    "pnpm-lock.yaml": true
+  },
+  "files.associations": {
+    ".oxlintrc.json": "jsonc",
+    ".oxfmtrc.json": "jsonc"
+  }
+}

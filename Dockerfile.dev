@@ -1,0 +1,13 @@
+# Dev image for the compose stack: Node and pnpm only. The repo is bind-mounted and the `deps` service installs
+# dependencies into volumes, so this image only needs rebuilding when Node or pnpm change.
+# Runs as root on purpose (DS-0002): rootless Podman maps the bind-mounted repo's owner to root, so a non-root user
+# couldn't write build output or the node_modules volumes. Never deployed; production images run as non-root.
+# Trivy skips this file (.github/workflows/analysis.yml).
+FROM docker.io/library/node:24-slim
+# `nest start --watch` finds the old app process with `ps` before restarting; without it the restart hits EADDRINUSE.
+RUN apt-get update && apt-get install --yes --no-install-recommends procps && rm -rf /var/lib/apt/lists/*
+# Same pnpm as the host: the version comes from devEngines in package.json.
+COPY package.json /tmp/package.json
+RUN npm install --global "pnpm@$(node -p "require('/tmp/package.json').devEngines.packageManager.version")" \
+  && rm /tmp/package.json
+WORKDIR /app

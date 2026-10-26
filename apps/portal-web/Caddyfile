@@ -1,0 +1,32 @@
+# portal-web production static server (apps/portal-web/Dockerfile): the built SPA from /srv.
+# Cluster-internal only: the edge (caddy/Caddyfile) adds the WAF, security headers, compression and the /api proxy.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	log {
+		output stdout
+		format console
+		level {$LOG_LEVEL:INFO}
+	}
+
+	root * /srv
+
+	# Vite's content-hashed bundles never change under the same name; everything else revalidates.
+	@hashed path /assets/*
+	@unhashed not path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	header @unhashed Cache-Control "no-cache"
+
+	# Client-side routes fall back to index.html; a missing hashed asset stays a 404, never HTML.
+	@spa {
+		not path /assets/*
+		not file
+	}
+	rewrite @spa /index.html
+
+	file_server
+}

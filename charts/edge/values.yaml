@@ -1,0 +1,63 @@
+# edge: Caddy + Coraza WAF (apps/portal-web/caddy), the only component exposed outside the namespace.
+# /api* goes to portal-api, everything else to portal-web; TLS terminates at the ingress controller.
+global:
+  image:
+    # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
+    registry: ''
+    # Image tag, e.g. a PR number (12), a commit SHA or a release version. Required here or in image.tag.
+    tag: ''
+  # Public hostname; the Ingress host unless ingress.host is set.
+  host: ''
+
+fullnameOverride: ''
+replicaCount: 1
+# Deployment rollout strategy, e.g. { type: Recreate }. Empty: Kubernetes' default RollingUpdate.
+strategy: {}
+
+image:
+  registry: ''
+  name: edge
+  tag: ''
+  pullPolicy: IfNotPresent
+
+# Caddy log level (common.caddy logging snippet).
+logLevel: INFO
+
+# Rendered with tpl, so they can reference the release.
+upstreams:
+  portalApi: 'http://{{ .Release.Name }}-portal-api:3000'
+  portalWeb: 'http://{{ .Release.Name }}-portal-web:8080'
+
+ingress:
+  enabled: true
+  # Empty: global.host. One of them is required.
+  host: ''
+  # Empty: no ingressClassName (OpenShift's ingress-to-route controller handles class-less Ingresses).
+  className: ''
+  # Empty: route.openshift.io/termination: edge, so OpenShift creates an edge-terminated Route on the router's
+  # default certificate that redirects HTTP. Setting any annotations replaces that default (Helm would merge a map).
+  annotations: {}
+  tls:
+    # Empty: the controller's default certificate.
+    secretName: ''
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+networkPolicy:
+  enabled: true
+  # Namespaces the ingress controller's pods run in. Empty: OpenShift's router namespace as BC Gov clusters label it
+  # (matchLabels network.openshift.io/policy-group: ingress). Setting it replaces that default.
+  ingressNamespaceSelector: {}
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

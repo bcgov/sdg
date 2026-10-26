@@ -1,0 +1,10 @@
+apiVersion: v2
+name: portal-web
+description: 'portal-web: the built SPA on a Caddy static server.'
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

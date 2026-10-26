@@ -1,0 +1,11 @@
+{
+  "$schema": "https://www.schemastore.org/tsconfig",
+  "display": "NestJS app — emit JS",
+  "extends": "./nestjs.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "sourceMap": true,
+    "rootDir": "${configDir}/src",
+    "outDir": "${configDir}/dist"
+  }
+}
