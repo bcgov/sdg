@@ -25,8 +25,13 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
     credentials: 'same-origin',
     headers: { accept: 'application/json' },
   });
-  if (response.status === 401) return null;
-  if (!response.ok) throw new Error(`GET ${AUTH_PATH}/me failed with ${response.status}`);
+  if (!response.ok) {
+    // Read the unused body anyway: Chromium never finishes a request whose body is left unread, so the page
+    // would never reach network idle.
+    await response.text();
+    if (response.status === 401) return null;
+    throw new Error(`GET ${AUTH_PATH}/me failed with ${response.status}`);
+  }
   const body: unknown = await response.json();
   if (!isCurrentUser(body)) throw new Error(`GET ${AUTH_PATH}/me returned an unexpected body`);
   return body;

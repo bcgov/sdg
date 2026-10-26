@@ -24,14 +24,19 @@ describe('auth api', () => {
     });
 
     it('returns null on 401', async () => {
-      fetchMock.mockResolvedValue(Response.json({ statusCode: 401 }, { status: 401 }));
+      const response = Response.json({ statusCode: 401 }, { status: 401 });
+      fetchMock.mockResolvedValue(response);
       await expect(fetchCurrentUser()).resolves.toBeNull();
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      // An unread body leaves the request open in Chromium.
+      expect(response.bodyUsed).toBe(true);
     });
 
     it('throws on other statuses', async () => {
-      fetchMock.mockResolvedValueOnce(new Response('Bad gateway', { status: 502 }));
+      const badGateway = new Response('Bad gateway', { status: 502 });
+      fetchMock.mockResolvedValueOnce(badGateway);
       await expect(fetchCurrentUser()).rejects.toThrow('GET /api/auth/me failed with 502');
+      expect(badGateway.bodyUsed).toBe(true);
       fetchMock.mockResolvedValueOnce(Response.json({ id: 1 }));
       await expect(fetchCurrentUser()).rejects.toThrow('unexpected body');
       fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
