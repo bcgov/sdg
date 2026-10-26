@@ -52,6 +52,9 @@ jobs:
   deploy-prod:
     name: PROD Deploys (${{ needs.init.outputs.pr }})
     needs: [init]
+    # A called workflow can only narrow these: grant what reusable-deploy.yml requests
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable-deploy.yml
     secrets:
       oc_token: ${{ secrets.oc_token }}
