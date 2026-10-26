@@ -1,0 +1,11 @@
+{
+  "$schema": "https://www.schemastore.org/tsconfig",
+  "display": "Node (config files, scripts, tooling)",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // Node runs these files via type stripping: explicit .ts imports, erasable syntax only.
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
+  }
+}

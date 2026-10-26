@@ -1,0 +1,147 @@
+suite: portal-api secrets (Vault Agent Injector and existingSecret)
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.clientId: portal
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/portal-api
+  vault.serviceAccountName: abc123-vault
+tests:
+  - it: annotates the pod for an init-only Vault agent
+    template: templates/deployment.yaml
+    asserts:
+      - isSubset:
+          path: spec.template.metadata.annotations
+          content:
+            vault.hashicorp.com/agent-inject: 'true'
+            vault.hashicorp.com/agent-pre-populate-only: 'true'
+            vault.hashicorp.com/agent-inject-token: 'false'
+            vault.hashicorp.com/role: abc123-nonprod
+            vault.hashicorp.com/auth-path: auth/k8s-silver
+            vault.hashicorp.com/namespace: platform-services
+            vault.hashicorp.com/agent-inject-secret-portal-api.env: abc123-nonprod/portal-api
+
+  - it: renders a dotenv template with literal Vault braces, one line per key
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/agent-inject-template-portal-api.env"]
+          value: |
+            {{- with secret "abc123-nonprod/portal-api" }}
+            SESSION_SECRET='{{ index .Data.data "SESSION_SECRET" }}'
+            KEYCLOAK_CLIENT_SECRET='{{ index .Data.data "KEYCLOAK_CLIENT_SECRET" }}'
+            {{- end }}
+
+  - it: starts node with the rendered env file and the Vault service account
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: [node, --env-file=/vault/secrets/portal-api.env, dist/main.js]
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: abc123-vault
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: true
+      - notExists:
+          path: spec.template.spec.containers[0].envFrom[1]
+
+  - it: auth path, namespace and keys are configurable
+    template: templates/deployment.yaml
+    set:
+      vault.authPath: auth/k8s-gold
+      vault.namespace: other
+      vault.keys: [SESSION_SECRET]
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/auth-path"]
+          value: auth/k8s-gold
+      - equal:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/namespace"]
+          value: other
+      - equal:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/agent-inject-template-portal-api.env"]
+          value: |
+            {{- with secret "abc123-nonprod/portal-api" }}
+            SESSION_SECRET='{{ index .Data.data "SESSION_SECRET" }}'
+            {{- end }}
+
+  - it: rejects a key that is not an env var name
+    template: templates/deployment.yaml
+    set:
+      vault.keys: ['bad-key"}}']
+    asserts:
+      - failedTemplate:
+          errorPattern: 'vault.keys entries must match \^\[A-Z0-9_\]\+\$'
+
+  - it: fails without vault.role
+    template: templates/deployment.yaml
+    set:
+      vault.role: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: vault.role is required
+
+  - it: fails without vault.secretPath
+    template: templates/deployment.yaml
+    set:
+      vault.secretPath: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: vault.secretPath is required
+
+  - it: fails without vault.serviceAccountName
+    template: templates/deployment.yaml
+    set:
+      vault.serviceAccountName: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: vault.serviceAccountName is required
+
+  - it: reads secrets from existingSecret when Vault is disabled
+    template: templates/deployment.yaml
+    set:
+      vault.enabled: false
+      existingSecret: portal-api-secrets
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: portal-api-secrets
+      - notExists:
+          path: spec.template.spec.containers[0].command
+      - notExists:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/agent-inject"]
+      - notExists:
+          path: spec.template.spec.serviceAccountName
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: fails when Vault is disabled and no existingSecret is given
+    template: templates/deployment.yaml
+    set:
+      vault.enabled: false
+    asserts:
+      - failedTemplate:
+          errorPattern: existingSecret is required when vault.enabled is false
+
+  - it: sizes the Vault agent init container for small namespace quotas
+    template: templates/deployment.yaml
+    asserts:
+      - isSubset:
+          path: spec.template.metadata.annotations
+          content:
+            vault.hashicorp.com/agent-requests-cpu: 10m
+            vault.hashicorp.com/agent-requests-mem: 32Mi
+            vault.hashicorp.com/agent-limits-cpu: 50m
+            vault.hashicorp.com/agent-limits-mem: 64Mi

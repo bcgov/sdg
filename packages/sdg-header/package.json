@@ -1,0 +1,63 @@
+{
+  "name": "@repo/sdg-header",
+  "version": "0.0.0",
+  "private": true,
+  "description": "<sdg-header>: the B.C. government header as a framework-free Lit web component.",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/react/index.js",
+    "./dist/cdn/sdg-header.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./cdn": "./dist/cdn/sdg-header.js"
+  },
+  "scripts": {
+    "build": "vite build && vite build --mode cdn && tsc -p tsconfig.build.json",
+    "generate:logo": "node scripts/generate-logo.ts",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "catalog:",
+    "lit": "catalog:"
+  },
+  "devDependencies": {
+    "@bcgov/design-system-react-components": "catalog:",
+    "@bcgov/design-tokens": "catalog:",
+    "@repo/typescript-config": "workspace:*",
+    "@repo/vite-config": "workspace:*",
+    "@repo/vitest-config": "workspace:*",
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

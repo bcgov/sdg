@@ -1,0 +1,4 @@
+{
+  "extends": "../../../react-library-build.json",
+  "include": ["src"]
+}

@@ -1,0 +1,261 @@
+suite: portal-api deployment
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+  - templates/service.yaml
+  - templates/pdb.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.clientId: portal
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/portal-api
+  vault.serviceAccountName: abc123-vault
+tests:
+  - it: runs the portal-api image with env from the ConfigMap
+    template: templates/deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: sdg-portal-api
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/portal-api:pr-1
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: sdg-portal-api
+
+  - it: reads DATABASE_URL from the Crunchy user Secret and VALKEY_URL from the valkey Secret
+    template: templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-postgres-pguser-portal
+                key: uri
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VALKEY_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-valkey
+                key: url
+
+  - it: secret names and keys can be overridden
+    template: templates/deployment.yaml
+    set:
+      database.secretName: shared-pguser-portal
+      database.secretKey: pgbouncer-uri
+      valkey.secretName: shared-valkey
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: shared-pguser-portal
+                key: pgbouncer-uri
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VALKEY_URL
+            valueFrom:
+              secretKeyRef:
+                name: shared-valkey
+                key: url
+
+  - it: runs the migrator initContainer with the same DATABASE_URL
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: migrate
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ghcr.io/acme/sdg/portal-database:pr-1
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-postgres-pguser-portal
+                key: uri
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: probes the health endpoints on the http port
+    template: templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: http
+            containerPort: 3000
+            protocol: TCP
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet
+          value:
+            path: /healthz/live
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+          value:
+            path: /healthz/live
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+          value:
+            path: /healthz/ready
+            port: http
+
+  - it: runs restricted with a read-only root and a writable /tmp
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+
+  - it: rolls the pods when the ConfigMap changes
+    template: templates/deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/config"]
+          pattern: ^[0-9a-f]{64}$
+
+  - it: exposes port 3000 as http on the Service
+    template: templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-portal-api
+      - equal:
+          path: spec.ports[0]
+          value:
+            name: http
+            port: 3000
+            targetPort: http
+            protocol: TCP
+
+  - it: renders a PodDisruptionBudget only when enabled
+    template: templates/pdb.yaml
+    set:
+      podDisruptionBudget.enabled: true
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: spec.minAvailable
+          value: 1
+
+  - it: connects to PGO over verified TLS (PGSSLMODE + PGO's CA) in the api and the migrator
+    template: templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGSSLMODE
+            value: require
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_EXTRA_CA_CERTS
+            value: /etc/postgres-ca/ca.crt
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: PGSSLMODE
+            value: require
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: NODE_EXTRA_CA_CERTS
+            value: /etc/postgres-ca/ca.crt
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: postgres-ca
+            mountPath: /etc/postgres-ca
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: postgres-ca
+            mountPath: /etc/postgres-ca
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: postgres-ca
+            secret:
+              secretName: sdg-postgres-cluster-cert
+              items:
+                - key: ca.crt
+                  path: ca.crt
+
+  - it: without a CA secret, uses the system trust store and mounts nothing
+    template: templates/deployment.yaml
+    set:
+      database.caSecretName: ''
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_EXTRA_CA_CERTS
+            value: /etc/postgres-ca/ca.crt
+      - notContains:
+          path: spec.template.spec.volumes
+          any: true
+          content:
+            name: postgres-ca
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGSSLMODE
+            value: require
+
+  - it: leaves the rollout strategy to Kubernetes by default
+    template: templates/deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.strategy
+
+  - it: renders a strategy when set
+    template: templates/deployment.yaml
+    set:
+      strategy:
+        type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate

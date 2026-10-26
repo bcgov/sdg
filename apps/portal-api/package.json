@@ -1,0 +1,56 @@
+{
+  "name": "portal-api",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nestjs/common": "catalog:",
+    "@nestjs/config": "catalog:",
+    "@nestjs/core": "catalog:",
+    "@nestjs/drizzle": "catalog:",
+    "@nestjs/platform-express": "catalog:",
+    "@nestjs/swagger": "catalog:",
+    "@nestjs/terminus": "catalog:",
+    "@repo/auth": "workspace:*",
+    "@repo/portal-database": "workspace:*",
+    "connect-redis": "catalog:",
+    "drizzle-orm": "catalog:",
+    "express-prom-bundle": "catalog:",
+    "express-session": "catalog:",
+    "helmet": "catalog:",
+    "nestjs-pino": "catalog:",
+    "pino": "catalog:",
+    "pino-http": "catalog:",
+    "prom-client": "catalog:",
+    "redis": "catalog:",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "catalog:",
+    "@nestjs/cli": "catalog:",
+    "@nestjs/testing": "catalog:",
+    "@repo/typescript-config": "workspace:*",
+    "@repo/vitest-config": "workspace:*",
+    "@types/express": "catalog:",
+    "@types/express-session": "catalog:",
+    "@types/node": "catalog:",
+    "@types/supertest": "catalog:",
+    "pino-pretty": "catalog:",
+    "supertest": "catalog:",
+    "typescript": "catalog:ts6",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

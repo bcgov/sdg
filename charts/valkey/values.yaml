@@ -1,0 +1,38 @@
+# valkey: one Valkey instance holding portal-api's sessions (same image as compose.yaml).
+# The Secret <fullname> (password, url, auth.conf) is generated once and reused on upgrades.
+fullnameOverride: ''
+
+image:
+  registry: docker.io/valkey
+  name: valkey
+  tag: 9.2-alpine
+  pullPolicy: IfNotPresent
+
+config:
+  maxmemory: 100mb
+  # Sessions carry TTLs, so evict among keys with an expiry.
+  maxmemoryPolicy: volatile-lru
+
+persistence:
+  # AOF on a PVC so sessions survive restarts; false uses an emptyDir.
+  enabled: true
+  size: 256Mi
+  storageClassName: ''
+
+# Merged into the pod securityContext. Empty on OpenShift (the SCC assigns the UID); elsewhere the image has no
+# non-root USER, so set e.g. runAsUser: 999 and fsGroup: 999.
+podSecurityContext: {}
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+
+networkPolicy:
+  enabled: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,13 @@
+# TEST (<plate>-test, release <repo>-test), layered on values.yaml by reusable-deploy.yml.
+# 384Mi + 384Mi + 256Mi fills BC Gov's 1Gi test PVC quota exactly.
+postgres:
+  instances:
+    storage: 384Mi
+  backups:
+    storage: 384Mi
+  # WAL kept is about max(max_wal_size, wal_keep_size): a quarter of the volume (Patroni's wal_keep_size is 128MB).
+  # max_wal_size a little above PRs for the weekly load tests' writes.
+  parameters:
+    max_wal_size: 96MB
+    min_wal_size: 32MB
+    wal_keep_size: 32MB

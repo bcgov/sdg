@@ -1,0 +1,126 @@
+{{- if and (not .Values.vault.enabled) (not .Values.existingSecret) }}
+{{- fail "existingSecret is required when vault.enabled is false" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "api") | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "common.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels" (dict "context" . "component" "api") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.vault.enabled }}
+        {{- include "portal-api.vaultAnnotations" . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if .Values.vault.enabled }}
+      # The Vault agent authenticates with this service account's token.
+      serviceAccountName: {{ .Values.vault.serviceAccountName | required "vault.serviceAccountName is required when vault.enabled is true" }}
+      automountServiceAccountToken: true
+      {{- else }}
+      automountServiceAccountToken: false
+      {{- end }}
+      securityContext:
+        {{- include "common.podSecurityContext" . | nindent 8 }}
+      initContainers:
+        # Applies pending drizzle migrations; a non-zero exit keeps portal-api from starting.
+        - name: migrate
+          image: {{ include "common.image" (dict "image" .Values.migrator.image "context" $) }}
+          imagePullPolicy: {{ .Values.migrator.image.pullPolicy }}
+          env:
+            {{- include "portal-api.databaseUrlEnv" . | nindent 12 }}
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.migrator.resources | nindent 12 }}
+          {{- with include "portal-api.postgresCaMount" . }}
+          volumeMounts:
+            {{- . | nindent 12 }}
+          {{- end }}
+      containers:
+        - name: portal-api
+          image: {{ include "common.image" (dict "image" .Values.image "context" $) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.vault.enabled }}
+          command: [node, --env-file=/vault/secrets/portal-api.env, dist/main.js]
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "common.fullname" . }}
+            {{- if not .Values.vault.enabled }}
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+            {{- end }}
+          env:
+            {{- include "portal-api.databaseUrlEnv" . | nindent 12 }}
+            - name: VALKEY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "common.tplvalue" (dict "value" .Values.valkey.secretName "context" .) }}
+                  key: {{ .Values.valkey.secretKey }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /healthz/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: http
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: http
+            periodSeconds: 10
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- with include "portal-api.postgresCaMount" . }}
+            {{- . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.database.caSecretName }}
+        - name: postgres-ca
+          secret:
+            secretName: {{ include "common.tplvalue" (dict "value" .Values.database.caSecretName "context" .) }}
+            items:
+              - key: {{ .Values.database.caSecretKey }}
+                path: ca.crt
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

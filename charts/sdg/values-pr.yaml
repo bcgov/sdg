@@ -1,0 +1,51 @@
+# Pull request environments (<plate>-dev, release <repo>-<pr>), layered on values.yaml by reusable-deploy.yml.
+# Each PR runs the whole stack in a namespace it may share, so PRs are throwaway and small: about 70m CPU,
+# 370Mi memory (requests) and 256Mi of PVC each. Only requests are lowered; each chart's limits still apply.
+postgres:
+  instances:
+    storage: 256Mi
+    resources:
+      requests:
+        cpu: 20m
+        memory: 128Mi
+  # WAL kept is about max(max_wal_size, wal_keep_size): a quarter of the volume (Patroni's wal_keep_size is 128MB)
+  parameters:
+    max_wal_size: 64MB
+    min_wal_size: 32MB
+    wal_keep_size: 16MB
+    shared_buffers: 32MB
+  # No pgBackRest: nothing to restore in a PR.
+  backups:
+    enabled: false
+
+portal-api:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 128Mi
+  # No surge pod during a rollout, so an upgrade never needs quota for a second copy.
+  strategy:
+    type: Recreate
+
+portal-web:
+  strategy:
+    type: Recreate
+
+edge:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 48Mi
+  strategy:
+    type: Recreate
+
+# Sessions are throwaway in a PR environment.
+valkey:
+  config:
+    maxmemory: 16mb
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 5m
+      memory: 16Mi

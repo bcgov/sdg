@@ -1,0 +1,61 @@
+# postgres: a Crunchy PGO v5 PostgresCluster (the operator must be installed in the cluster).
+# PGO writes the app credentials to Secret <fullname>-pguser-<user.name>; portal-api reads its uri key.
+fullnameOverride: ''
+
+# Image selection is left to the operator: it picks its PostGIS image for these versions. BC Gov Gold's operator
+# provides 17 with PostGIS 3.4/3.5 but nothing for 18 (2026-10-21); compose.yaml runs the same versions.
+postgresVersion: 17
+# Empty: plain PostgreSQL and no CREATE EXTENSION postgis.
+postGISVersion: '3.5'
+
+user:
+  name: portal
+  database: portal
+
+instances:
+  name: db
+  # 2+ gives a Patroni-managed replica for failover.
+  replicas: 1
+  storage: 1Gi
+  storageClassName: ''
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  # PGO's sidecars (replication cert copy, pgBackRest, pgBackRest config). Without explicit values each gets the
+  # namespace LimitRange default, which can exhaust a small quota.
+  sidecarResources:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+    limits:
+      memory: 32Mi
+
+# PostgreSQL settings, applied by Patroni (spec.patroni.dynamicConfiguration). Postgres keeps about
+# max(max_wal_size, wal_keep_size) of WAL (Patroni's wal_keep_size is 128MB); keep both at about a quarter of
+# instances.storage or less. Without max_wal_size Postgres keeps up to 1GB, which can fill a small data volume.
+parameters:
+  max_wal_size: 256MB
+  min_wal_size: 64MB
+
+backups:
+  # false: no pgBackRest (repo host, sidecars, backup Jobs, repo PVC), and PGO may remove it from an existing
+  # cluster (authorizeBackupRemoval). For throwaway databases such as PR environments.
+  enabled: true
+  # pgBackRest repo on a PVC.
+  storage: 1Gi
+  storageClassName: ''
+  retentionFull: 2
+  # The pgBackRest repo host pod and backup Jobs.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+networkPolicy:
+  enabled: true

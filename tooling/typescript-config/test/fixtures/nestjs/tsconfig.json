@@ -1,0 +1,4 @@
+{
+  "extends": "../../../nestjs.json",
+  "include": ["src", "tool.config.ts"]
+}

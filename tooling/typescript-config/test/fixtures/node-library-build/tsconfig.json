@@ -1,0 +1,4 @@
+{
+  "extends": "../../../node-library-build.json",
+  "include": ["src"]
+}

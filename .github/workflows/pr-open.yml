@@ -1,0 +1,106 @@
+name: PR
+
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  # https://github.com/bcgov/action-builder-ghcr
+  builds:
+    name: Builds
+    permissions:
+      attestations: write
+      id-token: write
+      packages: write
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - package: portal-web
+            build_context: .
+            build_file: apps/portal-web/Dockerfile
+            triggers: ('apps/portal-web/' 'packages/design-system/' 'packages/sdg-header/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: portal-api
+            build_context: .
+            build_file: apps/portal-api/Dockerfile
+            triggers: ('apps/portal-api/' 'packages/auth/' 'packages/portal-database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: portal-database
+            build_context: .
+            build_file: packages/portal-database/Dockerfile
+            triggers: ('packages/portal-database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          # The edge image builds from its own directory, not the repo root
+          - package: edge
+            build_context: apps/portal-web/caddy
+            build_file: apps/portal-web/caddy/Dockerfile
+            triggers: ('apps/portal-web/caddy/' '.github/workflows/pr-open.yml')
+    timeout-minutes: 15
+    steps:
+      - uses: bcgov/action-builder-ghcr@cb2629351c87dd1c2130073e4ebb7233a9653a63 # v4.4.1
+        with:
+          package: ${{ matrix.package }}
+          build_context: ${{ matrix.build_context }}
+          build_file: ${{ matrix.build_file }}
+          # The PR tag is mutable (reused every push) and is what merge.yml
+          # deploys/promotes; the head SHA tag is immutable and is what PR
+          # deploys use, so each push changes the pod spec and forces a rollout.
+          tags: |
+            ${{ github.event.number }}
+            ${{ github.event.pull_request.head.sha }}
+          tag_fallback: latest
+          triggers: ${{ matrix.triggers }}
+
+  deploys:
+    name: Deploys (${{ github.event.number }})
+    needs: [builds]
+    uses: ./.github/workflows/reusable-deploy.yml
+    secrets:
+      oc_token: ${{ secrets.oc_token }}
+    with:
+      target: ${{ github.event.number }}
+      tag: ${{ github.event.pull_request.head.sha }}
+      triggers: ('apps/' 'packages/' 'tooling/' 'charts/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' 'scripts/deploy-values.sh' '.github/workflows/pr-open.yml' '.github/workflows/reusable-deploy.yml')
+
+  tests:
+    name: Tests
+    if: needs.deploys.outputs.triggered == 'true'
+    needs: [deploys]
+    uses: ./.github/workflows/reusable-tests.yml
+    with:
+      url: ${{ needs.deploys.outputs.url }}
+
+  comment:
+    name: Deployment Links
+    needs: [deploys]
+    if: needs.deploys.outputs.triggered == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post Deploy Links
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: pr-deployment-links
+          message: |
+            ### 🚀 Deployments Available
+            - [Portal](${{ needs.deploys.outputs.url }})
+
+  # ==========================================================================
+  # WARNING: This job acts as the required merge gate for this workflow.
+  # If you add a new job to this workflow, you MUST add its ID to the 'needs'
+  # array below, otherwise its failure or cancellation will not block the PR!
+  # ==========================================================================
+  results:
+    name: PR Results
+    needs: [builds, deploys, tests, comment]
+    if: always()
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    steps:
+      - uses: bcgov/actions/workflow-results@79aefe3a7abb2d0d00b1b3ea4cfbf12727a10638 # v0.9.0
+        with:
+          needs: ${{ toJson(needs) }}

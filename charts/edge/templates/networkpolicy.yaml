@@ -1,0 +1,21 @@
+{{- if .Values.networkPolicy.enabled }}
+# Only the ingress controller's pods reach the edge.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "common.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            {{- toYaml (.Values.networkPolicy.ingressNamespaceSelector | default (dict "matchLabels" (dict "network.openshift.io/policy-group" "ingress"))) | nindent 12 }}
+      ports:
+        - port: 3000
+          protocol: TCP
+{{- end }}

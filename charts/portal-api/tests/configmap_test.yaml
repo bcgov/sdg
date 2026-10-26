@@ -1,0 +1,73 @@
+suite: portal-api configmap
+templates:
+  - templates/configmap.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.clientId: portal
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/portal-api
+  vault.serviceAccountName: abc123-vault
+tests:
+  - it: holds the non-secret env for the zod schema
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: sdg-portal-api
+      - equal:
+          path: data
+          value:
+            NODE_ENV: production
+            PORT: '3000'
+            LOG_LEVEL: info
+            APP_URL: https://sdg.example.com
+            TRUST_PROXY: 'true'
+            SESSION_TTL_SECONDS: '28800'
+            KEYCLOAK_ISSUER_URL: https://keycloak.example.com/realms/portal
+            KEYCLOAK_CLIENT_ID: portal
+
+  - it: an explicit appUrl wins over global.host
+    set:
+      appUrl: https://portal.gov.bc.ca
+    asserts:
+      - equal:
+          path: data.APP_URL
+          value: https://portal.gov.bc.ca
+
+  - it: fails when neither appUrl nor global.host is set
+    set:
+      global.host: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: appUrl or global.host is required
+
+  - it: fails without a Keycloak issuer URL
+    set:
+      keycloak.issuerUrl: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: keycloak.issuerUrl is required
+
+  - it: fails without a Keycloak client id
+    set:
+      keycloak.clientId: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: keycloak.clientId is required
+
+  - it: never contains secret keys
+    asserts:
+      - notExists:
+          path: data.SESSION_SECRET
+      - notExists:
+          path: data.KEYCLOAK_CLIENT_SECRET
+      - notExists:
+          path: data.DATABASE_URL
+      - notExists:
+          path: data.VALKEY_URL

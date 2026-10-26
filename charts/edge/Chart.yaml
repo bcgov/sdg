@@ -1,0 +1,10 @@
+apiVersion: v2
+name: edge
+description: 'edge: Caddy with the Coraza WAF in front of portal-web and portal-api, exposed by an Ingress.'
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

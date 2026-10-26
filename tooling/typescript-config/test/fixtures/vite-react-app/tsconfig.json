@@ -1,0 +1,4 @@
+{
+  "extends": "../../../vite-react-app.json",
+  "include": ["src"]
+}

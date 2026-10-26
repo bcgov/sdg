@@ -1,0 +1,194 @@
+name: Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  schedule:
+    - cron: '0 11 * * 0' # 11:00 UTC (3 AM PST / 4 AM PDT), Sundays
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  # One job for the whole monorepo: turbo and vitest projects cover every app and package
+  tests:
+    name: Tests
+    if: (! github.event.pull_request.draft)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: bcgov/action-test-and-analyse@8f699e3fd3fadd9a6adf6f4b1f2638ef7ecfefb9 # v2.0.0
+        env:
+          sonar_token: ${{ secrets.sonar_token }}
+        with:
+          # The action's npm cache keys on package-lock.json; this repo uses pnpm
+          cache: ''
+          commands: |
+            npm install -g "pnpm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+            pnpm install --frozen-lockfile
+            pnpm lint
+            pnpm format:check
+            pnpm typecheck
+            pnpm test:all --coverage
+          dir: .
+          node_version: '24'
+          # Skipped while sonar_token is unset; see DEVELOPER.md (Code Quality with SonarCloud)
+          sonar_args: >
+            -Dsonar.exclusions=**/coverage/**,**/node_modules/**,**/dist/**,**/*.test.ts,**/*.test.tsx,**/e2e/**,**/routeTree.gen.ts
+            -Dsonar.organization=bcgov-sonarcloud
+            -Dsonar.projectKey=${{ github.event.repository.name }}
+            -Dsonar.sources=apps,packages,tooling
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/e2e/**
+            -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info
+          sonar_token: ${{ env.sonar_token }}
+          dep_scan: warn
+          supply_scan: true
+
+  # Lint, unit tests and kubeconform for charts/, including what reusable-deploy.yml installs per environment
+  charts:
+    name: Charts
+    if: (! github.event.pull_request.draft)
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      HELM_UNITTEST_VERSION: v1.2.1
+      KUBECONFORM_VERSION: v0.8.0
+      KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.1.1
+      - name: Install helm-unittest and kubeconform
+        run: |
+          helm plugin install https://github.com/helm-unittest/helm-unittest --version "$HELM_UNITTEST_VERSION" --verify=false
+          mkdir -p "${RUNNER_TEMP}/bin"
+          curl -fsSL -o "${RUNNER_TEMP}/kubeconform.tar.gz" \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  ${RUNNER_TEMP}/kubeconform.tar.gz" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/kubeconform.tar.gz" -C "${RUNNER_TEMP}/bin" kubeconform
+          echo "${RUNNER_TEMP}/bin" >> "$GITHUB_PATH"
+      - run: scripts/charts-test.sh
+
+  # k6 load scripts: options per profile and input validation via `k6 inspect`, no traffic (DEVELOPER.md, Load tests)
+  load-scripts:
+    name: Load Scripts
+    if: (! github.event.pull_request.draft)
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1 # v1.2.2
+        with:
+          k6-version: '2.3.0'
+      - run: tests/load/load.test.sh
+
+  # https://github.com/rhysd/actionlint (runs shellcheck on run: blocks; the runner image has it)
+  workflows:
+    name: Workflows
+    if: (! github.event.pull_request.draft)
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: actionlint
+        run: |
+          curl -fsSL -o "${RUNNER_TEMP}/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/actionlint.tar.gz" -C "${RUNNER_TEMP}" actionlint
+          "${RUNNER_TEMP}/actionlint" -color
+
+  # https://github.com/marketplace/actions/aqua-security-trivy
+  trivy:
+    name: Trivy Security Scan
+    if: (! github.event.pull_request.draft)
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || '' }}
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v6
+        with:
+          path: .trivycache
+          # Hashing the workflow file ensures the cache is automatically busted whenever
+          # the aquasecurity/trivy-action version changes, preventing DB schema crashes.
+          key: ${{ runner.os }}-trivy-${{ hashFiles('.github/workflows/analysis.yml') }}
+
+      # Reports every severity to the Security tab for triage.  Findings are not a merge
+      # gate: advisories are published on their own schedule, not the contributor's, and
+      # committed secrets are already blocked at push time by GitHub secret scanning.
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          ignore-unfixed: true
+          scan-type: 'fs'
+          scanners: 'vuln,secret,misconfig'
+          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          trivyignores: '.github/.trivyignore'
+          cache-dir: .trivycache
+          skip-dirs: '**/node_modules,**/coverage,**/dist,.git'
+          exit-code: '0'
+
+      # PR uploads must target the branch head ref so retries and merge-ref recalculations do not orphan the scan.
+      - name: Upload Trivy scan results to GitHub Security tab (PR)
+        if: always() && github.event_name == 'pull_request'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          category: 'trivy'
+          sarif_file: 'trivy-results.sarif'
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          sha: ${{ github.event.pull_request.head.sha }}
+
+      # Push / schedule / workflow_dispatch on main use default ambient ref and sha.
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always() && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          category: 'trivy'
+          sarif_file: 'trivy-results.sarif'
+
+  # ==========================================================================
+  # WARNING: This job acts as the required merge gate for this workflow.
+  # If you add a new job to this workflow, you MUST add its ID to the 'needs'
+  # array below, otherwise its failure or cancellation will not block the PR!
+  # ==========================================================================
+  results:
+    name: Analysis Results
+    needs: [tests, charts, load-scripts, workflows, trivy]
+    if: always() && (! github.event.pull_request.draft)
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    steps:
+      - uses: bcgov/actions/workflow-results@79aefe3a7abb2d0d00b1b3ea4cfbf12727a10638 # v0.9.0
+        with:
+          needs: ${{ toJson(needs) }}

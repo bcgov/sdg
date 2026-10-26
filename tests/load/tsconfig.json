@@ -1,0 +1,11 @@
+{
+  "$schema": "https://www.schemastore.org/tsconfig",
+  // k6 runs these scripts as TypeScript: explicit .ts imports, erasable syntax only, k6 globals instead of node.
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "types": ["k6"],
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": ["**/*.ts"]
+}

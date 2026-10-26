@@ -1,0 +1,15 @@
+# PGO runs this once as the superuser after creating the cluster. PG 15+ no longer grants CREATE on public to every
+# user, and drizzle's migrations create their tables there, so the app user takes ownership of the schema.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.fullname" . }}-init-sql
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "database") | nindent 4 }}
+data:
+  init.sql: |
+    \c {{ .Values.user.database }}
+    {{- if .Values.postGISVersion }}
+    CREATE EXTENSION IF NOT EXISTS postgis;
+    {{- end }}
+    ALTER SCHEMA public OWNER TO {{ .Values.user.name }};

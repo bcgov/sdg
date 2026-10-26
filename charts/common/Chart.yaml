@@ -1,0 +1,5 @@
+apiVersion: v2
+name: common
+description: 'Shared helpers for the sdg charts (names, labels, image references, restricted security contexts).'
+type: library
+version: 0.1.0

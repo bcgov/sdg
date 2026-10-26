@@ -1,0 +1,78 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "database") | nindent 4 }}
+  {{- if not .Values.backups.enabled }}
+  annotations:
+    # Without it PGO keeps the pgBackRest of a cluster created with backups.
+    postgres-operator.crunchydata.com/authorizeBackupRemoval: "true"
+  {{- end }}
+spec:
+  postgresVersion: {{ .Values.postgresVersion }}
+  {{- with .Values.postGISVersion }}
+  postGISVersion: {{ . | quote }}
+  {{- end }}
+  # Runs once, when the cluster is created (init-sql.yaml).
+  databaseInitSQL:
+    name: {{ include "common.fullname" . }}-init-sql
+    key: init.sql
+  users:
+    - name: {{ .Values.user.name }}
+      databases: [{{ .Values.user.database }}]
+  instances:
+    - name: {{ .Values.instances.name }}
+      replicas: {{ .Values.instances.replicas }}
+      dataVolumeClaimSpec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.instances.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.instances.storage }}
+      resources:
+        {{- toYaml .Values.instances.resources | nindent 8 }}
+      sidecars:
+        replicaCertCopy:
+          resources:
+            {{- toYaml .Values.instances.sidecarResources | nindent 12 }}
+  {{- with .Values.parameters }}
+  patroni:
+    dynamicConfiguration:
+      postgresql:
+        parameters:
+          {{- toYaml . | nindent 10 }}
+  {{- end }}
+  {{- if .Values.backups.enabled }}
+  backups:
+    pgbackrest:
+      global:
+        repo1-retention-full: {{ .Values.backups.retentionFull | quote }}
+        repo1-retention-full-type: count
+      sidecars:
+        pgbackrest:
+          resources:
+            {{- toYaml .Values.instances.sidecarResources | nindent 12 }}
+        pgbackrestConfig:
+          resources:
+            {{- toYaml .Values.instances.sidecarResources | nindent 12 }}
+      repoHost:
+        resources:
+          {{- toYaml .Values.backups.resources | nindent 10 }}
+      jobs:
+        resources:
+          {{- toYaml .Values.backups.resources | nindent 10 }}
+      repos:
+        - name: repo1
+          volume:
+            volumeClaimSpec:
+              accessModes: [ReadWriteOnce]
+              {{- with .Values.backups.storageClassName }}
+              storageClassName: {{ . }}
+              {{- end }}
+              resources:
+                requests:
+                  storage: {{ .Values.backups.storage }}
+  {{- end }}

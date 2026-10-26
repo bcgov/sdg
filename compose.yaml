@@ -1,0 +1,211 @@
+# Local development stack for the portal (`podman compose up -d` or `docker compose up -d`).
+# Caddy fronts everything at https://sdg.localhost; portal-api and portal-web publish no host ports.
+# Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets
+# come from apps/portal-api/.env (gitignored). See DEVELOPER.md "Local Stack" for the one-time TLS trust step.
+# Host ports default to 5432/6379; override with POSTGRES_PORT / VALKEY_PORT if they are taken.
+name: portal
+
+# Shared by the Node services: the repo is bind-mounted for hot reload, and every node_modules is a volume so the
+# host's native binaries never reach Linux (and the Linux install never touches the host tree).
+# Adding a workspace package? Add its node_modules volume here and under `volumes:`.
+x-workspace: &workspace
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+  working_dir: /app
+  volumes:
+    - .:/app
+    - pnpm-store:/pnpm/store
+    - nm-root:/app/node_modules
+    - nm-portal-api:/app/apps/portal-api/node_modules
+    - nm-portal-web:/app/apps/portal-web/node_modules
+    - nm-auth:/app/packages/auth/node_modules
+    - nm-design-system:/app/packages/design-system/node_modules
+    - nm-portal-database:/app/packages/portal-database/node_modules
+    - nm-sdg-header:/app/packages/sdg-header/node_modules
+    - nm-playwright-config:/app/tooling/playwright-config/node_modules
+    - nm-typescript-config:/app/tooling/typescript-config/node_modules
+    - nm-vite-config:/app/tooling/vite-config/node_modules
+    - nm-vitest-config:/app/tooling/vitest-config/node_modules
+
+x-workspace-env: &workspace-env
+  CI: 'true'
+  # Keep the lefthook postinstall from rewriting the host's .git/hooks.
+  LEFTHOOK: '0'
+  TURBO_TELEMETRY_DISABLED: '1'
+  # Bind-mount file events don't reliably cross the Podman VM; poll instead (Vite and the Nest/tsc watcher).
+  CHOKIDAR_USEPOLLING: 'true'
+  TSC_WATCHFILE: DynamicPriorityPolling
+  TSC_WATCHDIRECTORY: DynamicPriorityPolling
+
+# Init services (deps, migrate) run their task, touch /tmp/ready and idle; dependents wait on `service_healthy`.
+# podman-compose 1.5 does not honour `service_completed_successfully` (dependents start immediately), while
+# `service_healthy` gates correctly on both podman-compose and docker compose. A failed task exits non-zero and
+# never turns healthy, so its dependents never start.
+x-init-healthcheck: &init-healthcheck
+  test: ['CMD', 'test', '-f', '/tmp/ready']
+  interval: 2s
+  timeout: 2s
+  retries: 3
+  start_period: 600s
+
+x-database-url: &database-url postgres://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgis:5432/${POSTGRES_DB:-portal}
+
+services:
+  postgis:
+    image: docker.io/postgis/postgis:17-3.5-alpine
+    # The official PostGIS images are published for amd64 only; Apple Silicon runs them under emulation.
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
+      POSTGRES_DB: ${POSTGRES_DB:-portal}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      # Same major/PostGIS as the Helm chart's PostgresCluster (charts/postgres). PG 17 keeps PGDATA here.
+      - portal-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # TCP, not the socket: on a fresh volume the entrypoint's temporary init server (socket only) would pass,
+      # then restart under migrate.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  valkey:
+    image: docker.io/valkey/valkey:9.2-alpine
+    ports:
+      - '${VALKEY_PORT:-6379}:6379'
+    volumes:
+      - portal-valkey:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Installs dependencies into the node_modules volumes on every `up`; near no-op when the lockfile is unchanged.
+  deps:
+    <<: *workspace
+    environment: *workspace-env
+    command:
+      - sh
+      - -c
+      - rm -f /tmp/ready && pnpm install --frozen-lockfile --store-dir /pnpm/store && touch /tmp/ready && exec sleep infinity
+    init: true
+    restart: 'no'
+    healthcheck: *init-healthcheck
+
+  # Init container: portal-api starts only after the migrations complete successfully.
+  migrate:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      DATABASE_URL: *database-url
+    command:
+      - sh
+      - -c
+      - rm -f /tmp/ready && pnpm --filter @repo/portal-database db:migrate && touch /tmp/ready && exec sleep infinity
+    init: true
+    restart: 'no'
+    healthcheck: *init-healthcheck
+    depends_on:
+      deps:
+        condition: service_healthy
+      postgis:
+        condition: service_healthy
+
+  # No host ports: reachable only through Caddy at https://sdg.localhost/api.
+  # Overrides the localhost URLs in apps/portal-api/.env (process env wins); secrets stay in that file.
+  portal-api:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      PORT: '3000'
+      APP_URL: https://sdg.localhost
+      TRUST_PROXY: 'true'
+      DATABASE_URL: *database-url
+      VALKEY_URL: redis://valkey:6379
+    # turbo builds the workspace packages portal-api imports (auth, portal-database) before `nest start --watch`.
+    # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
+    command: ['pnpm', 'turbo', 'run', 'dev', '--filter=portal-api', '--ui=stream', '--env-mode=loose']
+    depends_on:
+      migrate:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      # Liveness, not readiness: readiness runs Keycloak discovery.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # No host ports: reachable only through Caddy at https://sdg.localhost.
+  portal-web:
+    <<: *workspace
+    environment: *workspace-env
+    # Loose env mode so turbo passes CHOKIDAR_USEPOLLING through to Vite.
+    command:
+      [
+        'pnpm',
+        'turbo',
+        'run',
+        'dev',
+        '--filter=portal-web',
+        '--ui=stream',
+        '--env-mode=loose',
+        '--',
+        '--host',
+        '0.0.0.0',
+      ]
+    depends_on:
+      deps:
+        condition: service_healthy
+
+  caddy:
+    build: apps/portal-web/caddy
+    command: ['caddy', 'run', '--adapter', 'caddyfile', '--config', '/etc/caddy/Caddyfile.dev']
+    environment:
+      LOG_LEVEL: INFO
+      PORTAL_API_URL: http://portal-api:3000
+      PORTAL_WEB_URL: http://portal-web:5173
+    ports:
+      - '443:443'
+    volumes:
+      # Mounted so config edits apply with `podman compose restart caddy`.
+      - ./apps/portal-web/caddy/Caddyfile.dev:/etc/caddy/Caddyfile.dev:ro
+      - ./apps/portal-web/caddy/common.caddy:/etc/caddy/common.caddy:ro
+      - ./apps/portal-web/caddy/coraza.conf:/etc/caddy/coraza.conf:ro
+      # Keeps the local CA stable across restarts, so its root only needs trusting once.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      portal-api:
+        condition: service_started
+      portal-web:
+        condition: service_started
+
+volumes:
+  portal-pgdata:
+  portal-valkey:
+  caddy-data:
+  caddy-config:
+  pnpm-store:
+  nm-root:
+  nm-portal-api:
+  nm-portal-web:
+  nm-auth:
+  nm-design-system:
+  nm-portal-database:
+  nm-sdg-header:
+  nm-playwright-config:
+  nm-typescript-config:
+  nm-vite-config:
+  nm-vitest-config:

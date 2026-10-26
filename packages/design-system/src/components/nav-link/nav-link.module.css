@@ -1,0 +1,27 @@
+.navLink {
+  display: inline-flex;
+  gap: var(--layout-margin-xsmall);
+  align-items: center;
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
+  border-radius: var(--layout-border-radius-small);
+  /* B.C. Primary Blue, so header nav items read as navigation against the body text. */
+  color: var(--surface-color-primary-default);
+  font-size: var(--typography-font-size-body);
+  font-weight: var(--typography-font-weights-regular);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.navLink[data-hovered] {
+  text-decoration: underline;
+  text-underline-offset: var(--layout-margin-hair);
+}
+
+.navLink[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: var(--layout-margin-hair);
+}
+
+.navLink[data-current] {
+  font-weight: var(--typography-font-weights-bold);
+}

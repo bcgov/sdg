@@ -1,0 +1,18 @@
+# Git hooks — installed automatically by lefthook's postinstall (see allowBuilds in pnpm-workspace.yaml).
+# Local overrides: lefthook-local.yml (gitignored).
+
+pre-commit:
+  piped: true
+  jobs:
+    - name: format
+      run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+    - name: lint
+      glob: '*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'
+      run: pnpm exec oxlint --fix {staged_files}
+      stage_fixed: true
+
+pre-push:
+  jobs:
+    - name: typecheck and test
+      run: pnpm turbo run typecheck test --output-logs=errors-only

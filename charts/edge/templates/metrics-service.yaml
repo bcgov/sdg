@@ -1,0 +1,17 @@
+# Caddy admin API: Prometheus metrics at /metrics.  A separate Service, so a Route that names no target port
+# (e.g. one made by bcgov/actions-openshift/route-tls for <release>-edge) can only reach http.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.fullname" . }}-metrics
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "edge") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 3003
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "common.selectorLabels" . | nindent 4 }}

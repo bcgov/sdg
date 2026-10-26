@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "cache") | nindent 4 }}
+data:
+  valkey.conf: |
+    bind * -::*
+    port 6379
+    dir /data
+    appendonly yes
+    maxmemory {{ .Values.config.maxmemory }}
+    maxmemory-policy {{ .Values.config.maxmemoryPolicy }}
+    include /etc/valkey/secret/auth.conf

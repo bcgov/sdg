@@ -1,0 +1,37 @@
+# sdg: installs the whole stack as one release. Each subchart's values sit under its name; see its values.yaml.
+global:
+  image:
+    # Required: registry path shared by the app images, e.g. ghcr.io/<owner>/sdg
+    registry: ''
+    # Required: image tag, e.g. a PR number (12), a commit SHA or a release version
+    tag: ''
+  # Public hostname: the edge Ingress host and portal-api's APP_URL (https://<host>).
+  host: ''
+
+portal-web:
+  enabled: true
+
+portal-api:
+  enabled: true
+  keycloak:
+    # Required, e.g. https://keycloak.example.com/realms/portal
+    issuerUrl: ''
+    # Required
+    clientId: ''
+  vault:
+    enabled: true
+    # Required when enabled, e.g. abc123-nonprod
+    role: ''
+    # Required when enabled, e.g. abc123-nonprod/portal-api (KV v2 holding SESSION_SECRET, KEYCLOAK_CLIENT_SECRET)
+    secretPath: ''
+    # Required when enabled, e.g. abc123-vault
+    serviceAccountName: ''
+
+edge:
+  enabled: true
+
+postgres:
+  enabled: true
+
+valkey:
+  enabled: true

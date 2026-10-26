@@ -1,0 +1,98 @@
+suite: sdg PR values
+release:
+  name: sdg-12
+values:
+  - ../values-pr.yaml
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-12
+  global.host: sdg-12.apps.example.com
+  portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  portal-api.keycloak.clientId: portal
+  portal-api.vault.role: abc123-nonprod
+  portal-api.vault.secretPath: abc123-nonprod/portal-api
+  portal-api.vault.serviceAccountName: abc123-vault
+tests:
+  - it: runs Postgres without pgBackRest on a 256Mi volume
+    template: charts/postgres/templates/postgrescluster.yaml
+    asserts:
+      - notExists:
+          path: spec.backups
+      - equal:
+          path: metadata.annotations["postgres-operator.crunchydata.com/authorizeBackupRemoval"]
+          value: 'true'
+      - equal:
+          path: spec.instances[0].dataVolumeClaimSpec.resources.requests.storage
+          value: 256Mi
+
+  - it: caps WAL at 64MB with a 16MB standby reserve and shrinks shared_buffers
+    template: charts/postgres/templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: spec.patroni.dynamicConfiguration.postgresql.parameters
+          value:
+            max_wal_size: 64MB
+            min_wal_size: 32MB
+            wal_keep_size: 16MB
+            shared_buffers: 32MB
+
+  - it: lowers Postgres requests and keeps its limit
+    template: charts/postgres/templates/postgrescluster.yaml
+    asserts:
+      - equal:
+          path: spec.instances[0].resources
+          value:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { memory: 512Mi }
+
+  - it: lowers portal-api requests, keeps its limit and recreates on rollout
+    template: charts/portal-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { memory: 384Mi }
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: lowers edge requests, keeps its limit and recreates on rollout
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 10m, memory: 48Mi }
+            limits: { memory: 256Mi }
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: recreates portal-web on rollout
+    template: charts/portal-web/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: lowers Valkey requests and maxmemory without a PVC
+    template: charts/valkey/templates/statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits: { memory: 192Mi }
+      - notExists:
+          path: spec.volumeClaimTemplates
+
+  - it: writes maxmemory 16mb to valkey.conf
+    template: charts/valkey/templates/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["valkey.conf"]
+          pattern: (?m)^maxmemory 16mb$

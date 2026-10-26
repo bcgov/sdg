@@ -1,0 +1,49 @@
+# Patterns are anchored to the build-context root; use **/ to match at any depth.
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Deployment manifests: not part of any image
+charts/
+
+# VCS / editors / OS
+.git/
+.github/
+.vscode/
+.idea/
+**/.DS_Store
+
+# AI assistants and agent tooling
+**/.claude/
+**/CLAUDE.md
+**/CLAUDE.local.md
+**/AGENTS.md
+**/GEMINI.md
+**/.gemini/
+**/.cursor/
+**/.cursorrules
+**/.windsurf/
+**/.windsurfrules
+**/.codex/
+**/.aider*
+**/.mcp.json
+.mdd/
+
+# Dependencies and build output (rebuilt inside the image)
+**/node_modules/
+**/dist/
+**/.turbo/
+**/*.tsbuildinfo
+
+# Tests and reports
+**/coverage/
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/playwright/.auth/
+
+# Logs and local overrides
+**/*.log
+lefthook-local.yml
