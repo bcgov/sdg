@@ -35,7 +35,7 @@ done
 [ -n "$REPO" ] || REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
 get_var() { # <scope: repo|test|prod> <name>; empty if unset
   local args=(); [ "$1" = repo ] || args=(--env "$1")
-  gh variable get "$2" -R "$REPO" "${args[@]}" 2>/dev/null || true
+  gh variable get "$2" -R "$REPO" ${args[@]+"${args[@]}"} 2>/dev/null || true
 }
 # No --plate: use the plate from existing OC_NAMESPACE variables, which must agree
 if [ -z "$PLATE" ]; then
@@ -91,7 +91,7 @@ summary() {
 
 has_secret() { # <scope> <name>
   local args=(); [ "$1" = repo ] || args=(--env "$1")
-  gh secret list -R "$REPO" "${args[@]}" --json name --jq '.[].name' 2>/dev/null | grep -qx "$2"
+  gh secret list -R "$REPO" ${args[@]+"${args[@]}"} --json name --jq '.[].name' 2>/dev/null | grep -qx "$2"
 }
 namespace() { if [ "$1" = repo ]; then echo "${PLATE}-dev"; else echo "${PLATE}-$1"; fi; }
 
@@ -172,7 +172,7 @@ secret() {
     exit 1
   fi
   oc get secret github-actions-token -n "$ns" -o jsonpath='{.data.token}' | base64 -d \
-    | gh secret set "$name" -R "$REPO" "${args[@]}" >/dev/null
+    | gh secret set "$name" -R "$REPO" ${args[@]+"${args[@]}"} >/dev/null
   echo "  ${name} for ${scope}: set"
 }
 for scope in repo test prod; do
@@ -183,7 +183,7 @@ for scope in repo test prod; do
   else
     status "OC_NAMESPACE variable for ${scope}" change "${have:-unset} -> ${ns}"
     args=(); [ "$scope" = repo ] || args=(--env "$scope")
-    [ "$APPLY" = false ] || gh variable set OC_NAMESPACE -R "$REPO" "${args[@]}" --body "$ns" >/dev/null
+    [ "$APPLY" = false ] || gh variable set OC_NAMESPACE -R "$REPO" ${args[@]+"${args[@]}"} --body "$ns" >/dev/null
   fi
   # Older setups kept OC_NAMESPACE as a secret; workflows now read the variable
   if has_secret "$scope" OC_NAMESPACE; then

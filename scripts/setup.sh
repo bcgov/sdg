@@ -31,9 +31,9 @@ run() {
   fi
   echo
 }
-run setup-github.sh "${REPO[@]}" "${APPLY[@]}"
-run setup-openshift.sh "${PLATE[@]}" "${APPLY[@]}"
-run setup-environments.sh "${PLATE[@]}" "${REVIEWERS[@]}" "${REPO[@]}" "${APPLY[@]}"
+run setup-github.sh ${REPO[@]+"${REPO[@]}"} ${APPLY[@]+"${APPLY[@]}"}
+run setup-openshift.sh ${PLATE[@]+"${PLATE[@]}"} ${APPLY[@]+"${APPLY[@]}"}
+run setup-environments.sh ${PLATE[@]+"${PLATE[@]}"} ${REVIEWERS[@]+"${REVIEWERS[@]}"} ${REPO[@]+"${REPO[@]}"} ${APPLY[@]+"${APPLY[@]}"}
 
 if [ "$failed" -eq 0 ]; then
   echo "All set: every script passed."
