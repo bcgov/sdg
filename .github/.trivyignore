@@ -63,3 +63,15 @@ AVD-KSV-0011
 # ------------------------------------------------------------------------------
 KSV018
 AVD-KSV-0018
+
+# ------------------------------------------------------------------------------
+# DS-0026 (AVD-DS-0026): No HEALTHCHECK instruction in Dockerfile
+# ------------------------------------------------------------------------------
+# Why Ignored:
+# OpenShift and Kubernetes ignore Docker's HEALTHCHECK (and OCI images can't carry
+# it). Health is checked by the startup/liveness/readiness probes in charts/, and by
+# healthcheck: in compose.yaml locally. The migrator is a run-once initContainer.
+# ------------------------------------------------------------------------------
+DS026
+AVD-DS-0026
+DS-0026

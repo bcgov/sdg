@@ -422,6 +422,7 @@ Run `pnpm test:charts` after changing a chart.
 
 - **`rootlessport cannot expose privileged port 443`**: allow rootless Podman to bind 443 with `podman machine ssh "echo net.ipv4.ip_unprivileged_port_start=443 | sudo tee /etc/sysctl.d/99-unprivileged-ports.conf && sudo sysctl --system"`.
 - **`sdg.localhost` does not resolve** (some Safari versions): add `127.0.0.1 sdg.localhost` to `/etc/hosts`.
+- **`permission denied` under `/data` or `/config` in the caddy logs**: the volumes were created when the edge image ran as root. Remove them with `podman compose down && podman volume rm portal_caddy-data portal_caddy-config`, start the stack, and rerun `pnpm stack:trust` (a new local CA is generated).
 - **After changing `Dockerfile.dev` or `apps/portal-web/caddy/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
 - **Adding a workspace package**: add its `node_modules` volume to `x-workspace` and `volumes:` in `compose.yaml`.
 - **WAF**: rules using `block` (1001, 1002, 1005, 1007, 1008) follow Coraza's default action (`pass`) and only log a `Coraza: Warning`. Rules using `deny` (1003, 1004) return 403.

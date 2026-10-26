@@ -9,7 +9,10 @@ const ALGORITHMS: string[] = ['RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS51
 const DEFAULT_CLOCK_TOLERANCE_SECONDS = 30;
 
 function discoveryUrl(issuerUrl: string): string {
-  return `${issuerUrl.replace(/\/+$/, '')}/.well-known/openid-configuration`;
+  // A loop, not /\/+$/: that regex backtracks quadratically on a long run of '/' (CodeQL js/polynomial-redos).
+  let end = issuerUrl.length;
+  while (end > 0 && issuerUrl[end - 1] === '/') end--;
+  return `${issuerUrl.slice(0, end)}/.well-known/openid-configuration`;
 }
 
 async function fetchJwksUri(issuerUrl: string, fetchImpl: AuthFetch): Promise<URL> {

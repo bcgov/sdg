@@ -17,5 +17,7 @@ COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 RUN mkdir -p /config /data /tmp/coraza && chgrp -R 0 /config /data /tmp/coraza \
   && chmod -R g=u /config /data /tmp/coraza
 COPY coraza.conf common.caddy Caddyfile /etc/caddy/
+# Non-root like the other images; OpenShift replaces the UID with an arbitrary one in group 0.
+USER 1001
 EXPOSE 3000 3003
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

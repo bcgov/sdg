@@ -157,6 +157,8 @@ jobs:
           trivyignores: '.github/.trivyignore'
           cache-dir: .trivycache
           skip-dirs: '**/node_modules,**/coverage,**/dist,.git'
+          # Dev-only image that runs as root on purpose (see its header); never built for deployment.
+          skip-files: 'Dockerfile.dev'
           exit-code: '0'
 
       # PR uploads must target the branch head ref so retries and merge-ref recalculations do not orphan the scan.

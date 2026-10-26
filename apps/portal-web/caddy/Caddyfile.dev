@@ -2,6 +2,9 @@
 {
 	metrics
 	admin 0.0.0.0:3003
+	# Unprivileged ports: the image runs as a non-root user. compose.yaml publishes 8443 as the host's 443.
+	http_port 8080
+	https_port 8443
 	order coraza_waf first
 	# Certificates come from Caddy's local CA. It can't reach the host trust store from the container;
 	# trust the root manually (DEVELOPER.md, Local Stack).

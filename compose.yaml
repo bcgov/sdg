@@ -177,7 +177,7 @@ services:
       PORTAL_API_URL: http://portal-api:3000
       PORTAL_WEB_URL: http://portal-web:5173
     ports:
-      - '443:443'
+      - '443:8443'
     volumes:
       # Mounted so config edits apply with `podman compose restart caddy`.
       - ./apps/portal-web/caddy/Caddyfile.dev:/etc/caddy/Caddyfile.dev:ro
