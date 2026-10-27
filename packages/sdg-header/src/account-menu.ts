@@ -98,7 +98,7 @@ export class AccountMenuController implements ReactiveController {
     this.#host.requestUpdate();
     await this.#host.updateComplete;
     const items = this.#items();
-    const target = focus === 'menu' ? this.#query('.menu') : focus === 'first' ? items[0] : items.at(-1);
+    const target = { menu: this.#query('.menu'), first: items[0], last: items.at(-1) }[focus];
     // A menu without items (no signOutFn) takes focus itself, so Escape still works.
     (target ?? this.#query('.menu'))?.focus();
   }
@@ -139,7 +139,8 @@ export class AccountMenuController implements ReactiveController {
       return;
     }
     const items = this.#items();
-    const current = items.findIndex((item) => item === this.#host.shadowRoot?.activeElement);
+    const active = this.#host.shadowRoot?.activeElement;
+    const current = active instanceof HTMLElement ? items.indexOf(active) : -1;
     const next = nextIndex(event.key, current, items.length);
     if (next === undefined) return;
     event.preventDefault();

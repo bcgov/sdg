@@ -34,6 +34,19 @@ describe('envSchema', () => {
       expect(env.KEYCLOAK_ISSUER_URL).toBe('https://keycloak.example.com/realms/portal');
     });
 
+    it('strips every trailing slash from APP_URL and KEYCLOAK_ISSUER_URL', () => {
+      const env = validateEnv({
+        ...valid,
+        APP_URL: 'https://portal.example.com///',
+        KEYCLOAK_ISSUER_URL: 'https://kc.test//',
+      });
+      expect(env.APP_URL).toBe('https://portal.example.com');
+      expect(env.KEYCLOAK_ISSUER_URL).toBe('https://kc.test');
+      expect(validateEnv({ ...valid, APP_URL: 'https://portal.example.com/a/' }).APP_URL).toBe(
+        'https://portal.example.com/a',
+      );
+    });
+
     it('coerces PORT, SESSION_TTL_SECONDS and TRUST_PROXY', () => {
       const env = validateEnv({ ...valid, PORT: '8080', SESSION_TTL_SECONDS: '600', TRUST_PROXY: 'true' });
       expect(env.PORT).toBe(8080);

@@ -86,8 +86,8 @@ export async function startFakeIdp(): Promise<FakeIdp> {
     if (form.get('client_id') !== CLIENT_ID || form.get('client_secret') !== CLIENT_SECRET) {
       return sendJson(res, 401, { error: 'invalid_client' });
     }
-    const verifier = form.get('code_verifier') ?? '';
-    if (!issued || (await calculatePKCECodeChallenge(verifier)) !== issued.codeChallenge) {
+    const challenge = await calculatePKCECodeChallenge(form.get('code_verifier') ?? '');
+    if (issued?.codeChallenge !== challenge) {
       return sendJson(res, 400, { error: 'invalid_grant' });
     }
     const idToken = await signToken(privateKey, idp.issuer, { nonce: issued.nonce, ...issued.claims }, {});

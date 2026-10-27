@@ -73,31 +73,42 @@ function findWordmark(markup: string): string | undefined {
 
 const pathArity: Record<string, number> = { m: 2, l: 2, h: 1, v: 1, c: 6, s: 4, q: 4, t: 2, z: 0 };
 
+/** The current point and the start of the current subpath (where `z` returns to). */
+interface PathCursor {
+  x: number;
+  y: number;
+  startX: number;
+  startY: number;
+}
+
+/** Moves the cursor through one argument group of a path command, collecting the x of every point it passes. */
+function stepPath(cursor: PathCursor, type: string, relative: boolean, values: number[], xs: number[]): void {
+  const [baseX, baseY] = relative ? [cursor.x, cursor.y] : [0, 0];
+  if (type === 'h') cursor.x = baseX + (values[0] ?? 0);
+  else if (type === 'v') cursor.y = baseY + (values[0] ?? 0);
+  else {
+    for (let j = 0; j < values.length; j += 2) xs.push(baseX + (values[j] ?? 0));
+    [cursor.x, cursor.y] = [baseX + (values.at(-2) ?? 0), baseY + (values.at(-1) ?? 0)];
+  }
+  xs.push(cursor.x);
+}
+
 /** The x of every point and Bézier control point in a path; a curve stays within its control points, so they bound it. */
 function pathXs(d: string): number[] {
   const xs: number[] = [];
-  let [x, y, startX, startY] = [0, 0, 0, 0];
+  const cursor: PathCursor = { x: 0, y: 0, startX: 0, startY: 0 };
   for (const [, command = '', args = ''] of d.matchAll(/([a-z])([^a-z]*)/giu)) {
     const type = command.toLowerCase();
     const arity = pathArity[type];
     if (arity === undefined) throw new Error(`bc-logo: unsupported path command "${command}"`);
-    const relative = command === type;
-    const numbers = [...args.matchAll(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/giu)].map(Number);
     if (arity === 0) {
-      [x, y] = [startX, startY];
+      [cursor.x, cursor.y] = [cursor.startX, cursor.startY];
       continue;
     }
+    const numbers = [...args.matchAll(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/giu)].map(Number);
     for (let i = 0; i < numbers.length; i += arity) {
-      const values = numbers.slice(i, i + arity);
-      const [baseX, baseY] = relative ? [x, y] : [0, 0];
-      if (type === 'h') x = baseX + (values[0] ?? 0);
-      else if (type === 'v') y = baseY + (values[0] ?? 0);
-      else {
-        for (let j = 0; j < values.length; j += 2) xs.push(baseX + (values[j] ?? 0));
-        [x, y] = [baseX + (values.at(-2) ?? 0), baseY + (values.at(-1) ?? 0)];
-      }
-      xs.push(x);
-      if (type === 'm' && i === 0) [startX, startY] = [x, y];
+      stepPath(cursor, type, command === type, numbers.slice(i, i + arity), xs);
+      if (type === 'm' && i === 0) [cursor.startX, cursor.startY] = [cursor.x, cursor.y];
     }
   }
   return xs;
@@ -108,7 +119,8 @@ export function xExtent(markup: string): { min: number; max: number } {
   const xs: number[] = [];
   for (const [, tag, attributes = ''] of markup.matchAll(/<(path|rect|polygon)\b([^>]*)>/gu)) {
     if (attributes.includes('fill="none"')) continue;
-    const attribute = (name: string): string => new RegExp(`\\b${name}="([^"]*)"`, 'u').exec(attributes)?.[1] ?? '0';
+    const attribute = (name: string): string =>
+      new RegExp(String.raw`\b${name}="([^"]*)"`, 'u').exec(attributes)?.[1] ?? '0';
     if (tag === 'path') xs.push(...pathXs(attribute('d')));
     else if (tag === 'rect') xs.push(Number(attribute('x')), Number(attribute('x')) + Number(attribute('width')));
     else
