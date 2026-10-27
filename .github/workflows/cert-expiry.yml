@@ -25,14 +25,14 @@ jobs:
 
       - name: Check certificate expiry
         id: check
-        uses: bcgov/actions-openshift/cert-expiry@97cb3f8a5a6d134594c85224d3f593e3c0e90647 # v0.4.0
+        uses: bcgov/actions-openshift/cert-expiry@4dbe4f6d25d14cbdb01e525a302e61e31f96c3ed # v0.5.0
         with:
           hosts: ${{ vars.ROUTE_HOST }}
           days: '30'
 
       - name: Notify CODEOWNERS
         if: failure() && steps.check.outputs.findings != '' && steps.check.outputs.findings != '[]'
-        uses: bcgov/actions/workflow-notifier@79aefe3a7abb2d0d00b1b3ea4cfbf12727a10638 # v0.9.0
+        uses: bcgov/actions/workflow-notifier@122a9b1c6c082b1b1f18c300020fbdc417b6b0b2 # v0.10.0
         with:
           title: 'TLS certificate expiring or unreadable'
           labels: ''
