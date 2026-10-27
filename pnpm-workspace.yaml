@@ -78,7 +78,7 @@ catalog:
 catalogs:
   # The Nest CLI needs the TypeScript compiler API, which TypeScript 7 no longer ships.
   ts6:
-    typescript: ~6.0.3
+    typescript: ~7.0.0
 
 catalogMode: prefer
 
