@@ -53,9 +53,20 @@ x-database-url: &database-url postgres://${POSTGRES_USER:-portal}:${POSTGRES_PAS
 
 services:
   postgis:
-    image: docker.io/postgis/postgis:17-3.5-alpine
+    # PostGIS 17-3.5 plus pg_cron, which runs the scheduled jobs portal-database's migrations create.
+    build: packages/portal-database/dev-postgres
     # The official PostGIS images are published for amd64 only; Apple Silicon runs them under emulation.
     platform: linux/amd64
+    command:
+      [
+        'postgres',
+        '-c',
+        'shared_preload_libraries=pg_cron',
+        '-c',
+        'cron.database_name=${POSTGRES_DB:-portal}',
+        '-c',
+        'cron.use_background_workers=on',
+      ]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-portal}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}

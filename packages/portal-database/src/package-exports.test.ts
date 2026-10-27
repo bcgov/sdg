@@ -10,12 +10,16 @@ import * as schemaEntry from './schema/index.js';
 
 describe('portal-database package', () => {
   describe('package.json', () => {
-    it('exposes only the . and ./schema subpaths', () => {
-      expect(Object.keys(manifest.exports).toSorted()).toEqual(['.', './schema']);
+    it('exposes only the ., ./schema and ./testing subpaths', () => {
+      expect(Object.keys(manifest.exports).toSorted()).toEqual(['.', './schema', './testing']);
       expect(manifest.exports['.']).toEqual({ types: './dist/index.d.ts', import: './dist/index.js' });
       expect(manifest.exports['./schema']).toEqual({
         types: './dist/schema/index.d.ts',
         import: './dist/schema/index.js',
+      });
+      expect(manifest.exports['./testing']).toEqual({
+        types: './dist/testing/index.d.ts',
+        import: './dist/testing/index.js',
       });
       expect(Object.keys(schemaEntry).toSorted()).toEqual(['identities', 'principals', 'sessions']);
     });

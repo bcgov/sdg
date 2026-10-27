@@ -1,14 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  Module,
-  RequestMethod,
-  type MiddlewareConsumer,
-  type NestModule,
-  type OnApplicationBootstrap,
-  type OnApplicationShutdown,
-} from '@nestjs/common';
+import { Inject, Module, RequestMethod, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import type { Request } from 'express';
@@ -23,7 +13,6 @@ import './session.types.js';
 export const SESSION_COOKIE = 'portal.sid';
 /** The express-session store (a `PostgresSessionStore`). */
 export const SESSION_STORE = Symbol('SESSION_STORE');
-export const PRUNE_INTERVAL_MS = 15 * 60 * 1000;
 
 /** Promisified `req.session` operations, so handlers can await them and errors propagate. */
 export function sessionOp(req: Request, op: 'save' | 'regenerate' | 'destroy'): Promise<void> {
@@ -32,35 +21,6 @@ export function sessionOp(req: Request, op: 'save' | 'regenerate' | 'destroy'): 
       error ? reject(error instanceof Error ? error : new Error(`Session ${op} failed`, { cause: error })) : resolve(),
     );
   });
-}
-
-/** Deletes expired sessions on an interval. Every replica runs it; the delete is idempotent. */
-@Injectable()
-class SessionPruner implements OnApplicationBootstrap, OnApplicationShutdown {
-  private readonly logger = new Logger('SessionPruner');
-  private readonly store: PostgresSessionStore;
-  private timer: NodeJS.Timeout | undefined;
-
-  constructor(@Inject(SESSION_STORE) store: PostgresSessionStore) {
-    this.store = store;
-  }
-
-  onApplicationBootstrap(): void {
-    this.timer = setInterval(() => void this.prune(), PRUNE_INTERVAL_MS).unref();
-  }
-
-  onApplicationShutdown(): void {
-    clearInterval(this.timer);
-  }
-
-  private async prune(): Promise<void> {
-    try {
-      const removed = await this.store.prune();
-      if (removed > 0) this.logger.debug(`Pruned ${removed} expired sessions`);
-    } catch (error) {
-      this.logger.error('Pruning expired sessions failed', error instanceof Error ? error.stack : String(error));
-    }
-  }
 }
 
 @Module({
@@ -74,7 +34,6 @@ class SessionPruner implements OnApplicationBootstrap, OnApplicationShutdown {
           ttlSeconds: config.get('SESSION_TTL_SECONDS', { infer: true }),
         }),
     },
-    SessionPruner,
   ],
 })
 export class SessionModule implements NestModule {

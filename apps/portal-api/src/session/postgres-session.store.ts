@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { sessions } from '@repo/portal-database';
-import { and, eq, gt, lt, lte } from 'drizzle-orm';
+import { and, eq, gt, lt } from 'drizzle-orm';
 import { Store, type SessionData } from 'express-session';
 
 import type { PortalDatabase } from '../database/database.module.js';
@@ -19,7 +19,10 @@ type Callback<T> = (error: unknown, value?: T) => void;
 
 const logger = new Logger('SessionStore');
 
-/** express-session store on the portal database. Payloads are encrypted: they carry OIDC tokens. */
+/**
+ * express-session store on the portal database. Payloads are encrypted: they carry OIDC tokens. Expired rows are
+ * never read; a pg_cron job deletes them (portal-database migration 0002_prune_sessions).
+ */
 export class PostgresSessionStore extends Store {
   private readonly db: PortalDatabase;
   private readonly key: Buffer;
@@ -48,15 +51,6 @@ export class PostgresSessionStore extends Store {
 
   override touch(sid: string, session: SessionData, callback?: Callback<void>): void {
     settle('touch', this.extend(sid, session), callback);
-  }
-
-  /** Deletes expired sessions and returns how many were removed. */
-  async prune(): Promise<number> {
-    const deleted = await this.db
-      .delete(sessions)
-      .where(lte(sessions.expiresAt, new Date()))
-      .returning({ sid: sessions.sid });
-    return deleted.length;
   }
 
   private async read(sid: string): Promise<SessionData | null> {
