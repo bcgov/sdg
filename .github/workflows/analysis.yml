@@ -39,8 +39,13 @@ jobs:
           dir: .
           node_version: '24'
           # Skipped while sonar_token is unset; see DEVELOPER.md (Code Quality with SonarCloud)
+          # Excludes the tsconfig JSONC files (comments fail Sonar's JSON parser) and the typescript-config test fixtures.
+          # Ignores docker:S8431: Renovate pins images as tag@digest, keeping the tag readable.
           sonar_args: >
-            -Dsonar.exclusions=**/coverage/**,**/node_modules/**,**/dist/**,**/*.test.ts,**/*.test.tsx,**/e2e/**,**/routeTree.gen.ts
+            -Dsonar.exclusions=**/coverage/**,**/node_modules/**,**/dist/**,**/*.test.ts,**/*.test.tsx,**/e2e/**,**/routeTree.gen.ts,**/tsconfig*.json,tooling/typescript-config/*.json,tooling/typescript-config/test/fixtures/**
+            -Dsonar.issue.ignore.multicriteria=e1
+            -Dsonar.issue.ignore.multicriteria.e1.ruleKey=docker:S8431
+            -Dsonar.issue.ignore.multicriteria.e1.resourceKey=**/Dockerfile
             -Dsonar.organization=bcgov-sonarcloud
             -Dsonar.projectKey=bcgov_sdg
             -Dsonar.sources=apps,packages,tooling

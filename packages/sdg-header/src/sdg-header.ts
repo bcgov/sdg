@@ -24,7 +24,7 @@ const isPlainClick = (event: MouseEvent): boolean =>
  * screens and behind a hamburger panel on narrow ones. Every input is optional.
  */
 export class SdgHeader extends LitElement {
-  static override properties: PropertyDeclarations = {
+  static override readonly properties: PropertyDeclarations = {
     // Removing the attribute (e.g. React dropping the prop) restores the default instead of hiding the title.
     headerTitle: {
       attribute: 'header-title',
@@ -42,7 +42,7 @@ export class SdgHeader extends LitElement {
     failedAvatarSrc: { state: true },
   };
 
-  static override styles: CSSResultGroup = [shellStyles, controlStyles, accountMenuStyles, navPanelStyles];
+  static override readonly styles: CSSResultGroup = [shellStyles, controlStyles, accountMenuStyles, navPanelStyles];
 
   /** Text after the divider. Defaults to `SDG`; an empty string hides the divider and title. */
   declare headerTitle: string;

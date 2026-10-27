@@ -37,7 +37,7 @@ export class NavPanelController implements ReactiveController {
     this.#stopListening();
   }
 
-  render({ menuLabel, profile, navList, footer }: NavPanelOptions): TemplateResult {
+  render({ menuLabel, ...panel }: NavPanelOptions): TemplateResult {
     return html`<div class="nav-menu" @keydown=${this.#onKeyDown}>
       <button
         type="button"
@@ -49,15 +49,15 @@ export class NavPanelController implements ReactiveController {
       >
         ${this.isOpen ? xmarkIcon : barsIcon}
       </button>
-      ${
-        this.isOpen
-          ? html`<div id=${panelId} class="panel" @click=${this.#onPanelClick}>
-              ${profile === nothing ? nothing : html`<div class="panel-profile">${profile}</div>`}
-              <div class="panel-items">${navList}</div>
-              ${footer === nothing ? nothing : html`<div class="panel-footer">${footer}</div>`}
-            </div>`
-          : nothing
-      }
+      ${this.isOpen ? this.#renderPanel(panel) : nothing}
+    </div>`;
+  }
+
+  #renderPanel({ profile, navList, footer }: Omit<NavPanelOptions, 'menuLabel'>): TemplateResult {
+    return html`<div id=${panelId} class="panel" @click=${this.#onPanelClick}>
+      ${profile === nothing ? nothing : html`<div class="panel-profile">${profile}</div>`}
+      <div class="panel-items">${navList}</div>
+      ${footer === nothing ? nothing : html`<div class="panel-footer">${footer}</div>`}
     </div>`;
   }
 
