@@ -2,7 +2,7 @@
 # Caddy fronts everything at https://sdg.localhost; portal-api and portal-web publish no host ports.
 # Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets
 # come from apps/portal-api/.env (gitignored). See DEVELOPER.md "Local Stack" for the one-time TLS trust step.
-# Host ports default to 5432/6379; override with POSTGRES_PORT / VALKEY_PORT if they are taken.
+# Postgres's host port defaults to 5432; override with POSTGRES_PORT if it is taken.
 name: portal
 
 # Shared by the Node services: the repo is bind-mounted for hot reload, and every node_modules is a volume so the
@@ -73,18 +73,6 @@ services:
       timeout: 5s
       retries: 10
 
-  valkey:
-    image: docker.io/valkey/valkey:9.2-alpine
-    ports:
-      - '${VALKEY_PORT:-6379}:6379'
-    volumes:
-      - portal-valkey:/data
-    healthcheck:
-      test: ['CMD', 'valkey-cli', 'ping']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   # Installs dependencies into the node_modules volumes on every `up`; near no-op when the lockfile is unchanged.
   deps:
     <<: *workspace
@@ -126,14 +114,11 @@ services:
       APP_URL: https://sdg.localhost
       TRUST_PROXY: 'true'
       DATABASE_URL: *database-url
-      VALKEY_URL: redis://valkey:6379
     # turbo builds the workspace packages portal-api imports (auth, portal-database) before `nest start --watch`.
     # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
     command: ['pnpm', 'turbo', 'run', 'dev', '--filter=portal-api', '--ui=stream', '--env-mode=loose']
     depends_on:
       migrate:
-        condition: service_healthy
-      valkey:
         condition: service_healthy
     healthcheck:
       # Liveness, not readiness: readiness runs Keycloak discovery.
@@ -194,7 +179,6 @@ services:
 
 volumes:
   portal-pgdata:
-  portal-valkey:
   caddy-data:
   caddy-config:
   pnpm-store:

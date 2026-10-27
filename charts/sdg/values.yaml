@@ -32,6 +32,3 @@ edge:
 
 postgres:
   enabled: true
-
-valkey:
-  enabled: true
