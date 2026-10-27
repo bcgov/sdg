@@ -5,7 +5,6 @@ import { EnvValidationError, validateEnv } from './env.js';
 const valid = {
   APP_URL: 'http://localhost:5173/',
   DATABASE_URL: 'postgres://portal:portal@localhost:5432/portal',
-  VALKEY_URL: 'redis://localhost:6379',
   SESSION_SECRET: 'x'.repeat(32),
   KEYCLOAK_ISSUER_URL: 'https://keycloak.example.com/realms/portal/',
   KEYCLOAK_CLIENT_ID: 'portal',
@@ -59,13 +58,9 @@ describe('envSchema', () => {
       expect(error.message).toContain('SESSION_SECRET');
     });
 
-    it('rejects non-postgres DATABASE_URL and non-redis VALKEY_URL', () => {
-      const error = errorOf({
-        ...valid,
-        DATABASE_URL: 'mysql://localhost/portal',
-        VALKEY_URL: 'http://localhost:6379',
-      });
-      expect(error.keys.toSorted()).toEqual(['DATABASE_URL', 'VALKEY_URL']);
+    it('rejects a non-postgres DATABASE_URL', () => {
+      const error = errorOf({ ...valid, DATABASE_URL: 'mysql://localhost/portal' });
+      expect(error.keys).toEqual(['DATABASE_URL']);
       expect(error.message).toMatch(/postgres:\/\/ or postgresql:\/\//);
       expect(errorOf({ ...valid, KEYCLOAK_CLIENT_ID: undefined }).keys).toEqual(['KEYCLOAK_CLIENT_ID']);
     });

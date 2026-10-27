@@ -5,13 +5,10 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import type { AuthUser, CallbackResult, OidcClient, PendingAuthorization } from '@repo/auth';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
-import session from 'express-session';
 import supertest from 'supertest';
 import { vi, type Mock } from 'vitest';
 
 import { configureApp } from '../bootstrap.js';
-import { SESSION_STORE } from '../session/session.module.js';
-import { VALKEY_CLIENT } from '../valkey/valkey.module.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 export const TEST_ENV = {
@@ -19,7 +16,6 @@ export const TEST_ENV = {
   LOG_LEVEL: 'silent',
   APP_URL: 'http://localhost:5173',
   DATABASE_URL: 'postgres://portal:portal@localhost:5432/portal_test',
-  VALKEY_URL: 'redis://localhost:6379',
   SESSION_SECRET: 'test-session-secret-at-least-32-characters',
   KEYCLOAK_ISSUER_URL: 'https://keycloak.example.com/realms/portal',
   KEYCLOAK_CLIENT_ID: 'portal',
@@ -43,19 +39,10 @@ export interface OidcStub {
   buildEndSessionUrl: Mock<OidcClient['buildEndSessionUrl']>;
 }
 
-export interface ValkeyStub {
-  isOpen: boolean;
-  isReady: boolean;
-  ping: Mock<() => Promise<string>>;
-  close: Mock<() => Promise<void>>;
-  destroy: Mock<() => void>;
-}
-
 export interface TestApp {
   app: NestExpressApplication;
   http: () => supertest.Agent;
   oidc: OidcStub;
-  valkey: ValkeyStub;
   database: TestDatabase;
   close: () => Promise<void>;
 }
@@ -105,8 +92,8 @@ export function resetOidcStub(stub: OidcStub): void {
 }
 
 /**
- * The real AppModule and HTTP conventions, with Postgres swapped for PGlite (real migrations),
- * Valkey for a stub plus an in-memory session store, and Keycloak for an OIDC client stub.
+ * The real AppModule and HTTP conventions, with Postgres swapped for PGlite (real migrations, which also
+ * back the session store) and Keycloak for an OIDC client stub.
  */
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   for (const [key, value] of Object.entries({ ...TEST_ENV, ...options.env })) vi.stubEnv(key, value);
@@ -114,21 +101,10 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const { AppModule } = await import('../app.module.js');
   const database = await createTestDatabase();
   const oidc = createOidcStub();
-  const valkey: ValkeyStub = {
-    isOpen: false,
-    isReady: true,
-    ping: vi.fn<() => Promise<string>>().mockResolvedValue('PONG'),
-    close: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    destroy: vi.fn<() => void>(),
-  };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers: options.controllers ?? [] })
     .overrideProvider(getDrizzleToken())
     .useValue(database.db)
-    .overrideProvider(VALKEY_CLIENT)
-    .useValue(valkey)
-    .overrideProvider(SESSION_STORE)
-    .useValue(new session.MemoryStore())
     .overrideProvider(OIDC_CLIENT)
     .useValue(oidc)
     .compile();
@@ -141,7 +117,6 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     app,
     http: () => supertest.agent(app.getHttpServer()),
     oidc,
-    valkey,
     database,
     close: async () => {
       await app.close();

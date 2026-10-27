@@ -33,7 +33,7 @@ tests:
             configMapRef:
               name: sdg-portal-api
 
-  - it: reads DATABASE_URL from the Crunchy user Secret and VALKEY_URL from the valkey Secret
+  - it: reads DATABASE_URL from the Crunchy user Secret
     template: templates/deployment.yaml
     asserts:
       - contains:
@@ -44,21 +44,12 @@ tests:
               secretKeyRef:
                 name: sdg-postgres-pguser-portal
                 key: uri
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: VALKEY_URL
-            valueFrom:
-              secretKeyRef:
-                name: sdg-valkey
-                key: url
 
   - it: secret names and keys can be overridden
     template: templates/deployment.yaml
     set:
       database.secretName: shared-pguser-portal
       database.secretKey: pgbouncer-uri
-      valkey.secretName: shared-valkey
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -68,14 +59,6 @@ tests:
               secretKeyRef:
                 name: shared-pguser-portal
                 key: pgbouncer-uri
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: VALKEY_URL
-            valueFrom:
-              secretKeyRef:
-                name: shared-valkey
-                key: url
 
   - it: runs the migrator initContainer with the same DATABASE_URL
     template: templates/deployment.yaml

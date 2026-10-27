@@ -11,8 +11,5 @@ dependencies:
 - name: postgres
   repository: file://../postgres
   version: 0.1.0
-- name: valkey
-  repository: file://../valkey
-  version: 0.1.0
-digest: sha256:d0a35c9ee21a1adc6c0ade0a642549b206ce0d8dc8e4d901971c5d754cd03c70
-generated: "2026-10-21T15:33:28.522718-07:00"
+digest: sha256:f255e22ad684770ec073e212201f26b1413b1a9cf407eb36ab1691ad924415ca
+generated: "2026-10-27T10:58:50.143936-07:00"

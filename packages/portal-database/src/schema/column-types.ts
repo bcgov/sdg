@@ -29,4 +29,4 @@ export type PgTableOf<TName extends string, TColumns extends Record<string, PgCo
   dialect: 'pg';
 }>;
 
-export type { HasDefault, NotNull };
+export type { HasDefault, IsPrimaryKey, NotNull };

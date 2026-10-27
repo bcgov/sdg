@@ -17,7 +17,6 @@ export const envSchema = z.object({
   APP_URL: urlWithProtocol(['http:', 'https:']).transform((value) => value.replace(/\/+$/, '')),
   TRUST_PROXY: booleanString,
   DATABASE_URL: urlWithProtocol(['postgres:', 'postgresql:']),
-  VALKEY_URL: urlWithProtocol(['redis:', 'rediss:']),
   SESSION_SECRET: z.string().min(32),
   SESSION_TTL_SECONDS: z.coerce.number().int().min(300).default(28_800),
   KEYCLOAK_ISSUER_URL: urlWithProtocol(['http:', 'https:']).transform((value) => value.replace(/\/+$/, '')),

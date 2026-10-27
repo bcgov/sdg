@@ -27,7 +27,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - k6 load tests against TEST, weekly
 - Local stack with compose behind Caddy and the WAF at `https://sdg.localhost`
 - **Sample application stack** (pnpm + Turborepo monorepo):
-  - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; Valkey for sessions
+  - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; also the express-session store (encrypted at rest)
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
   - Edge: Caddy with Coraza WAF, routing `/api*` to portal-api and everything else to portal-web
   - Backend: `portal-api`, a NestJS backend-for-frontend with Keycloak (OIDC) sign-in
@@ -105,12 +105,11 @@ Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-1
 
 Nobody sets these by hand; they are created in the namespace and read there.
 
-| Secret                             | Namespace(s)            | Holds                                     | Created by                                                                      |
-| ---------------------------------- | ----------------------- | ----------------------------------------- | ------------------------------------------------------------------------------- |
-| `github-actions-token`             | `<plate>-dev/test/prod` | Deploy service account token              | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
-| `<release>-postgres-pguser-portal` | the release's namespace | `DATABASE_URL` (key `uri`)                | The Crunchy operator, from the chart's `PostgresCluster`                        |
-| `<release>-valkey`                 | the release's namespace | `VALKEY_URL` (key `url`), Valkey password | The valkey chart, once on install; reused on upgrade                            |
-| Sysdig team Secret                 | `<plate>-tools`         | Sysdig API token                          | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
+| Secret                             | Namespace(s)            | Holds                        | Created by                                                                      |
+| ---------------------------------- | ----------------------- | ---------------------------- | ------------------------------------------------------------------------------- |
+| `github-actions-token`             | `<plate>-dev/test/prod` | Deploy service account token | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
+| `<release>-postgres-pguser-portal` | the release's namespace | `DATABASE_URL` (key `uri`)   | The Crunchy operator, from the chart's `PostgresCluster`                        |
+| Sysdig team Secret                 | `<plate>-tools`         | Sysdig API token             | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
 
 On first install portal-api pods wait (`CreateContainerConfigError`) until the operator has created the database user Secret; the migrator then retries until the database accepts connections.
 
@@ -118,10 +117,10 @@ On first install portal-api pods wait (`CreateContainerConfigError`) until the o
 
 portal-api reads two secrets from a Vault KV v2 secret. Deploys use the role `<plate>-nonprod` (pull requests and TEST) or `<plate>-prod` (PROD) with the `<plate>-vault` service account; the path defaults to `<role>/portal-api` and can be changed with `VAULT_SECRET_PATH`.
 
-| Key                      | Description                                                                  |
-| ------------------------ | ---------------------------------------------------------------------------- |
-| `SESSION_SECRET`         | Session signing key, at least 32 characters (e.g. `openssl rand -base64 48`) |
-| `KEYCLOAK_CLIENT_SECRET` | Secret of the Keycloak confidential client named by `KEYCLOAK_CLIENT_ID`     |
+| Key                      | Description                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SESSION_SECRET`         | Session cookie signing and stored-session encryption key, at least 32 characters (e.g. `openssl rand -base64 48`); rotating it signs everyone out |
+| `KEYCLOAK_CLIENT_SECRET` | Secret of the Keycloak confidential client named by `KEYCLOAK_CLIENT_ID`                                                                          |
 
 Values must not contain `'` or newlines. The Vault Agent writes them to `/vault/secrets/portal-api.env`, which portal-api loads with `node --env-file`. See [`charts/README.md`](./charts/README.md) for where every other value lives and how to deploy without Vault.
 
@@ -356,7 +355,7 @@ Don't forget to add your team members!
 This repository is architected and hardened out-of-the-box to align with Levels 1 and 2 of the **OWASP Application Security Verification Standard (ASVS) v4.0.3**. A detailed security mapping matrix is documented in [SECURITY.md](./SECURITY.md#owasp-asvs-alignment), detailing our implementation of:
 
 - **Active WAF Defense:** Inline Coraza WAF running inside the Caddy reverse proxy (the edge).
-- **Tiered Isolation:** NetworkPolicies enforcing network boundaries between the edge, portal-web, portal-api, Valkey and database tiers.
+- **Tiered Isolation:** NetworkPolicies enforcing network boundaries between the edge, portal-web, portal-api and database tiers.
 - **Platform/Container Hardening:** Read-only root filesystems, non-root execution, privilege escalation blocks, default seccomp profiles, and drop capabilities.
 - **Secret Management:** Application secrets from Vault; database and cache credentials generated in-cluster and never stored in GitHub.
 - **Build-Time & Dynamic Testing:** Automated static analysis (Trivy, CodeQL), dependency auditing (Renovate, Knip), and weekly dynamic vulnerability scans (**OWASP ZAP**).
@@ -394,18 +393,18 @@ Run `pnpm test:charts` after changing a chart.
 
 `compose.yaml` runs the whole portal with its dev commands behind Caddy and the Coraza WAF at **https://sdg.localhost**:
 
-| Service             | Runs                                                                                     | Reachable from the host            |
-| ------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------- |
-| `caddy`             | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443) |
-| `portal-web`        | `vite` with HMR                                                                          | only through Caddy                 |
-| `portal-api`        | `nest start --watch`                                                                     | only through Caddy (`/api`)        |
-| `migrate`           | `drizzle-kit migrate`; portal-api starts only after it succeeds                          | —                                  |
-| `deps`              | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
-| `postgis`, `valkey` | databases                                                                                | `localhost:5432`, `localhost:6379` |
+| Service      | Runs                                                                                     | Reachable from the host            |
+| ------------ | ---------------------------------------------------------------------------------------- | ---------------------------------- |
+| `caddy`      | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443) |
+| `portal-web` | `vite` with HMR                                                                          | only through Caddy                 |
+| `portal-api` | `nest start --watch`                                                                     | only through Caddy (`/api`)        |
+| `migrate`    | `drizzle-kit migrate`; portal-api starts only after it succeeds                          | —                                  |
+| `deps`       | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
+| `postgis`    | database                                                                                 | `localhost:5432`                   |
 
 ## First run
 
-1. Copy `apps/portal-api/.env.example` to `apps/portal-api/.env` and set `SESSION_SECRET` and the `KEYCLOAK_*` values. compose overrides the URLs (`APP_URL`, `DATABASE_URL`, `VALKEY_URL`, `TRUST_PROXY`), so the file's `localhost` values can stay for host-run development.
+1. Copy `apps/portal-api/.env.example` to `apps/portal-api/.env` and set `SESSION_SECRET` and the `KEYCLOAK_*` values. compose overrides the URLs (`APP_URL`, `DATABASE_URL`, `TRUST_PROXY`), so the file's `localhost` values can stay for host-run development.
 2. On the Keycloak client, add `https://sdg.localhost/api/auth/callback` and `https://sdg.localhost/` as valid redirect URIs.
 3. Start the stack. The first run installs dependencies and takes a few minutes:
    ```sh
@@ -438,7 +437,7 @@ Multi-stage Dockerfiles for OpenShift. The app images build from the repository 
 | `portal-database` | `podman build -f packages/portal-database/Dockerfile .` | `node dist/migrate.js` as portal-api's initContainer (needs `DATABASE_URL`)        |
 | edge              | `podman build apps/portal-web/caddy`                    | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL` |
 
-All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` and `valkey` (migrations, health, SPA routing and caching, edge headers, WAF).
+All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, health, SPA routing and caching, edge headers, WAF).
 
 # Workflows
 
@@ -600,7 +599,7 @@ Runs on scheduled job (cronjob) or workflow dispatch.
 
 ## Load tests
 
-[k6](https://grafana.com/docs/k6/latest/) scripts in [`tests/load/`](./tests/load/) load the deployed stack through the edge: `portal-web.ts` (the index and the JS/CSS it links) and `portal-api.ts` (`/api/auth/me` signed out, so no Valkey or Postgres yet). Both share profiles and thresholds from `tests/load/lib/config.ts`: failed requests under 1%, p95 under 500 ms, checks over 99%. The Scheduled workflow runs them weekly against TEST with the `ramp` profile (50 VUs over 5 minutes) and uploads an HTML report per script.
+[k6](https://grafana.com/docs/k6/latest/) scripts in [`tests/load/`](./tests/load/) load the deployed stack through the edge: `portal-web.ts` (the index and the JS/CSS it links) and `portal-api.ts` (`/api/auth/me` signed out, so no session or Postgres lookup). Both share profiles and thresholds from `tests/load/lib/config.ts`: failed requests under 1%, p95 under 500 ms, checks over 99%. The Scheduled workflow runs them weekly against TEST with the `ramp` profile (50 VUs over 5 minutes) and uploads an HTML report per script.
 
 ```bash
 brew install k6                                                     # once
@@ -639,10 +638,10 @@ To safely automate dependency updates, runtime health checks are mandatory to ca
 
 This repository provides out-of-the-box support for self-healing and verification through container probes:
 
-- **portal-api (NestJS)**: Implements `/healthz/live` (process up; startup and liveness probes) and `/healthz/ready` (readiness probe) using NestJS Terminus. Readiness checks PostgreSQL, Valkey and Keycloak and returns `503 Service Unavailable` when any is down. Both sit outside `/api`, so the edge doesn't expose them.
+- **portal-api (NestJS)**: Implements `/healthz/live` (process up; startup and liveness probes) and `/healthz/ready` (readiness probe) using NestJS Terminus. Readiness checks PostgreSQL (which also holds sessions) and Keycloak and returns `503 Service Unavailable` when any is down. Both sit outside `/api`, so the edge doesn't expose them.
 - **portal-web (Caddy)**: readiness/liveness probes check `/` to confirm the web server is responsive and serving assets.
 - **edge (Caddy + Coraza)**: readiness/liveness probes are TCP checks, so the edge's health doesn't depend on its upstreams.
-- **Smoke checks**: after every deploy, `reusable-tests.yml` requests `/` (portal-web, expects 200) and `/api/auth/me` (portal-api through the edge, signed out, so no Valkey session lookup; expects 401) before running Playwright E2E.
+- **Smoke checks**: after every deploy, `reusable-tests.yml` requests `/` (portal-web, expects 200) and `/api/auth/me` (portal-api through the edge, signed out, so no session lookup; expects 401) before running Playwright E2E.
 
 _Tip: For a fully mature maintenance mode setup, extend the readiness checks to query any further external APIs portal-api comes to depend on. If a dependency goes down, the health check should return `503 Service Unavailable`, blocking the automated merge._
 

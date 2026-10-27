@@ -12,7 +12,7 @@ import { migrate } from 'drizzle-orm/pglite/migrator';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import * as schema from './schema/index.js';
-import { identities, principals } from './schema/index.js';
+import { identities, principals, sessions } from './schema/index.js';
 
 const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), '../migrations');
 
@@ -48,7 +48,7 @@ function readLatestSnapshot(): DrizzleSnapshotJSON {
 /** `table.column:notNull` and index names as the schema declares them (snake_case, like the client). */
 function describeSchema(): { columns: string[]; indexes: string[] } {
   const casing = new CasingCache('snake_case');
-  const configs = [principals, identities].map((table) => getTableConfig(table));
+  const configs = [principals, identities, sessions].map((table) => getTableConfig(table));
   return {
     columns: configs.flatMap((config) =>
       config.columns.map((column) => `${config.name}.${casing.getColumnCasing(column)}:${column.notNull}`),
@@ -76,7 +76,7 @@ describe('portal-database migrations', () => {
       const tables = await db.execute<{ table_name: string }>(
         sql`select table_name from information_schema.tables where table_schema = 'public' order by table_name`,
       );
-      expect(tables.rows.map((row) => row.table_name)).toEqual(['identities', 'principals']);
+      expect(tables.rows.map((row) => row.table_name)).toEqual(['identities', 'principals', 'sessions']);
       const applied = await db.execute<{ count: number }>(
         sql`select count(*)::int as count from drizzle.__drizzle_migrations`,
       );

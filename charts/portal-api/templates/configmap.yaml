@@ -1,4 +1,4 @@
-# Non-secret env for src/config/env.ts. Secrets come from the Crunchy/valkey Secrets and Vault (deployment.yaml).
+# Non-secret env for src/config/env.ts. Secrets come from the Crunchy Secret and Vault (deployment.yaml).
 apiVersion: v1
 kind: ConfigMap
 metadata:

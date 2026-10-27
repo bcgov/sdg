@@ -17,7 +17,7 @@ describe('portal-database package', () => {
         types: './dist/schema/index.d.ts',
         import: './dist/schema/index.js',
       });
-      expect(Object.keys(schemaEntry).toSorted()).toEqual(['identities', 'principals']);
+      expect(Object.keys(schemaEntry).toSorted()).toEqual(['identities', 'principals', 'sessions']);
     });
 
     it('peers drizzle-orm and depends on it and pg via the catalog', () => {
@@ -59,10 +59,10 @@ describe('portal-database package', () => {
       }
     });
 
-    it('exposes the principals and identities tables on db.query', async () => {
+    it('exposes the principals, identities and sessions tables on db.query', async () => {
       const db = createPortalDatabase('postgres://portal:portal@localhost:5432/portal');
       try {
-        expect(Object.keys(db.query).toSorted()).toEqual(['identities', 'principals']);
+        expect(Object.keys(db.query).toSorted()).toEqual(['identities', 'principals', 'sessions']);
         // Builds SQL without connecting: the relational API knows both tables and the snake_case casing.
         expect(db.query.principals.findFirst().toSQL().sql).toMatch(
           /from "principals".*"display_name"|"display_name".*from "principals"/s,
