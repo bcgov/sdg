@@ -1,5 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Presets from https://github.com/bcgov/renovate-config",
-  "extends": ["github>bcgov/renovate-config#2026.9.26"]
+  "extends": ["github>bcgov/renovate-config#2026.9.26"],
+  "packageRules": [
+    {
+      "description": "The Nest CLI needs the TypeScript compiler API, which TypeScript 7.0 no longer ships",
+      "matchDepTypes": ["pnpm.catalog.ts6"],
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
+    }
+  ]
 }
