@@ -35,6 +35,10 @@ tests:
             min_wal_size: 32MB
             wal_keep_size: 16MB
             shared_buffers: 32MB
+            # From the postgres chart's defaults: Helm merges parameters, so PRs keep pg_cron.
+            shared_preload_libraries: pg_cron
+            cron.database_name: portal
+            cron.use_background_workers: 'on'
 
   - it: lowers Postgres requests and keeps its limit
     template: charts/postgres/templates/postgrescluster.yaml
