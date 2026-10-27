@@ -249,7 +249,7 @@ Fill out the intake form using the following selections:
 Once the platform team provisions the project:
 
 1. Generate an analysis token in SonarCloud and save it as the repository secret `SONAR_TOKEN`. Without it the `Tests` job skips the Sonar scan.
-2. Check `-Dsonar.projectKey` in [`.github/workflows/analysis.yml`](./.github/workflows/analysis.yml) (default: the repository name) against the key SonarCloud assigned.
+2. Check `-Dsonar.projectKey` in [`.github/workflows/analysis.yml`](./.github/workflows/analysis.yml) (`bcgov_sdg`) against the key SonarCloud assigned.
 
 ## Dependency Scanning with Knip
 
