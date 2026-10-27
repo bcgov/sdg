@@ -42,6 +42,8 @@ Environment sizes live in `charts/sdg/values-{pr,test,prod}.yaml`. PR environmen
 
 On first install portal-api pods wait (`CreateContainerConfigError`) until PGO has created the user Secret; the migrator then retries until the database accepts connections.
 
+The postgres chart preloads pg_cron (`postgres.parameters`), and its init SQL installs the extension and grants the app user the `cron` schema. portal-database's migrations then schedule the jobs as that user, for example deleting expired sessions every 15 minutes (`SELECT jobname, schedule FROM cron.job;`). PGO runs the init SQL only when it creates a cluster. A cluster created before this was added needs two steps by hand, and its migrations fail until both are done. First, after the parameter change rolls out, check `SHOW shared_preload_libraries;` and restart the cluster if pg_cron isn't listed yet (`patronictl restart`). Second, as superuser on the primary, run `psql -d portal -c 'CREATE EXTENSION IF NOT EXISTS pg_cron; GRANT USAGE ON SCHEMA cron TO portal;'`.
+
 ## Where configuration lives
 
 | Kind                                                              | Where                                                                           |
