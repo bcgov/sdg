@@ -26,7 +26,7 @@ export const envSchema = z.object({
   DATABASE_URL: urlWithProtocol(['postgres:', 'postgresql:']),
   SESSION_SECRET: z.string().min(32),
   SESSION_TTL_SECONDS: z.coerce.number().int().min(300).default(28_800),
-  KEYCLOAK_ISSUER_URL: urlWithProtocol(['http:', 'https:']).transform(withoutTrailingSlashes),
+  KEYCLOAK_ISSUER_URL: urlWithProtocol(['https:']).transform(withoutTrailingSlashes),
   KEYCLOAK_CLIENT_ID: z.string().min(1),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),
 });

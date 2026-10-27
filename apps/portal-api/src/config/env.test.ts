@@ -78,6 +78,12 @@ describe('envSchema', () => {
       expect(errorOf({ ...valid, KEYCLOAK_CLIENT_ID: undefined }).keys).toEqual(['KEYCLOAK_CLIENT_ID']);
     });
 
+    it('rejects a plain http KEYCLOAK_ISSUER_URL', () => {
+      const error = errorOf({ ...valid, KEYCLOAK_ISSUER_URL: 'http://keycloak.example.com/realms/portal' });
+      expect(error.keys).toEqual(['KEYCLOAK_ISSUER_URL']);
+      expect(error.message).toContain('Must use https://');
+    });
+
     it('reports invalid keys without their values', () => {
       const secret = 'super-secret-but-short';
       const error = errorOf({ ...valid, SESSION_SECRET: secret, DATABASE_URL: 'mysql://user:hunter2@db/portal' });
