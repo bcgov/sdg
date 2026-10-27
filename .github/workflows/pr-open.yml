@@ -17,7 +17,7 @@ jobs:
       attestations: write
       id-token: write
       packages: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         include:
@@ -80,7 +80,7 @@ jobs:
     name: Deployment Links
     needs: [deploys]
     if: needs.deploys.outputs.triggered == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       pull-requests: write
     steps:
