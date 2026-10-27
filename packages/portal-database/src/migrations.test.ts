@@ -13,6 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import * as schema from './schema/index.js';
 import { identities, principals, sessions } from './schema/index.js';
+import { installPgCronStub } from './testing/index.js';
 
 const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), '../migrations');
 
@@ -63,6 +64,7 @@ describe('portal-database migrations', () => {
 
   beforeAll(async () => {
     client = new PGlite();
+    await installPgCronStub(client);
     db = drizzle({ client, schema, casing: 'snake_case' });
     await migrate(db, { migrationsFolder });
   }, 60_000);
@@ -70,6 +72,14 @@ describe('portal-database migrations', () => {
   afterAll(async () => {
     await client.close();
   });
+
+  /** Runs a scheduled job's command now, as pg_cron would. */
+  async function runJob(name: string): Promise<void> {
+    const job = await db.execute<{ command: string }>(sql`select command from cron.job where jobname = ${name}`);
+    const command = job.rows[0]?.command;
+    if (!command) throw new Error(`No cron job ${name}`);
+    await client.exec(command);
+  }
 
   describe('migration chain', () => {
     it('applies every migration to an empty database', async () => {
@@ -99,6 +109,41 @@ describe('portal-database migrations', () => {
       );
       expect(indexes.rows.map((row) => row.indexname).toSorted()).toEqual(expected.indexes.toSorted());
     }, 60_000);
+  });
+
+  describe('pg_cron jobs', () => {
+    it('schedules expired-session pruning and run-detail purging', async () => {
+      const jobs = await db.execute<{ jobname: string; schedule: string; command: string }>(
+        sql`select jobname, schedule, command from cron.job order by jobname`,
+      );
+      expect(jobs.rows).toEqual([
+        { jobname: 'prune-expired-sessions', schedule: '*/15 * * * *', command: expect.stringContaining('sessions') },
+        {
+          jobname: 'purge-cron-run-details',
+          schedule: '0 3 * * *',
+          command: expect.stringContaining('job_run_details'),
+        },
+      ]);
+    });
+
+    it('prune-expired-sessions deletes only expired sessions', async () => {
+      const now = Date.now();
+      await db.insert(sessions).values([
+        { sid: 'expired', sess: 'x', expiresAt: new Date(now - 1000) },
+        { sid: 'live', sess: 'x', expiresAt: new Date(now + 60_000) },
+      ]);
+      await runJob('prune-expired-sessions');
+      const left = await db.select({ sid: sessions.sid }).from(sessions);
+      expect(left).toEqual([{ sid: 'live' }]);
+      await db.delete(sessions);
+    });
+
+    it('purge-cron-run-details deletes runs older than a week', async () => {
+      await db.execute(sql`insert into cron.job_run_details (end_time) values
+        (now() - interval '8 days'), (now() - interval '1 day')`);
+      await runJob('purge-cron-run-details');
+      expect((await db.execute(sql`select runid from cron.job_run_details`)).rows).toHaveLength(1);
+    });
   });
 
   describe('constraints', () => {

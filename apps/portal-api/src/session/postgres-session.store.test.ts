@@ -100,15 +100,6 @@ describe('PostgresSessionStore', () => {
     expect((await expiryOf('sid-1'))?.getTime()).toBe(later.cookie.expires?.getTime());
   });
 
-  it('prunes only expired sessions', async () => {
-    await set('sid-live', sessionExpiringIn(HOUR_MS));
-    await set('sid-dead-1', sessionExpiringIn(-1000));
-    await set('sid-dead-2', sessionExpiringIn(-HOUR_MS));
-    expect(await store.prune()).toBe(2);
-    const rows = await database.db.select({ sid: sessions.sid }).from(sessions);
-    expect(rows.map((row) => row.sid)).toEqual(['sid-live']);
-  });
-
   it('passes database errors to the callback', async () => {
     const broken = await createTestDatabase();
     await broken.close();

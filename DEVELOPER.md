@@ -27,7 +27,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - k6 load tests against TEST, weekly
 - Local stack with compose behind Caddy and the WAF at `https://sdg.localhost`
 - **Sample application stack** (pnpm + Turborepo monorepo):
-  - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; also the express-session store (encrypted at rest)
+  - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; also the express-session store (encrypted at rest; pg_cron deletes expired sessions every 15 minutes)
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
   - Edge: Caddy with Coraza WAF, routing `/api*` to portal-api and everything else to portal-web
   - Backend: `portal-api`, a NestJS backend-for-frontend with Keycloak (OIDC) sign-in
@@ -422,7 +422,8 @@ Run `pnpm test:charts` after changing a chart.
 - **`rootlessport cannot expose privileged port 443`**: allow rootless Podman to bind 443 with `podman machine ssh "echo net.ipv4.ip_unprivileged_port_start=443 | sudo tee /etc/sysctl.d/99-unprivileged-ports.conf && sudo sysctl --system"`.
 - **`sdg.localhost` does not resolve** (some Safari versions): add `127.0.0.1 sdg.localhost` to `/etc/hosts`.
 - **`permission denied` under `/data` or `/config` in the caddy logs**: the volumes were created when the edge image ran as root. Remove them with `podman compose down && podman volume rm portal_caddy-data portal_caddy-config`, start the stack, and rerun `pnpm stack:trust` (a new local CA is generated).
-- **After changing `Dockerfile.dev` or `apps/portal-web/caddy/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
+- **`schema "cron" does not exist` when migrating**: the `portal-pgdata` volume predates pg_cron, and the `postgis` image only installs the extension on a fresh volume. Recreate it with `podman compose down && podman volume rm portal_portal-pgdata && podman compose up -d --build`, which deletes local data. Keeping the old volume isn't worth it: the image moved from alpine to Debian, which changes collations.
+- **After changing `Dockerfile.dev`, `apps/portal-web/caddy/Dockerfile` or `packages/portal-database/dev-postgres/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
 - **Adding a workspace package**: add its `node_modules` volume to `x-workspace` and `volumes:` in `compose.yaml`.
 - **WAF**: rules using `block` (1001, 1002, 1005, 1007, 1008) follow Coraza's default action (`pass`) and only log a `Coraza: Warning`. Rules using `deny` (1003, 1004) return 403.
 
