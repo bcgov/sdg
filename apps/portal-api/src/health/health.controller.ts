@@ -26,14 +26,10 @@ export class HealthController {
     return this.health.check([]);
   }
 
-  /** Every dependency needed to serve a login is reachable. 503 when any check is down. */
+  /** Every dependency needed to serve a login (Postgres also holds sessions) is reachable. 503 when any check is down. */
   @Get('ready')
   @HealthCheck()
   ready(): Promise<HealthCheckResult> {
-    return this.health.check([
-      () => this.indicators.database(),
-      () => this.indicators.valkeyPing(),
-      () => this.indicators.keycloak(),
-    ]);
+    return this.health.check([() => this.indicators.database(), () => this.indicators.keycloak()]);
   }
 }

@@ -66,11 +66,6 @@ spec:
             {{- end }}
           env:
             {{- include "portal-api.databaseUrlEnv" . | nindent 12 }}
-            - name: VALKEY_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "common.tplvalue" (dict "value" .Values.valkey.secretName "context" .) }}
-                  key: {{ .Values.valkey.secretKey }}
           ports:
             - name: http
               containerPort: 3000

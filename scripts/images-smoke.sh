@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test for the production images (DEVELOPER.md, Production Images).
 # Builds portal-database, portal-api, portal-web and the edge, then runs them the way OpenShift's restricted SCC
-# does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the compose postgis/valkey.
+# does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the compose postgis.
 #
 # Usage: scripts/images-smoke.sh [--no-build]
 #   --no-build  reuse images built by an earlier run
@@ -62,8 +62,8 @@ check "no .env files in the Node images" bash -c "! { $ENGINE run --rm $(image p
 check "no package manager in the final images" bash -c "for i in portal-api portal-database portal-web edge; do \
   ! $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" sh -c 'command -v apk || command -v npm || command -v pnpm' || exit 1; done"
 
-echo "Waiting for compose postgis and valkey"
-$COMPOSE up -d postgis valkey >/dev/null
+echo "Waiting for compose postgis"
+$COMPOSE up -d postgis >/dev/null
 POSTGIS="$("$ENGINE" ps -q --filter label=com.docker.compose.project=portal --filter label=com.docker.compose.service=postgis)"
 deadline=$((SECONDS + WAIT_SECONDS))
 until [ "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$POSTGIS")" = healthy ]; do
@@ -93,8 +93,8 @@ check "migrates an empty database (exit 0)" test "$(exit_code first)" = 0
 expected="$(grep -c '"tag"' packages/portal-database/migrations/meta/_journal.json)"
 applied="$(psql_smoke 'select count(*) from drizzle.__drizzle_migrations' || echo 0)"
 check "all $expected journal migrations recorded (found $applied)" test "$applied" = "$expected"
-check "principals and identities tables exist" test \
-  "$(psql_smoke "select count(*) from information_schema.tables where table_name in ('principals', 'identities')")" = 2
+check "principals, identities and sessions tables exist" test \
+  "$(psql_smoke "select count(*) from information_schema.tables where table_name in ('principals', 'identities', 'sessions')")" = 3
 migrate again -e "DATABASE_URL=$DATABASE_URL"
 check "re-running with nothing pending exits 0" test "$(exit_code again)" = 0
 migrate bad-pw -e "DATABASE_URL=postgres://portal:smoke-s3cret@postgis:5432/$SMOKE_DB"
@@ -103,7 +103,7 @@ check "the password never reaches the output" bash -c "! grep -q 'smoke-s3cret' 
 
 echo "portal-api"
 "$ENGINE" run -d --name "$PREFIX-api" --read-only "${OCP[@]}" \
-  -e "DATABASE_URL=$DATABASE_URL" -e VALKEY_URL=redis://valkey:6379 \
+  -e "DATABASE_URL=$DATABASE_URL" \
   -e APP_URL=https://portal.example.gov.bc.ca -e TRUST_PROXY=true \
   -e "SESSION_SECRET=$(head -c 48 /dev/urandom | base64)" \
   -e KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal \

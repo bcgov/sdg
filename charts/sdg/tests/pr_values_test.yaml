@@ -78,21 +78,3 @@ tests:
           path: spec.strategy
           value:
             type: Recreate
-
-  - it: lowers Valkey requests and maxmemory without a PVC
-    template: charts/valkey/templates/statefulset.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests: { cpu: 5m, memory: 16Mi }
-            limits: { memory: 192Mi }
-      - notExists:
-          path: spec.volumeClaimTemplates
-
-  - it: writes maxmemory 16mb to valkey.conf
-    template: charts/valkey/templates/configmap.yaml
-    asserts:
-      - matchRegex:
-          path: data["valkey.conf"]
-          pattern: (?m)^maxmemory 16mb$

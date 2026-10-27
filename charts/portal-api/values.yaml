@@ -54,11 +54,6 @@ database:
   caSecretName: '{{ .Release.Name }}-postgres-cluster-cert'
   caSecretKey: ca.crt
 
-# Secret written by the valkey chart.
-valkey:
-  secretName: '{{ .Release.Name }}-valkey'
-  secretKey: url
-
 # Secrets issued outside the cluster (SESSION_SECRET, KEYCLOAK_CLIENT_SECRET) via the Vault Agent Injector.
 # The agent init container renders /vault/secrets/portal-api.env (dotenv) and node loads it with --env-file.
 # Values must not contain ' or newlines.

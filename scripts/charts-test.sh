@@ -10,7 +10,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../charts"
-LEAF_CHARTS=(portal-web portal-api edge postgres valkey)
+LEAF_CHARTS=(portal-web portal-api edge postgres)
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.31.0}"
 
@@ -50,8 +50,8 @@ helm unittest --strict "${LEAF_CHARTS[@]}" sdg
 
 # helm-unittest can't select a disabled subchart's templates, so the umbrella condition is checked here.
 # shellcheck disable=SC2046
-if helm template sdg sdg $(lint_values "portal-api.") --set valkey.enabled=false | grep -q 'app.kubernetes.io/name: valkey'; then
-  echo "FAIL: sdg with valkey.enabled=false still renders valkey resources" >&2
+if helm template sdg sdg $(lint_values "portal-api.") --set portal-web.enabled=false | grep -q 'app.kubernetes.io/name: portal-web'; then
+  echo "FAIL: sdg with portal-web.enabled=false still renders portal-web resources" >&2
   exit 1
 fi
 echo "PASS: a disabled subchart renders nothing"

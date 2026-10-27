@@ -1,17 +1,29 @@
-import { Inject, Module, RequestMethod, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  Module,
+  RequestMethod,
+  type MiddlewareConsumer,
+  type NestModule,
+  type OnApplicationBootstrap,
+  type OnApplicationShutdown,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RedisStore } from 'connect-redis';
+import { getDrizzleToken } from '@nestjs/drizzle';
 import type { Request } from 'express';
-import session, { type Store } from 'express-session';
+import session from 'express-session';
 
 import type { Env } from '../config/env.js';
-import { VALKEY_CLIENT, type ValkeyClient } from '../valkey/valkey.module.js';
+import type { PortalDatabase } from '../database/database.module.js';
+import { PostgresSessionStore } from './postgres-session.store.js';
+import { deriveSessionKey } from './session-cipher.js';
 import './session.types.js';
 
 export const SESSION_COOKIE = 'portal.sid';
-export const SESSION_PREFIX = 'portal:sess:';
-/** The express-session store; tests override it with an in-memory store. */
+/** The express-session store (a `PostgresSessionStore`). */
 export const SESSION_STORE = Symbol('SESSION_STORE');
+export const PRUNE_INTERVAL_MS = 15 * 60 * 1000;
 
 /** Promisified `req.session` operations, so handlers can await them and errors propagate. */
 export function sessionOp(req: Request, op: 'save' | 'regenerate' | 'destroy'): Promise<void> {
@@ -22,21 +34,57 @@ export function sessionOp(req: Request, op: 'save' | 'regenerate' | 'destroy'): 
   });
 }
 
+/** Deletes expired sessions on an interval. Every replica runs it; the delete is idempotent. */
+@Injectable()
+class SessionPruner implements OnApplicationBootstrap, OnApplicationShutdown {
+  private readonly logger = new Logger('SessionPruner');
+  private readonly store: PostgresSessionStore;
+  private timer: NodeJS.Timeout | undefined;
+
+  constructor(@Inject(SESSION_STORE) store: PostgresSessionStore) {
+    this.store = store;
+  }
+
+  onApplicationBootstrap(): void {
+    this.timer = setInterval(() => void this.prune(), PRUNE_INTERVAL_MS).unref();
+  }
+
+  onApplicationShutdown(): void {
+    clearInterval(this.timer);
+  }
+
+  private async prune(): Promise<void> {
+    try {
+      const removed = await this.store.prune();
+      if (removed > 0) this.logger.debug(`Pruned ${removed} expired sessions`);
+    } catch (error) {
+      this.logger.error('Pruning expired sessions failed', error instanceof Error ? error.stack : String(error));
+    }
+  }
+}
+
 @Module({
   providers: [
     {
       provide: SESSION_STORE,
-      inject: [VALKEY_CLIENT, ConfigService],
-      useFactory: (client: ValkeyClient, config: ConfigService<Env, true>): Store =>
-        new RedisStore({ client, prefix: SESSION_PREFIX, ttl: config.get('SESSION_TTL_SECONDS', { infer: true }) }),
+      inject: [getDrizzleToken(), ConfigService],
+      useFactory: (db: PortalDatabase, config: ConfigService<Env, true>): PostgresSessionStore =>
+        new PostgresSessionStore(db, {
+          key: deriveSessionKey(config.get('SESSION_SECRET', { infer: true })),
+          ttlSeconds: config.get('SESSION_TTL_SECONDS', { infer: true }),
+        }),
     },
+    SessionPruner,
   ],
 })
 export class SessionModule implements NestModule {
   private readonly config: ConfigService<Env, true>;
-  private readonly store: Store;
+  private readonly store: PostgresSessionStore;
 
-  constructor(@Inject(ConfigService) config: ConfigService<Env, true>, @Inject(SESSION_STORE) store: Store) {
+  constructor(
+    @Inject(ConfigService) config: ConfigService<Env, true>,
+    @Inject(SESSION_STORE) store: PostgresSessionStore,
+  ) {
     this.config = config;
     this.store = store;
   }
@@ -58,7 +106,7 @@ export class SessionModule implements NestModule {
         path: '/',
       },
     });
-    // Only /api/* routes get a session; the /healthz probes are outside the prefix and never touch Valkey.
+    // Only /api/* routes get a session; the /healthz probes are outside the prefix and never touch the session store.
     consumer.apply(middleware).forRoutes({ path: '*path', method: RequestMethod.ALL });
   }
 }

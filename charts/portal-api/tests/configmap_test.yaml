@@ -69,5 +69,3 @@ tests:
           path: data.KEYCLOAK_CLIENT_SECRET
       - notExists:
           path: data.DATABASE_URL
-      - notExists:
-          path: data.VALKEY_URL

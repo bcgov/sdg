@@ -6,9 +6,8 @@ import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { LoggingModule } from './logging/logging.module.js';
 import { SessionModule } from './session/session.module.js';
-import { ValkeyModule } from './valkey/valkey.module.js';
 
 @Module({
-  imports: [AppConfigModule, LoggingModule, DatabaseModule, ValkeyModule, SessionModule, AuthModule, HealthModule],
+  imports: [AppConfigModule, LoggingModule, DatabaseModule, SessionModule, AuthModule, HealthModule],
 })
 export class AppModule {}

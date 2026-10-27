@@ -21,7 +21,7 @@ tests:
           path: spec.template.spec.initContainers[0].image
           value: ghcr.io/acme/sdg/portal-database:pr-12
 
-  - it: portal-api secret references match the postgres and valkey chart names
+  - it: portal-api secret references match the postgres chart names
     template: charts/portal-api/templates/deployment.yaml
     asserts:
       - contains:
@@ -32,14 +32,6 @@ tests:
               secretKeyRef:
                 name: sdg-12-postgres-pguser-portal
                 key: uri
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: VALKEY_URL
-            valueFrom:
-              secretKeyRef:
-                name: sdg-12-valkey
-                key: url
 
   - it: the PGO cluster name yields the Secret portal-api reads
     template: charts/postgres/templates/postgrescluster.yaml
@@ -50,13 +42,6 @@ tests:
       - equal:
           path: spec.users[0].name
           value: portal
-
-  - it: the valkey Secret is the one portal-api reads
-    template: charts/valkey/templates/secret.yaml
-    asserts:
-      - equal:
-          path: metadata.name
-          value: sdg-12-valkey
 
   - it: edge upstreams match the portal-api and portal-web Service names
     template: charts/edge/templates/deployment.yaml

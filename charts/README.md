@@ -9,7 +9,6 @@ Deploy the portal to Kubernetes/OpenShift. Deploy workflows: DEVELOPER.md, Workf
 | `portal-api` | The NestJS BFF (:3000), with the `portal-database` migrator as an initContainer            |
 | `edge`       | Caddy + Coraza WAF (:3000; metrics :3003 on `<release>-edge-metrics`) and the Ingress      |
 | `postgres`   | A Crunchy PGO `PostgresCluster` (PostgreSQL 17, PostGIS 3.5)                               |
-| `valkey`     | One Valkey instance for sessions, with a generated password                                |
 | `sdg`        | Umbrella: all of the above in one release (`<chart>.enabled` toggles each)                 |
 
 Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster` and the Vault Agent annotations. The edge Ingress carries `route.openshift.io/termination: edge`, so OpenShift creates an edge-TLS Route from it.
@@ -23,7 +22,7 @@ Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster
 ## Install
 
 ```sh
-helm dependency build charts/portal-web   # likewise portal-api, edge, postgres, valkey, then:
+helm dependency build charts/portal-web   # likewise portal-api, edge, postgres, then:
 helm dependency build charts/sdg
 helm upgrade --install sdg-12 charts/sdg -n abc123-dev \
   --set global.image.registry=ghcr.io/<owner>/sdg \
@@ -44,12 +43,11 @@ On first install portal-api pods wait (`CreateContainerConfigError`) until PGO h
 
 ## Where configuration lives
 
-| Kind                                                              | Where                                                                           |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Plain config (`APP_URL`, Keycloak issuer/client id, log level, …) | values → ConfigMap                                                              |
-| `DATABASE_URL`                                                    | Secret `<release>-postgres-pguser-portal` (created by PGO)                      |
-| `VALKEY_URL`                                                      | Secret `<release>-valkey` (created once by the valkey chart, reused on upgrade) |
-| `SESSION_SECRET`, `KEYCLOAK_CLIENT_SECRET`                        | Vault → `/vault/secrets/portal-api.env` → `node --env-file`                     |
+| Kind                                                              | Where                                                       |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| Plain config (`APP_URL`, Keycloak issuer/client id, log level, …) | values → ConfigMap                                          |
+| `DATABASE_URL`                                                    | Secret `<release>-postgres-pguser-portal` (created by PGO)  |
+| `SESSION_SECRET`, `KEYCLOAK_CLIENT_SECRET`                        | Vault → `/vault/secrets/portal-api.env` → `node --env-file` |
 
 ## Test
 
