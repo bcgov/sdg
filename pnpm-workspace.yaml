@@ -49,7 +49,7 @@ catalog:
   express-prom-bundle: ^8.0.0
   express-session: ^1.19.0
   helmet: ^8.3.0
-  jose: 6.2.12
+  jose: 6.2.13
   jsdom: ^30.1.3
   lefthook: ^2.2.2
   lit: ^3.3.3
