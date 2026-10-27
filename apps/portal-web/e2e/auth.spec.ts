@@ -110,6 +110,10 @@ test.describe('portal-web auth', () => {
     const trigger = banner.getByRole('button', { name: 'Account menu for Ada Lovelace' });
     const help = banner.getByRole('link', { name: 'Help' });
     await expect(trigger).toBeVisible();
+    // BC Sans can finish loading between the two measurements and resize the nav text.
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
     await page.mouse.move(0, 400);
     const [triggerAtRest, helpAtRest] = await Promise.all([trigger.boundingBox(), help.boundingBox()]);
 
