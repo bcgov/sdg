@@ -45,7 +45,7 @@ jobs:
     steps:
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v4.1.1
+          version: v4.3.1
 
       - name: Clean up PR Deployments
         uses: bcgov/action-oc-runner@111868d1fc50db0a40417ba321d865ef5c931bbd # v1.7.0
