@@ -3,7 +3,7 @@
 # repository root:
 #   podman build -f apps/portal-web/Dockerfile -t portal-web .
 
-FROM docker.io/library/node:24.22.1-slim AS base
+FROM docker.io/library/node:26.11.1-slim AS base
 ENV CI=true LEFTHOOK=0
 # Same pnpm as the host: the version comes from devEngines in package.json.
 COPY package.json /tmp/package.json

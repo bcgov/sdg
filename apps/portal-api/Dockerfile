@@ -2,7 +2,7 @@
 #   podman build -f apps/portal-api/Dockerfile -t portal-api .
 # Runs on Alpine Node as any UID: the app only reads /app. Secrets come from the environment at runtime.
 
-FROM docker.io/library/node:24.22.1-slim AS base
+FROM docker.io/library/node:26.11.1-slim AS base
 ENV CI=true LEFTHOOK=0
 # Same pnpm as the host: the version comes from devEngines in package.json.
 COPY package.json /tmp/package.json
