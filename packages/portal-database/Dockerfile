@@ -3,7 +3,7 @@
 #   podman build -f packages/portal-database/Dockerfile -t portal-database .
 # Needs DATABASE_URL. Exits 0 once every committed migration is applied, 1 otherwise.
 
-FROM docker.io/library/node:26.11.1-slim AS base
+FROM docker.io/library/node:26.12.0-slim AS base
 ENV CI=true LEFTHOOK=0
 # Same pnpm as the host: the version comes from devEngines in package.json.
 COPY package.json /tmp/package.json
