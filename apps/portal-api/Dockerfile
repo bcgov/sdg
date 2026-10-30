@@ -23,7 +23,7 @@ RUN pnpm --filter "portal-api..." run build
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
   pnpm deploy --filter portal-api --prod --store-dir /pnpm/store /out
 
-FROM docker.io/library/alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+FROM docker.io/library/alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 # Alpine's nodejs links the system ICU/OpenSSL: about half the size of an image with the official Node binary.
 # apk is removed so the final image can't install anything; OpenShift replaces the UID with an arbitrary one.
 RUN apk add --no-cache "nodejs~24" && apk --purge del apk-tools
