@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createTestApp, type TestApp } from './testing/app.js';
+import { createTestApp, type TestApp } from '../utils/app.js';
 
-describe('portal-api platform middleware', () => {
+describe('Portal API Platform Middleware Integration Test Suite', () => {
   let t: TestApp;
 
   beforeAll(async () => {
@@ -12,7 +12,7 @@ describe('portal-api platform middleware', () => {
   afterAll(() => t.close());
 
   describe('helmet', () => {
-    it('sets security headers on API, probe and 404 responses', async () => {
+    it('Should set security headers on API, probe and 404 responses', async () => {
       const responses = await Promise.all(
         ['/api/auth/me', '/healthz/live', '/api/unknown'].map((path) => t.http().get(path)),
       );
@@ -26,7 +26,7 @@ describe('portal-api platform middleware', () => {
   });
 
   describe('GET /metrics', () => {
-    it('serves Prometheus text with default process metrics, outside /api and without a session', async () => {
+    it('Should serve Prometheus text with default process metrics, outside /api and without a session', async () => {
       const res = await t.http().get('/metrics');
       expect(res.status).toBe(200);
       expect(res.headers['content-type']).toMatch(/^text\/plain/);
@@ -37,7 +37,7 @@ describe('portal-api platform middleware', () => {
       expect((await t.http().get('/api/metrics')).status).toBe(404);
     });
 
-    it('records matched API routes with method, path and status code', async () => {
+    it('Should record matched API routes with method, path and status code', async () => {
       await t.http().get('/api/auth/me');
       const metrics = (await t.http().get('/metrics')).text;
       expect(metrics).toMatch(
@@ -54,14 +54,14 @@ describe('portal-api platform middleware', () => {
       expect(metrics).not.toMatch(/path="\/metrics"/);
     });
 
-    it('labels requests that match no route as #unmatched', async () => {
+    it('Should label requests that match no route as #unmatched', async () => {
       await t.http().get('/api/wp-admin/setup-config.php');
       const metrics = (await t.http().get('/metrics')).text;
       expect(metrics).toMatch(/status_code="404"[^}]*path="#unmatched"/);
       expect(metrics).not.toContain('wp-admin');
     });
 
-    it('allows a second app in the same process (registry is a module singleton)', async () => {
+    it('Should allow a second app in the same process (registry is a module singleton)', async () => {
       const second = await createTestApp();
       try {
         expect((await second.http().get('/metrics')).status).toBe(200);

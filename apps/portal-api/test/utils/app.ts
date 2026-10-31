@@ -9,9 +9,9 @@ import session from 'express-session';
 import supertest from 'supertest';
 import { vi, type Mock } from 'vitest';
 
-import { configureApp } from '../bootstrap.js';
-import { SESSION_STORE } from '../session/session.module.js';
-import { VALKEY_CLIENT } from '../valkey/valkey.module.js';
+import { configureApp } from '../../src/bootstrap.js';
+import { SESSION_STORE } from '../../src/session/session.module.js';
+import { VALKEY_CLIENT } from '../../src/valkey/valkey.module.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 export const TEST_ENV = {
@@ -33,7 +33,11 @@ export const TEST_USER: AuthUser = {
   email: 'ada@example.com',
   emailVerified: true,
   username: 'ada',
-  claims: { iss: TEST_ENV.KEYCLOAK_ISSUER_URL, sub: 'sub-123', name: 'Ada Lovelace' },
+  claims: {
+    iss: TEST_ENV.KEYCLOAK_ISSUER_URL,
+    sub: 'sub-123',
+    name: 'Ada Lovelace',
+  },
 };
 
 export interface OidcStub {
@@ -84,7 +88,12 @@ export function createOidcStub(): OidcStub {
     handleCallback: vi.fn<OidcClient['handleCallback']>(() =>
       Promise.resolve<CallbackResult>({
         user: TEST_USER,
-        tokens: { idToken: 'id-token', accessToken: 'access-token', refreshToken: 'refresh-token', expiresAt: null },
+        tokens: {
+          idToken: 'id-token',
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          expiresAt: null,
+        },
       }),
     ),
     buildEndSessionUrl: vi.fn<OidcClient['buildEndSessionUrl']>((idToken) => {
@@ -111,7 +120,7 @@ export function resetOidcStub(stub: OidcStub): void {
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   for (const [key, value] of Object.entries({ ...TEST_ENV, ...options.env })) vi.stubEnv(key, value);
   // ConfigModule.forRoot reads the environment when the module is defined, so import after stubbing.
-  const { AppModule } = await import('../app.module.js');
+  const { AppModule } = await import('../../src/app.module.js');
   const database = await createTestDatabase();
   const oidc = createOidcStub();
   const valkey: ValkeyStub = {
@@ -122,7 +131,10 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     destroy: vi.fn<() => void>(),
   };
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers: options.controllers ?? [] })
+  const moduleRef = await Test.createTestingModule({
+    imports: [AppModule],
+    controllers: options.controllers ?? [],
+  })
     .overrideProvider(getDrizzleToken())
     .useValue(database.db)
     .overrideProvider(VALKEY_CLIENT)
@@ -133,7 +145,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .useValue(oidc)
     .compile();
 
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({
+    logger: false,
+  });
   configureApp(app);
   await app.init();
 

@@ -11,7 +11,8 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage"
   },
   "dependencies": {
     "@nestjs/common": "catalog:",
@@ -47,6 +48,7 @@
     "@types/express-session": "catalog:",
     "@types/node": "catalog:",
     "@types/supertest": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
     "pino-pretty": "catalog:",
     "supertest": "catalog:",
     "typescript": "catalog:ts6",

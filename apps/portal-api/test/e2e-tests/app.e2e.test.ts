@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createTestApp, type TestApp } from './testing/app.js';
+import { createTestApp, type TestApp } from '../utils/app.js';
 
-describe('portal-api bootstrap', () => {
+describe('Portal API App Integration Test Suite', () => {
   let t: TestApp;
 
   beforeAll(async () => {
@@ -12,19 +12,19 @@ describe('portal-api bootstrap', () => {
   afterAll(() => t.close());
 
   describe('routing', () => {
-    it('serves health outside the /api prefix', async () => {
+    it('Should serve health outside the /api prefix', async () => {
       expect((await t.http().get('/healthz/live')).status).toBe(200);
       expect((await t.http().get('/healthz/ready')).status).toBe(200);
       expect((await t.http().get('/api/healthz/live')).status).toBe(404);
     });
 
-    it('serves auth under /api without a version segment', async () => {
+    it('Should serve auth under /api without a version segment', async () => {
       expect((await t.http().get('/api/auth/me')).status).toBe(401);
       expect((await t.http().get('/api/auth/login')).status).toBe(302);
       expect((await t.http().get('/auth/me')).status).toBe(404);
     });
 
-    it('returns 404 for /api/v1/auth/me and /healthz under /api', async () => {
+    it('Should return 404 for /api/v1/auth/me and /healthz under /api', async () => {
       expect((await t.http().get('/api/v1/auth/me')).status).toBe(404);
       expect((await t.http().get('/api/v1/healthz/live')).status).toBe(404);
       expect((await t.http().get('/api/healthz/ready')).status).toBe(404);
@@ -33,7 +33,7 @@ describe('portal-api bootstrap', () => {
   });
 
   describe('session cookie', () => {
-    it('sets portal.sid HttpOnly SameSite=Lax only after /login', async () => {
+    it('Should set portal.sid HttpOnly SameSite=Lax only after /login', async () => {
       const agent = t.http();
       expect((await agent.get('/api/auth/me')).headers['set-cookie']).toBeUndefined();
       const cookie = (await agent.get('/api/auth/login')).headers['set-cookie']?.[0] ?? '';

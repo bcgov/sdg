@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTestApp, type TestApp } from '../testing/app.js';
+import { createTestApp, type TestApp } from '../utils/app.js';
 
-describe('health', () => {
+describe('Health Integration Test Suite', () => {
   let t: TestApp;
 
   beforeAll(async () => {
@@ -18,10 +18,15 @@ describe('health', () => {
   });
 
   describe('GET /healthz/live', () => {
-    it('returns 200 status ok without touching dependencies', async () => {
+    it('Should return 200 status ok without touching dependencies', async () => {
       const res = await t.http().get('/healthz/live');
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ status: 'ok', info: {}, error: {}, details: {} });
+      expect(res.body).toEqual({
+        status: 'ok',
+        info: {},
+        error: {},
+        details: {},
+      });
       expect(t.oidc.discover).not.toHaveBeenCalled();
       expect(t.valkey.ping).not.toHaveBeenCalled();
       expect(res.headers['set-cookie']).toBeUndefined();
@@ -29,7 +34,7 @@ describe('health', () => {
   });
 
   describe('GET /healthz/ready', () => {
-    it('returns 200 with database, valkey and keycloak up', async () => {
+    it('Should return 200 with database, valkey and keycloak up', async () => {
       const res = await t.http().get('/healthz/ready');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('ok');
@@ -42,13 +47,16 @@ describe('health', () => {
       expect(t.valkey.ping).toHaveBeenCalledTimes(1);
     });
 
-    it('returns 503 with the failing check marked down', async () => {
+    it('Should return 503 with the failing check marked down', async () => {
       t.oidc.discover.mockRejectedValue(new Error('Keycloak unreachable'));
       t.valkey.isReady = false;
       const res = await t.http().get('/healthz/ready');
       expect(res.status).toBe(503);
       expect(res.body.status).toBe('error');
-      expect(res.body.error).toMatchObject({ keycloak: { status: 'down' }, valkey: { status: 'down' } });
+      expect(res.body.error).toMatchObject({
+        keycloak: { status: 'down' },
+        valkey: { status: 'down' },
+      });
       expect(res.body.info).toMatchObject({ database: { status: 'up' } });
     });
   });
