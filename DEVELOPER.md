@@ -130,7 +130,7 @@ Set these by hand with `gh secret set` / `gh variable set` when you need them.
 
 **`SYSDIG_API_TOKEN`**
 
-Sysdig API token used to sync the PROD email-alert set on every merge. Sourced from the in-cluster Secret materialized by your `SysdigTeam` CR (BC Gov platform-services provisions this in your `*-tools` namespace). Optional — if unset, the `monitor-prod` step no-ops with a warning, so the deploy still succeeds.
+Sysdig API token used to sync the PROD email-alert set on every PROD deploy (releases). Sourced from the in-cluster Secret materialized by your `SysdigTeam` CR (BC Gov platform-services provisions this in your `*-tools` namespace). Optional — if unset, the `monitor-prod` step no-ops with a warning, so the deploy still succeeds.
 
 - Reference: `${{ secrets.SYSDIG_API_TOKEN }}`
 - Alert templates live in [`monitoring/alerts/`](./monitoring/alerts/) and cover `portal-web`, `portal-api` and `edge`. Add or remove files to customize the alert set per app — see [`bcgov/actions-openshift` (sysdig-monitor)](https://github.com/bcgov/actions-openshift) for the template schema and placeholder vocabulary.
@@ -209,10 +209,10 @@ By default, an environment allows deployments from any branch or tag ("No restri
 
 Two workflows can deploy PROD, and both are active by default:
 
-- `merge.yml` deploys every merge to TEST, runs the tests, then deploys PROD by PR number.
+- `merge.yml` deploys every merge to TEST and runs the tests. PROD is release-only: its PROD jobs are commented out.
 - `release.yml` deploys a published [GitHub release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository) to PROD. It finds the PR that the release's commit came from and deploys that PR's images, the same ones `merge.yml` deployed. Nothing is rebuilt.
 
-To make PROD release-only, comment out the `deploy-prod`, `monitor-prod` and `promote` jobs in `merge.yml`. Merges then go to TEST and stop, and PROD changes only when you publish a release.
+PROD is release-only: the `deploy-prod`, `monitor-prod` and `promote` jobs in `merge.yml` are commented out, so merges go to TEST and stop, and PROD changes only when you publish a release. To deploy PROD on every merge instead, uncomment them.
 
 Notes:
 
