@@ -1,7 +1,8 @@
+import { Logger } from '@nestjs/common';
 import { sessions } from '@repo/portal-database';
 import { eq } from 'drizzle-orm';
 import type { SessionData } from 'express-session';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestDatabase, type TestDatabase } from '../testing/database.js';
 import { PostgresSessionStore } from './postgres-session.store.js';
@@ -98,6 +99,21 @@ describe('PostgresSessionStore', () => {
     const later = sessionExpiringIn(HOUR_MS + 10 * 60_000);
     await call<void>((cb) => store.touch('sid-1', later, cb));
     expect((await expiryOf('sid-1'))?.getTime()).toBe(later.cookie.expires?.getTime());
+  });
+
+  it('logs { msg, err } for a failed operation without a callback', async () => {
+    const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const broken = await createTestDatabase();
+    await broken.close();
+    const failing = new PostgresSessionStore(broken.db, { key, ttlSeconds: 3600 });
+    failing.destroy('sid-1');
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith({
+        msg: 'Session destroy failed',
+        error: expect.objectContaining({ type: expect.any(String), message: expect.any(String) }),
+      }),
+    );
+    error.mockRestore();
   });
 
   it('passes database errors to the callback', async () => {

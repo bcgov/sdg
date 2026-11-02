@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { AuthError } from '@repo/auth';
 import { identities, principals } from '@repo/portal-database';
 import type supertest from 'supertest';
@@ -106,6 +107,29 @@ describe('AuthController', () => {
       expect(replay.headers['location']).toBe(`${APP}/?authError=invalid_state`);
     });
 
+    it('logs the failure code, AuthError detail and the IdP cause when the code exchange fails', async () => {
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const cause = Object.assign(new Error('server responded with an error in the response body'), {
+        error: 'unauthorized_client',
+        error_description: 'Invalid client or Invalid client credentials',
+        status: 401,
+      });
+      t.oidc.handleCallback.mockRejectedValue(
+        new AuthError('callback_failed', { detail: 'OAUTH_RESPONSE_BODY_ERROR', cause }),
+      );
+      const { res } = await signIn();
+      expect(res.headers['location']).toBe(`${APP}/?authError=login_failed`);
+      expect(warn).toHaveBeenCalledWith({
+        msg: 'Login callback failed (login_failed)',
+        error: expect.objectContaining({
+          type: 'AuthError',
+          code: 'callback_failed',
+          detail: 'OAUTH_RESPONSE_BODY_ERROR',
+          cause: expect.objectContaining({ error: 'unauthorized_client', status: 401 }),
+        }),
+      });
+    });
+
     it('redirects to /?authError=login_failed and creates no session when the upsert fails', async () => {
       vi.spyOn(PrincipalsService.prototype, 'upsertFromLogin').mockRejectedValue(new Error('database down'));
       const { agent, res } = await signIn();
@@ -113,6 +137,36 @@ describe('AuthController', () => {
       expect(res.headers['location']).toBe(`${APP}/?authError=login_failed`);
       expect((await agent.get('/api/auth/me')).status).toBe(401);
       expect(await t.database.db.$count(principals)).toBe(0);
+    });
+  });
+
+  describe('logging', () => {
+    it('logs the cause when login cannot start', async () => {
+      const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      t.oidc.createAuthorizationRequest.mockRejectedValue(
+        new AuthError('discovery_failed', { cause: new Error('getaddrinfo ENOTFOUND keycloak') }),
+      );
+      expect((await t.http().get('/api/auth/login')).status).toBe(503);
+      expect(error).toHaveBeenCalledWith({
+        msg: 'Could not start login',
+        error: expect.objectContaining({
+          code: 'discovery_failed',
+          cause: expect.objectContaining({ message: 'getaddrinfo ENOTFOUND keycloak' }),
+        }),
+      });
+    });
+
+    it('logs the cause when the Keycloak logout URL is unavailable', async () => {
+      const { agent } = await signIn();
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      t.oidc.buildEndSessionUrl.mockRejectedValue(new AuthError('discovery_failed'));
+      const res = await agent.post('/api/auth/logout');
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ redirectUrl: `${APP}/` });
+      expect(warn).toHaveBeenCalledWith({
+        msg: 'Keycloak logout URL unavailable',
+        error: expect.objectContaining({ type: 'AuthError', code: 'discovery_failed' }),
+      });
     });
   });
 
