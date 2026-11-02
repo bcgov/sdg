@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EnvValidationError, envSchema, validateEnv } from '../../../src/config/env.js';
+import { EnvValidationError, envSchema, validateEnv } from './env.js';
 
 const valid = {
   APP_URL: 'http://localhost:5173/',

@@ -3,8 +3,8 @@ import { identities, principals, type PortalDatabase } from '@repo/portal-databa
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { PrincipalsService } from '../../../src/principals/principals.service.js';
-import { createTestDatabase, type TestDatabase } from '../../utils/database.js';
+import { createTestDatabase, type TestDatabase } from '../testing/database.js';
+import { PrincipalsService } from './principals.service.js';
 
 const ISSUER = 'https://keycloak.example.com/realms/portal';
 

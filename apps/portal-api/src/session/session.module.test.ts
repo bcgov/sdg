@@ -7,16 +7,10 @@ import type { Request } from 'express';
 import { MemoryStore, type Store } from 'express-session';
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
-import {
-  SESSION_COOKIE,
-  SESSION_PREFIX,
-  SESSION_STORE,
-  SessionModule,
-  sessionOp,
-} from '../../../src/session/session.module.js';
-import { VALKEY_CLIENT, type ValkeyClient } from '../../../src/valkey/valkey.module.js';
-import { createMockConfig } from '../../utils/config.service.js';
-import { isRequest } from '../../utils/http.js';
+import { createMockConfig } from '../../test/utils/config.service.js';
+import { isRequest } from '../../test/utils/http.js';
+import { VALKEY_CLIENT, type ValkeyClient } from '../valkey/valkey.module.js';
+import { SESSION_COOKIE, SESSION_PREFIX, SESSION_STORE, SessionModule, sessionOp } from './session.module.js';
 
 interface MockSession {
   save: (fn: (err?: unknown) => void) => void;

@@ -4,7 +4,7 @@ import type supertest from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PrincipalsService } from '../../src/principals/principals.service.js';
-import { createTestApp, resetOidcStub, TEST_ENV, type TestApp } from '../utils/app.js';
+import { createTestApp, resetOidcStub, TEST_ENV, type TestApp } from '../../src/testing/app.js';
 
 const APP = TEST_ENV.APP_URL;
 

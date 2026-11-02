@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createTestApp, type TestApp } from '../../utils/app.js';
+import { createTestApp, type TestApp } from '../testing/app.js';
 
 // Separate file: AppConfigModule reads the env once per module graph, and Vitest isolates each test file.
 describe('OpenAPI (production) Unit Test Suite', () => {

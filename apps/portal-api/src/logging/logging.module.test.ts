@@ -7,8 +7,8 @@ import { pinoHttp } from 'pino-http';
 import supertest from 'supertest';
 import { describe, expect, it } from 'vitest';
 
-import { isQuietPath } from '../../../src/http/quiet-paths.js';
-import { pinoHttpOptions } from '../../../src/logging/logging.module.js';
+import { isQuietPath } from '../http/quiet-paths.js';
+import { pinoHttpOptions } from './logging.module.js';
 
 type QuietRequest = IncomingMessage & { originalUrl?: string };
 

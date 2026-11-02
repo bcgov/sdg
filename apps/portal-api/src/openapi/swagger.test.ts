@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createTestApp, type TestApp } from '../../utils/app.js';
+import { createTestApp, type TestApp } from '../testing/app.js';
 
 interface SchemaObject {
   type?: string;

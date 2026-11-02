@@ -6,12 +6,12 @@ import type { OidcClient } from '@repo/auth';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
-import { AuthController } from '../../../src/auth/auth.controller.js';
-import { AuthModule } from '../../../src/auth/auth.module.js';
-import { SessionAuthGuard } from '../../../src/auth/session-auth.guard.js';
-import type { Env } from '../../../src/config/env.js';
-import { PrincipalsModule } from '../../../src/principals/principals.module.js';
-import { PrincipalsService } from '../../../src/principals/principals.service.js';
+import type { Env } from '../config/env.js';
+import { PrincipalsModule } from '../principals/principals.module.js';
+import { PrincipalsService } from '../principals/principals.service.js';
+import { AuthController } from './auth.controller.js';
+import { AuthModule } from './auth.module.js';
+import { SessionAuthGuard } from './session-auth.guard.js';
 
 type MockEnv = Pick<Env, 'APP_URL' | 'KEYCLOAK_ISSUER_URL' | 'KEYCLOAK_CLIENT_ID' | 'KEYCLOAK_CLIENT_SECRET'>;
 

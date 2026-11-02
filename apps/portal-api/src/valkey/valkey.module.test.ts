@@ -4,13 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-import {
-  createValkeyClient,
-  VALKEY_CLIENT,
-  ValkeyModule,
-  type ValkeyClient,
-} from '../../../src/valkey/valkey.module.js';
-import { createMockConfig } from '../../utils/config.service.js';
+import { createMockConfig } from '../../test/utils/config.service.js';
+import { createValkeyClient, VALKEY_CLIENT, ValkeyModule, type ValkeyClient } from './valkey.module.js';
 
 type ErrorListener = (error: unknown) => void;
 type OnFn = (event: string, listener: ErrorListener) => MockRedisClient;

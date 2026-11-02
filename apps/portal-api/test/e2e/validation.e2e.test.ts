@@ -2,7 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { createTestApp, resetOidcStub, type TestApp } from '../utils/app.js';
+import { createTestApp, resetOidcStub, type TestApp } from '../../src/testing/app.js';
 
 const probeSchema = z.object({
   name: z.string().min(1),

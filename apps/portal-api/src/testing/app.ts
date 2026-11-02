@@ -9,9 +9,9 @@ import session from 'express-session';
 import supertest from 'supertest';
 import { vi, type Mock } from 'vitest';
 
-import { configureApp } from '../../src/bootstrap.js';
-import { SESSION_STORE } from '../../src/session/session.module.js';
-import { VALKEY_CLIENT } from '../../src/valkey/valkey.module.js';
+import { configureApp } from '../bootstrap.js';
+import { SESSION_STORE } from '../session/session.module.js';
+import { VALKEY_CLIENT } from '../valkey/valkey.module.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 export const TEST_ENV = {
@@ -120,7 +120,7 @@ export function resetOidcStub(stub: OidcStub): void {
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   for (const [key, value] of Object.entries({ ...TEST_ENV, ...options.env })) vi.stubEnv(key, value);
   // ConfigModule.forRoot reads the environment when the module is defined, so import after stubbing.
-  const { AppModule } = await import('../../src/app.module.js');
+  const { AppModule } = await import('../app.module.js');
   const database = await createTestDatabase();
   const oidc = createOidcStub();
   const valkey: ValkeyStub = {

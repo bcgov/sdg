@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { metricsMiddleware, register } from '../../../src/metrics/metrics.js';
-import { createRequest, createResponse } from '../../utils/http.js';
+import { createRequest, createResponse } from '../../test/utils/http.js';
+import { metricsMiddleware, register } from './metrics.js';
 
 describe('Metrics Middleware Unit Test Suite', () => {
   it('Should export register and collect prometheus default metrics', async () => {

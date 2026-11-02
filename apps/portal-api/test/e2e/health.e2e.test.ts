@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTestApp, type TestApp } from '../utils/app.js';
+import { createTestApp, type TestApp } from '../../src/testing/app.js';
 
 describe('Health Integration Test Suite', () => {
   let t: TestApp;
