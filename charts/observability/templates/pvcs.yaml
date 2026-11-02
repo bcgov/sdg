@@ -1,0 +1,20 @@
+{{- range $component := list "prometheus" "loki" "tempo" "grafana" }}
+{{- $p := index $.Values.persistence $component }}
+{{- if $p.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "observability.name" (dict "context" $ "component" $component) }}
+  labels:
+    {{- include "observability.labels" (dict "context" $ "component" $component) | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $.Values.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $p.size }}
+{{- end }}
+{{- end }}

@@ -33,4 +33,5 @@ ENV NODE_ENV=production PORT=3000
 WORKDIR /app
 COPY --from=build /out .
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# The preload is a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set (src/instrumentation.ts).
+CMD ["node", "--import=./dist/instrumentation.js", "dist/main.js"]

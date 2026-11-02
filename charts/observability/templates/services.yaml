@@ -1,0 +1,27 @@
+{{- $ports := dict
+  "alloy" (list (dict "name" "otlp-http" "port" 4318) (dict "name" "faro" "port" 12347) (dict "name" "http" "port" 12345))
+  "prometheus" (list (dict "name" "http" "port" 9090))
+  "loki" (list (dict "name" "http" "port" 3100))
+  "tempo" (list (dict "name" "http" "port" 3200) (dict "name" "otlp-http" "port" 4318))
+  "grafana" (list (dict "name" "http" "port" 3000))
+}}
+{{- range $component := list "alloy" "prometheus" "loki" "tempo" "grafana" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "observability.name" (dict "context" $ "component" $component) }}
+  labels:
+    {{- include "observability.labels" (dict "context" $ "component" $component) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    {{- range index $ports $component }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: TCP
+    {{- end }}
+  selector:
+    {{- include "observability.selectorLabels" (dict "context" $ "component" $component) | nindent 4 }}
+{{- end }}

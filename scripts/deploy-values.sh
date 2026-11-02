@@ -11,6 +11,8 @@
 #   OC_NAMESPACE         <plate>-dev|test|prod|tools             OC_SERVER   https://api.<cluster>.<domain>:6443
 #   KEYCLOAK_ISSUER_URL  https:// URL                            KEYCLOAK_CLIENT_ID
 #   VAULT_SECRET_PATH    optional; default <plate>-nonprod/portal-api (<plate>-prod/portal-api for prod)
+#   OBSERVABILITY        optional; "true" reports to the observability stack (doc 20): <plate>-tools for PRs and test,
+#                        <plate>-prod for prod. Unset or "false" leaves telemetry off.
 # `outputs` needs only TARGET, ENVIRONMENT, REPOSITORY and OC_SERVER.
 #
 # Usage: scripts/deploy-values.sh values|outputs
@@ -44,14 +46,26 @@ case "${1:-}" in
     check KEYCLOAK_ISSUER_URL '^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$'
     check KEYCLOAK_CLIENT_ID '^[A-Za-z0-9._-]+$'
     check VAULT_SECRET_PATH '^([A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+)?$'
+    check OBSERVABILITY '^(true|false)?$'
     plate="${OC_NAMESPACE%-*}"
     vault_role="${plate}-$([ "$ENVIRONMENT" = prod ] && echo prod || echo nonprod)"
+    observability=''
+    if [ "${OBSERVABILITY:-}" = true ]; then
+      # Prod reports to its own stack; PRs and test to the shared non-prod stack in tools.
+      stack_namespace="${plate}-$([ "$ENVIRONMENT" = prod ] && echo prod || echo tools)"
+      environment_label="$([[ "$TARGET" =~ ^[0-9]+$ ]] && echo "pr-${TARGET}" || echo "$TARGET")"
+      observability="
+  observability:
+    collectorHost: \"observability-alloy.${stack_namespace}.svc\"
+    scraperNamespace: \"${stack_namespace}\"
+    environment: \"${environment_label}\""
+    fi
     cat <<EOF
 global:
   image:
     registry: "ghcr.io/${repository}"
     tag: "${TAG}"
-  host: "${host}"
+  host: "${host}"${observability}
 portal-api:
   keycloak:
     issuerUrl: "${KEYCLOAK_ISSUER_URL}"

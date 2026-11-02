@@ -1,5 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
-# Only the edge proxies to portal-api.
+# Only the edge proxies to portal-api; the observability stack's Alloy may scrape it when configured.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -19,4 +19,8 @@ spec:
       ports:
         - port: 3000
           protocol: TCP
+    {{- with include "common.scraperIngressRule" (dict "context" . "port" 3000) }}
+    # The observability stack's Alloy scrapes /metrics (doc 20).
+    {{- . | nindent 4 }}
+    {{- end }}
 {{- end }}

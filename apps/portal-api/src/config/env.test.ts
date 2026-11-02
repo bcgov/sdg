@@ -92,4 +92,30 @@ describe('envSchema', () => {
       expect(error.message).toMatch(/^Invalid environment:/);
     });
   });
+
+  describe('OpenTelemetry vars', () => {
+    it('leaves OTEL_EXPORTER_OTLP_ENDPOINT undefined when unset', () => {
+      const env = validateEnv(valid);
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
+      expect(validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: '' }).OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
+      expect(env.OTEL_TRACES_SAMPLER_ARG).toBe(1);
+    });
+
+    it('accepts an http(s) OTEL_EXPORTER_OTLP_ENDPOINT and defaults OTEL_SERVICE_NAME to portal-api', () => {
+      const env = validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'http://alloy:4318/' });
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://alloy:4318');
+      expect(env.OTEL_SERVICE_NAME).toBe('portal-api');
+      expect(
+        validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'https://c.example.com' }).OTEL_EXPORTER_OTLP_ENDPOINT,
+      ).toBe('https://c.example.com');
+    });
+
+    it('rejects a non-http OTEL_EXPORTER_OTLP_ENDPOINT and a sampler ratio outside 0–1', () => {
+      expect(errorOf({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'grpc://alloy:4317' }).keys).toEqual([
+        'OTEL_EXPORTER_OTLP_ENDPOINT',
+      ]);
+      expect(errorOf({ ...valid, OTEL_TRACES_SAMPLER_ARG: '2' }).keys).toEqual(['OTEL_TRACES_SAMPLER_ARG']);
+      expect(errorOf({ ...valid, OTEL_TRACES_SAMPLER_ARG: '-0.1' }).keys).toEqual(['OTEL_TRACES_SAMPLER_ARG']);
+    });
+  });
 });

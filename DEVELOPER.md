@@ -18,7 +18,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Automatic dependency patching via [bcgov/renovate-config](https://github.com/bcgov/renovate-config)
 - Maintenance Mode Automation (hands‑off updates, low‑dev mode) via the same Renovate config
 - Enforced code reviews and workflow jobs (pass|fail)
-- Prometheus metrics export from portal-api and the edge
+- Prometheus metrics export from portal-api and the edge, and an optional self-hosted Grafana LGTM stack (ADR 0001)
 - Rolling updates with zero downtime in PROD
 - Database migrations with Drizzle, run as an initContainer before portal-api starts
 - Pod disruption budgets for high availability
@@ -134,6 +134,16 @@ Sysdig API token used to sync the PROD email-alert set on every merge. Sourced f
 
 - Reference: `${{ secrets.SYSDIG_API_TOKEN }}`
 - Alert templates live in [`monitoring/alerts/`](./monitoring/alerts/) and cover `portal-web`, `portal-api` and `edge`. Add or remove files to customize the alert set per app — see [`bcgov/actions-openshift` (sysdig-monitor)](https://github.com/bcgov/actions-openshift) for the template schema and placeholder vocabulary.
+
+**`OBSERVABILITY`, `GRAFANA_OIDC_CLIENT_ID` and the `tools` environment**
+
+The observability stack (ADR 0001, `charts/README.md`, Observability). Optional, and off until set up by a person on the team:
+
+1. Request a Keycloak client for Grafana (redirect URI `https://grafana-<plate>-{tools,prod}.apps.<cluster>.devops.gov.bc.ca/login/generic_oauth`) with client roles `admin`, `editor` and `viewer`; users without one are refused. Set its id as the `GRAFANA_OIDC_CLIENT_ID` variable.
+2. In Vault, create `<plate>-nonprod/grafana` and `<plate>-prod/grafana` with `OIDC_CLIENT_SECRET` and `ADMIN_PASSWORD`.
+3. Create a `tools` GitHub environment with `OC_NAMESPACE=<plate>-tools`, `OC_SERVER` and an `oc_token` secret for a service account that can deploy there, then run the **Observability** workflow (stack `tools`, later `prod`). Check `oc describe quota -n <plate>-<env>` first: the stack requests about 140m CPU and 670Mi memory (Vault agent included). In tools (1Gi of PVC in total) only metrics and logs get volumes, 960Mi together, and traces and Grafana's state live on emptyDir; prod's `values-prod.yaml` asks for 12.25Gi.
+4. Give the stack's Alloy read-only pod discovery in each app namespace (the deploy account can't create RBAC): `scripts/setup-openshift.sh --observability` to preview, then `--apply`.
+5. Set the `OBSERVABILITY` variable to `true`. From the next deploy, PR, test and prod releases report to their stack (`scripts/deploy-values.sh`).
 
 **`TLS_CERTIFICATE`, `TLS_PRIVATE_KEY`, `TLS_CA_CERTIFICATE`**
 
@@ -416,6 +426,16 @@ Run `pnpm test:charts` after changing a chart.
    ```
    Firefox keeps its own store: import the certificate there, or set `security.enterprise_roots.enabled` to `true` in `about:config`.
 5. Check the stack end to end with `scripts/compose-smoke.sh --no-up` (TLS, headers, WAF, API proxy, port isolation, migrations).
+
+## Observability (optional)
+
+`compose.observability.yaml` adds the LGTM stack (Prometheus, Loki, Tempo, Grafana, plus Grafana Alloy as the collector) and turns telemetry on for portal-api and the edge:
+
+```sh
+podman compose -f compose.yaml -f compose.observability.yaml up -d
+```
+
+Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), with the `SDG` dashboards and Prometheus, Loki and Tempo linked by `trace_id`. Without the override nothing is wired: portal-api starts no OpenTelemetry SDK (`OTEL_EXPORTER_OTLP_ENDPOINT` unset), and the edge answers `/telemetry.json` with `{"enabled":false}` and `/collect` with 204, so portal-web never loads Faro. To add the stack to a running base stack, recreate `portal-api`, `portal-web` and `caddy` after starting it (podman-compose doesn't recreate them for an env change). Configs live in `charts/observability/files/`, shared with the Helm chart (doc 20, `.mdd/docs/20-observability-lgtm.md`).
 
 ## Troubleshooting
 

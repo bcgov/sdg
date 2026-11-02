@@ -46,8 +46,8 @@ Teams work in parallel, so two pull requests can pick the same number. If anothe
 
 ## Index
 
-| ADR              | Title | Status | Product team |
-| ---------------- | ----- | ------ | ------------ |
-| _No records yet_ |       |        |              |
+| ADR                                            | Title                                                                       | Status   | Product team |
+| ---------------------------------------------- | --------------------------------------------------------------------------- | -------- | ------------ |
+| [0001](0001-self-hosted-lgtm-observability.md) | Self-hosted Grafana LGTM stack, with Prometheus, for the portal's telemetry | Proposed | SDG portal   |
 
 Add a row for each new ADR. Keep the table sorted by number.

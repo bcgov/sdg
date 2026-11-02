@@ -8,6 +8,11 @@ global:
     tag: ''
   # Public hostname; the Ingress host unless ingress.host is set.
   host: ''
+  # Observability (doc 20): empty = off. See common.observability in charts/common.
+  observability:
+    collectorHost: ''
+    scraperNamespace: ''
+    environment: ''
 
 fullnameOverride: ''
 replicaCount: 1

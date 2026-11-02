@@ -69,3 +69,26 @@ tests:
           path: data.KEYCLOAK_CLIENT_SECRET
       - notExists:
           path: data.DATABASE_URL
+
+  # MDD 20-observability-lgtm
+  - it: sets the OTLP endpoint and resource attributes when a collector is configured
+    set:
+      global.observability.collectorHost: observability-alloy.abc123-tools.svc
+      global.observability.environment: test
+    asserts:
+      - equal:
+          path: data.OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://observability-alloy.abc123-tools.svc:4318
+      - equal:
+          path: data.OTEL_SERVICE_NAME
+          value: portal-api
+      - equal:
+          path: data.OTEL_RESOURCE_ATTRIBUTES
+          value: deployment.environment=test
+
+  - it: sets no OTEL vars when observability is not configured
+    asserts:
+      - notExists:
+          path: data.OTEL_EXPORTER_OTLP_ENDPOINT
+      - notExists:
+          path: data.OTEL_RESOURCE_ATTRIBUTES

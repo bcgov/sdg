@@ -46,3 +46,37 @@
 		Cross-Origin-Embedder-Policy "credentialless"
 	}
 }
+
+# Browser telemetry (Grafana Faro). Site blocks pick one with `import collect_{$TELEMETRY:off}`, so a missing
+# TELEMETRY leaves it off. portal-web reads /telemetry.json at startup and only loads Faro when it says enabled.
+(collect_off) {
+	@telemetry_config path /telemetry.json
+	handle @telemetry_config {
+		header Cache-Control "no-store"
+		header Content-Type "application/json"
+		respond `{"enabled":false}` 200
+	}
+	@collect path /collect /collect/*
+	handle @collect {
+		respond 204
+	}
+}
+
+# Needs FARO_COLLECTOR_URL (Alloy's faro.receiver) and TELEMETRY_ENVIRONMENT (pr-<n>, test, prod, local).
+(collect_on) {
+	@telemetry_config path /telemetry.json
+	handle @telemetry_config {
+		header Cache-Control "no-store"
+		header Content-Type "application/json"
+		respond `{"enabled":true,"environment":"{$TELEMETRY_ENVIRONMENT}"}` 200
+	}
+	@collect path /collect /collect/*
+	handle @collect {
+		# The endpoint is public (it takes browser telemetry), so cap what one request can send; Alloy rate-limits.
+		request_body {
+			max_size 64KB
+		}
+		reverse_proxy {$FARO_COLLECTOR_URL}
+	}
+}
+
