@@ -612,7 +612,7 @@ Runs on merge to main branch.
 Runs on scheduled job (cronjob) or workflow dispatch.
 
 - PR environment purge (Helm releases not updated for 3 days)
-- ZAP scan of the TEST deployment
+- ZAP scan of the TEST deployment; by-design informational alerts are ignored in `.zap/rules.tsv`, each with its reason
 - k6 load tests on TEST after ZAP (see [Load tests](#load-tests)); a breached threshold fails the job
 - Stale branch/PR cleanup
 

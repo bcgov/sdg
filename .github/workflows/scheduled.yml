@@ -100,6 +100,8 @@ jobs:
           issue_title: 'ZAP Security Report'
           token: ${{ secrets.GITHUB_TOKEN }}
           target: ${{ steps.test.outputs.url }}
+          # By-design informational alerts, each with its reason.
+          rules_file_name: .zap/rules.tsv
 
   # k6 against TEST (tests/load; DEVELOPER.md, Load tests): after ZAP and one script at a time, so nothing
   # else loads TEST's small quota meanwhile.  A breached threshold fails the job.

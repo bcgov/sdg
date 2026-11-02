@@ -1,0 +1,3 @@
+10109	IGNORE	(Modern Web Application: informational; the portal is an SPA)
+10049	IGNORE	(Storable and Cacheable Content: by design; hashed /assets/* are public immutable and HTML is no-cache)
+10015	IGNORE	(Re-examine Cache-control Directives: by design; the SPA shell is no-cache so it revalidates and holds nothing user-specific)

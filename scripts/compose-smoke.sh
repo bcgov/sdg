@@ -107,6 +107,8 @@ check "Cross-Origin-Embedder-Policy credentialless" test "$(header Cross-Origin-
 check "CSP frame-ancestors 'self'" grep -qi "^content-security-policy:.*frame-ancestors 'self'" "$TMP/headers"
 check "Dev CSP allows Vite inline scripts only" \
   grep -qi "^content-security-policy:.*script-src 'self' https://\*\.gov\.bc\.ca 'unsafe-inline';" "$TMP/headers"
+check "Dev CSP allows Vite's injected styles" \
+  grep -qi "^content-security-policy:.*style-src [^;]*'unsafe-inline';" "$TMP/headers"
 
 echo "API proxy"
 check "GET /api/auth/me without a session is 401 from portal-api" \
@@ -125,6 +127,7 @@ check "Caddy admin API not reachable from other containers" "$ENGINE" exec "$API
 
 echo "WAF"
 check "/.env is blocked (rule 1004)" test "$(status "$SITE/.env")" = 403
+check "TRACE is 405 (rule 1009)" test "$(status -X TRACE "$SITE/")" = 405
 # Rules using `block` follow Coraza's default action (pass): they log a warning but let the request through.
 MARK="smoke$RANDOM$RANDOM"
 detected() { "$ENGINE" logs --since 2m "$CADDY" 2>&1 | grep "$MARK" | grep -q "Coraza: Warning. $1"; }

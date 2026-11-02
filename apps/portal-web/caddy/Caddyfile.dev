@@ -31,7 +31,7 @@ sdg.localhost {
 	import api_proxy
 	# Everything else goes to Vite, HMR websocket included. The original Host is kept: Vite allows *.localhost.
 	reverse_proxy {$PORTAL_WEB_URL}
-	import security_headers "'unsafe-inline'"
+	import security_headers "'unsafe-inline'" "'unsafe-inline'"
 }
 
 # Grafana from compose.observability.yaml (502 when that override isn't running).

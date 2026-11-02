@@ -148,6 +148,10 @@ check "X-Frame-Options SAMEORIGIN" test "$(header X-Frame-Options "$TMP/index.he
 check "Strict-Transport-Security set" test "$(header Strict-Transport-Security "$TMP/index.headers")" = max-age=31536000
 check "Production CSP has no unsafe-inline scripts" bash -c \
   "grep -i '^content-security-policy:' '$TMP/index.headers' | grep -q \"script-src 'self' https://\\*\\.gov\\.bc\\.ca ;\""
+check "Production CSP has no unsafe-inline styles" bash -c \
+  "grep -i '^content-security-policy:' '$TMP/index.headers' | grep -o 'style-src [^;]*' | grep -vq unsafe-inline"
+check "TRACE is 405 at the edge (WAF rule 1009)" test "$(status -X TRACE "$EDGE/")" = 405
+check "OPTIONS is 405 at the edge (WAF rule 1009)" test "$(status -X OPTIONS "$EDGE/api/auth/me")" = 405
 check "GET /api/auth/me without a session is 401 from portal-api" \
   test "$("${CURL[@]}" -D "$TMP/api.headers" -o /dev/null -w '%{http_code}' "$EDGE/api/auth/me")" = 401
 check "API responses default to Cache-Control: no-store" grep -qi '^cache-control: no-store' "$TMP/api.headers"
