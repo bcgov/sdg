@@ -1,0 +1,230 @@
+# MDD 20-observability-lgtm: the self-hosted LGTM stack (Prometheus, Loki, Tempo, Grafana) plus Alloy.
+suite: observability
+release:
+  name: observability
+  namespace: abc123-tools
+set:
+  grafana.host: grafana-abc123.apps.example.com
+  grafana.oidc.issuerUrl: https://keycloak.example.com/realms/standard
+  grafana.oidc.clientId: grafana
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/grafana
+  vault.serviceAccountName: abc123-vault
+  sources.namespaces: [abc123-dev, abc123-test]
+tests:
+  - it: runs one Deployment per component
+    template: templates/deployments.yaml
+    asserts:
+      - hasDocuments:
+          count: 5
+      - isKind:
+          of: Deployment
+      - matchRegex:
+          path: metadata.name
+          pattern: ^observability-(alloy|grafana|loki|prometheus|tempo)$
+
+  - it: keeps Prometheus, Loki, Tempo and Grafana data on PVCs
+    template: templates/pvcs.yaml
+    asserts:
+      - hasDocuments:
+          count: 4
+      - isKind:
+          of: PersistentVolumeClaim
+
+  - it: enables Prometheus' remote-write receiver with the configured retention
+    template: templates/deployments.yaml
+    documentSelector:
+      path: metadata.name
+      value: observability-prometheus
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --web.enable-remote-write-receiver
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --storage.tsdb.retention.time=7d
+
+  - it: discovers pods only in the source namespaces
+    template: templates/deployments.yaml
+    documentSelector:
+      path: metadata.name
+      value: observability-alloy
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SOURCE_NAMESPACES
+            value: abc123-dev,abc123-test
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: observability-alloy
+
+  - it: keeps only opted-in sdg pods in the Alloy discovery config
+    template: templates/configmaps.yaml
+    documentSelector:
+      path: metadata.name
+      value: observability-alloy
+    asserts:
+      - matchRegex:
+          path: data["metrics.alloy"]
+          pattern: 'label\s*=\s*"app.kubernetes.io/part-of=sdg"'
+      - matchRegex:
+          path: data["metrics.alloy"]
+          pattern: __meta_kubernetes_pod_annotation_sdg_gov_bc_ca_scrape"\]
+      - matchRegex:
+          path: data["common.alloy"]
+          pattern: faro.receiver
+
+  - it: fails without source namespaces
+    # Helm stops at the first template that fails, which is the NetworkPolicy.
+    template: templates/networkpolicy.yaml
+    set:
+      sources.namespaces: null
+    asserts:
+      - failedTemplate:
+          errorPattern: sources.namespaces is required
+
+  - it: exposes only Grafana through an Ingress, with OIDC login
+    template: templates/ingress.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.rules[0].host
+          value: grafana-abc123.apps.example.com
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: observability-grafana
+
+  - it: admits OTLP and Faro only from the source namespaces
+    template: templates/networkpolicy.yaml
+    documentSelector:
+      path: metadata.name
+      value: observability-alloy
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchExpressions:
+                    - key: kubernetes.io/metadata.name
+                      operator: In
+                      values: [abc123-dev, abc123-test]
+            ports:
+              - port: 4318
+                protocol: TCP
+              - port: 12347
+                protocol: TCP
+
+  - it: admits Grafana only from the router, and the backends only from the stack's own pods
+    template: templates/networkpolicy.yaml
+    asserts:
+      - hasDocuments:
+          count: 3
+      - equal:
+          path: spec.ingress[0].from[0].namespaceSelector.matchLabels
+          value:
+            network.openshift.io/policy-group: ingress
+        documentIndex: 1
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/instance: observability
+                      app.kubernetes.io/part-of: sdg-observability
+        documentIndex: 2
+
+  - it: loads Grafana's OIDC client secret from Vault and refuses users without a role
+    template: templates/deployments.yaml
+    documentSelector:
+      path: metadata.name
+      value: observability-grafana
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE
+            value: /vault/secrets/oidc-client-secret
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT
+            value: 'true'
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_AUTH_ANONYMOUS_ENABLED
+            value: 'false'
+      - equal:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/agent-inject-secret-oidc-client-secret"]
+          value: abc123-nonprod/grafana
+
+  - it: runs every container restricted with a read-only root
+    template: templates/deployments.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value: [ALL]
+
+  - it: fails without a Grafana host
+    template: templates/ingress.yaml
+    set:
+      grafana.host: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: grafana.host is required
+
+  # The tools namespace has 1Gi of PVC storage in total (storage-quota).
+  - it: fits the tools stack's volumes in 1Gi (metrics and logs only)
+    template: templates/pvcs.yaml
+    values: [../values-tools.yaml]
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: spec.resources.requests.storage
+          value: 512Mi
+        documentIndex: 0
+      - equal:
+          path: spec.resources.requests.storage
+          value: 448Mi
+        documentIndex: 1
+
+  - it: keeps tools traces on a size-capped emptyDir
+    template: templates/deployments.yaml
+    values: [../values-tools.yaml]
+    documentSelector:
+      path: metadata.name
+      value: observability-tempo
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            emptyDir:
+              sizeLimit: 1Gi
+
+  - it: caps Prometheus by size as well as age in tools
+    template: templates/deployments.yaml
+    values: [../values-tools.yaml]
+    documentSelector:
+      path: metadata.name
+      value: observability-prometheus
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --storage.tsdb.retention.size=400MB
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: observability-prometheus

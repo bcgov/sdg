@@ -43,3 +43,29 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  # MDD 20-observability-lgtm
+  - it: admits the observability stack's Alloy on 3000 when a scraper namespace is set
+    set:
+      global.observability.scraperNamespace: abc123-tools
+      global.observability.scraperServiceAccount: observability-alloy
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: abc123-tools
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: alloy
+            ports:
+              - port: 3000
+                protocol: TCP
+
+  - it: has only the edge rule when observability is not configured
+    asserts:
+      - lengthEqual:
+          path: spec.ingress
+          count: 1

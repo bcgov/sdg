@@ -1,0 +1,111 @@
+# observability: Prometheus, Loki, Tempo and Grafana with Grafana Alloy as the only collector (doc 20). One release per
+# stack: <plate>-tools serves dev (PR releases) and test, <plate>-prod serves prod. values-tools.yaml / values-prod.yaml
+# hold the per-stack settings; the configs themselves are files/ (shared with compose.observability.yaml).
+
+# Namespaces this stack collects from (required). Alloy scrapes their sdg pods that opt in with the
+# sdg.gov.bc.ca/scrape annotation, and the NetworkPolicy admits OTLP (4318) and Faro (12347) only from them. Each one
+# grants Alloy's ServiceAccount read access to pods (charts/sdg, global.observability).
+sources:
+  namespaces: []
+
+retention:
+  # Prometheus --storage.tsdb.retention.time
+  metrics: 7d
+  # Prometheus --storage.tsdb.retention.size (e.g. 400MB): drops the oldest blocks first. Empty: no size cap.
+  metricsSize: ''
+  # Loki retention_period and Tempo block_retention (Go durations)
+  logs: 168h
+  traces: 168h
+
+images:
+  alloy:
+    repository: docker.io/grafana/alloy
+    tag: v1.21.3
+  prometheus:
+    repository: docker.io/prom/prometheus
+    tag: v3.15.1
+  loki:
+    repository: docker.io/grafana/loki
+    tag: 3.7.9
+  tempo:
+    repository: docker.io/grafana/tempo
+    tag: 3.1.1
+  grafana:
+    repository: docker.io/grafana/grafana
+    tag: 13.3.0
+pullPolicy: IfNotPresent
+
+# Per component: a PersistentVolumeClaim of `size`, or (enabled: false) an emptyDir capped at `size` whose data is
+# lost when the pod restarts. emptyDir counts against ephemeral storage, not the namespace's PVC quota.
+persistence:
+  # Empty: the cluster's default StorageClass.
+  storageClass: ''
+  prometheus: { enabled: true, size: 2Gi }
+  loki: { enabled: true, size: 2Gi }
+  tempo: { enabled: true, size: 2Gi }
+  grafana: { enabled: true, size: 256Mi }
+
+# Requests are set for every container: an unset one takes the namespace LimitRange default, which can exhaust quota.
+resources:
+  alloy:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits: { memory: 256Mi }
+  prometheus:
+    requests: { cpu: 30m, memory: 192Mi }
+    limits: { memory: 512Mi }
+  loki:
+    requests: { cpu: 30m, memory: 128Mi }
+    limits: { memory: 384Mi }
+  tempo:
+    requests: { cpu: 30m, memory: 128Mi }
+    limits: { memory: 384Mi }
+  grafana:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits: { memory: 256Mi }
+
+grafana:
+  # Required: public hostname for the Grafana Ingress (OpenShift turns it into an edge-terminated Route).
+  host: ''
+  ingress:
+    className: ''
+    # Empty: route.openshift.io/termination: edge. Setting any annotations replaces that default.
+    annotations: {}
+    tls:
+      # Empty: the router's default certificate.
+      secretName: ''
+  # Login through Keycloak (BC Gov SSO); the local login form and anonymous access are off.
+  oidc:
+    # Required, e.g. https://loginproxy.gov.bc.ca/auth/realms/standard
+    issuerUrl: ''
+    # Required
+    clientId: ''
+    # JMESPath over the ID token: users with none of these client roles are refused (role_attribute_strict).
+    roleAttributePath: "contains(client_roles[*], 'admin') && 'Admin' || contains(client_roles[*], 'editor') && 'Editor' || contains(client_roles[*], 'viewer') && 'Viewer'"
+
+# Grafana's secrets (keys OIDC_CLIENT_SECRET, ADMIN_PASSWORD) from Vault, as files Grafana reads with GF_*__FILE.
+vault:
+  enabled: true
+  # Required when enabled, e.g. abc123-nonprod
+  role: ''
+  authPath: auth/k8s-silver
+  namespace: platform-services
+  # Required when enabled: KV v2 path, e.g. abc123-nonprod/grafana
+  secretPath: ''
+  # Required when enabled: the service account Vault's role trusts, e.g. abc123-vault
+  serviceAccountName: ''
+  agentResources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { cpu: 50m, memory: 64Mi }
+
+# Used when vault.enabled is false: a Secret with the same keys.
+existingSecret: ''
+
+networkPolicy:
+  enabled: true
+  # Namespaces the ingress controller runs in (Grafana's Route). Empty: OpenShift's router namespace as BC Gov
+  # clusters label it (network.openshift.io/policy-group: ingress). Setting it replaces that default.
+  ingressNamespaceSelector: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

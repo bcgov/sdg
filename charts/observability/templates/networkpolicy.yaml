@@ -1,0 +1,71 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $sources := splitList "," (include "observability.sourceNamespaces" .) }}
+# Alloy: OTLP from portal-api and Faro from the edge, only from the source namespaces.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "alloy") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "alloy") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "observability.selectorLabels" (dict "context" . "component" "alloy") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: {{ toJson $sources }}
+      ports:
+        - port: 4318
+          protocol: TCP
+        - port: 12347
+          protocol: TCP
+---
+# Grafana: from the router (its Route) only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "grafana") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "grafana") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "observability.selectorLabels" (dict "context" . "component" "grafana") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            {{- toYaml (.Values.networkPolicy.ingressNamespaceSelector | default (dict "matchLabels" (dict "network.openshift.io/policy-group" "ingress"))) | nindent 12 }}
+      ports:
+        - port: 3000
+          protocol: TCP
+---
+# Prometheus, Loki and Tempo: only from the stack's own pods (Alloy writes, Grafana reads, Tempo remote-writes).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "backends") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "backends") | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/instance
+        operator: In
+        values: [{{ .Release.Name | quote }}]
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [prometheus, loki, tempo]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/part-of: sdg-observability
+{{- end }}

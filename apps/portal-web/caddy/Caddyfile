@@ -3,11 +3,17 @@
 {
 	metrics
 	auto_https off
-	admin 0.0.0.0:3003
+	# Admin API on localhost only: /load and /config change the live config. Metrics have their own listener.
+	admin localhost:2019
 	order coraza_waf first
 }
 
 import common.caddy
+
+# Prometheus metrics only (the global `metrics` option above); a scraper allowed onto :3003 gets nothing else.
+:3003 {
+	metrics
+}
 
 :3000 {
 	import logging
@@ -16,6 +22,7 @@ import common.caddy
 	import waf
 
 	encode zstd gzip
+	import collect_{$TELEMETRY:off}
 	import api_proxy
 	reverse_proxy {$PORTAL_WEB_URL}
 	import security_headers ""

@@ -2,16 +2,17 @@
 
 Deploy the portal to Kubernetes/OpenShift. Deploy workflows: DEVELOPER.md, Workflows.
 
-| Chart        | Deploys                                                                                    |
-| ------------ | ------------------------------------------------------------------------------------------ |
-| `common`     | Library: names (`<release>-<chart>`), labels, image refs, restricted-SCC security contexts |
-| `portal-web` | The SPA on Caddy (:8080)                                                                   |
-| `portal-api` | The NestJS BFF (:3000), with the `portal-database` migrator as an initContainer            |
-| `edge`       | Caddy + Coraza WAF (:3000; metrics :3003 on `<release>-edge-metrics`) and the Ingress      |
-| `postgres`   | A Crunchy PGO `PostgresCluster` (PostgreSQL 17, PostGIS 3.5)                               |
-| `sdg`        | Umbrella: all of the above in one release (`<chart>.enabled` toggles each)                 |
+| Chart           | Deploys                                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| `common`        | Library: names (`<release>-<chart>`), labels, image refs, restricted-SCC security contexts                |
+| `portal-web`    | The SPA on Caddy (:8080)                                                                                  |
+| `portal-api`    | The NestJS BFF (:3000), with the `portal-database` migrator as an initContainer                           |
+| `edge`          | Caddy + Coraza WAF (:3000; metrics :3003 on `<release>-edge-metrics`) and the Ingress                     |
+| `postgres`      | A Crunchy PGO `PostgresCluster` (PostgreSQL 17, PostGIS 3.5)                                              |
+| `sdg`           | Umbrella: all of the above in one release (`<chart>.enabled` toggles each)                                |
+| `observability` | Separate release: Grafana, Prometheus, Loki, Tempo and Alloy in `<plate>-tools` / `<plate>-prod` (doc 20) |
 
-Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster` and the Vault Agent annotations. The edge Ingress carries `route.openshift.io/termination: edge`, so OpenShift creates an edge-TLS Route from it.
+Only standard Kubernetes objects are used (RBAC included), apart from Crunchy's `PostgresCluster` and the Vault Agent annotations. The edge Ingress carries `route.openshift.io/termination: edge`, so OpenShift creates an edge-TLS Route from it.
 
 ## Prerequisites
 
@@ -42,6 +43,12 @@ Environment sizes live in `charts/sdg/values-{pr,test,prod}.yaml`. PR environmen
 On first install portal-api pods wait (`CreateContainerConfigError`) until PGO has created the user Secret; the migrator then retries until the database accepts connections.
 
 The postgres chart preloads pg_cron (`postgres.parameters`), and its init SQL installs the extension and grants the app user the `cron` schema. portal-database's migrations then schedule the jobs as that user, for example deleting expired sessions every 15 minutes (`SELECT jobname, schedule FROM cron.job;`). PGO runs the init SQL only when it creates a cluster. A cluster created before this was added needs two steps by hand, and its migrations fail until both are done. First, after the parameter change rolls out, check `SHOW shared_preload_libraries;` and restart the cluster if pg_cron isn't listed yet (`patronictl restart`). Second, as superuser on the primary, run `psql -d portal -c 'CREATE EXTENSION IF NOT EXISTS pg_cron; GRANT USAGE ON SCHEMA cron TO portal;'`.
+
+## Observability
+
+`charts/observability` is installed on its own as release `observability` by `.github/workflows/observability.yml`: in `<plate>-tools` (`values-tools.yaml`; collects from `<plate>-dev` and `<plate>-test`) and in `<plate>-prod` (`values-prod.yaml`; its own namespace only). Its configs are `charts/observability/files/`, shared with `compose.observability.yaml`. Only Grafana has an Ingress, with Keycloak login; users need the `admin`, `editor` or `viewer` client role.
+
+The app charts report to it through `global.observability` (`collectorHost`, `scraperNamespace`, `environment`), which `scripts/deploy-values.sh` fills in when the `OBSERVABILITY` variable is `true`. Left empty, nothing is rendered. Set, portal-api gets `OTEL_*` env, the edge turns `/collect` on, both pods get `sdg.gov.bc.ca/scrape*` annotations and a NetworkPolicy rule for the stack's Alloy, and the umbrella adds a read-only Role and RoleBinding on pods for Alloy's ServiceAccount.
 
 ## Where configuration lives
 

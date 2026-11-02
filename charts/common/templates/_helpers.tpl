@@ -95,3 +95,44 @@ spec:
       {{- include "common.selectorLabels" . | nindent 6 }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Observability (doc 20). global.observability left empty renders nothing: no telemetry env, annotations or rules.
+  collectorHost          Alloy's Service host, e.g. observability-alloy.abc123-tools.svc (OTLP :4318, Faro :12347)
+  scraperNamespace       namespace of the Alloy that scrapes this release, e.g. abc123-tools (prod: abc123-prod)
+  scraperServiceAccount  Alloy's ServiceAccount there (default observability-alloy)
+  environment            pr-<n> | test | prod, the same on every signal
+*/}}
+{{- define "common.observability" -}}
+{{- toYaml ((.Values.global | default dict).observability | default dict) -}}
+{{- end -}}
+
+{{/* Pod annotations Alloy discovers. Usage: include "common.scrapeAnnotations" (dict "context" $ "port" 3000) */}}
+{{- define "common.scrapeAnnotations" -}}
+{{- $o := include "common.observability" .context | fromYaml -}}
+{{- if $o.scraperNamespace -}}
+sdg.gov.bc.ca/scrape: 'true'
+sdg.gov.bc.ca/scrape-port: {{ .port | quote }}
+sdg.gov.bc.ca/scrape-path: /metrics
+{{- with $o.environment }}
+sdg.gov.bc.ca/environment: {{ . | quote }}
+{{- end }}
+{{- end -}}
+{{- end -}}
+
+{{/* NetworkPolicy ingress rule admitting the scraping Alloy. Usage: include "common.scraperIngressRule" (dict "context" $ "port" 3000) */}}
+{{- define "common.scraperIngressRule" -}}
+{{- $o := include "common.observability" .context | fromYaml -}}
+{{- with $o.scraperNamespace -}}
+- from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ . }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: alloy
+  ports:
+    - port: {{ $.port }}
+      protocol: TCP
+{{- end -}}
+{{- end -}}

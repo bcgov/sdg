@@ -1,0 +1,82 @@
+// OpenShift (charts/observability): pods in SOURCE_NAMESPACES (comma-separated) that belong to the sdg charts
+// (app.kubernetes.io/part-of=sdg) and opt in with annotations:
+//   sdg.gov.bc.ca/scrape: "true"   sdg.gov.bc.ca/scrape-port: "3000"   sdg.gov.bc.ca/scrape-path: /metrics
+//   sdg.gov.bc.ca/environment: pr-12 | test | prod
+// Each source namespace grants this ServiceAccount read access to pods (charts/sdg observability-rbac.yaml), and its
+// NetworkPolicies admit this pod on the scrape ports. Other teams' pods in a shared namespace are never selected.
+discovery.kubernetes "pods" {
+  role = "pod"
+
+  namespaces {
+    names = string.split(sys.env("SOURCE_NAMESPACES"), ",")
+  }
+
+  selectors {
+    role  = "pod"
+    label = "app.kubernetes.io/part-of=sdg"
+  }
+}
+
+discovery.relabel "apps" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_annotation_sdg_gov_bc_ca_scrape"]
+    regex         = "true"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_phase"]
+    regex         = "Running"
+    action        = "keep"
+  }
+
+  // Pod discovery yields one target per container port: keep only the annotated one.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_annotation_sdg_gov_bc_ca_scrape_port"]
+    target_label  = "__tmp_scrape_port"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_port_number"]
+    target_label  = "__tmp_scrape_port"
+    action        = "keepequal"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_annotation_sdg_gov_bc_ca_scrape_path"]
+    target_label  = "__metrics_path__"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    target_label  = "app"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_instance"]
+    target_label  = "release"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_annotation_sdg_gov_bc_ca_environment"]
+    target_label  = "environment"
+  }
+}
+
+prometheus.scrape "apps" {
+  targets         = discovery.relabel.apps.output
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.default.receiver]
+}

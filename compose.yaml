@@ -3,6 +3,7 @@
 # Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets
 # come from apps/portal-api/.env (gitignored). See DEVELOPER.md "Local Stack" for the one-time TLS trust step.
 # Postgres's host port defaults to 5432; override with POSTGRES_PORT if it is taken.
+# Telemetry is off here; `-f compose.observability.yaml` adds the Grafana LGTM stack and turns it on (DEVELOPER.md).
 name: portal
 
 # Shared by the Node services: the repo is bind-mounted for hot reload, and every node_modules is a volume so the

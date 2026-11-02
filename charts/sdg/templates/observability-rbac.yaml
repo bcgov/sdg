@@ -1,0 +1,34 @@
+{{- $o := include "common.observability" . | fromYaml }}
+{{- with $o.scraperNamespace }}
+# Read-only pod discovery for the observability stack's Alloy (doc 20; charts/observability), which scrapes this
+# release's opted-in pods from its own namespace. Nothing else: no Secrets, ConfigMaps or writes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $.Release.Name }}-observability-discovery
+  labels:
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: sdg
+rules:
+  - apiGroups: ['']
+    resources: [pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $.Release.Name }}-observability-discovery
+  labels:
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: sdg
+subjects:
+  - kind: ServiceAccount
+    name: {{ $o.scraperServiceAccount | default "observability-alloy" }}
+    namespace: {{ . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $.Release.Name }}-observability-discovery
+{{- end }}

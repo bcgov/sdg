@@ -7,6 +7,15 @@ global:
     tag: ''
   # Public hostname: the edge Ingress host and portal-api's APP_URL (https://<host>).
   host: ''
+  # Observability stack this release reports to (doc 20; charts/observability). All empty: telemetry off.
+  observability:
+    # Alloy's Service host, e.g. observability-alloy.abc123-tools.svc
+    collectorHost: ''
+    # Namespace of the Alloy that scrapes this release, e.g. abc123-tools (prod: abc123-prod)
+    scraperNamespace: ''
+    scraperServiceAccount: observability-alloy
+    # pr-<n> | test | prod
+    environment: ''
 
 portal-web:
   enabled: true

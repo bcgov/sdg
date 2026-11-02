@@ -22,6 +22,9 @@ spec:
         {{- include "common.labels" (dict "context" . "component" "api") | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with include "common.scrapeAnnotations" (dict "context" . "port" 3000) }}
+        {{- . | nindent 8 }}
+        {{- end }}
         {{- if .Values.vault.enabled }}
         {{- include "portal-api.vaultAnnotations" . | nindent 8 }}
         {{- end }}
@@ -55,7 +58,8 @@ spec:
           image: {{ include "common.image" (dict "image" .Values.image "context" $) }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if .Values.vault.enabled }}
-          command: [node, --env-file=/vault/secrets/portal-api.env, dist/main.js]
+          # --import preloads OpenTelemetry (a no-op without OTEL_EXPORTER_OTLP_ENDPOINT), as the image's CMD does.
+          command: [node, --env-file=/vault/secrets/portal-api.env, --import=./dist/instrumentation.js, dist/main.js]
           {{- end }}
           envFrom:
             - configMapRef:

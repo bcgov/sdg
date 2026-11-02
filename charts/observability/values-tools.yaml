@@ -1,0 +1,17 @@
+# Non-prod stack in <plate>-tools: dev (PR releases sdg-<n>) and test. Host, Keycloak, Vault and the source namespaces
+# come from .github/workflows/observability.yml; this file holds the sizing.
+#
+# The tools namespace has 1Gi of PVC storage in total (storage-quota), so only metrics and logs get volumes
+# (960Mi together). Traces and Grafana's own state live on emptyDir: lost on a restart, which non-prod can accept
+# (Grafana's datasources and dashboards are provisioned, and users come back through Keycloak).
+retention:
+  metrics: 7d
+  # Below the 512Mi volume, so Prometheus drops old blocks before the disk fills.
+  metricsSize: 400MB
+  logs: 72h
+  traces: 72h
+persistence:
+  prometheus: { enabled: true, size: 512Mi }
+  loki: { enabled: true, size: 448Mi }
+  tempo: { enabled: false, size: 1Gi }
+  grafana: { enabled: false, size: 128Mi }
