@@ -1,14 +1,16 @@
-import { context, logs, propagation, trace } from '@opentelemetry/api';
+import { context, logs, metrics, propagation, trace } from '@opentelemetry/api';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { defaultDeps } from './bootstrap.js';
-import type { OtelProviders } from './otel-sdk.js';
+import type { OtelHandle } from './otel-sdk.js';
+import { prometheusExporter } from './prometheus.js';
 
 // The production wiring behind bootstrapTelemetry (its own file: it registers loader hooks and globals in this worker).
-let providers: OtelProviders | undefined;
+let handle: OtelHandle | undefined;
 
 afterAll(async () => {
-  await providers?.shutdown();
+  await handle?.shutdown();
+  metrics.disable();
   trace.disable();
   logs.disable();
   propagation.disable();
@@ -39,15 +41,18 @@ describe('bootstrapTelemetry default dependencies', () => {
     await expect(defaultDeps.registerLoaderHooks()).resolves.toBeUndefined();
   });
 
-  it('loads the SDK lazily and starts it', async () => {
+  it('loads the SDK lazily and starts it, bound to the process-wide Prometheus exporter', async () => {
     // Ratio 0: nothing is sampled, so nothing is exported to the unreachable endpoint on shutdown.
-    providers = await defaultDeps.startOtel({
+    handle = await defaultDeps.startOtel({
       endpoint: 'http://127.0.0.1:9',
       serviceName: 'portal-api',
       resourceAttributes: {},
       samplerRatio: 0,
     });
-    expect(logs.getLoggerProvider()).toBe(providers.loggerProvider);
-    expect(typeof providers.shutdown).toBe('function');
+    expect(handle.exportsTelemetry).toBe(true);
+    const { errors, resourceMetrics } = await prometheusExporter.collect();
+    expect(errors).toEqual([]);
+    const names = resourceMetrics.scopeMetrics.flatMap((scope) => scope.metrics.map((m) => m.descriptor.name));
+    expect(names).toContain('process.memory.usage');
   });
 });

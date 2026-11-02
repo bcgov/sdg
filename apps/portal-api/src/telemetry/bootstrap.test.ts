@@ -1,19 +1,13 @@
-import { LoggerProvider } from '@opentelemetry/sdk-logs';
-import { TracerProvider } from '@opentelemetry/sdk-trace';
 import { describe, expect, it, vi } from 'vitest';
 
 import { type BootstrapDeps, bootstrapTelemetry } from './bootstrap.js';
-import type { OtelProviders } from './otel-sdk.js';
+import type { OtelHandle } from './otel-sdk.js';
 
-function fakeDeps(shutdown: OtelProviders['shutdown'] = async () => undefined) {
+function fakeDeps(shutdown: OtelHandle['shutdown'] = async () => undefined) {
   const handlers = new Map<string, () => void>();
   const deps = {
     registerLoaderHooks: vi.fn<BootstrapDeps['registerLoaderHooks']>(async () => undefined),
-    startOtel: vi.fn<BootstrapDeps['startOtel']>(async () => ({
-      tracerProvider: new TracerProvider(),
-      loggerProvider: new LoggerProvider(),
-      shutdown,
-    })),
+    startOtel: vi.fn<BootstrapDeps['startOtel']>(async (config) => ({ exportsTelemetry: config !== null, shutdown })),
     report: vi.fn<BootstrapDeps['report']>(),
     onSignal: vi.fn<BootstrapDeps['onSignal']>((signal, handler) => {
       handlers.set(signal, handler);
@@ -23,22 +17,24 @@ function fakeDeps(shutdown: OtelProviders['shutdown'] = async () => undefined) {
 }
 
 describe('bootstrapTelemetry', () => {
-  it('does nothing without OTEL_EXPORTER_OTLP_ENDPOINT: no hooks, no SDK, no signal handlers', async () => {
-    const { deps } = fakeDeps();
-    await expect(bootstrapTelemetry({}, deps)).resolves.toBeNull();
-    expect(deps.registerLoaderHooks).not.toHaveBeenCalled();
-    expect(deps.startOtel).not.toHaveBeenCalled();
-    expect(deps.onSignal).not.toHaveBeenCalled();
+  it('starts the SDK for metrics only without OTEL_EXPORTER_OTLP_ENDPOINT', async () => {
+    const { deps, handlers } = fakeDeps();
+    const handle = await bootstrapTelemetry({}, deps);
+    expect(handle.exportsTelemetry).toBe(false);
+    expect(deps.registerLoaderHooks).toHaveBeenCalledTimes(1);
+    expect(deps.startOtel).toHaveBeenCalledWith(null);
+    expect([...handlers.keys()]).toEqual(['SIGTERM', 'SIGINT']);
     expect(deps.report).not.toHaveBeenCalled();
   });
 
-  it('reports invalid settings by key and starts nothing', async () => {
+  it('reports invalid settings by key and still starts the SDK for metrics only', async () => {
     const { deps } = fakeDeps();
-    await expect(bootstrapTelemetry({ OTEL_EXPORTER_OTLP_ENDPOINT: 'grpc://secret-host' }, deps)).resolves.toBeNull();
+    const handle = await bootstrapTelemetry({ OTEL_EXPORTER_OTLP_ENDPOINT: 'grpc://secret-host' }, deps);
     expect(deps.report).toHaveBeenCalledTimes(1);
     expect(String(deps.report.mock.calls[0]?.[0])).toContain('OTEL_EXPORTER_OTLP_ENDPOINT');
     expect(String(deps.report.mock.calls[0]?.[0])).not.toContain('secret-host');
-    expect(deps.startOtel).not.toHaveBeenCalled();
+    expect(deps.startOtel).toHaveBeenCalledWith(null);
+    expect(handle.exportsTelemetry).toBe(false);
   });
 
   it('registers the loader hooks before starting the SDK with the resolved config', async () => {
@@ -52,8 +48,8 @@ describe('bootstrapTelemetry', () => {
       order.push('sdk');
       return started(config);
     });
-    const providers = await bootstrapTelemetry({ OTEL_EXPORTER_OTLP_ENDPOINT: 'http://alloy:4318' }, deps);
-    expect(providers).not.toBeNull();
+    const handle = await bootstrapTelemetry({ OTEL_EXPORTER_OTLP_ENDPOINT: 'http://alloy:4318' }, deps);
+    expect(handle.exportsTelemetry).toBe(true);
     expect(order).toEqual(['hooks', 'sdk']);
     expect(deps.startOtel).toHaveBeenCalledWith(
       expect.objectContaining({ endpoint: 'http://alloy:4318', serviceName: 'portal-api' }),
