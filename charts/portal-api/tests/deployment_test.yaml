@@ -242,3 +242,32 @@ tests:
           path: spec.strategy
           value:
             type: Recreate
+
+  # MDD 20-observability-lgtm
+  - it: preloads the OpenTelemetry instrumentation (a no-op without an OTLP endpoint)
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: [node, --env-file=/vault/secrets/portal-api.env, --import=./dist/instrumentation.js, dist/main.js]
+
+  - it: annotates the pod for scraping /metrics on 3000 when a scraper namespace is set
+    template: templates/deployment.yaml
+    set:
+      global.observability.scraperNamespace: abc123-tools
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape"]
+          value: 'true'
+      - equal:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape-port"]
+          value: '3000'
+      - equal:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape-path"]
+          value: /metrics
+
+  - it: has no scrape annotation when observability is not configured
+    template: templates/deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape"]

@@ -2,7 +2,7 @@
 #   podman build -f apps/portal-api/Dockerfile -t portal-api .
 # Runs on Alpine Node as any UID: the app only reads /app. Secrets come from the environment at runtime.
 
-FROM docker.io/library/node:26.12.0-slim AS base
+FROM docker.io/library/node:26.13.0-slim AS base
 ENV CI=true LEFTHOOK=0
 # Same pnpm as the host: the version comes from devEngines in package.json.
 COPY package.json /tmp/package.json
@@ -33,4 +33,5 @@ ENV NODE_ENV=production PORT=3000
 WORKDIR /app
 COPY --from=build /out .
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# The preload is a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set (src/instrumentation.ts).
+CMD ["node", "--import=./dist/instrumentation.js", "dist/main.js"]

@@ -17,6 +17,10 @@ spec:
     metadata:
       labels:
         {{- include "common.labels" (dict "context" . "component" "edge") | nindent 8 }}
+      {{- with include "common.scrapeAnnotations" (dict "context" . "port" 3003) }}
+      annotations:
+        {{- . | nindent 8 }}
+      {{- end }}
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -32,6 +36,16 @@ spec:
               value: {{ include "common.tplvalue" (dict "value" .Values.upstreams.portalWeb "context" .) | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel | quote }}
+            {{- $o := include "common.observability" . | fromYaml }}
+            {{- with $o.collectorHost }}
+            # Browser telemetry: /collect proxies to Alloy's Faro receiver (common.caddy collect_on).
+            - name: TELEMETRY
+              value: 'on'
+            - name: FARO_COLLECTOR_URL
+              value: {{ printf "http://%s:12347" . | quote }}
+            - name: TELEMETRY_ENVIRONMENT
+              value: {{ $o.environment | default "unknown" | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 3000

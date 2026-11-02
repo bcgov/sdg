@@ -1,0 +1,35 @@
+{{- $host := .Values.grafana.host | required "grafana.host is required" }}
+# Only Grafana is exposed; Alloy, Prometheus, Loki and Tempo stay cluster-internal.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "grafana") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "grafana") | nindent 4 }}
+  {{- with .Values.grafana.ingress.annotations | default (dict "route.openshift.io/termination" "edge") }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.grafana.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  tls:
+    {{- with .Values.grafana.ingress.tls.secretName }}
+    - hosts: [{{ $host | quote }}]
+      secretName: {{ . }}
+    {{- else }}
+    # OpenShift's form for the router's default certificate: hosts without a secret are rejected.
+    - {}
+    {{- end }}
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "observability.name" (dict "context" . "component" "grafana") }}
+                port:
+                  name: http

@@ -41,16 +41,21 @@ container() {
 }
 
 # Caddy validates upstream addresses, so give the placeholders real values.
+# A second argument "on" validates with browser telemetry enabled (collect_on snippet).
 caddy_validate() {
+  local telemetry=(-e TELEMETRY="${2:-off}")
+  [ "${2:-off}" = on ] && telemetry+=(-e FARO_COLLECTOR_URL=http://alloy:12347 -e TELEMETRY_ENVIRONMENT=local)
   $COMPOSE run --rm --no-deps -T \
     -e PORTAL_API_URL=http://portal-api:3000 -e PORTAL_WEB_URL=http://portal-web:5173 -e LOG_LEVEL=INFO \
-    --entrypoint caddy caddy validate --adapter caddyfile --config "/etc/caddy/$1"
+    "${telemetry[@]}" --entrypoint caddy caddy validate --adapter caddyfile --config "/etc/caddy/$1"
 }
 
 echo "Caddy config"
 $COMPOSE build caddy >/dev/null
 check "Caddyfile (production) validates" caddy_validate Caddyfile
 check "Caddyfile.dev validates" caddy_validate Caddyfile.dev
+check "Caddyfile (production) validates with telemetry on" caddy_validate Caddyfile on
+check "Caddyfile.dev validates with telemetry on" caddy_validate Caddyfile.dev on
 
 if $UP; then
   echo "Starting stack (first run installs dependencies, this takes a while)"
@@ -109,6 +114,14 @@ check "GET /api/auth/me without a session is 401 from portal-api" \
   = "401 application/json; charset=utf-8"
 check "portal-api is live inside the network" "$ENGINE" exec "$API" node -e \
   "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+
+echo "Telemetry (off without compose.observability.yaml)"
+check "GET /telemetry.json reports telemetry off" test "$("${CURL[@]}" "$SITE/telemetry.json")" = '{"enabled":false}'
+check "POST /collect is a no-op 204" test "$(status -X POST -d '{}' "$SITE/collect")" = 204
+check "Caddy metrics served on :3003" "$ENGINE" exec "$API" node -e \
+  "fetch('http://caddy:3003/metrics').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+check "Caddy admin API not reachable from other containers" "$ENGINE" exec "$API" node -e \
+  "fetch('http://caddy:2019/config/').then(() => process.exit(1), () => process.exit(0))"
 
 echo "WAF"
 check "/.env is blocked (rule 1004)" test "$(status "$SITE/.env")" = 403

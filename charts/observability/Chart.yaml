@@ -1,0 +1,10 @@
+apiVersion: v2
+name: observability
+description: 'Self-hosted Grafana LGTM stack with Prometheus (Loki, Grafana, Tempo, Prometheus) and Grafana Alloy (doc 20). Installed on its own as release observability in <plate>-tools (non-prod) and <plate>-prod, not by the sdg umbrella.'
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

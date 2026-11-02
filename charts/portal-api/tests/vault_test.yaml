@@ -44,7 +44,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].command
-          value: [node, --env-file=/vault/secrets/portal-api.env, dist/main.js]
+          value: [node, --env-file=/vault/secrets/portal-api.env, --import=./dist/instrumentation.js, dist/main.js]
       - equal:
           path: spec.template.spec.serviceAccountName
           value: abc123-vault

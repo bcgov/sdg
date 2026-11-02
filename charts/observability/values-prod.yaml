@@ -1,0 +1,10 @@
+# Prod stack in <plate>-prod: collects from its own namespace only, so prod telemetry never leaves it.
+retention:
+  metrics: 14d
+  logs: 336h
+  traces: 336h
+# Check `oc describe quota -n <plate>-prod` first: these volumes need 12.25Gi of PVC storage.
+persistence:
+  prometheus: { enabled: true, size: 4Gi }
+  loki: { enabled: true, size: 4Gi }
+  tempo: { enabled: true, size: 4Gi }

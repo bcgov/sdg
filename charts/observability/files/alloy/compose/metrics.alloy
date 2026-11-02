@@ -1,0 +1,9 @@
+// Local stack (compose.observability.yaml): fixed targets on the compose network.
+prometheus.scrape "apps" {
+  targets = [
+    {"__address__" = "portal-api:3000", "app" = "portal-api", "environment" = "local"},
+    {"__address__" = "caddy:3003", "app" = "edge", "environment" = "local"},
+  ]
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.default.receiver]
+}

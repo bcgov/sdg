@@ -7,6 +7,10 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from './app';
 import { createAppRouter } from './router';
+import { startTelemetry } from './telemetry';
+
+// Browser telemetry, only when the edge's /telemetry.json enables it; never blocks or breaks rendering.
+void startTelemetry();
 
 const queryClient = new QueryClient();
 const router = createAppRouter({ queryClient });

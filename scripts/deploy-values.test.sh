@@ -9,7 +9,7 @@ FAILED=0
 
 # PR defaults; each case overrides what it tests
 base_env() {
-  export TARGET=12 TAG=0123abc REPOSITORY=Acme/sdg ENVIRONMENT='' VAULT_SECRET_PATH=''
+  export TARGET=12 TAG=0123abc REPOSITORY=Acme/sdg ENVIRONMENT='' VAULT_SECRET_PATH='' OBSERVABILITY=''
   export OC_NAMESPACE=d62e77-dev OC_SERVER=https://api.gold.devops.gov.bc.ca:6443
   export KEYCLOAK_ISSUER_URL=https://dev.loginproxy.gov.bc.ca/auth/realms/standard KEYCLOAK_CLIENT_ID=sdg-1234
 }
@@ -71,6 +71,33 @@ base_env
 unset TAG KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID OC_NAMESPACE
 expect "outputs need no image, Keycloak or namespace settings" "$("$SCRIPT" outputs 2>&1)" "url=https://sdg-12.apps.gold.devops.gov.bc.ca"
 
+# Observability (doc 20): off unless OBSERVABILITY=true
+base_env
+values="$("$SCRIPT" values)"
+if grep -q observability <<< "$values"; then echo "FAIL: observability rendered without OBSERVABILITY=true"; FAILED=1
+else echo "PASS: no observability settings by default"; fi
+
+base_env
+export OBSERVABILITY=true
+values="$("$SCRIPT" values)"
+expect "PR reports to Alloy in <plate>-tools" "$values" "    collectorHost: \"observability-alloy.d62e77-tools.svc\""
+expect "PR is scraped from <plate>-tools" "$values" "    scraperNamespace: \"d62e77-tools\""
+expect "PR environment label is pr-<n>" "$values" "    environment: \"pr-12\""
+expect "observability sits under global" "$(sed -n '/^global:/,/^[a-z]/p' <<< "$values")" "  observability:"
+
+base_env
+export OBSERVABILITY=true TARGET=test ENVIRONMENT=test OC_NAMESPACE=d62e77-test
+values="$("$SCRIPT" values)"
+expect "test reports to <plate>-tools" "$values" "    scraperNamespace: \"d62e77-tools\""
+expect "test environment label is test" "$values" "    environment: \"test\""
+
+base_env
+export OBSERVABILITY=true TARGET=prod ENVIRONMENT=prod OC_NAMESPACE=d62e77-prod
+values="$("$SCRIPT" values)"
+expect "prod reports to its own stack" "$values" "    collectorHost: \"observability-alloy.d62e77-prod.svc\""
+expect "prod is scraped from <plate>-prod" "$values" "    scraperNamespace: \"d62e77-prod\""
+
+rejects "OBSERVABILITY other than true/false" OBSERVABILITY 'yes'
 rejects "missing Keycloak issuer" KEYCLOAK_ISSUER_URL ''
 rejects "non-https Keycloak issuer" KEYCLOAK_ISSUER_URL 'http://keycloak.example.com'
 rejects "quote in Keycloak issuer" KEYCLOAK_ISSUER_URL 'https://x.example.com/"a'

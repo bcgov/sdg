@@ -1,7 +1,8 @@
 # Local dev (compose.yaml): https://sdg.localhost in front of the Vite dev server and portal-api.
 {
 	metrics
-	admin 0.0.0.0:3003
+	# Admin API on localhost only: /load and /config change the live config. Metrics have their own listener.
+	admin localhost:2019
 	# Unprivileged ports: the image runs as a non-root user. compose.yaml publishes 8443 as the host's 443.
 	http_port 8080
 	https_port 8443
@@ -13,6 +14,11 @@
 
 import common.caddy
 
+# Prometheus metrics only (the global `metrics` option above); a scraper allowed onto :3003 gets nothing else.
+:3003 {
+	metrics
+}
+
 sdg.localhost {
 	tls internal
 	import logging
@@ -21,8 +27,16 @@ sdg.localhost {
 	import waf
 
 	encode zstd gzip
+	import collect_{$TELEMETRY:off}
 	import api_proxy
 	# Everything else goes to Vite, HMR websocket included. The original Host is kept: Vite allows *.localhost.
 	reverse_proxy {$PORTAL_WEB_URL}
 	import security_headers "'unsafe-inline'"
+}
+
+# Grafana from compose.observability.yaml (502 when that override isn't running).
+grafana.sdg.localhost {
+	tls internal
+	import logging
+	reverse_proxy {$GRAFANA_URL:http://grafana:3000}
 }

@@ -18,7 +18,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Automatic dependency patching via [bcgov/renovate-config](https://github.com/bcgov/renovate-config)
 - Maintenance Mode Automation (hands‑off updates, low‑dev mode) via the same Renovate config
 - Enforced code reviews and workflow jobs (pass|fail)
-- Prometheus metrics export from portal-api and the edge
+- Prometheus metrics export from portal-api and the edge, and an optional self-hosted Grafana LGTM stack (ADR 0001)
 - Rolling updates with zero downtime in PROD
 - Database migrations with Drizzle, run as an initContainer before portal-api starts
 - Pod disruption budgets for high availability
@@ -130,10 +130,22 @@ Set these by hand with `gh secret set` / `gh variable set` when you need them.
 
 **`SYSDIG_API_TOKEN`**
 
-Sysdig API token used to sync the PROD email-alert set on every merge. Sourced from the in-cluster Secret materialized by your `SysdigTeam` CR (BC Gov platform-services provisions this in your `*-tools` namespace). Optional — if unset, the `monitor-prod` step no-ops with a warning, so the deploy still succeeds.
+Sysdig API token used to sync the PROD email-alert set on every PROD deploy (releases). Sourced from the in-cluster Secret materialized by your `SysdigTeam` CR (BC Gov platform-services provisions this in your `*-tools` namespace). Optional — if unset, the `monitor-prod` step no-ops with a warning, so the deploy still succeeds.
 
 - Reference: `${{ secrets.SYSDIG_API_TOKEN }}`
 - Alert templates live in [`monitoring/alerts/`](./monitoring/alerts/) and cover `portal-web`, `portal-api` and `edge`. Add or remove files to customize the alert set per app — see [`bcgov/actions-openshift` (sysdig-monitor)](https://github.com/bcgov/actions-openshift) for the template schema and placeholder vocabulary.
+
+**`OBSERVABILITY`, `GRAFANA_OIDC_CLIENT_ID` and the `tools` environment**
+
+The observability stack (ADR 0001, `charts/README.md`, Observability). Optional, and off until set up by a person on the team:
+
+1. Request a Keycloak client for Grafana (redirect URI `https://grafana-<plate>-{tools,prod}.apps.<cluster>.devops.gov.bc.ca/login/generic_oauth`) with client roles `admin`, `editor` and `viewer`; users without one are refused. Set its id as the `GRAFANA_OIDC_CLIENT_ID` variable.
+2. In Vault, create `<plate>-nonprod/grafana` and `<plate>-prod/grafana` with `OIDC_CLIENT_SECRET` and `ADMIN_PASSWORD`.
+3. Set up the tools namespace and pod discovery with the setup scripts (preview first, then `--apply`):
+   - `scripts/setup-openshift.sh --observability`: the deploy account (`github-actions`, `edit`, token Secret) in `<plate>-tools`, and Alloy's read-only pod discovery (Role and RoleBinding `observability-discovery`) in dev, test and prod. The deploy account can't create RBAC, so this is done by a person.
+   - `scripts/setup-environments.sh --observability`: the `tools` GitHub environment with `OC_NAMESPACE=<plate>-tools` and `OC_TOKEN` from that token. Check `oc describe quota -n <plate>-<env>` first: the stack requests about 140m CPU and 900Mi memory (Vault agent included). In tools (1Gi of PVC in total) only metrics and logs get volumes, 960Mi together, and traces and Grafana's state live on emptyDir; prod's `values-prod.yaml` asks for 12.25Gi.
+4. Run the **Observability** workflow (stack `tools`, later `prod`); it also runs on any change to `charts/observability` on main.
+5. Set the `OBSERVABILITY` variable to `true`. From the next deploy, PR, test and prod releases report to their stack (`scripts/deploy-values.sh`).
 
 **`TLS_CERTIFICATE`, `TLS_PRIVATE_KEY`, `TLS_CA_CERTIFICATE`**
 
@@ -197,10 +209,10 @@ By default, an environment allows deployments from any branch or tag ("No restri
 
 Two workflows can deploy PROD, and both are active by default:
 
-- `merge.yml` deploys every merge to TEST, runs the tests, then deploys PROD by PR number.
+- `merge.yml` deploys every merge to TEST and runs the tests. PROD is release-only: its PROD jobs are commented out.
 - `release.yml` deploys a published [GitHub release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository) to PROD. It finds the PR that the release's commit came from and deploys that PR's images, the same ones `merge.yml` deployed. Nothing is rebuilt.
 
-To make PROD release-only, comment out the `deploy-prod`, `monitor-prod` and `promote` jobs in `merge.yml`. Merges then go to TEST and stop, and PROD changes only when you publish a release.
+PROD is release-only: the `deploy-prod`, `monitor-prod` and `promote` jobs in `merge.yml` are commented out, so merges go to TEST and stop, and PROD changes only when you publish a release. To deploy PROD on every merge instead, uncomment them.
 
 Notes:
 
@@ -416,6 +428,16 @@ Run `pnpm test:charts` after changing a chart.
    ```
    Firefox keeps its own store: import the certificate there, or set `security.enterprise_roots.enabled` to `true` in `about:config`.
 5. Check the stack end to end with `scripts/compose-smoke.sh --no-up` (TLS, headers, WAF, API proxy, port isolation, migrations).
+
+## Observability (optional)
+
+`compose.observability.yaml` adds the LGTM stack (Prometheus, Loki, Tempo, Grafana, plus Grafana Alloy as the collector) and turns telemetry on for portal-api and the edge:
+
+```sh
+podman compose -f compose.yaml -f compose.observability.yaml up -d
+```
+
+Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), with the `SDG` dashboards and Prometheus, Loki and Tempo linked by `trace_id`. Without the override nothing is wired: portal-api starts no OpenTelemetry SDK (`OTEL_EXPORTER_OTLP_ENDPOINT` unset), and the edge answers `/telemetry.json` with `{"enabled":false}` and `/collect` with 204, so portal-web never loads Faro. To add the stack to a running base stack, recreate `portal-api`, `portal-web` and `caddy` after starting it (podman-compose doesn't recreate them for an env change). Configs live in `charts/observability/files/`, shared with the Helm chart (doc 20, `.mdd/docs/20-observability-lgtm.md`).
 
 ## Troubleshooting
 

@@ -1,0 +1,10 @@
+# Prometheus (doc 20): storage only. Alloy scrapes the apps and remote-writes here (--web.enable-remote-write-receiver);
+# retention is a command-line flag (--storage.tsdb.retention.time). Prometheus scrapes only itself.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

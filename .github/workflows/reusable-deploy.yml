@@ -57,6 +57,8 @@ jobs:
       KEYCLOAK_CLIENT_ID: ${{ vars.KEYCLOAK_CLIENT_ID }}
       # Optional override; see scripts/deploy-values.sh
       VAULT_SECRET_PATH: ${{ vars.VAULT_SECRET_PATH }}
+      # Optional: "true" reports to the observability stack (doc 20; scripts/deploy-values.sh)
+      OBSERVABILITY: ${{ vars.OBSERVABILITY }}
     steps:
       - uses: actions/checkout@v7
         with:
