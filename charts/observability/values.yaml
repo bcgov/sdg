@@ -59,9 +59,10 @@ resources:
   tempo:
     requests: { cpu: 30m, memory: 128Mi }
     limits: { memory: 384Mi }
+  # Grafana 13 settles at about 300MB (its ~30 bundled plugins) and was OOM-killed at a 256Mi limit.
   grafana:
-    requests: { cpu: 20m, memory: 96Mi }
-    limits: { memory: 256Mi }
+    requests: { cpu: 20m, memory: 320Mi }
+    limits: { memory: 512Mi }
 
 grafana:
   # Required: public hostname for the Grafana Ingress (OpenShift turns it into an edge-terminated Route).

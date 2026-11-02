@@ -228,3 +228,29 @@ tests:
             name: data
             persistentVolumeClaim:
               claimName: observability-prometheus
+
+  # OpenShift runs the image as an arbitrary UID in group 0, which can't enter the image's /var/lib/alloy (0770).
+  - it: keeps Alloy's storage outside the image's /var/lib/alloy
+    template: templates/deployments.yaml
+    documentSelector:
+      path: metadata.name
+      value: observability-alloy
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --storage.path=/alloy-data
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: data
+            mountPath: /alloy-data
+
+  - it: gives Grafana room to load its bundled plugins
+    template: templates/deployments.yaml
+    documentSelector:
+      path: metadata.name
+      value: observability-grafana
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 512Mi
