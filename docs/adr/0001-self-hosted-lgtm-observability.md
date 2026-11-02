@@ -33,7 +33,7 @@ Every piece is off unless configured.
 
 - Pros: PR and test environments pay no quota for telemetry; prod telemetry stays in prod, and a busy dev environment
   can't push prod data out of retention or take prod visibility down; one chart serves both stacks.
-- Cons: traffic across namespaces needs NetworkPolicies on both sides and a read-only Role per source namespace;
+- Cons: traffic across namespaces needs NetworkPolicies on both sides and a read-only Role per source namespace, made by a person with the setup script;
   two stacks to run.
 
 ### Option 2: One stack in tools for every environment, prod included

@@ -13,7 +13,6 @@ global:
     collectorHost: ''
     # Namespace of the Alloy that scrapes this release, e.g. abc123-tools (prod: abc123-prod)
     scraperNamespace: ''
-    scraperServiceAccount: observability-alloy
     # pr-<n> | test | prod
     environment: ''
 

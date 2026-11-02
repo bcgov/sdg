@@ -100,7 +100,6 @@ spec:
 Observability (doc 20). global.observability left empty renders nothing: no telemetry env, annotations or rules.
   collectorHost          Alloy's Service host, e.g. observability-alloy.abc123-tools.svc (OTLP :4318, Faro :12347)
   scraperNamespace       namespace of the Alloy that scrapes this release, e.g. abc123-tools (prod: abc123-prod)
-  scraperServiceAccount  Alloy's ServiceAccount there (default observability-alloy)
   environment            pr-<n> | test | prod, the same on every signal
 */}}
 {{- define "common.observability" -}}

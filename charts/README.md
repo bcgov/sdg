@@ -12,7 +12,7 @@ Deploy the portal to Kubernetes/OpenShift. Deploy workflows: DEVELOPER.md, Workf
 | `sdg`           | Umbrella: all of the above in one release (`<chart>.enabled` toggles each)                                |
 | `observability` | Separate release: Grafana, Prometheus, Loki, Tempo and Alloy in `<plate>-tools` / `<plate>-prod` (doc 20) |
 
-Only standard Kubernetes objects are used (RBAC included), apart from Crunchy's `PostgresCluster` and the Vault Agent annotations. The edge Ingress carries `route.openshift.io/termination: edge`, so OpenShift creates an edge-TLS Route from it.
+Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster` and the Vault Agent annotations. The edge Ingress carries `route.openshift.io/termination: edge`, so OpenShift creates an edge-TLS Route from it.
 
 ## Prerequisites
 
@@ -48,7 +48,7 @@ The postgres chart preloads pg_cron (`postgres.parameters`), and its init SQL in
 
 `charts/observability` is installed on its own as release `observability` by `.github/workflows/observability.yml`: in `<plate>-tools` (`values-tools.yaml`; collects from `<plate>-dev` and `<plate>-test`) and in `<plate>-prod` (`values-prod.yaml`; its own namespace only). Its configs are `charts/observability/files/`, shared with `compose.observability.yaml`. Only Grafana has an Ingress, with Keycloak login; users need the `admin`, `editor` or `viewer` client role.
 
-The app charts report to it through `global.observability` (`collectorHost`, `scraperNamespace`, `environment`), which `scripts/deploy-values.sh` fills in when the `OBSERVABILITY` variable is `true`. Left empty, nothing is rendered. Set, portal-api gets `OTEL_*` env, the edge turns `/collect` on, both pods get `sdg.gov.bc.ca/scrape*` annotations and a NetworkPolicy rule for the stack's Alloy, and the umbrella adds a read-only Role and RoleBinding on pods for Alloy's ServiceAccount.
+The app charts report to it through `global.observability` (`collectorHost`, `scraperNamespace`, `environment`), which `scripts/deploy-values.sh` fills in when the `OBSERVABILITY` variable is `true`. Left empty, nothing is rendered. Set, portal-api gets `OTEL_*` env, the edge turns `/collect` on, both pods get `sdg.gov.bc.ca/scrape*` annotations and a NetworkPolicy rule for the stack's Alloy, and Alloy may scrape them. Alloy's read-only pod discovery (Role and RoleBinding `observability-discovery`) is made once per namespace by a person with `scripts/setup-openshift.sh --observability --apply`; the deploy account can't manage RBAC.
 
 ## Where configuration lives
 

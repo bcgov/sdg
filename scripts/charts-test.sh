@@ -101,7 +101,7 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" 'vault.hashicorp.com/auth-path: "?auth/k8s-gold' "uses the cluster's Vault auth path"
   stack="example-$([ "$env" = prod ] && echo prod || echo tools)"
   expect_rendered "$env" "$manifests" "OTEL_EXPORTER_OTLP_ENDPOINT: \"?http://observability-alloy\.${stack}\.svc:4318" "sends OTLP to Alloy in ${stack}"
-  expect_rendered "$env" "$manifests" "namespace: ${stack}" "lets Alloy in ${stack} discover its pods"
+  expect_rendered "$env" "$manifests" "kubernetes.io/metadata.name: ${stack}" "lets Alloy in ${stack} scrape its pods"
   case "$env" in
     pr) storage=256Mi wal=64MB keep=16MB ;;
     test) storage=384Mi wal=96MB keep=32MB ;;

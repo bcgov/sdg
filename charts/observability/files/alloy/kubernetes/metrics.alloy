@@ -2,7 +2,7 @@
 // (app.kubernetes.io/part-of=sdg) and opt in with annotations:
 //   sdg.gov.bc.ca/scrape: "true"   sdg.gov.bc.ca/scrape-port: "3000"   sdg.gov.bc.ca/scrape-path: /metrics
 //   sdg.gov.bc.ca/environment: pr-12 | test | prod
-// Each source namespace grants this ServiceAccount read access to pods (charts/sdg observability-rbac.yaml), and its
+// Each source namespace grants this ServiceAccount read access to pods (scripts/setup-openshift.sh --observability), and its
 // NetworkPolicies admit this pod on the scrape ports. Other teams' pods in a shared namespace are never selected.
 discovery.kubernetes "pods" {
   role = "pod"

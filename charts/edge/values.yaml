@@ -12,7 +12,6 @@ global:
   observability:
     collectorHost: ''
     scraperNamespace: ''
-    scraperServiceAccount: observability-alloy
     environment: ''
 
 fullnameOverride: ''

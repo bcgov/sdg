@@ -110,9 +110,9 @@ allowBuilds:
 
 engineStrict: true
 
-# Grafana Faro (portal-web) still runs on OpenTelemetry JS 2.x, whose packages accept @opentelemetry/api < 1.10, while
-# Faro itself asks for ^1.9.0 and would get portal-api's 1.10. Pin Faro's copy so its OTel peers resolve.
-overrides:
-  '@grafana/faro-core>@opentelemetry/api': ~1.9.1
-  '@grafana/faro-web-sdk>@opentelemetry/api': ~1.9.1
-  '@grafana/faro-web-tracing>@opentelemetry/api': ~1.9.1
+# Grafana Faro (portal-web) still ships OpenTelemetry JS 2.x packages whose peer ranges stop below
+# @opentelemetry/api 1.10, which portal-api's SDK 3.x needs. 1.10 is a backward-compatible minor, and one API version
+# keeps a single copy of everything that peers on it (two copies split vitest and broke `pnpm test:all`).
+peerDependencyRules:
+  allowedVersions:
+    '@opentelemetry/api': '1'
