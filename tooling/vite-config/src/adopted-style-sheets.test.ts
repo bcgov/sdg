@@ -79,6 +79,16 @@ describe('adoptedStyleSheets plugin', () => {
     expect(plugin.enforce).toBe('pre');
   });
 
+  it('rewrites the bcgov module through its transform hook and passes other modules through', () => {
+    const hook = adoptedStyleSheets().transform;
+    if (typeof hook !== 'function') throw new Error('expected a function transform hook');
+    expect(Reflect.apply(hook, undefined, [bcgovModule, BCGOV_ID])).toEqual({
+      code: rewriteStyleInject(bcgovModule, BCGOV_ID),
+      map: null,
+    });
+    expect(Reflect.apply(hook, undefined, ['export const x = 1;', '/repo/src/main.ts'])).toBeUndefined();
+  });
+
   it('rewrites styleInject so the module adds no <style> elements', () => {
     const code = transform(bcgovModule, BCGOV_ID);
     expect(code).toBeDefined();
