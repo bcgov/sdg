@@ -168,8 +168,8 @@ catalogs:
       specifier: ^2.1.2
       version: 2.1.2
     '@bcgov/design-system-react-components':
-      specifier: ^0.8.1
-      version: 0.8.1
+      specifier: ^0.9.0
+      version: 0.9.1
     '@bcgov/design-tokens':
       specifier: ^5.0.0
       version: 5.1.0
@@ -479,7 +479,7 @@ importers:
         version: 0.5.14
       '@nestjs/cli':
         specifier: 'catalog:'
-        version: 12.0.11(@types/node@26.6.5)(prettier@3.9.10)
+        version: 12.0.11(@types/node@26.6.6)(prettier@3.9.10)
       '@nestjs/testing':
         specifier: 'catalog:'
         version: 12.3.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.3.2)(@nestjs/platform-express@12.3.2)
@@ -661,7 +661,7 @@ importers:
         version: 2.1.2
       '@bcgov/design-system-react-components':
         specifier: 'catalog:'
-        version: 0.8.1(@bcgov/bc-sans@2.1.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 0.9.1(@bcgov/bc-sans@2.1.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@fortawesome/fontawesome-svg-core':
         specifier: 'catalog:'
         version: 7.3.1
@@ -772,7 +772,7 @@ importers:
     devDependencies:
       '@bcgov/design-system-react-components':
         specifier: 'catalog:'
-        version: 0.8.1(@bcgov/bc-sans@2.1.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 0.9.1(@bcgov/bc-sans@2.1.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@bcgov/design-tokens':
         specifier: 'catalog:'
         version: 5.1.0
@@ -1029,15 +1029,12 @@ packages:
   '@bcgov/bc-sans@2.1.2':
     resolution: {integrity: sha512-46vG8NhvT/K/fBnmEPmdvjHYdT99I2DS4NwXP6kFBweSGEI5woym/BnQ+p2MIC/LCVQu7ngM2B3AETUXZ8ggsQ==}
 
-  '@bcgov/design-system-react-components@0.8.1':
-    resolution: {integrity: sha512-1zd9aJYg6CLFM3crhcl2rjkwR52fzHEGgjzNfx+j1P84s56A3BrTwbID5+WJamClixtzqpLnhJG8TwAEUyK+LA==}
+  '@bcgov/design-system-react-components@0.9.1':
+    resolution: {integrity: sha512-BX8oSqXYnnBCTmcVvEpVuzllXLz0uqjDX7rqFAJ+7jbuGdqUhi6xNoBCNNKI9FYg0V5MQsDcwUN/vZLVUBfU6Q==}
     peerDependencies:
       '@bcgov/bc-sans': ^2.1.0
       react: ^16.14.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0
       react-dom: ^16.14.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0
-
-  '@bcgov/design-tokens@5.0.0':
-    resolution: {integrity: sha512-D4Ub2jZ04Jv7hBUi6gqHTzIYTLtsqdr/FMv+m598IcfMLUy3b6CEVh3UH9ZXZLC/npPC7g05I4j3YMm46IGWjQ==}
 
   '@bcgov/design-tokens@5.1.0':
     resolution: {integrity: sha512-Oxu2b/fmGTOAOtfGPxu2iTDmAjz0lC9XUTLPhkSXAMaLihw4B4JgeUzvi0WAhoxN3+MWhds3eLYbJGBhmOF5vQ==}
@@ -4307,14 +4304,8 @@ packages:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
 
-  react-aria-components@1.17.0:
-    resolution: {integrity: sha512-0EyisMgvsFJ2aML3crDYv2tW5vT2Ryf8PGzY/g63JjDdCbLshlwazhS8JNtPF1vkTkungJJ6sVJbKyX+YKSoFA==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
-      react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
-
-  react-aria@3.48.0:
-    resolution: {integrity: sha512-jQjd4rBEIMqecBaAKYJbVGK6EqIHLa5znVQ7jwFyK5vCyljoj6KhgtiahmcIPsG5vG5vEDLw+ba+bEWn6A2P4w==}
+  react-aria-components@1.22.1:
+    resolution: {integrity: sha512-UTHaYHOaM71bOCjGPF50DcLywlrwAodE63IP64LB4kO+OizatQEL8TesVEOM8+TkBeSgHoflJ45388IlJfa7aw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
       react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
@@ -4332,11 +4323,6 @@ packages:
 
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
-
-  react-stately@3.46.0:
-    resolution: {integrity: sha512-OdxhWvHgs2L4OJGIs7hnuTr5WjjMM6enhNEAMRqiekhF8+ITvA2LRwNftOZwcogaoCslGYq5S2VQTQwnm0GbCA==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
   react-stately@3.51.0:
     resolution: {integrity: sha512-YJcmkAXu2XOQP97hO/qz/cC3qv9kni3oVhwBlxWr358BHePJUpY15XwL3YSRMKxYt4EkslPqAz11JRirMfANGw==}
@@ -5059,19 +5045,17 @@ snapshots:
 
   '@bcgov/bc-sans@2.1.2': {}
 
-  '@bcgov/design-system-react-components@0.8.1(@bcgov/bc-sans@2.1.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@bcgov/design-system-react-components@0.9.1(@bcgov/bc-sans@2.1.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@bcgov/bc-sans': 2.1.2
-      '@bcgov/design-tokens': 5.0.0
+      '@bcgov/design-tokens': 5.1.0
       '@react-aria/datepicker': 3.17.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@react-aria/i18n': 3.13.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
-      react-aria-components: 1.17.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react-aria-components: 1.22.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react-dom: 19.3.1(react@19.3.1)
     optionalDependencies:
       '@rollup/rollup-linux-x64-gnu': 4.67.4
-
-  '@bcgov/design-tokens@5.0.0': {}
 
   '@bcgov/design-tokens@5.1.0': {}
 
@@ -5620,7 +5604,7 @@ snapshots:
       '@neodrag/core': 3.0.0-next.11
       solid-js: 1.9.18
 
-  '@nestjs/cli@12.0.11(@types/node@26.6.5)(prettier@3.9.10)':
+  '@nestjs/cli@12.0.11(@types/node@26.6.6)(prettier@3.9.10)':
     dependencies:
       '@angular-devkit/core': 22.2.3(chokidar@5.0.0)
       '@angular-devkit/schematics': 22.2.3(chokidar@5.0.0)
@@ -7620,29 +7604,17 @@ snapshots:
       iconv-lite: 0.7.3
       unpipe: 1.0.0
 
-  react-aria-components@1.17.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  react-aria-components@1.22.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       '@internationalized/date': 3.12.4
+      '@internationalized/string': 3.2.10
       '@react-types/shared': 3.37.0(react@19.3.1)
       '@swc/helpers': 0.5.23
       client-only: 0.0.1
       react: 19.3.1
-      react-aria: 3.48.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react-aria: 3.53.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react-dom: 19.3.1(react@19.3.1)
-      react-stately: 3.46.0(react@19.3.1)
-
-  react-aria@3.48.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
-    dependencies:
-      '@internationalized/date': 3.12.4
-      '@internationalized/number': 3.6.9
-      '@internationalized/string': 3.2.10
-      '@react-types/shared': 3.37.0(react@19.3.1)
-      '@swc/helpers': 0.5.23
-      aria-hidden: 1.2.6
-      clsx: 2.1.1
-      react: 19.3.1
-      react-dom: 19.3.1(react@19.3.1)
-      react-stately: 3.46.0(react@19.3.1)
+      react-stately: 3.51.0(react@19.3.1)
       use-sync-external-store: 1.7.0(react@19.3.1)
 
   react-aria@3.53.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
@@ -7665,16 +7637,6 @@ snapshots:
       scheduler: 0.28.0
 
   react-is@17.0.2: {}
-
-  react-stately@3.46.0(react@19.3.1):
-    dependencies:
-      '@internationalized/date': 3.12.4
-      '@internationalized/number': 3.6.9
-      '@internationalized/string': 3.2.10
-      '@react-types/shared': 3.37.0(react@19.3.1)
-      '@swc/helpers': 0.5.23
-      react: 19.3.1
-      use-sync-external-store: 1.7.0(react@19.3.1)
 
   react-stately@3.51.0(react@19.3.1):
     dependencies:
