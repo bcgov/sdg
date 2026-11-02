@@ -6,14 +6,14 @@ packages:
 # Shared versions — reference with "catalog:" in package.json
 catalog:
   '@bcgov/bc-sans': ^2.1.2
-  '@bcgov/design-system-react-components': ^0.8.1
+  '@bcgov/design-system-react-components': ^0.9.0
   '@bcgov/design-tokens': ^5.0.0
   '@electric-sql/pglite': ^0.5.10
   '@fortawesome/fontawesome-svg-core': ^7.3.1
   '@fortawesome/free-regular-svg-icons': ^7.3.1
   '@fortawesome/free-solid-svg-icons': ^7.3.1
   '@fortawesome/react-fontawesome': ^3.5.0
-  '@nestjs/cli': 12.0.10
+  '@nestjs/cli': 12.0.11
   '@nestjs/common': ^12.2.0
   '@nestjs/config': ^12.0.1
   '@nestjs/core': ^12.2.0
