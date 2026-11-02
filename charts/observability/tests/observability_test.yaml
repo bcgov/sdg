@@ -254,3 +254,16 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].resources.limits.memory
           value: 512Mi
+
+  # Grafana 13 downloads ~550MB of plugin updates and apps at startup, which overflowed the tools emptyDir (128Mi).
+  - it: uses only the image's own plugins (no downloads at startup)
+    template: templates/deployments.yaml
+    documentSelector:
+      path: metadata.name
+      value: observability-grafana
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_PLUGINS_PREINSTALL_DISABLED
+            value: 'true'

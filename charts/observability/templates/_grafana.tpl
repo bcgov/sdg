@@ -43,6 +43,9 @@ spec:
             - { name: GF_PATHS_PLUGINS, value: /var/lib/grafana/plugins }
             - { name: GF_ANALYTICS_REPORTING_ENABLED, value: 'false' }
             - { name: GF_ANALYTICS_CHECK_FOR_UPDATES, value: 'false' }
+            # Only the plugins in the pinned image: no downloads or updates at startup. Grafana 13 otherwise fetches
+            # ~550MB of plugin updates and apps on every start, which overflowed its emptyDir and got it evicted.
+            - { name: GF_PLUGINS_PREINSTALL_DISABLED, value: 'true' }
             - { name: GF_AUTH_ANONYMOUS_ENABLED, value: 'false' }
             - { name: GF_AUTH_DISABLE_LOGIN_FORM, value: 'true' }
             - { name: GF_AUTH_GENERIC_OAUTH_ENABLED, value: 'true' }

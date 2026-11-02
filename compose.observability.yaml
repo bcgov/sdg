@@ -71,6 +71,8 @@ services:
       GF_AUTH_DISABLE_LOGIN_FORM: 'true'
       GF_ANALYTICS_REPORTING_ENABLED: 'false'
       GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      # Same as the chart: only the image's own plugins, nothing downloaded at startup.
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
     volumes:
       - ./charts/observability/files/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./charts/observability/files/grafana/dashboards:/var/lib/grafana/dashboards:ro
