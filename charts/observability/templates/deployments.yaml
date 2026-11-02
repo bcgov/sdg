@@ -27,7 +27,8 @@ spec:
         - name: alloy
           image: {{ include "observability.image" (dict "context" . "component" "alloy") }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          args: [run, /etc/alloy/sdg, --server.http.listen-addr=0.0.0.0:12345, --storage.path=/var/lib/alloy/data]
+          # Storage outside the image's /var/lib/alloy (alloy:alloy 0770), which OpenShift's arbitrary UID can't enter.
+          args: [run, /etc/alloy/sdg, --server.http.listen-addr=0.0.0.0:12345, --storage.path=/alloy-data]
           env:
             {{- include "observability.stackUrls" . | nindent 12 }}
             - name: SOURCE_NAMESPACES
@@ -44,7 +45,7 @@ spec:
             {{- toYaml .Values.resources.alloy | nindent 12 }}
           volumeMounts:
             - { name: config, mountPath: /etc/alloy/sdg, readOnly: true }
-            - { name: data, mountPath: /var/lib/alloy/data }
+            - { name: data, mountPath: /alloy-data }
             - { name: tmp, mountPath: /tmp }
       volumes:
         - name: config

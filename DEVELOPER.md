@@ -141,8 +141,10 @@ The observability stack (ADR 0001, `charts/README.md`, Observability). Optional,
 
 1. Request a Keycloak client for Grafana (redirect URI `https://grafana-<plate>-{tools,prod}.apps.<cluster>.devops.gov.bc.ca/login/generic_oauth`) with client roles `admin`, `editor` and `viewer`; users without one are refused. Set its id as the `GRAFANA_OIDC_CLIENT_ID` variable.
 2. In Vault, create `<plate>-nonprod/grafana` and `<plate>-prod/grafana` with `OIDC_CLIENT_SECRET` and `ADMIN_PASSWORD`.
-3. Create a `tools` GitHub environment with `OC_NAMESPACE=<plate>-tools`, `OC_SERVER` and an `oc_token` secret for a service account that can deploy there, then run the **Observability** workflow (stack `tools`, later `prod`). Check `oc describe quota -n <plate>-<env>` first: the stack requests about 140m CPU and 670Mi memory (Vault agent included). In tools (1Gi of PVC in total) only metrics and logs get volumes, 960Mi together, and traces and Grafana's state live on emptyDir; prod's `values-prod.yaml` asks for 12.25Gi.
-4. Give the stack's Alloy read-only pod discovery in each app namespace (the deploy account can't create RBAC): `scripts/setup-openshift.sh --observability` to preview, then `--apply`.
+3. Set up the tools namespace and pod discovery with the setup scripts (preview first, then `--apply`):
+   - `scripts/setup-openshift.sh --observability`: the deploy account (`github-actions`, `edit`, token Secret) in `<plate>-tools`, and Alloy's read-only pod discovery (Role and RoleBinding `observability-discovery`) in dev, test and prod. The deploy account can't create RBAC, so this is done by a person.
+   - `scripts/setup-environments.sh --observability`: the `tools` GitHub environment with `OC_NAMESPACE=<plate>-tools` and `OC_TOKEN` from that token. Check `oc describe quota -n <plate>-<env>` first: the stack requests about 140m CPU and 900Mi memory (Vault agent included). In tools (1Gi of PVC in total) only metrics and logs get volumes, 960Mi together, and traces and Grafana's state live on emptyDir; prod's `values-prod.yaml` asks for 12.25Gi.
+4. Run the **Observability** workflow (stack `tools`, later `prod`); it also runs on any change to `charts/observability` on main.
 5. Set the `OBSERVABILITY` variable to `true`. From the next deploy, PR, test and prod releases report to their stack (`scripts/deploy-values.sh`).
 
 **`TLS_CERTIFICATE`, `TLS_PRIVATE_KEY`, `TLS_CA_CERTIFICATE`**

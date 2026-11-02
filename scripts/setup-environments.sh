@@ -3,6 +3,8 @@
 #   repository (pull requests): variables OC_NAMESPACE=<plate>-dev, OC_SERVER; secret OC_TOKEN
 #   test: variable OC_NAMESPACE=<plate>-test; secret OC_TOKEN
 #   prod: variable OC_NAMESPACE=<plate>-prod; secret OC_TOKEN; required reviewers from --reviewers
+#   tools (--observability): variable OC_NAMESPACE=<plate>-tools; secret OC_TOKEN, for the
+#     Observability workflow (ADR 0001); KEYCLOAK_ISSUER_URL and GRAFANA_OIDC_CLIENT_ID are checked
 # OC_TOKEN is piped from the `github-actions-token` Secret made by setup-openshift.sh
 # straight into `gh secret set`; secret values are never printed or saved.
 # KEYCLOAK_ISSUER_URL and KEYCLOAK_CLIENT_ID (per scope) are only checked: they are
@@ -14,10 +16,12 @@
 # plate comes from existing OC_NAMESPACE variables.  Safe to re-run: secrets that
 # are already set are never overwritten.
 #
-# Usage: scripts/setup-environments.sh [--plate abc123] [--reviewers user,org/team] [--repo OWNER/NAME] [--apply]
+# Usage: scripts/setup-environments.sh [--plate abc123] [--reviewers user,org/team] [--repo OWNER/NAME]
+#                                      [--observability] [--apply]
 set -euo pipefail
 
 APPLY=false
+OBSERVABILITY=false
 PLATE=""
 REVIEWERS=""
 REPO=""
@@ -27,22 +31,23 @@ while [ $# -gt 0 ]; do
     --plate) PLATE="${2:-}"; shift ;;
     --reviewers) REVIEWERS="${2:-}"; shift ;;
     --repo) REPO="${2:-}"; shift ;;
-    -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --observability) OBSERVABILITY=true ;;
+    -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
   shift
 done
 [ -n "$REPO" ] || REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-get_var() { # <scope: repo|test|prod> <name>; empty if unset
+get_var() { # <scope: repo|test|prod|tools> <name>; empty if unset
   local args=(); [ "$1" = repo ] || args=(--env "$1")
   gh variable get "$2" -R "$REPO" ${args[@]+"${args[@]}"} 2>/dev/null || true
 }
 # No --plate: use the plate from existing OC_NAMESPACE variables, which must agree
 if [ -z "$PLATE" ]; then
   found=""
-  for scope in repo test prod; do
+  for scope in repo test prod tools; do
     v="$(get_var "$scope" OC_NAMESPACE)"
-    v="${v%-dev}"; v="${v%-test}"; v="${v%-prod}"
+    v="${v%-dev}"; v="${v%-test}"; v="${v%-prod}"; v="${v%-tools}"
     [ -n "$v" ] || continue
     if [ -n "$found" ] && [ "$v" != "$found" ]; then
       echo "OC_NAMESPACE variables disagree (${found} vs ${v}); pass --plate abc123." >&2
@@ -94,12 +99,15 @@ has_secret() { # <scope> <name>
   gh secret list -R "$REPO" ${args[@]+"${args[@]}"} --json name --jq '.[].name' 2>/dev/null | grep -qx "$2"
 }
 namespace() { if [ "$1" = repo ]; then echo "${PLATE}-dev"; else echo "${PLATE}-$1"; fi; }
+SCOPES=(repo test prod)
+ENVIRONMENTS=(test prod)
+if [ "$OBSERVABILITY" = true ]; then SCOPES+=(tools); ENVIRONMENTS+=(tools); fi
 
 # Tokens come from setup-openshift.sh; check before changing anything
-for scope in repo test prod; do
+for scope in "${SCOPES[@]}"; do
   ns="$(namespace "$scope")"
   if ! has_secret "$scope" OC_TOKEN && ! oc get secret github-actions-token -n "$ns" >/dev/null 2>&1; then
-    echo "No github-actions-token Secret in ${ns} (or no access to it); run scripts/setup-openshift.sh --apply first." >&2
+    echo "No github-actions-token Secret in ${ns} (or no access to it); run scripts/setup-openshift.sh$([ "$OBSERVABILITY" = false ] || echo " --observability") --apply first." >&2
     exit 1
   fi
 done
@@ -117,7 +125,7 @@ reviewer_ids() {
 }
 wanted="$( [ -z "$REVIEWERS" ] || reviewer_ids )"
 prod_env=""
-for env in test prod; do
+for env in "${ENVIRONMENTS[@]}"; do
   if ! current="$(gh api "repos/${REPO}/environments/${env}" 2>/dev/null)"; then
     body='{}'
     [ "$env" = prod ] && [ -n "$wanted" ] && body="$(jq -nc --argjson r "$wanted" '{reviewers: $r}')"
@@ -137,7 +145,7 @@ for env in test prod; do
     fi
   else
     status "environment ${env}" ok
-    [ "$env" = test ] || prod_env="$current"
+    [ "$env" != prod ] || prod_env="$current"
   fi
 done
 # No --reviewers: report the current ones; none isn't counted as a change
@@ -153,12 +161,15 @@ fi
 # Secret values are never printed, kept in variables or written to disk: each
 # one is piped from its source (oc) straight into `gh secret set` on
 # stdin, which stops on any failure (pipefail).  Previews name the secret only.  Don't add `set -x` here.
-# secret <scope: repo|test|prod> <name: OC_TOKEN> <namespace>
+# secret <scope: repo|test|prod|tools> <name: OC_TOKEN> <namespace>
 secret() {
   local scope="$1" name="$2" ns="$3" args=()
   [ "$scope" = repo ] || args=(--env "$scope")
   if has_secret "$scope" "$name"; then
     echo "  ${name} for ${scope}: ok (already set)"
+    # Values can't be read back. A token from another namespace fails the deploy with
+    # "cannot create resource serviceaccounts/token ... in the namespace <ns>": delete the secret and re-run.
+    [ "$scope" != tools ] || echo "  note: if the Observability deploy can't log in to ${ns}, OC_TOKEN for tools holds another namespace's token; gh secret delete OC_TOKEN -R ${REPO} --env tools, then re-run with --apply"
     return
   fi
   CHANGES=$((CHANGES + 1))
@@ -175,7 +186,7 @@ secret() {
     | gh secret set "$name" -R "$REPO" ${args[@]+"${args[@]}"} >/dev/null
   echo "  ${name} for ${scope}: set"
 }
-for scope in repo test prod; do
+for scope in "${SCOPES[@]}"; do
   ns="$(namespace "$scope")"
   have="$(get_var "$scope" OC_NAMESPACE)"
   if [ "$have" = "$ns" ]; then
@@ -193,9 +204,12 @@ for scope in repo test prod; do
     echo "  note: DB_PASSWORD for ${scope} is no longer used (PGO generates the database password); delete it when you like"
   fi
   secret "$scope" OC_TOKEN "$ns"
-  # Keycloak client settings for portal-api (scripts/deploy-values.sh); set by the team, never generated
-  for name in KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID; do
-    if [ -n "$(get_var "$scope" "$name")" ]; then
+  # Keycloak client settings (portal-api: scripts/deploy-values.sh; Grafana: observability.yml); set by the team,
+  # never generated. The tools environment also reads repository variables, so either place counts.
+  names=(KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID)
+  [ "$scope" != tools ] || names=(KEYCLOAK_ISSUER_URL GRAFANA_OIDC_CLIENT_ID)
+  for name in "${names[@]}"; do
+    if [ -n "$(get_var "$scope" "$name")" ] || { [ "$scope" = tools ] && [ -n "$(get_var repo "$name")" ]; }; then
       echo "  ${name} variable for ${scope}: ok"
     else
       MISSING=$((MISSING + 1))

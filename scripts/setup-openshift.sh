@@ -2,9 +2,10 @@
 # Create the GitHub Actions deploy account in each OpenShift namespace:
 # service account `github-actions`, `edit` role binding and a long-lived
 # token Secret (`github-actions-token`), which setup-environments.sh reads.
-# With --observability, also the read-only pod discovery the observability stack's
-# Alloy needs (ADR 0001): Role and RoleBinding `observability-discovery`, bound to
-# <plate>-tools' Alloy in dev and test and to <plate>-prod's own Alloy in prod.
+# With --observability (ADR 0001), also the same deploy account in <plate>-tools,
+# where the non-prod stack runs, and the read-only pod discovery its Alloy needs:
+# Role and RoleBinding `observability-discovery` in dev, test and prod, bound to
+# <plate>-tools' Alloy for dev and test and to <plate>-prod's own Alloy for prod.
 #
 # Uses your own `oc login`.  Without --apply it checks the setup and exits
 # non-zero if anything is missing; --apply makes the changes.  Without --plate,
@@ -13,7 +14,7 @@
 #
 # Usage: scripts/setup-openshift.sh [--plate abc123] [--observability] [--apply]
 #   --plate          licence plate; namespaces are <plate>-dev, <plate>-test, <plate>-prod
-#   --observability  also set up pod discovery for charts/observability
+#   --observability  also <plate>-tools and pod discovery for charts/observability
 set -euo pipefail
 
 APPLY=false
@@ -38,6 +39,7 @@ fi
 [ -n "$PLATE" ] || read -rp "Licence plate (e.g. abc123): " PLATE
 [[ "$PLATE" =~ ^[a-z0-9]+$ ]] || { echo "Invalid licence plate: '${PLATE}'" >&2; exit 1; }
 NAMESPACES=("${PLATE}-dev" "${PLATE}-test" "${PLATE}-prod")
+[ "$OBSERVABILITY" = false ] || NAMESPACES+=("${PLATE}-tools")
 SA=github-actions
 
 # Checks first; nothing changes unless every namespace passes
@@ -51,7 +53,7 @@ for ns in "${NAMESPACES[@]}"; do
   missing=""
   oc get project "$ns" >/dev/null 2>&1 || missing+=" no access to the project;"
   checks=(serviceaccounts rolebindings secrets)
-  [ "$OBSERVABILITY" = false ] || checks+=(roles)
+  [ "$OBSERVABILITY" = false ] || [ "$ns" = "${PLATE}-tools" ] || checks+=(roles)
   for what in "${checks[@]}"; do
     [ "$(oc auth can-i create "$what" -n "$ns" 2>/dev/null)" = yes ] || missing+=" can't create ${what};"
   done
@@ -116,7 +118,7 @@ for ns in "${NAMESPACES[@]}"; do
   report "$ns" "rolebinding/${SA}-edit" "$(exists rolebinding "${SA}-edit" -n "$ns")" \
     oc create rolebinding "${SA}-edit" --clusterrole=edit --serviceaccount="${ns}:${SA}" -n "$ns"
   report "$ns" "secret/${SA}-token" "$(exists secret "${SA}-token" -n "$ns")" token_secret "$ns"
-  if [ "$OBSERVABILITY" = true ]; then
+  if [ "$OBSERVABILITY" = true ] && [ "$ns" != "${PLATE}-tools" ]; then
     report "$ns" "role/${DISCOVERY}" "$(exists role "$DISCOVERY" -n "$ns")" \
       oc create role "$DISCOVERY" --verb=get,list,watch --resource=pods -n "$ns"
     report "$ns" "rolebinding/${DISCOVERY}" "$(exists rolebinding "$DISCOVERY" -n "$ns")" \
