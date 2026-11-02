@@ -12,7 +12,7 @@ Deploy the portal to Kubernetes/OpenShift. Deploy workflows: DEVELOPER.md, Workf
 | `sdg`           | Umbrella: all of the above in one release (`<chart>.enabled` toggles each)                                |
 | `observability` | Separate release: Grafana, Prometheus, Loki, Tempo and Alloy in `<plate>-tools` / `<plate>-prod` (doc 20) |
 
-Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster` and the Vault Agent annotations. The edge Ingress carries `route.openshift.io/termination: edge`, so OpenShift creates an edge-TLS Route from it.
+Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster` and the Vault Agent annotations. The edge Ingress carries `route.openshift.io/termination: edge`, so OpenShift creates an edge-TLS Route from it, and `haproxy.router.openshift.io/disable_cookies: "true"`, so the router sets no sticky-session cookie (the edge is stateless).
 
 ## Prerequisites
 

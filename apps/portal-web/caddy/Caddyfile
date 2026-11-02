@@ -31,5 +31,6 @@ import common.caddy
 	import collect_{$TELEMETRY:off}
 	import api_proxy
 	reverse_proxy {$PORTAL_WEB_URL}
-	import security_headers ""
+	# style-src hashes: react-aria's fixed touch-action and overscroll-behavior <style> elements (common.caddy).
+	import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
 }
