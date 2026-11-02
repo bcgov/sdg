@@ -43,6 +43,16 @@ describe('resolveOtelConfig', () => {
       expect(config?.resourceAttributes).toEqual({ 'deployment.environment': 'pr-12', team: 'sdg portal' });
       expect(config?.samplerRatio).toBe(0.25);
     });
+
+    it('skips a resource attribute with a broken percent-escape and keeps the rest', () => {
+      const config = resolveOtelConfig({
+        OTEL_EXPORTER_OTLP_ENDPOINT: 'http://alloy:4318',
+        OTEL_RESOURCE_ATTRIBUTES: 'bad=%E0%A4%A,deployment.environment=test',
+      });
+      expect(config?.resourceAttributes).toEqual({ 'deployment.environment': 'test' });
+      expect(config?.resourceAttributes).not.toHaveProperty('bad');
+      expect(config?.endpoint).toBe('http://alloy:4318');
+    });
   });
 
   describe('invalid config', () => {
