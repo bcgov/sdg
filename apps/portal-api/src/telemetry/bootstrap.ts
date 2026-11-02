@@ -1,12 +1,13 @@
 import { register } from 'node:module';
 
 import { type OtelConfig, resolveOtelConfig } from './otel-config.js';
-import type { OtelProviders } from './otel-sdk.js';
+import type { OtelHandle } from './otel-sdk.js';
 
 export interface BootstrapDeps {
   /** Patches libraries imported after this point (ESM through import-in-the-middle, CJS through require hooks). */
   readonly registerLoaderHooks: () => Promise<void>;
-  readonly startOtel: (config: OtelConfig) => Promise<OtelProviders>;
+  /** null: metrics only (no OTLP export). */
+  readonly startOtel: (config: OtelConfig | null) => Promise<OtelHandle>;
   readonly report: (message: string) => void;
   readonly onSignal: (signal: NodeJS.Signals, handler: () => void) => void;
 }
@@ -24,7 +25,7 @@ async function registerLoaderHooks(): Promise<void> {
 
 export const defaultDeps: BootstrapDeps = {
   registerLoaderHooks,
-  // Loaded only when telemetry is on, so a disabled deployment never loads the SDK.
+  // Imported after the loader hooks are registered, so the SDK's own imports are hooked too.
   startOtel: async (config) => (await import('./otel-sdk.js')).startOtel(config),
   // stderr directly: Nest's logger doesn't exist yet. Messages name keys, never values.
   report: (message) => console.error(`[instrumentation] ${message}`),
@@ -32,24 +33,24 @@ export const defaultDeps: BootstrapDeps = {
 };
 
 /**
- * Starts OpenTelemetry when OTEL_EXPORTER_OTLP_ENDPOINT is set; otherwise does nothing (no hooks, no SDK, no network).
- * Returns the providers when started, null when off. Buffered spans and logs are flushed, best effort, on SIGTERM/SIGINT
- * while Nest's shutdown hooks close the app.
+ * Always starts OpenTelemetry (doc 21): metrics are served on /metrics in every deployment. Traces and logs are
+ * exported only when OTEL_EXPORTER_OTLP_ENDPOINT is set and valid; invalid OTEL_* settings are reported by key and
+ * leave metrics on. Buffered telemetry is flushed, best effort, on SIGTERM/SIGINT while Nest's shutdown hooks close
+ * the app.
  */
 export async function bootstrapTelemetry(
   env: Readonly<Record<string, string | undefined>> = process.env,
   deps: BootstrapDeps = defaultDeps,
-): Promise<OtelProviders | null> {
+): Promise<OtelHandle> {
   const config = resolveOtelConfig(env, deps.report);
-  if (!config) return null;
   await deps.registerLoaderHooks();
-  const providers = await deps.startOtel(config);
+  const handle = await deps.startOtel(config);
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     deps.onSignal(signal, () => {
-      providers.shutdown().catch((error: unknown) => {
+      handle.shutdown().catch((error: unknown) => {
         deps.report(`flush on ${signal} failed: ${error instanceof Error ? error.message : String(error)}`);
       });
     });
   }
-  return providers;
+  return handle;
 }

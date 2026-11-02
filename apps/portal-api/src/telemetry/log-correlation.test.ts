@@ -4,17 +4,18 @@ import { Writable } from 'node:stream';
 import { context, logs, trace } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
-import { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
-import { InMemorySpanExporter } from '@opentelemetry/sdk-trace';
+import { InMemoryLogRecordExporter, LoggerProvider, SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { InMemorySpanExporter, SimpleSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
 import type pinoFactory from 'pino';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { pinoHttpOptions } from '../logging/logging.module.js';
-import { createProviders, type OtelProviders } from './otel-sdk.js';
 
 const logExporter = new InMemoryLogRecordExporter();
 const spanExporter = new InMemorySpanExporter();
-let providers: OtelProviders;
+// The providers the SDK builds with an OTLP endpoint, with in-memory exporters (otel-sdk.test.ts covers the SDK).
+let tracerProvider: TracerProvider;
+let loggerProvider: LoggerProvider;
 let instrumentation: PinoInstrumentation;
 let pino: typeof pinoFactory;
 let lines: Record<string, unknown>[];
@@ -37,13 +38,11 @@ function createLogger() {
 }
 
 beforeAll(() => {
-  providers = createProviders(
-    { endpoint: 'http://unused:4318', serviceName: 'portal-api', resourceAttributes: {}, samplerRatio: 1 },
-    { spans: spanExporter, logs: logExporter },
-  );
+  tracerProvider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter: spanExporter })] });
+  loggerProvider = new LoggerProvider({ processors: [new SimpleLogRecordProcessor({ exporter: logExporter })] });
   context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
-  trace.setGlobalTracerProvider(providers.tracerProvider);
-  logs.setGlobalLoggerProvider(providers.loggerProvider);
+  trace.setGlobalTracerProvider(tracerProvider);
+  logs.setGlobalLoggerProvider(loggerProvider);
   instrumentation = new PinoInstrumentation();
   instrumentation.enable();
   // require() after enable(), so require-in-the-middle patches pino as it would in the app.
@@ -54,7 +53,7 @@ beforeAll(() => {
 
 afterAll(async () => {
   instrumentation.disable();
-  await providers.shutdown();
+  await Promise.all([tracerProvider.shutdown(), loggerProvider.shutdown()]);
   trace.disable();
   logs.disable();
   context.disable();
@@ -62,7 +61,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   // Flush records batched by an earlier test before clearing, so each test sees only its own.
-  await providers.loggerProvider.forceFlush();
+  await loggerProvider.forceFlush();
   lines = [];
   logExporter.reset();
 });
@@ -89,7 +88,7 @@ describe('log correlation', () => {
   it('exports each pino record as an OTLP log record with severity and body', async () => {
     const logger = createLogger();
     logger.warn({ route: '/api/auth/me' }, 'slow upstream');
-    await providers.loggerProvider.forceFlush();
+    await loggerProvider.forceFlush();
     const records = logExporter.getFinishedLogRecords();
     expect(records).toHaveLength(1);
     expect(records[0]?.body).toBe('slow upstream');
@@ -106,7 +105,7 @@ describe('log correlation', () => {
       },
       'request completed',
     );
-    await providers.loggerProvider.forceFlush();
+    await loggerProvider.forceFlush();
     const exported = JSON.stringify(logExporter.getFinishedLogRecords().map((record) => record.attributes));
     expect(exported).toContain('[Redacted]');
     for (const secret of ['s3cret', 't0ken', 'n3w']) {
