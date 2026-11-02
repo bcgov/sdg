@@ -1,12 +1,16 @@
 import { createServer, type IncomingMessage } from 'node:http';
 import { Writable } from 'node:stream';
 
+import { ConsoleLogger, Logger } from '@nestjs/common';
+import { AuthError } from '@repo/auth';
+import { Logger as NestPinoLogger, PinoLogger } from 'nestjs-pino';
 import { pino } from 'pino';
 import { pinoHttp } from 'pino-http';
 import supertest from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { isQuietPath } from '../http/quiet-paths.js';
+import { describeError } from './describe-error.js';
 import { pinoHttpOptions } from './logging.module.js';
 
 interface LogLine {
@@ -77,5 +81,46 @@ describe('pinoHttpOptions', () => {
     expect(line!.req.headers.authorization).toBe('[Redacted]');
     expect(line!.res.headers['set-cookie']).toBe('[Redacted]');
     expect(JSON.stringify(lines)).not.toMatch(/secret-(cookie|token|session)/);
+  });
+});
+
+describe('Nest Logger through nestjs-pino', () => {
+  // Bug 06/09-B1: warn(msg, stack) drops the stack (pino treats it as a printf argument). { msg, error } survives;
+  // under `err` pino's own error serializer would rebuild the summary and drop its cause.
+  it('writes msg and the error summary when a Nest Logger logs { msg, error }', () => {
+    const lines: Record<string, unknown>[] = [];
+    const stream = new Writable({
+      write(chunk: Buffer, _encoding, done) {
+        for (const line of chunk.toString().split('\n').filter(Boolean)) lines.push(JSON.parse(line));
+        done();
+      },
+    });
+    const options = pinoHttpOptions({ NODE_ENV: 'production', LOG_LEVEL: 'info' });
+    Logger.overrideLogger(new NestPinoLogger(new PinoLogger({ pinoHttp: [options, stream] }), {}));
+    try {
+      const cause = Object.assign(new Error('server responded with an error'), {
+        error: 'unauthorized_client',
+        status: 401,
+      });
+      new Logger('AuthController').warn({
+        msg: 'Login callback failed (login_failed)',
+        error: describeError(new AuthError('callback_failed', { detail: 'OAUTH_RESPONSE_BODY_ERROR', cause })),
+      });
+    } finally {
+      Logger.overrideLogger(new ConsoleLogger());
+    }
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      level: 40,
+      context: 'AuthController',
+      msg: 'Login callback failed (login_failed)',
+      error: {
+        type: 'AuthError',
+        code: 'callback_failed',
+        detail: 'OAUTH_RESPONSE_BODY_ERROR',
+        cause: { error: 'unauthorized_client', status: 401 },
+      },
+    });
+    expect(JSON.stringify(lines[0])).toContain('at ');
   });
 });

@@ -4,6 +4,7 @@ import { and, eq, gt, lt } from 'drizzle-orm';
 import { Store, type SessionData } from 'express-session';
 
 import type { PortalDatabase } from '../database/database.module.js';
+import { describeError } from '../logging/describe-error.js';
 import { decryptSession, encryptSession } from './session-cipher.js';
 
 export interface PostgresSessionStoreOptions {
@@ -105,7 +106,7 @@ function settle<T>(operation: string, promise: Promise<T>, callback?: Callback<T
       value = await promise;
     } catch (error) {
       if (callback) callback(error);
-      else logger.error(`Session ${operation} failed`, error instanceof Error ? error.stack : String(error));
+      else logger.error({ msg: `Session ${operation} failed`, error: describeError(error) });
       return;
     }
     callback?.(null, value);
