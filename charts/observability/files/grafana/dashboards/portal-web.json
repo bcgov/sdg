@@ -536,7 +536,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{service_name=\"portal-web\", source=\"faro\"} |~ \"kind=(exception|log)\" | logfmt | app_environment=~\"$environment\" | kind=\"exception\" or level=\"error\"",
+          "expr": "{service_name=\"portal-web\", source=\"faro\"} |~ \"kind=(exception|log)\" | logfmt | app_environment=~\"$environment\" | kind=\"exception\" or level=\"error\" | label_format level=`{{ if eq .kind \"exception\" }}error{{ else if .level }}{{ .level }}{{ else }}info{{ end }}`",
           "queryType": "range"
         }
       ]
@@ -641,7 +641,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{service_name=\"portal-web\", source=\"faro\"} |= \"session_id=$session\" | logfmt | session_id=\"$session\" | line_format \"{{.kind}} {{.event_name}}{{.type}} {{.page_url}}\"",
+          "expr": "{service_name=\"portal-web\", source=\"faro\"} |= \"session_id=$session\" | logfmt | session_id=\"$session\" | label_format level=`{{ if eq .kind \"exception\" }}error{{ else if .level }}{{ .level }}{{ else }}info{{ end }}` | line_format \"{{.kind}} {{.event_name}}{{.type}} {{.page_url}}\"",
           "queryType": "range"
         }
       ]
