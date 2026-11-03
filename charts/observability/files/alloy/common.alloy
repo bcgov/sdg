@@ -57,9 +57,24 @@ faro.receiver "web" {
   }
 
   output {
-    logs   = [loki.write.default.receiver]
+    logs   = [loki.process.faro.receiver]
     traces = [otelcol.processor.batch.default.input]
   }
+}
+
+// Faro puts a line's trace in the text (traceID=…); portal-api's OTLP logs carry it as trace_id structured metadata,
+// which Grafana's Loki → Tempo and Tempo → Loki links match. Copy it there, only when it is a 32-hex trace id (the
+// payload is public input).
+loki.process "faro" {
+  stage.regex {
+    expression = `\btraceID=(?P<trace_id>[0-9a-f]{32})\b`
+  }
+
+  stage.structured_metadata {
+    values = { trace_id = "" }
+  }
+
+  forward_to = [loki.write.default.receiver]
 }
 
 loki.write "default" {
