@@ -1,10 +1,14 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Module, UseGuards, type DynamicModule } from '@nestjs/common';
 import { SignJWT } from 'jose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AppConfigModule } from '../config/config.module.js';
+import { DatabaseModule } from '../database/database.module.js';
+import { LoggingModule } from '../logging/logging.module.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
 import { OWN_CLIENT_ID, RELAYING_CLIENT_ID, startTestIssuer, type TestIssuer } from '../testing/tokens.js';
 import { AdminGuard } from './admin.guard.js';
+import { AuthModule } from './auth.module.js';
 import { CredentialGuard } from './credential.guard.js';
 import { CurrentPrincipal } from './current-principal.decorator.js';
 import {
@@ -51,6 +55,14 @@ class ProbeController {
   }
 }
 
+/** AuthModule with its default in-memory directories, which these tests fill in directly. */
+@Module({})
+class GuardsTestModule {}
+const guardsTestModule = (): DynamicModule => ({
+  module: GuardsTestModule,
+  imports: [AppConfigModule.register(), LoggingModule, DatabaseModule, AuthModule.register()],
+});
+
 const LINKED_CLIENT = 'permits-sender';
 const UNLINKED_CLIENT = 'some-other-service';
 const PERMITS = { senderId: 'sender-a', credentialId: 'cred-1', scopedTypes: ['permit-approved'] };
@@ -87,7 +99,12 @@ async function statuses(token: string): Promise<Record<Endpoint, number>> {
 
 beforeAll(async () => {
   issuer = await startTestIssuer();
-  t = await createTestApp({ env: issuer.env, issuerFetch: issuer.fetch, controllers: [ProbeController] });
+  t = await createTestApp({
+    env: issuer.env,
+    issuerFetch: issuer.fetch,
+    controllers: [ProbeController],
+    module: guardsTestModule,
+  });
   credentials = t.app.get<InMemoryCredentialDirectory>(CREDENTIAL_DIRECTORY);
   credentials.link(LINKED_CLIENT, PERMITS);
   // R8: these can never be credentials, even if a link to them existed.

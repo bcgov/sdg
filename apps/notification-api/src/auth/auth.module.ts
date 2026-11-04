@@ -71,7 +71,7 @@ export class AuthModule {
         PrincipalResolver,
         ...GUARDS,
       ],
-      exports: [PrincipalResolver, CREDENTIAL_DIRECTORY, SENDER_OWNERSHIP, ...GUARDS],
+      exports: [PrincipalResolver, TOKEN_CLIENTS, CREDENTIAL_DIRECTORY, SENDER_OWNERSHIP, ...GUARDS],
     };
   }
 }
