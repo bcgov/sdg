@@ -9,6 +9,7 @@ import { HealthModule } from './health/health.module.js';
 import { IntegrationsApiModule } from './integrations/integrations.module.js';
 import { LoggingModule } from './logging/logging.module.js';
 import { OutboundModule } from './outbound/outbound.module.js';
+import { RecipientsApiModule } from './recipients/recipients.module.js';
 import { RoleModule } from './roles/role.js';
 import { DbCredentialDirectory, DbSenderOwnership } from './senders/sender-directories.js';
 import { SendersModule } from './senders/senders.module.js';
@@ -35,6 +36,7 @@ export class AppModule {
             CatalogModule,
             IntegrationsApiModule,
             TemplatesApiModule,
+            RecipientsApiModule,
           ],
           // Worker loops (run by the worker and all roles).
           worker: { loops: [] },

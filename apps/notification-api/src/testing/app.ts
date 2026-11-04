@@ -19,6 +19,7 @@ export const TEST_ENV = {
   NOTIFICATION_CLIENT_ID: 'notification-api',
   RELAYING_CLIENT_IDS: 'portal',
   NOTIFICATION_ENCRYPTION_KEY: 'test-encryption-key-at-least-32-characters',
+  CONFIRM_EMAIL_URL: 'https://portal.example.com/confirm-email',
 } as const;
 
 export const ISSUER_DISCOVERY_URL = `${TEST_ENV.KEYCLOAK_ISSUER_URL}/.well-known/openid-configuration`;

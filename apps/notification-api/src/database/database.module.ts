@@ -11,6 +11,12 @@ export type NotificationSchema = typeof schema;
 
 export type NotificationDatabase = NodePgDatabase<NotificationSchema> & { $client: Pool };
 
+/** A transaction on the notification database. */
+export type NotificationTransaction = Parameters<Parameters<NotificationDatabase['transaction']>[0]>[0];
+
+/** The database or a transaction on it, for writes a caller may run inside its own transaction (U9's accept). */
+export type DbOrTx = NotificationDatabase | NotificationTransaction;
+
 /** Injects the notification database. */
 export const InjectDatabase = (): PropertyDecorator & ParameterDecorator => InjectDrizzle();
 
