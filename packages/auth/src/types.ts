@@ -60,9 +60,17 @@ export interface OidcClient {
   buildEndSessionUrl(idToken: string | null): Promise<URL>;
 }
 
+/**
+ * Decides whether a token's audience is accepted, from its verified claims (signature, `iss`, `exp` and `nbf` already
+ * checked). Lets the accepted audiences change without rebuilding the verifier. `false` rejects the token as
+ * `invalid_token`; a thrown error rejects `verify` with that error unchanged.
+ */
+export type AudiencePredicate = (claims: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>;
+
 export interface JwtVerifierOptions {
   issuerUrl: string;
-  audience: string | readonly string[];
+  /** The accepted `aud` value(s), any of which must be present; or a predicate over the verified claims. */
+  audience: string | readonly string[] | AudiencePredicate;
   /** Default 30 seconds. */
   clockToleranceSeconds?: number;
   /** Custom fetch for discovery and JWKS requests. Defaults to the global `fetch`. */
