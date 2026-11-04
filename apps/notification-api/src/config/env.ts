@@ -91,6 +91,8 @@ export const envSchema = z.object({
   NOTIFICATION_ENCRYPTION_KEY: z.string().min(32),
   /** Hosts exempt from the outbound guard (KTD12), e.g. the local mail catcher. Empty by default. */
   NOTIFICATION_OUTBOUND_ALLOW_HOSTS: commaList,
+  /** How long a worker waits between polls for due work when the last poll found less than a full batch. */
+  NOTIFICATION_WORKER_POLL_MS: z.preprocess(blankAsMissing, z.coerce.number().int().min(10).default(1000)),
   DEFAULT_TIMEZONE: z.preprocess(blankAsMissing, timeZoneSchema.default('America/Vancouver')),
   /** portal-web's confirm page (KTD15): confirmation emails link to `<this>?token=…`. */
   CONFIRM_EMAIL_URL: urlWithProtocol(['https:']),

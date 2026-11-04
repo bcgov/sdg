@@ -2,6 +2,7 @@
 // then runs `pnpm --filter notification-api db:generate` to write its migration into drizzle/.
 export * from './catalog.js';
 export * from './credentials.js';
+export * from './deliveries.js';
 export * from './integrations.js';
 export * from './notifications.js';
 export * from './recipients.js';

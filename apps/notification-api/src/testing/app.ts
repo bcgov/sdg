@@ -20,6 +20,8 @@ export const TEST_ENV = {
   RELAYING_CLIENT_IDS: 'portal',
   NOTIFICATION_ENCRYPTION_KEY: 'test-encryption-key-at-least-32-characters',
   CONFIRM_EMAIL_URL: 'https://portal.example.com/confirm-email',
+  // Tests drive the worker loops themselves (DeliveryLoop.tick), so the loops never poll on their own.
+  NOTIFICATION_WORKER_POLL_MS: '86400000',
 } as const;
 
 export const ISSUER_DISCOVERY_URL = `${TEST_ENV.KEYCLOAK_ISSUER_URL}/.well-known/openid-configuration`;
@@ -63,6 +65,15 @@ export interface TestAppOptions {
   issuerFetch?: HttpFetch;
   /** Builds the root module once the env is stubbed; defaults to the real AppModule. */
   module?: () => DynamicModule;
+  /** The database the app uses; defaults to a fresh PGlite (`createTestDatabase`). */
+  database?: () => Promise<TestDatabase>;
+  /** Providers replaced by values, e.g. the delivery clock. */
+  overrides?: readonly ProviderOverride[];
+}
+
+export interface ProviderOverride {
+  provide: string | symbol | Type;
+  useValue: unknown;
 }
 
 /**
@@ -72,16 +83,18 @@ export interface TestAppOptions {
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   for (const [key, value] of Object.entries({ ...TEST_ENV, ...options.env })) vi.stubEnv(key, value);
   const issuerFetch = options.issuerFetch ? vi.fn<HttpFetch>(options.issuerFetch) : createIssuerFetch();
-  const database = await createTestDatabase();
+  const database = await (options.database ?? createTestDatabase)();
 
   // Registering the root module reads the environment, so it happens after stubbing.
   const root = options.module ?? (() => AppModule.register());
-  const moduleRef = await Test.createTestingModule({ imports: [root()], controllers: options.controllers ?? [] })
+  let builder = Test.createTestingModule({ imports: [root()], controllers: options.controllers ?? [] })
     .overrideProvider(getDrizzleToken())
     .useValue(database.db)
     .overrideProvider(HTTP_FETCH)
-    .useValue(issuerFetch)
-    .compile();
+    .useValue(issuerFetch);
+  for (const { provide, useValue } of options.overrides ?? [])
+    builder = builder.overrideProvider(provide).useValue(useValue);
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
   configureApp(app);

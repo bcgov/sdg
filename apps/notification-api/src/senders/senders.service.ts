@@ -9,7 +9,7 @@ import { OutboundGuard } from '../outbound/outbound-guard.js';
 import type { CallbackResponse, Owner, SenderResponse } from './senders.schemas.js';
 
 /** Where a sender's callback secret is sealed: the AAD binds it to this row and field (KTD11). */
-const callbackSecretLocation = (senderId: string) => ({ rowId: senderId, field: 'callbackSecret' });
+export const callbackSecretLocation = (senderId: string) => ({ rowId: senderId, field: 'callbackSecret' });
 
 /** Senders, their owners and type grants (R6), and the failure callback (R7). */
 @Injectable()
