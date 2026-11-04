@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
+import { CHANNELS } from '../channels/channels.js';
 import { senderParamsSchema } from '../senders/senders.schemas.js';
-import { CHANNELS } from './integration-type.js';
 import { inAppIntegration } from './types/in-app.js';
 import { smtpConfigSchema } from './types/smtp.js';
 import { webhookIntegration } from './types/webhook.js';

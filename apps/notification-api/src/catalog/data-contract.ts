@@ -181,3 +181,26 @@ function sampleObject(path: string[], object: ObjectProperty, hook?: SampleHook)
 export function sampleData(contract: DataContract, hook?: SampleHook): Record<string, unknown> {
   return sampleObject([], contract, hook);
 }
+
+function requiredSample(path: string[], property: ContractProperty): unknown {
+  if (property.type === 'array') return [requiredSample([...path, '[]'], property.items)];
+  if (property.type === 'object') return requiredObject(path, property);
+  return scalarSamples[property.type](path);
+}
+
+function requiredObject(path: string[], object: ObjectProperty): Record<string, unknown> {
+  const required = new Set(object.required ?? []);
+  return Object.fromEntries(
+    Object.entries(object.properties)
+      .filter(([name]) => required.has(name))
+      .map(([name, property]) => [name, requiredSample([...path, name], property)]),
+  );
+}
+
+/**
+ * Data with only the required fields (each array with one item), for the save-time render that catches a template
+ * printing an optional field outside `if` or `default` (R23).
+ */
+export function requiredSampleData(contract: DataContract): Record<string, unknown> {
+  return requiredObject([], contract);
+}

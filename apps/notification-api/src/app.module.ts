@@ -12,6 +12,7 @@ import { OutboundModule } from './outbound/outbound.module.js';
 import { RoleModule } from './roles/role.js';
 import { DbCredentialDirectory, DbSenderOwnership } from './senders/sender-directories.js';
 import { SendersModule } from './senders/senders.module.js';
+import { TemplatesApiModule } from './templates/templates.module.js';
 
 @Module({})
 export class AppModule {
@@ -33,6 +34,7 @@ export class AppModule {
             SendersModule,
             CatalogModule,
             IntegrationsApiModule,
+            TemplatesApiModule,
           ],
           // Worker loops (run by the worker and all roles).
           worker: { loops: [] },
