@@ -1,5 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
+import { AuthModule } from './auth/auth.module.js';
 import { AppConfigModule } from './config/config.module.js';
 import { CryptoModule } from './crypto/crypto.module.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -21,7 +22,7 @@ export class AppModule {
         HealthModule,
         RoleModule.register({
           // Feature modules with API controllers (served by the api and all roles).
-          api: [],
+          api: [AuthModule.register()],
           // Worker loops (run by the worker and all roles).
           worker: { loops: [] },
         }),

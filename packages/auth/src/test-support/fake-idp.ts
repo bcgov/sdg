@@ -23,7 +23,8 @@ export interface SignOptions {
   kid?: string;
   expiresIn?: string | number;
   issuer?: string;
-  audience?: string;
+  /** Default `CLIENT_ID`. Keycloak emits an array when a token has several audiences. */
+  audience?: string | string[];
 }
 
 /** In-process OpenID Provider on an ephemeral loopback port, for tests only. */

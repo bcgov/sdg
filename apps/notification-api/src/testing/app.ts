@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { DynamicModule } from '@nestjs/common';
+import type { DynamicModule, Type } from '@nestjs/common';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
@@ -54,24 +54,28 @@ export interface TestApp {
 }
 
 export interface TestAppOptions {
+  /** Extra controllers mounted on the root module (e.g. probes for the guards). */
+  controllers?: Type[];
   /** Env overrides on top of TEST_ENV. */
   env?: Record<string, string>;
+  /** Serves the issuer for the readiness check and token verification; defaults to `createIssuerFetch()`. */
+  issuerFetch?: HttpFetch;
   /** Builds the root module once the env is stubbed; defaults to the real AppModule. */
   module?: () => DynamicModule;
 }
 
 /**
  * The real AppModule and HTTP conventions, with Postgres swapped for a fresh PGlite (real migrations) and the
- * issuer's endpoints served by a fetch stub.
+ * issuer's endpoints served by a fetch stub (or by `src/testing/tokens.ts`'s fake issuer, which signs tokens).
  */
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   for (const [key, value] of Object.entries({ ...TEST_ENV, ...options.env })) vi.stubEnv(key, value);
-  const issuerFetch = createIssuerFetch();
+  const issuerFetch = options.issuerFetch ? vi.fn<HttpFetch>(options.issuerFetch) : createIssuerFetch();
   const database = await createTestDatabase();
 
   // Registering the root module reads the environment, so it happens after stubbing.
   const root = options.module ?? (() => AppModule.register());
-  const moduleRef = await Test.createTestingModule({ imports: [root()] })
+  const moduleRef = await Test.createTestingModule({ imports: [root()], controllers: options.controllers ?? [] })
     .overrideProvider(getDrizzleToken())
     .useValue(database.db)
     .overrideProvider(HTTP_FETCH)

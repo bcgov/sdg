@@ -4,5 +4,5 @@
     "experimentalDecorators": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/test-support"]
+  "exclude": ["src/**/*.test.ts"]
 }

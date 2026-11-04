@@ -1,4 +1,11 @@
-import { createRemoteJWKSet, customFetch, jwtVerify, type JWTVerifyGetKey, type RemoteJWKSetOptions } from 'jose';
+import {
+  createRemoteJWKSet,
+  customFetch,
+  jwtVerify,
+  type JWTPayload,
+  type JWTVerifyGetKey,
+  type RemoteJWKSetOptions,
+} from 'jose';
 
 import { claimsToAuthUser } from './claims.js';
 import { AuthError } from './errors.js';
@@ -49,25 +56,37 @@ function lazyKeySet(options: JwtVerifierOptions): () => Promise<JWTVerifyGetKey>
   };
 }
 
+/** jose's `audience` option: the configured value(s), or none when a predicate decides after verification. */
+function joseAudience(audience: JwtVerifierOptions['audience']): string | string[] | undefined {
+  if (typeof audience === 'function') return undefined;
+  return typeof audience === 'string' ? audience : [...audience];
+}
+
 /** Verifies bearer JWTs (signature via the issuer's JWKS, `iss`, `aud`, `exp`, `nbf`). */
 export function createJwtVerifier(options: JwtVerifierOptions): JwtVerifier {
   const keySet = lazyKeySet(options);
-  const audience = typeof options.audience === 'string' ? options.audience : [...options.audience];
+  const audience = joseAudience(options.audience);
+  const predicate = typeof options.audience === 'function' ? options.audience : undefined;
   const clockTolerance = options.clockToleranceSeconds ?? DEFAULT_CLOCK_TOLERANCE_SECONDS;
 
   return {
     async verify(token: string): Promise<AuthUser> {
+      let payload: JWTPayload;
       try {
-        const { payload } = await jwtVerify(token, await keySet(), {
+        ({ payload } = await jwtVerify(token, await keySet(), {
           algorithms: ALGORITHMS,
           issuer: options.issuerUrl,
           audience,
           clockTolerance,
-        });
-        return claimsToAuthUser(payload);
+        }));
       } catch (error) {
         throw new AuthError('invalid_token', { cause: error });
       }
+      // A predicate that throws (say, its lookup is down) rejects with its own error: that is no verdict on the token.
+      if (predicate && !(await predicate(payload))) {
+        throw new AuthError('invalid_token', { cause: new Error('audience not accepted') });
+      }
+      return claimsToAuthUser(payload);
     },
   };
 }
