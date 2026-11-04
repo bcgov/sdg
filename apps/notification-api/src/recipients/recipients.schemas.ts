@@ -85,7 +85,7 @@ export const subscriptionListSchema = z.array(topicSchema);
 
 // Sender endpoints
 
-const senderEmailPointSchema = z.object({ channel: z.literal('email'), address: emailAddressSchema });
+export const senderEmailPointSchema = z.object({ channel: z.literal('email'), address: emailAddressSchema });
 
 export const preRegisterUserSchema = ownerSchema.extend({
   contactPoints: z
@@ -99,7 +99,7 @@ export type PreRegisterUser = z.infer<typeof preRegisterUserSchema>;
 /** The same whether the user was new or already known (R33). */
 export const preRegisteredUserSchema = ownerSchema;
 
-const systemIdSchema = z.string().min(1).max(200).meta({ description: "The sender's id for the system" });
+export const systemIdSchema = z.string().min(1).max(200).meta({ description: "The sender's id for the system" });
 
 export const registerSystemSchema = z.object({
   systemId: systemIdSchema,

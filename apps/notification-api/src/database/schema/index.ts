@@ -3,6 +3,7 @@
 export * from './catalog.js';
 export * from './credentials.js';
 export * from './integrations.js';
+export * from './notifications.js';
 export * from './recipients.js';
 export * from './senders.js';
 export * from './templates.js';

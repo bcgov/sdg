@@ -7,6 +7,7 @@ import type { Env } from './config/env.js';
 import { metricsMiddleware } from './metrics/metrics.js';
 import { setupSwagger } from './openapi/swagger.js';
 import { servesApi } from './roles/role.js';
+import { SEND_BODY_LIMIT } from './sending/send.schemas.js';
 
 export const API_PREFIX = 'api';
 
@@ -16,6 +17,7 @@ export const API_PREFIX = 'api';
  * - URI versioning with no default version, so feature controllers opt in (`version: '1'` → /api/v1/…)
  *   and health stays unversioned;
  * - helmet headers on every response, then Prometheus metrics (GET /metrics, outside /api);
+ * - JSON bodies up to the send route's cap (413 above it), which bounds every route's body;
  * - zod (Standard Schema) validation for every parameter that declares `{ schema }`;
  * - Swagger UI at /api/docs outside production, in the roles that serve the API (the worker role serves only
  *   /healthz/* and /metrics, KTD4).
@@ -26,6 +28,7 @@ export function configureApp(app: NestExpressApplication): INestApplication {
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(metricsMiddleware);
+  app.useBodyParser('json', { limit: SEND_BODY_LIMIT });
   app.setGlobalPrefix(API_PREFIX, {
     exclude: [
       { path: 'healthz/live', method: RequestMethod.GET },
