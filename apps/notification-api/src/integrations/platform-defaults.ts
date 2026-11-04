@@ -35,16 +35,25 @@ function versionOf(fields: Readonly<Record<string, unknown>>): string {
   return createHash('sha256').update(JSON.stringify(fields)).digest('base64url').slice(0, 16);
 }
 
+/**
+ * A key the env schema left unset. `ConfigService.get` falls back to the raw `process.env` value when the validated
+ * value is undefined, so a blank `DEFAULT_SMTP_*=` (as `.env.example` ships) arrives here as `''`, not `undefined`.
+ */
+function present<T>(value: T | ''): T | undefined {
+  return value === '' ? undefined : value;
+}
+
 /** The DEFAULT_SMTP_* email integration (R46), or none when DEFAULT_SMTP_HOST is blank. Throws when it is incomplete. */
 function emailDefault(env: SmtpEnv): ResolvedIntegration | undefined {
-  if (env.DEFAULT_SMTP_HOST === undefined) return undefined;
+  const host = present(env.DEFAULT_SMTP_HOST);
+  if (host === undefined) return undefined;
   const parsed = smtpConfigSchema.safeParse({
-    host: env.DEFAULT_SMTP_HOST,
-    port: env.DEFAULT_SMTP_PORT,
-    secure: env.DEFAULT_SMTP_SECURE,
-    user: env.DEFAULT_SMTP_USER,
-    password: env.DEFAULT_SMTP_PASSWORD,
-    from: env.DEFAULT_SMTP_FROM,
+    host,
+    port: present(env.DEFAULT_SMTP_PORT),
+    secure: present(env.DEFAULT_SMTP_SECURE),
+    user: present(env.DEFAULT_SMTP_USER),
+    password: present(env.DEFAULT_SMTP_PASSWORD),
+    from: present(env.DEFAULT_SMTP_FROM),
   });
   if (!parsed.success) {
     // Names the variables, never their values.
