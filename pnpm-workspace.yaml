@@ -37,6 +37,7 @@ catalog:
   '@opentelemetry/instrumentation-pg': ^0.77.0
   '@opentelemetry/instrumentation-pino': ^0.70.0
   '@opentelemetry/instrumentation-runtime-node': ^0.37.0
+  '@opentelemetry/instrumentation-undici': ^0.34.0
   '@opentelemetry/resources': ^3.0.0
   '@opentelemetry/sdk-logs': ^3.0.0
   '@opentelemetry/sdk-metrics': ^3.0.0
@@ -58,6 +59,7 @@ catalog:
   '@types/express-session': ^1.19.0
   '@types/k6': ^2.3.0
   '@types/node': ^26.0.0
+  '@types/nodemailer': ^8.0.2
   '@types/pg': ^8.23.1
   '@types/react': ^19.3.0
   '@types/react-dom': ^19.3.0
@@ -73,8 +75,11 @@ catalog:
   jose: 6.2.15
   jsdom: ^30.1.3
   lefthook: ^2.2.2
+  liquidjs: ^10.30.1
   lit: ^3.3.3
+  mjml: ^5.4.1
   nestjs-pino: ^5.3.1
+  nodemailer: ^10.3.1
   openid-client: ^6.8.8
   oxfmt: ^0.75.0
   oxlint: ^1.89.0
