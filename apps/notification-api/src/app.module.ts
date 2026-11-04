@@ -1,6 +1,8 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
 import { AppConfigModule } from './config/config.module.js';
+import { CryptoModule } from './crypto/crypto.module.js';
+import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { LoggingModule } from './logging/logging.module.js';
 import { RoleModule } from './roles/role.js';
@@ -14,6 +16,8 @@ export class AppModule {
       imports: [
         AppConfigModule.register(),
         LoggingModule,
+        DatabaseModule,
+        CryptoModule,
         HealthModule,
         RoleModule.register({
           // Feature modules with API controllers (served by the api and all roles).

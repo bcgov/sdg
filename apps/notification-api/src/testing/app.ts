@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import type { DynamicModule } from '@nestjs/common';
+import { getDrizzleToken } from '@nestjs/drizzle';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import supertest from 'supertest';
@@ -8,6 +9,7 @@ import { vi, type Mock } from 'vitest';
 import { AppModule } from '../app.module.js';
 import { configureApp } from '../bootstrap.js';
 import { HTTP_FETCH, type HttpFetch } from '../health/indicators.js';
+import { createTestDatabase, type TestDatabase } from './database.js';
 
 export const TEST_ENV = {
   NODE_ENV: 'test',
@@ -46,6 +48,8 @@ export interface TestApp {
   app: NestExpressApplication;
   http: () => supertest.Agent;
   issuerFetch: Mock<HttpFetch>;
+  /** This test file's PGlite database, which the app uses in place of Postgres. */
+  database: TestDatabase;
   close: () => Promise<void>;
 }
 
@@ -56,14 +60,20 @@ export interface TestAppOptions {
   module?: () => DynamicModule;
 }
 
-/** The real AppModule and HTTP conventions, with the issuer's endpoints served by a fetch stub. */
+/**
+ * The real AppModule and HTTP conventions, with Postgres swapped for a fresh PGlite (real migrations) and the
+ * issuer's endpoints served by a fetch stub.
+ */
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   for (const [key, value] of Object.entries({ ...TEST_ENV, ...options.env })) vi.stubEnv(key, value);
   const issuerFetch = createIssuerFetch();
+  const database = await createTestDatabase();
 
   // Registering the root module reads the environment, so it happens after stubbing.
   const root = options.module ?? (() => AppModule.register());
   const moduleRef = await Test.createTestingModule({ imports: [root()] })
+    .overrideProvider(getDrizzleToken())
+    .useValue(database.db)
     .overrideProvider(HTTP_FETCH)
     .useValue(issuerFetch)
     .compile();
@@ -76,8 +86,10 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     app,
     http: () => supertest.agent(app.getHttpServer()),
     issuerFetch,
+    database,
     close: async () => {
       await app.close();
+      await database.close();
       vi.unstubAllEnvs();
     },
   };
