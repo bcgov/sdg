@@ -51,6 +51,31 @@ function toTokens(response: client.TokenEndpointResponse & client.TokenEndpointR
   };
 }
 
+/** Maps a refresh response; unlike `toTokens`, a missing ID token or refresh token keeps the current one. */
+function toRefreshedTokens(
+  response: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+  current: OidcTokens,
+): OidcTokens {
+  const expiresIn = response.expiresIn();
+  return {
+    idToken: response.id_token ?? current.idToken,
+    accessToken: response.access_token,
+    refreshToken: response.refresh_token ?? current.refreshToken,
+    expiresAt: expiresIn === undefined ? null : Date.now() + expiresIn * 1000,
+  };
+}
+
+function toRefreshError(error: unknown): AuthError {
+  if (error instanceof AuthError) return error;
+  const detail =
+    error instanceof client.ResponseBodyError
+      ? error.error
+      : error instanceof client.ClientError
+        ? error.code
+        : undefined;
+  return new AuthError('refresh_failed', { detail, cause: error });
+}
+
 function toCallbackError(error: unknown): AuthError {
   if (error instanceof AuthError) return error;
   if (error instanceof client.AuthorizationResponseError) {
@@ -131,6 +156,16 @@ export function createOidcClient(options: OidcClientOptions): OidcClient {
       };
       if (idToken) parameters['id_token_hint'] = idToken;
       return client.buildEndSessionUrl(config, parameters);
+    },
+
+    async refresh(current: OidcTokens): Promise<OidcTokens> {
+      if (current.refreshToken === null) throw new AuthError('refresh_failed', { detail: 'no refresh token' });
+      const config = await discover();
+      try {
+        return toRefreshedTokens(await client.refreshTokenGrant(config, current.refreshToken), current);
+      } catch (error) {
+        throw toRefreshError(error);
+      }
     },
   };
 }
