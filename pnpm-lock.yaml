@@ -399,6 +399,9 @@ catalogs:
     nestjs-pino:
       specifier: ^5.3.1
       version: 5.3.1
+    nodemailer:
+      specifier: ^10.3.1
+      version: 10.3.1
     openid-client:
       specifier: ^6.8.8
       version: 6.8.8
@@ -444,6 +447,9 @@ catalogs:
     typescript:
       specifier: ^7.0.2
       version: 7.0.2
+    undici:
+      specifier: ^8.12.3
+      version: 8.12.3
     vite:
       specifier: ^8.3.4
       version: 8.3.5
@@ -597,6 +603,9 @@ importers:
       nestjs-pino:
         specifier: 'catalog:'
         version: 5.3.1(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.3.2)(pino-http@11.0.0)(pino@10.4.0)(rxjs@7.8.2)
+      nodemailer:
+        specifier: 'catalog:'
+        version: 10.3.1
       pg:
         specifier: 'catalog:'
         version: 8.23.1
@@ -612,6 +621,9 @@ importers:
       rxjs:
         specifier: 'catalog:'
         version: 7.8.2
+      undici:
+        specifier: 'catalog:'
+        version: 8.12.3
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -4760,6 +4772,10 @@ packages:
     version: 26.13.0
     hasBin: true
 
+  nodemailer@10.3.1:
+    resolution: {integrity: sha512-uF0AFsJC07Y1vdW7p580DKAnh7rAO+4UPSSB3mDCPNDufoiaOebV6JmrzpxB14OjEEEiBsNdYoM2Y+fN8M7BBA==}
+    engines: {node: '>=20.0.0'}
+
   oauth4webapi@3.8.8:
     resolution: {integrity: sha512-8N28E+a/oxfXWBgOMt+ZP/JUf/XR+IFbvkAEPP3gznXOMv9BpAAwiIj0TFNz3tGTPc0ZQ8zmWBNgN1nAys0gng==}
 
@@ -8521,6 +8537,8 @@ snapshots:
   node-releases@2.0.63: {}
 
   node@runtime:26.13.0: {}
+
+  nodemailer@10.3.1: {}
 
   oauth4webapi@3.8.8: {}
 

@@ -1,0 +1,383 @@
+{
+  "id": "b957a93f-a349-49ae-9526-b16428741194",
+  "prevId": "8fa7d18c-1520-41dd-9d0a-98894241c6f0",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.credential_type_scopes": {
+      "name": "credential_type_scopes",
+      "schema": "",
+      "columns": {
+        "credential_id": {
+          "name": "credential_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sender_id": {
+          "name": "sender_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_key": {
+          "name": "type_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "credential_type_scopes_credential_fk": {
+          "name": "credential_type_scopes_credential_fk",
+          "tableFrom": "credential_type_scopes",
+          "tableTo": "credentials",
+          "columnsFrom": ["credential_id", "sender_id"],
+          "columnsTo": ["id", "sender_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "credential_type_scopes_grant_fk": {
+          "name": "credential_type_scopes_grant_fk",
+          "tableFrom": "credential_type_scopes",
+          "tableTo": "sender_type_grants",
+          "columnsFrom": ["sender_id", "type_key"],
+          "columnsTo": ["sender_id", "type_key"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "credential_type_scopes_credential_id_type_key_pk": {
+          "name": "credential_type_scopes_credential_id_type_key_pk",
+          "columns": ["credential_id", "type_key"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.credentials": {
+      "name": "credentials",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "sender_id": {
+          "name": "sender_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "credentials_sender_id_idx": {
+          "name": "credentials_sender_id_idx",
+          "columns": [
+            {
+              "expression": "sender_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credentials_sender_id_senders_id_fk": {
+          "name": "credentials_sender_id_senders_id_fk",
+          "tableFrom": "credentials",
+          "tableTo": "senders",
+          "columnsFrom": ["sender_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "credentials_client_id_key": {
+          "name": "credentials_client_id_key",
+          "nullsNotDistinct": false,
+          "columns": ["client_id"]
+        },
+        "credentials_id_sender_id_key": {
+          "name": "credentials_id_sender_id_key",
+          "nullsNotDistinct": false,
+          "columns": ["id", "sender_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sender_integrations": {
+      "name": "sender_integrations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "sender_id": {
+          "name": "sender_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "config": {
+          "name": "config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sender_integrations_sender_id_senders_id_fk": {
+          "name": "sender_integrations_sender_id_senders_id_fk",
+          "tableFrom": "sender_integrations",
+          "tableTo": "senders",
+          "columnsFrom": ["sender_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sender_integrations_sender_id_channel_key": {
+          "name": "sender_integrations_sender_id_channel_key",
+          "nullsNotDistinct": false,
+          "columns": ["sender_id", "channel"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sender_owners": {
+      "name": "sender_owners",
+      "schema": "",
+      "columns": {
+        "sender_id": {
+          "name": "sender_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issuer": {
+          "name": "issuer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sender_owners_sender_id_senders_id_fk": {
+          "name": "sender_owners_sender_id_senders_id_fk",
+          "tableFrom": "sender_owners",
+          "tableTo": "senders",
+          "columnsFrom": ["sender_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "sender_owners_sender_id_issuer_subject_pk": {
+          "name": "sender_owners_sender_id_issuer_subject_pk",
+          "columns": ["sender_id", "issuer", "subject"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sender_type_grants": {
+      "name": "sender_type_grants",
+      "schema": "",
+      "columns": {
+        "sender_id": {
+          "name": "sender_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_key": {
+          "name": "type_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sender_type_grants_sender_id_senders_id_fk": {
+          "name": "sender_type_grants_sender_id_senders_id_fk",
+          "tableFrom": "sender_type_grants",
+          "tableTo": "senders",
+          "columnsFrom": ["sender_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "sender_type_grants_sender_id_type_key_pk": {
+          "name": "sender_type_grants_sender_id_type_key_pk",
+          "columns": ["sender_id", "type_key"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.senders": {
+      "name": "senders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "callback_url": {
+          "name": "callback_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "callback_secret": {
+          "name": "callback_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -1,0 +1,79 @@
+import { createHash } from 'node:crypto';
+
+import type { Env } from '../config/env.js';
+import type { Channel } from './integration-type.js';
+import type { IntegrationConfig } from './registry.js';
+import { smtpConfigSchema } from './types/smtp.js';
+
+/** The integration a delivery attempt uses, and the id and config version it records (KTD9). */
+export type ResolvedIntegration = IntegrationConfig & {
+  /** A sender override's row id, or `platform:<channel>`. */
+  readonly id: string;
+  /** Changes whenever the configuration does. */
+  readonly version: string;
+  readonly source: 'sender' | 'platform';
+  readonly channel: Channel;
+};
+
+export type PlatformIntegrations = Readonly<Partial<Record<Channel, ResolvedIntegration>>>;
+
+/** Injection token for the platform defaults. */
+export const PLATFORM_INTEGRATIONS = Symbol('PLATFORM_INTEGRATIONS');
+
+type SmtpEnv = Pick<
+  Env,
+  | 'DEFAULT_SMTP_HOST'
+  | 'DEFAULT_SMTP_PORT'
+  | 'DEFAULT_SMTP_SECURE'
+  | 'DEFAULT_SMTP_USER'
+  | 'DEFAULT_SMTP_PASSWORD'
+  | 'DEFAULT_SMTP_FROM'
+>;
+
+/** The env default's version: a hash of its non-secret fields, so the password never leaves the process. */
+function versionOf(fields: Readonly<Record<string, unknown>>): string {
+  return createHash('sha256').update(JSON.stringify(fields)).digest('base64url').slice(0, 16);
+}
+
+/** The DEFAULT_SMTP_* email integration (R46), or none when DEFAULT_SMTP_HOST is blank. Throws when it is incomplete. */
+function emailDefault(env: SmtpEnv): ResolvedIntegration | undefined {
+  if (env.DEFAULT_SMTP_HOST === undefined) return undefined;
+  const parsed = smtpConfigSchema.safeParse({
+    host: env.DEFAULT_SMTP_HOST,
+    port: env.DEFAULT_SMTP_PORT,
+    secure: env.DEFAULT_SMTP_SECURE,
+    user: env.DEFAULT_SMTP_USER,
+    password: env.DEFAULT_SMTP_PASSWORD,
+    from: env.DEFAULT_SMTP_FROM,
+  });
+  if (!parsed.success) {
+    // Names the variables, never their values.
+    const keys = parsed.error.issues.map(
+      (issue) => `DEFAULT_SMTP_${issue.path.join('_').toUpperCase()}: ${issue.message}`,
+    );
+    throw new Error(`The platform default email integration is invalid:\n  ${keys.join('\n  ')}`);
+  }
+  const { password: _password, ...nonSecret } = parsed.data;
+  return {
+    id: 'platform:email',
+    version: versionOf(nonSecret),
+    source: 'platform',
+    channel: 'email',
+    type: 'smtp',
+    config: parsed.data,
+  };
+}
+
+/**
+ * Each channel's platform default (R46): email from DEFAULT_SMTP_*, when set; webhook and in-app always use their
+ * built-in types, which need no configuration.
+ */
+export function platformIntegrations(env: SmtpEnv): PlatformIntegrations {
+  const email = emailDefault(env);
+  const builtIn = { version: '1', source: 'platform', config: {} } as const;
+  return {
+    ...(email ? { email } : {}),
+    webhook: { ...builtIn, id: 'platform:webhook', channel: 'webhook', type: 'webhook' },
+    'in-app': { ...builtIn, id: 'platform:in-app', channel: 'in-app', type: 'in-app' },
+  };
+}

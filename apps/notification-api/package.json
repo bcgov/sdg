@@ -48,11 +48,13 @@
     "helmet": "catalog:",
     "import-in-the-middle": "catalog:",
     "nestjs-pino": "catalog:",
+    "nodemailer": "catalog:",
     "pg": "catalog:",
     "pino": "catalog:",
     "pino-http": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:",
+    "undici": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -95,6 +95,7 @@ catalog:
   supertest: ^7.3.1
   turbo: ^2.11.9
   typescript: ^7.0.2
+  undici: ^8.12.3
   vite: ^8.3.4
   vitest: ^5.0.5
   zod: ^4.6.7
