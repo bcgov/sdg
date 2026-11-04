@@ -8,8 +8,11 @@ import { credentials } from './credentials.js';
 import { senders } from './senders.js';
 import { topics } from './topics.js';
 
-/** A notification's lifecycle so far. `accepted`: stored by the send, waiting for a worker to expand it (R29). */
-export const NOTIFICATION_STATUSES = ['accepted'] as const;
+/**
+ * A notification's lifecycle. `accepted`: stored by the send, waiting for a worker to expand it (R29). `expanded`: its
+ * audience is fixed as notification recipients (R31), whose deliveries carry the rest of its progress (R55).
+ */
+export const NOTIFICATION_STATUSES = ['accepted', 'expanded'] as const;
 export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
 
 /** Who a send named (R26): an explicit recipient list, a topic's subscribers, or the sender's whole audience (R30). */

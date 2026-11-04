@@ -1,10 +1,12 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
 import { AuthModule } from './auth/auth.module.js';
-import { CatalogModule } from './catalog/catalog.module.js';
+import { CatalogApiModule } from './catalog/catalog.module.js';
 import { AppConfigModule } from './config/config.module.js';
 import { CryptoModule } from './crypto/crypto.module.js';
 import { DatabaseModule } from './database/database.module.js';
+import { DeliveryModule } from './delivery/delivery.module.js';
+import { DeliveryLoop } from './delivery/worker-loop.js';
 import { HealthModule } from './health/health.module.js';
 import { IntegrationsApiModule } from './integrations/integrations.module.js';
 import { LoggingModule } from './logging/logging.module.js';
@@ -34,14 +36,14 @@ export class AppModule {
           api: [
             AuthModule.register({ credentialDirectory: DbCredentialDirectory, senderOwnership: DbSenderOwnership }),
             SendersModule,
-            CatalogModule,
+            CatalogApiModule,
             IntegrationsApiModule,
             TemplatesApiModule,
             RecipientsApiModule,
             SendingModule,
           ],
           // Worker loops (run by the worker and all roles).
-          worker: { loops: [] },
+          worker: { imports: [DeliveryModule], loops: [DeliveryLoop] },
         }),
       ],
     };
