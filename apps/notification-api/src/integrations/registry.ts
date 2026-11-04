@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import type { Channel } from './integration-type.js';
+import type { Channel } from '../channels/channels.js';
 import { inAppIntegration } from './types/in-app.js';
 import { smtpIntegration } from './types/smtp.js';
 import { webhookIntegration } from './types/webhook.js';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { Channel } from '../integrations/integration-type.js';
+import type { Channel } from '../channels/channels.js';
 
 /** The channels a policy governs. In-app is never one: every recipient with an inbox gets the in-app item (R38). */
 export const POLICY_CHANNELS = ['email', 'webhook'] as const satisfies readonly Channel[];

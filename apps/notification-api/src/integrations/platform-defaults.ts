@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import type { Channel } from '../channels/channels.js';
 import type { Env } from '../config/env.js';
-import type { Channel } from './integration-type.js';
 import type { IntegrationConfig } from './registry.js';
 import { smtpConfigSchema } from './types/smtp.js';
 

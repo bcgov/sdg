@@ -1,6 +1,6 @@
 import { integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
-import type { Channel } from '../../integrations/integration-type.js';
+import type { Channel } from '../../channels/channels.js';
 import { senders } from './senders.js';
 
 /**

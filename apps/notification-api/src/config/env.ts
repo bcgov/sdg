@@ -38,7 +38,7 @@ const commaList = z.preprocess(
 const optional = <T extends z.ZodType>(schema: T) => z.preprocess(blankAsMissing, schema.optional());
 
 /** A zone the runtime's Intl data knows, e.g. America/Vancouver. */
-const timeZone = z.string().refine(
+export const timeZoneSchema = z.string().refine(
   (value) => {
     try {
       return new Intl.DateTimeFormat('en', { timeZone: value }).resolvedOptions().timeZone !== '';
@@ -91,7 +91,7 @@ export const envSchema = z.object({
   NOTIFICATION_ENCRYPTION_KEY: z.string().min(32),
   /** Hosts exempt from the outbound guard (KTD12), e.g. the local mail catcher. Empty by default. */
   NOTIFICATION_OUTBOUND_ALLOW_HOSTS: commaList,
-  DEFAULT_TIMEZONE: z.preprocess(blankAsMissing, timeZone.default('America/Vancouver')),
+  DEFAULT_TIMEZONE: z.preprocess(blankAsMissing, timeZoneSchema.default('America/Vancouver')),
   ...smtpDefaultEnvSchema.shape,
   ...otelEnvSchema.shape,
 });

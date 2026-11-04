@@ -1,8 +1,6 @@
 import type { z } from 'zod';
 
-/** The spike's channels (R44). */
-export const CHANNELS = ['in-app', 'email', 'webhook'] as const;
-export type Channel = (typeof CHANNELS)[number];
+import type { Channel } from '../channels/channels.js';
 
 /**
  * How a channel delivers (R45): the channel it serves, the configuration it takes and which of those fields are
