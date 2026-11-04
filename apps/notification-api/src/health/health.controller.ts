@@ -30,7 +30,6 @@ export class HealthController {
   @Get('ready')
   @HealthCheck()
   ready(): Promise<HealthCheckResult> {
-    // U2 adds the database check here.
-    return this.health.check([() => this.indicators.issuer()]);
+    return this.health.check([() => this.indicators.database(), () => this.indicators.issuer()]);
   }
 }

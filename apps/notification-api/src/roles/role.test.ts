@@ -42,21 +42,24 @@ describe('NOTIFICATION_ROLE', () => {
   let modules: {
     createTestApp: typeof import('../testing/app.js').createTestApp;
     AppConfigModule: typeof import('../config/config.module.js').AppConfigModule;
+    DatabaseModule: typeof import('../database/database.module.js').DatabaseModule;
     HealthModule: typeof import('../health/health.module.js').HealthModule;
     RoleModule: typeof import('./role.js').RoleModule;
   };
 
   beforeAll(async () => {
     otel = await (await import('../telemetry/bootstrap.js')).bootstrapTelemetry({});
-    const [testing, config, health, role] = await Promise.all([
+    const [testing, config, database, health, role] = await Promise.all([
       import('../testing/app.js'),
       import('../config/config.module.js'),
+      import('../database/database.module.js'),
       import('../health/health.module.js'),
       import('./role.js'),
     ]);
     modules = {
       createTestApp: testing.createTestApp,
       AppConfigModule: config.AppConfigModule,
+      DatabaseModule: database.DatabaseModule,
       HealthModule: health.HealthModule,
       RoleModule: role.RoleModule,
     };
@@ -70,10 +73,11 @@ describe('NOTIFICATION_ROLE', () => {
 
   /** The app's own modules with one probe API route and one probe worker loop registered through RoleModule. */
   function withProbes(): DynamicModule {
-    const { AppConfigModule, HealthModule, RoleModule } = modules;
+    const { AppConfigModule, DatabaseModule, HealthModule, RoleModule } = modules;
     @Module({
       imports: [
         AppConfigModule.register(),
+        DatabaseModule,
         HealthModule,
         RoleModule.register({ api: [ProbeApiModule], worker: { loops: [ProbeLoop] } }),
       ],

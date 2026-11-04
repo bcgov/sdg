@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HealthIndicatorService, type HealthIndicatorResult } from '@nestjs/terminus';
+import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { Env } from '../config/env.js';
+import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
 
 export const CHECK_TIMEOUT_MS = 3000;
 
@@ -17,17 +19,30 @@ const jwksSchema = z.object({ keys: z.array(z.object({ kty: z.string() })).min(1
 @Injectable()
 export class DependencyIndicators {
   private readonly health: HealthIndicatorService;
+  private readonly db: NotificationDatabase;
   private readonly fetch: HttpFetch;
   private readonly issuerUrl: string;
 
   constructor(
     @Inject(HealthIndicatorService) health: HealthIndicatorService,
+    @InjectDatabase() db: NotificationDatabase,
     @Inject(HTTP_FETCH) httpFetch: HttpFetch,
     @Inject(ConfigService) config: ConfigService<Env, true>,
   ) {
     this.health = health;
+    this.db = db;
     this.fetch = httpFetch;
     this.issuerUrl = config.get('KEYCLOAK_ISSUER_URL', { infer: true });
+  }
+
+  /** The notification database answers a query. */
+  database(): PromiseLike<HealthIndicatorResult<'database'>> {
+    return this.health
+      .check('database')
+      .attempt(async () => {
+        await this.db.execute(sql`select 1`);
+      })
+      .withTimeout(CHECK_TIMEOUT_MS);
   }
 
   /** The issuer's discovery document and the JWKS it names are reachable and hold at least one key. */

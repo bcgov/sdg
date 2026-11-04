@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createIssuerFetch,
@@ -23,6 +23,7 @@ describe('health', () => {
   afterAll(() => t.close());
 
   beforeEach(() => {
+    vi.restoreAllMocks();
     t.issuerFetch.mockReset().mockImplementation(createIssuerFetch());
   });
 
@@ -36,11 +37,22 @@ describe('health', () => {
   });
 
   describe('GET /healthz/ready', () => {
-    it('returns 200 with the issuer up after reading its discovery document and the JWKS it names', async () => {
+    it('returns 200 with the database and the issuer up after reading its discovery document and the JWKS it names', async () => {
       const res = await t.http().get('/healthz/ready');
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ status: 'ok', info: { issuer: { status: 'up' } } });
+      expect(res.body).toMatchObject({ status: 'ok', info: { database: { status: 'up' }, issuer: { status: 'up' } } });
       expect(requestedUrls(t)).toEqual([ISSUER_DISCOVERY_URL, ISSUER_JWKS_URL]);
+    });
+
+    it('returns 503 with the database down when it fails to answer', async () => {
+      vi.spyOn(t.database.db, 'execute').mockRejectedValue(new Error('connection terminated'));
+      const res = await t.http().get('/healthz/ready');
+      expect(res.status).toBe(503);
+      expect(res.body).toMatchObject({
+        status: 'error',
+        error: { database: { status: 'down' } },
+        info: { issuer: { status: 'up' } },
+      });
     });
 
     it('returns 503 with the issuer down when its discovery document is unreachable', async () => {
