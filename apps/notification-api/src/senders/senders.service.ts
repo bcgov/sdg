@@ -1,30 +1,31 @@
-import { randomBytes } from 'node:crypto';
-
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, eq } from 'drizzle-orm';
 
 import { SecretCipher } from '../crypto/secret-cipher.js';
+import { generateWebhookSecret } from '../crypto/signing.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
 import { senderOwners, senders, senderTypeGrants } from '../database/schema/index.js';
+import { OutboundGuard } from '../outbound/outbound-guard.js';
 import type { CallbackResponse, Owner, SenderResponse } from './senders.schemas.js';
 
 /** Where a sender's callback secret is sealed: the AAD binds it to this row and field (KTD11). */
 const callbackSecretLocation = (senderId: string) => ({ rowId: senderId, field: 'callbackSecret' });
-
-/** A Standard Webhooks secret: `whsec_` and 32 random bytes in base64 (KTD10). */
-function generateWebhookSecret(): string {
-  return `whsec_${randomBytes(32).toString('base64')}`;
-}
 
 /** Senders, their owners and type grants (R6), and the failure callback (R7). */
 @Injectable()
 export class SendersService {
   private readonly db: NotificationDatabase;
   private readonly cipher: SecretCipher;
+  private readonly outbound: OutboundGuard;
 
-  constructor(@InjectDatabase() db: NotificationDatabase, @Inject(SecretCipher) cipher: SecretCipher) {
+  constructor(
+    @InjectDatabase() db: NotificationDatabase,
+    @Inject(SecretCipher) cipher: SecretCipher,
+    @Inject(OutboundGuard) outbound: OutboundGuard,
+  ) {
     this.db = db;
     this.cipher = cipher;
+    this.outbound = outbound;
   }
 
   async create(name: string): Promise<SenderResponse> {
@@ -96,8 +97,13 @@ export class SendersService {
     return this.get(senderId);
   }
 
-  /** Sets the failure callback URL with a new signing secret, returned only here and stored sealed (KTD10). */
+  /**
+   * Sets the failure callback URL with a new signing secret, returned only here and stored sealed (KTD10). The URL
+   * must be https unless its host is on the outbound allow-list (R51).
+   */
   async setCallback(senderId: string, url: string): Promise<CallbackResponse> {
+    const problem = this.outbound.urlProblem(url);
+    if (problem) throw new BadRequestException(problem);
     const secret = generateWebhookSecret();
     const sealed = this.cipher.encrypt(secret, callbackSecretLocation(senderId));
     const [updated] = await this.db

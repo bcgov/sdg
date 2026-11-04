@@ -32,9 +32,12 @@ export const senderSchema = z.object({
 });
 export type SenderResponse = z.infer<typeof senderSchema>;
 
-/** https only: failure callbacks carry delivery details (R7). */
+/**
+ * https only, since failure callbacks carry delivery details (R7); http only to a host on the outbound allow-list,
+ * which SendersService checks (R51).
+ */
 export const setCallbackSchema = z.object({
-  url: z.url({ protocol: /^https$/, error: 'Must be an https:// URL' }),
+  url: z.url({ protocol: /^https?$/, error: 'Must be an https:// URL' }),
 });
 export type SetCallback = z.infer<typeof setCallbackSchema>;
 

@@ -15,6 +15,13 @@
       "when": 1793828835111,
       "tag": "0001_senders",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793829908593,
+      "tag": "0002_integrations",
+      "breakpoints": true
     }
   ]
 }
