@@ -58,6 +58,12 @@ export interface OidcClient {
   createAuthorizationRequest(returnTo: string): Promise<AuthorizationRequest>;
   handleCallback(callbackUrl: URL, pending: PendingAuthorization): Promise<CallbackResult>;
   buildEndSessionUrl(idToken: string | null): Promise<URL>;
+  /**
+   * Redeems `current.refreshToken` (refresh grant) for new tokens. The previous ID token and refresh token are kept
+   * when the response omits them. Throws `AuthError('refresh_failed')` when there is no refresh token or the IdP
+   * rejects it (`detail` carries the IdP `error` code).
+   */
+  refresh(current: OidcTokens): Promise<OidcTokens>;
 }
 
 /**

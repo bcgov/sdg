@@ -166,6 +166,40 @@ describe('createOidcClient', () => {
       expect((await rejection(client.handleCallback(badVerifier.callbackUrl, pending))).code).toBe('callback_failed');
     });
   });
+  describe('refresh', () => {
+    const current = {
+      idToken: 'previous.id.token',
+      accessToken: 'old-access',
+      refreshToken: 'unused',
+      expiresAt: 0,
+    };
+
+    it('returns the new access and refresh tokens and keeps the previous ID token when none is sent', async () => {
+      const refreshToken = idp.issueRefreshToken();
+      const before = Date.now();
+      const tokens = await newClient().refresh({ ...current, refreshToken });
+      expect(tokens.idToken).toBe('previous.id.token');
+      expect(tokens.accessToken).toMatch(/^refreshed-access-\d+$/);
+      expect(tokens.refreshToken).toMatch(/^refreshed-refresh-\d+$/);
+      expect(tokens.refreshToken).not.toBe(refreshToken);
+      expect(tokens.expiresAt).toBeGreaterThanOrEqual(before + 299_000);
+    });
+    it('replaces the ID token when the response has one', async () => {
+      const refreshToken = idp.issueRefreshToken({ idTokenClaims: { sub: 'user-1' } });
+      const tokens = await newClient().refresh({ ...current, refreshToken });
+      expect(tokens.idToken).not.toBe('previous.id.token');
+      expect(tokens.idToken.split('.')).toHaveLength(3);
+    });
+    it('throws AuthError(refresh_failed) for a rejected or missing refresh token', async () => {
+      const client = newClient();
+      const used = idp.issueRefreshToken();
+      await client.refresh({ ...current, refreshToken: used });
+      const rejected = await rejection(client.refresh({ ...current, refreshToken: used }));
+      expect(rejected.code).toBe('refresh_failed');
+      expect(rejected.detail).toBe('invalid_grant');
+      expect((await rejection(client.refresh({ ...current, refreshToken: null }))).code).toBe('refresh_failed');
+    });
+  });
   describe('buildEndSessionUrl', () => {
     it('includes client_id, post_logout_redirect_uri and id_token_hint', async () => {
       const client = newClient();

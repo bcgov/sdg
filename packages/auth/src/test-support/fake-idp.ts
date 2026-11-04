@@ -18,6 +18,11 @@ interface IssuedCode {
   claims: JWTPayload;
 }
 
+export interface IssuedRefreshToken {
+  /** When set, the refresh response carries an ID token with these claims; otherwise it has none. */
+  idTokenClaims?: JWTPayload;
+}
+
 export interface SignOptions {
   alg?: string;
   kid?: string;
@@ -37,6 +42,8 @@ export interface FakeIdp {
   /** When true, discovery responds 500. */
   failDiscovery: boolean;
   issueCode(code: IssuedCode): string;
+  /** Registers a refresh token the token endpoint accepts once; each refresh rotates it to a new one. */
+  issueRefreshToken(token?: IssuedRefreshToken): string;
   sign(claims: JWTPayload, options?: SignOptions): Promise<string>;
   close(): Promise<void>;
 }
@@ -50,6 +57,10 @@ async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
   return new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
+}
+
+function clientAuthenticated(form: URLSearchParams): boolean {
+  return form.get('client_id') === CLIENT_ID && form.get('client_secret') === CLIENT_SECRET;
 }
 
 function metadata(issuer: string): Record<string, unknown> {
@@ -70,6 +81,7 @@ export async function startFakeIdp(): Promise<FakeIdp> {
   const { privateKey, publicKey } = await generateKeyPair('RS256');
   const publicJwk: JWK = { ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256', use: 'sig' };
   const codes = new Map<string, IssuedCode>();
+  const refreshTokens = new Map<string, IssuedRefreshToken>();
   let counter = 0;
 
   let loopback = '';
@@ -88,17 +100,43 @@ export async function startFakeIdp(): Promise<FakeIdp> {
       codes.set(value, code);
       return value;
     },
+    issueRefreshToken(issued = {}) {
+      counter += 1;
+      const value = `refresh-${counter}`;
+      refreshTokens.set(value, issued);
+      return value;
+    },
     sign: (claims, options = {}) => signToken(privateKey, idp.issuer, claims, options),
     close: () => new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))),
   };
 
+  async function refresh(form: URLSearchParams, res: ServerResponse): Promise<void> {
+    const presented = form.get('refresh_token') ?? '';
+    const issued = refreshTokens.get(presented);
+    refreshTokens.delete(presented);
+    if (!clientAuthenticated(form)) return sendJson(res, 401, { error: 'invalid_client' });
+    if (issued === undefined) return sendJson(res, 400, { error: 'invalid_grant' });
+    counter += 1;
+    const rotated = `refreshed-refresh-${counter}`;
+    refreshTokens.set(rotated, issued);
+    const idToken = issued.idTokenClaims
+      ? await signToken(privateKey, idp.issuer, issued.idTokenClaims, {})
+      : undefined;
+    sendJson(res, 200, {
+      access_token: `refreshed-access-${counter}`,
+      refresh_token: rotated,
+      ...(idToken === undefined ? {} : { id_token: idToken }),
+      token_type: 'Bearer',
+      expires_in: 300,
+    });
+  }
+
   async function token(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const form = await readForm(req);
+    if (form.get('grant_type') === 'refresh_token') return refresh(form, res);
     const issued = codes.get(form.get('code') ?? '');
     codes.delete(form.get('code') ?? '');
-    if (form.get('client_id') !== CLIENT_ID || form.get('client_secret') !== CLIENT_SECRET) {
-      return sendJson(res, 401, { error: 'invalid_client' });
-    }
+    if (!clientAuthenticated(form)) return sendJson(res, 401, { error: 'invalid_client' });
     const challenge = await calculatePKCECodeChallenge(form.get('code_verifier') ?? '');
     if (issued?.codeChallenge !== challenge) {
       return sendJson(res, 400, { error: 'invalid_grant' });
