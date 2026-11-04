@@ -4,7 +4,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { generateWebhookSecret } from '../crypto/signing.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { senderOwners, senders, senderTypeGrants } from '../database/schema/index.js';
+import { notificationTypes, senderOwners, senders, senderTypeGrants } from '../database/schema/index.js';
 import { OutboundGuard } from '../outbound/outbound-guard.js';
 import type { CallbackResponse, Owner, SenderResponse } from './senders.schemas.js';
 
@@ -79,8 +79,9 @@ export class SendersService {
     return this.get(senderId);
   }
 
+  /** Grants a Notification type, which must exist in the catalog (R6, R13). */
   async grant(senderId: string, typeKey: string): Promise<SenderResponse> {
-    await this.requireSender(senderId);
+    await Promise.all([this.requireSender(senderId), this.requireType(typeKey)]);
     await this.db.insert(senderTypeGrants).values({ senderId, typeKey }).onConflictDoNothing();
     return this.get(senderId);
   }
@@ -113,6 +114,14 @@ export class SendersService {
       .returning({ id: senders.id });
     if (!updated) throw new NotFoundException();
     return { url, secret };
+  }
+
+  private async requireType(typeKey: string): Promise<void> {
+    const [type] = await this.db
+      .select({ key: notificationTypes.key })
+      .from(notificationTypes)
+      .where(eq(notificationTypes.key, typeKey));
+    if (!type) throw new NotFoundException('No Notification type with this key');
   }
 
   private async requireSender(senderId: string): Promise<void> {

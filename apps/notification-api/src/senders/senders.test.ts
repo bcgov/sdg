@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { senders } from '../database/schema/index.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
+import { ensureTypes } from '../testing/catalog.js';
 import { bearer, createSender } from '../testing/senders.js';
 import { startTestIssuer, type TestIssuer } from '../testing/tokens.js';
 
@@ -42,6 +43,7 @@ describe('admin sender endpoints', () => {
       .post(`/api/v1/admin/senders/${id}/owners`)
       .set(admin)
       .send({ issuer: issuer.issuer, subject: 'jane' });
+    await ensureTypes(t, adminToken, ['permit-issued', 'permit-expired']);
     await t.http().put(`/api/v1/admin/senders/${id}/grants/permit-issued`).set(admin);
     const granted = await t.http().put(`/api/v1/admin/senders/${id}/grants/permit-expired`).set(admin);
 
@@ -50,6 +52,14 @@ describe('admin sender endpoints', () => {
       owners: [{ issuer: issuer.issuer, subject: 'jane' }],
       grantedTypes: ['permit-expired', 'permit-issued'],
     });
+  });
+
+  it('refuses to grant a type the catalog does not define', async () => {
+    const sender = await createSender(t, issuer, adminToken, { name: 'Lands', owner: 'lands-owner' });
+    const res = await t.http().put(`/api/v1/admin/senders/${sender.id}/grants/not-in-catalog`).set(admin);
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('No Notification type with this key');
+    expect((await t.http().get(`/api/v1/senders/${sender.id}`).set(admin)).body.grantedTypes).toEqual([]);
   });
 
   it('removing an owner ends their access to the sender', async () => {

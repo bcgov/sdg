@@ -6,6 +6,7 @@ import { CurrentPrincipal } from '../auth/current-principal.decorator.js';
 import type { LinkedCredential } from '../auth/directories.js';
 import type { Principal } from '../auth/token-kind.js';
 import type { TestApp } from './app.js';
+import { ensureTypes } from './catalog.js';
 import type { TestIssuer } from './tokens.js';
 
 export const bearer = (token: string): { authorization: string } => ({ authorization: `Bearer ${token}` });
@@ -34,7 +35,7 @@ export interface SenderFixture {
   ownerToken: string;
 }
 
-/** Creates a sender through the admin API, names its owner and grants `types`. */
+/** Creates a sender through the admin API, names its owner and grants `types`, defining any that do not exist. */
 export async function createSender(
   t: TestApp,
   issuer: TestIssuer,
@@ -52,6 +53,7 @@ export async function createSender(
     .set(admin)
     .send({ issuer: issuer.issuer, subject: setup.owner });
   expect(owner.status).toBe(200);
+  await ensureTypes(t, adminToken, setup.types ?? []);
   const grants = await Promise.all(
     (setup.types ?? []).map((type) => t.http().put(`/api/v1/admin/senders/${id}/grants/${type}`).set(admin)),
   );

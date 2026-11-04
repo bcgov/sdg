@@ -1,5 +1,7 @@
 import { pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
+import { notificationTypes } from './catalog.js';
+
 /** A system that sends notifications, created by the admin (R6). */
 export const senders = pgTable('senders', {
   id: uuid().primaryKey().defaultRandom(),
@@ -29,14 +31,16 @@ export const senderOwners = pgTable(
   (table) => [primaryKey({ columns: [table.senderId, table.issuer, table.subject] })],
 );
 
-/** A Notification type the admin granted a sender, by type key (R6). */
+/** A Notification type the admin granted a sender, by type key (R6). The type must exist. */
 export const senderTypeGrants = pgTable(
   'sender_type_grants',
   {
     senderId: uuid()
       .notNull()
       .references(() => senders.id, { onDelete: 'cascade' }),
-    typeKey: text().notNull(),
+    typeKey: text()
+      .notNull()
+      .references(() => notificationTypes.key),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.senderId, table.typeKey] })],
