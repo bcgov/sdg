@@ -9,6 +9,7 @@ const valid = {
   KEYCLOAK_ISSUER_URL: 'https://keycloak.example.com/realms/standard/',
   NOTIFICATION_CLIENT_ID: 'notification-api',
   NOTIFICATION_ENCRYPTION_KEY: ENCRYPTION_KEY,
+  CONFIRM_EMAIL_URL: 'https://portal.example.com/confirm-email',
 };
 
 function errorOf(raw: Record<string, unknown>): EnvValidationError {

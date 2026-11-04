@@ -28,7 +28,8 @@ import { IntegrationResolver } from './resolver.service.js';
         }),
     },
   ],
-  exports: [IntegrationResolver],
+  // The platform defaults alone also send confirmation emails, which never use a sender's integration (KTD15).
+  exports: [IntegrationResolver, PLATFORM_INTEGRATIONS],
 })
 export class IntegrationsModule {}
 

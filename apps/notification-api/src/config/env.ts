@@ -92,6 +92,8 @@ export const envSchema = z.object({
   /** Hosts exempt from the outbound guard (KTD12), e.g. the local mail catcher. Empty by default. */
   NOTIFICATION_OUTBOUND_ALLOW_HOSTS: commaList,
   DEFAULT_TIMEZONE: z.preprocess(blankAsMissing, timeZoneSchema.default('America/Vancouver')),
+  /** portal-web's confirm page (KTD15): confirmation emails link to `<this>?token=…`. */
+  CONFIRM_EMAIL_URL: urlWithProtocol(['https:']),
   ...smtpDefaultEnvSchema.shape,
   ...otelEnvSchema.shape,
 });
