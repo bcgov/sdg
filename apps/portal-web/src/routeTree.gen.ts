@@ -15,6 +15,9 @@ import { Route as ContactUsRouteImport } from './routes/contact-us'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as AuthenticatedAccountSettingsRouteImport } from './routes/_authenticated/account-settings'
+import { Route as DevIndexRouteImport } from './routes/dev/index'
+import { Route as DevButtonRouteImport } from './routes/dev/button'
+import { Route as DevCardRouteImport } from './routes/dev/card'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +49,21 @@ const AuthenticatedAccountSettingsRoute =
     path: '/account-settings',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const DevIndexRoute = DevIndexRouteImport.update({
+  id: '/dev/',
+  path: '/dev/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevButtonRoute = DevButtonRouteImport.update({
+  id: '/dev/button',
+  path: '/dev/button',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevCardRoute = DevCardRouteImport.update({
+  id: '/dev/card',
+  path: '/dev/card',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,6 +71,9 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/dev/button': typeof DevButtonRoute
+  '/dev/card': typeof DevCardRoute
+  '/dev/': typeof DevIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -60,6 +81,9 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/dev/button': typeof DevButtonRoute
+  '/dev/card': typeof DevCardRoute
+  '/dev': typeof DevIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -69,12 +93,31 @@ export interface FileRoutesById {
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/_authenticated/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/dev/button': typeof DevButtonRoute
+  '/dev/card': typeof DevCardRoute
+  '/dev/': typeof DevIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/contact-us' | '/help' | '/services' | '/account-settings'
+  fullPaths:
+    | '/'
+    | '/contact-us'
+    | '/help'
+    | '/services'
+    | '/account-settings'
+    | '/dev/button'
+    | '/dev/card'
+    | '/dev/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/contact-us' | '/help' | '/services' | '/account-settings'
+  to:
+    | '/'
+    | '/contact-us'
+    | '/help'
+    | '/services'
+    | '/account-settings'
+    | '/dev/button'
+    | '/dev/card'
+    | '/dev'
   id:
     | '__root__'
     | '/'
@@ -83,6 +126,9 @@ export interface FileRouteTypes {
     | '/help'
     | '/services'
     | '/_authenticated/account-settings'
+    | '/dev/button'
+    | '/dev/card'
+    | '/dev/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -91,6 +137,9 @@ export interface RootRouteChildren {
   ContactUsRoute: typeof ContactUsRoute
   HelpRoute: typeof HelpRoute
   ServicesRoute: typeof ServicesRoute
+  DevButtonRoute: typeof DevButtonRoute
+  DevCardRoute: typeof DevCardRoute
+  DevIndexRoute: typeof DevIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -137,6 +186,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/dev/': {
+      id: '/dev/'
+      path: '/dev'
+      fullPath: '/dev/'
+      preLoaderRoute: typeof DevIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/button': {
+      id: '/dev/button'
+      path: '/dev/button'
+      fullPath: '/dev/button'
+      preLoaderRoute: typeof DevButtonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/card': {
+      id: '/dev/card'
+      path: '/dev/card'
+      fullPath: '/dev/card'
+      preLoaderRoute: typeof DevCardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -158,6 +228,9 @@ const rootRouteChildren: RootRouteChildren = {
   ContactUsRoute: ContactUsRoute,
   HelpRoute: HelpRoute,
   ServicesRoute: ServicesRoute,
+  DevButtonRoute: DevButtonRoute,
+  DevCardRoute: DevCardRoute,
+  DevIndexRoute: DevIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

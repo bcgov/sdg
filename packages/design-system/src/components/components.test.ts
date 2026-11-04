@@ -10,6 +10,7 @@ const subpaths: Record<string, Record<string, unknown>> = Object.fromEntries(
 // Components built in this package rather than re-exported from upstream.
 const custom: Record<string, string[]> = {
   avatar: ['Avatar', 'getInitials'],
+  card: ['Card'],
   'data-table': ['DataTable', 'dataTableColumnHelper', 'readTableState', 'tableParamKeys', 'writeTableState'],
   details: ['Details'],
   'nav-link': ['NavLink'],
@@ -19,6 +20,8 @@ const custom: Record<string, string[]> = {
 const wrapped: Record<string, Record<string, unknown>> = Object.fromEntries(
   Object.entries(subpaths).filter(([subpath]) => !(subpath in custom)),
 );
+// Wrapped subpaths that extend the upstream component (same name, own implementation) instead of re-exporting it.
+const extended = new Set(['button']);
 
 // The expected subpath table: one entry per wrapped component subpath.
 const expected: Record<string, string[]> = {
@@ -81,10 +84,10 @@ describe('component subpaths', () => {
 
   it('re-export the upstream components by reference', () => {
     expect(Object.keys(wrapped)).not.toHaveLength(0);
-    for (const mod of Object.values(wrapped)) {
+    for (const [subpath, mod] of Object.entries(wrapped)) {
       for (const [name, value] of Object.entries(mod)) {
         expect(value).toBeDefined();
-        expect(value).toBe(upstreamExports[name]);
+        expect(value === upstreamExports[name], `${subpath}:${name}`).toBe(!extended.has(subpath));
       }
     }
   });

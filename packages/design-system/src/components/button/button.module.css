@@ -1,0 +1,20 @@
+/* Sizing, focus ring and font come from the upstream .bcds-react-aria-Button classes; this only colours it. */
+.warning {
+  /* B.C. Primary Gold with dark text: white text on gold fails contrast. */
+  background-color: var(--theme-primary-gold);
+  color: var(--typography-color-primary);
+}
+
+.warning[data-hovered] {
+  background-color: var(--theme-gold-70);
+}
+
+.warning[data-pressed],
+.warning[data-hovered][data-pressed] {
+  background-color: var(--support-surface-color-warning);
+}
+
+.warning[data-disabled] {
+  background-color: var(--surface-color-primary-button-disabled);
+  color: var(--typography-color-disabled);
+}
