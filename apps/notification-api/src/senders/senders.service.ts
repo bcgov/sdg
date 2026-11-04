@@ -1,0 +1,116 @@
+import { randomBytes } from 'node:crypto';
+
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, asc, eq } from 'drizzle-orm';
+
+import { SecretCipher } from '../crypto/secret-cipher.js';
+import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
+import { senderOwners, senders, senderTypeGrants } from '../database/schema/index.js';
+import type { CallbackResponse, Owner, SenderResponse } from './senders.schemas.js';
+
+/** Where a sender's callback secret is sealed: the AAD binds it to this row and field (KTD11). */
+const callbackSecretLocation = (senderId: string) => ({ rowId: senderId, field: 'callbackSecret' });
+
+/** A Standard Webhooks secret: `whsec_` and 32 random bytes in base64 (KTD10). */
+function generateWebhookSecret(): string {
+  return `whsec_${randomBytes(32).toString('base64')}`;
+}
+
+/** Senders, their owners and type grants (R6), and the failure callback (R7). */
+@Injectable()
+export class SendersService {
+  private readonly db: NotificationDatabase;
+  private readonly cipher: SecretCipher;
+
+  constructor(@InjectDatabase() db: NotificationDatabase, @Inject(SecretCipher) cipher: SecretCipher) {
+    this.db = db;
+    this.cipher = cipher;
+  }
+
+  async create(name: string): Promise<SenderResponse> {
+    const [created] = await this.db.insert(senders).values({ name }).returning({ id: senders.id });
+    if (!created) throw new Error('Inserting the sender returned no row');
+    return this.get(created.id);
+  }
+
+  /** The sender, without its callback secret. 404 when there is none. */
+  async get(senderId: string): Promise<SenderResponse> {
+    const [[sender], owners, grants] = await Promise.all([
+      this.db
+        .select({ id: senders.id, name: senders.name, callbackUrl: senders.callbackUrl })
+        .from(senders)
+        .where(eq(senders.id, senderId)),
+      this.db
+        .select({ issuer: senderOwners.issuer, subject: senderOwners.subject })
+        .from(senderOwners)
+        .where(eq(senderOwners.senderId, senderId))
+        .orderBy(asc(senderOwners.createdAt), asc(senderOwners.issuer), asc(senderOwners.subject)),
+      this.db
+        .select({ typeKey: senderTypeGrants.typeKey })
+        .from(senderTypeGrants)
+        .where(eq(senderTypeGrants.senderId, senderId))
+        .orderBy(asc(senderTypeGrants.typeKey)),
+    ]);
+    if (!sender) throw new NotFoundException();
+    return { ...sender, owners, grantedTypes: grants.map((grant) => grant.typeKey) };
+  }
+
+  async addOwner(senderId: string, owner: Owner): Promise<SenderResponse> {
+    await this.requireSender(senderId);
+    await this.db
+      .insert(senderOwners)
+      .values({ senderId, ...owner })
+      .onConflictDoNothing();
+    return this.get(senderId);
+  }
+
+  async removeOwner(senderId: string, owner: Owner): Promise<SenderResponse> {
+    await this.requireSender(senderId);
+    await this.db
+      .delete(senderOwners)
+      .where(
+        and(
+          eq(senderOwners.senderId, senderId),
+          eq(senderOwners.issuer, owner.issuer),
+          eq(senderOwners.subject, owner.subject),
+        ),
+      );
+    return this.get(senderId);
+  }
+
+  async grant(senderId: string, typeKey: string): Promise<SenderResponse> {
+    await this.requireSender(senderId);
+    await this.db.insert(senderTypeGrants).values({ senderId, typeKey }).onConflictDoNothing();
+    return this.get(senderId);
+  }
+
+  /**
+   * Revokes a type from the sender and from every credential's scope (R9). The scopes reference the grant with
+   * ON DELETE CASCADE, so the one DELETE removes both atomically.
+   */
+  async revoke(senderId: string, typeKey: string): Promise<SenderResponse> {
+    await this.requireSender(senderId);
+    await this.db
+      .delete(senderTypeGrants)
+      .where(and(eq(senderTypeGrants.senderId, senderId), eq(senderTypeGrants.typeKey, typeKey)));
+    return this.get(senderId);
+  }
+
+  /** Sets the failure callback URL with a new signing secret, returned only here and stored sealed (KTD10). */
+  async setCallback(senderId: string, url: string): Promise<CallbackResponse> {
+    const secret = generateWebhookSecret();
+    const sealed = this.cipher.encrypt(secret, callbackSecretLocation(senderId));
+    const [updated] = await this.db
+      .update(senders)
+      .set({ callbackUrl: url, callbackSecret: sealed })
+      .where(eq(senders.id, senderId))
+      .returning({ id: senders.id });
+    if (!updated) throw new NotFoundException();
+    return { url, secret };
+  }
+
+  private async requireSender(senderId: string): Promise<void> {
+    const [sender] = await this.db.select({ id: senders.id }).from(senders).where(eq(senders.id, senderId));
+    if (!sender) throw new NotFoundException();
+  }
+}

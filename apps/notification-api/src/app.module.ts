@@ -7,6 +7,8 @@ import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { LoggingModule } from './logging/logging.module.js';
 import { RoleModule } from './roles/role.js';
+import { DbCredentialDirectory, DbSenderOwnership } from './senders/sender-directories.js';
+import { SendersModule } from './senders/senders.module.js';
 
 @Module({})
 export class AppModule {
@@ -22,7 +24,10 @@ export class AppModule {
         HealthModule,
         RoleModule.register({
           // Feature modules with API controllers (served by the api and all roles).
-          api: [AuthModule.register()],
+          api: [
+            AuthModule.register({ credentialDirectory: DbCredentialDirectory, senderOwnership: DbSenderOwnership }),
+            SendersModule,
+          ],
           // Worker loops (run by the worker and all roles).
           worker: { loops: [] },
         }),
