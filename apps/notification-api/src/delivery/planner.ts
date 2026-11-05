@@ -82,7 +82,8 @@ type DeliveryRow = typeof deliveries.$inferInsert;
 /**
  * Plans each expanded recipient once (KTD7): the in-app item for a user (R38), then one delivery per step, channel
  * and contact point that is usable or pending verification now, and one `skipped` "no contact point" row for a
- * channel with none. Email rows are deduplicated by normalized address across the notification (KTD14).
+ * channel with none. All-at-once emails to points usable now are deduplicated by address across the notification
+ * (KTD14).
  */
 @Injectable()
 export class PlannerService {
@@ -180,7 +181,12 @@ export class PlannerService {
       }
       const dueAt = step.step === 0 ? now : null;
       return points.map((point) =>
-        deliveryRow(target, step, now, { contactPointId: point.id, address: point.address, dueAt }),
+        deliveryRow(target, step, now, {
+          contactPointId: point.id,
+          address: point.address,
+          dedupeKey: dedupeKey(step, point),
+          dueAt,
+        }),
       );
     });
   }
@@ -203,6 +209,17 @@ function deliveryRow(target: PlanTarget, step: PlannedStep, now: Date, fields: P
 interface PlannablePoint {
   id: string;
   address: string;
+  /** Verified or sender-supplied now; otherwise pending verification. */
+  usable: boolean;
+}
+
+/**
+ * The key that merges a row with other recipients' rows to the same mailbox (KTD14): only an all-at-once email to a
+ * point usable now. A pending point may still be skipped at claim and an escalation step cancelled by its own
+ * recipient's read, so either keeps its own row rather than standing in for another recipient's email.
+ */
+function dedupeKey(step: PlannedStep, point: PlannablePoint): string | null {
+  return step.channel === 'email' && step.step === 0 && point.usable ? point.address : null;
 }
 
 /**
@@ -218,7 +235,7 @@ async function plannablePoints(
 ): Promise<PlannablePoint[]> {
   const usable = sql<boolean>`(${contactPoints.ownerSenderId} IS NOT NULL OR ${contactPoints.verifiedAt} IS NOT NULL)`;
   const rows = await db
-    .select({ id: contactPoints.id, address: contactPoints.address })
+    .select({ id: contactPoints.id, address: contactPoints.address, usable })
     .from(contactPoints)
     .where(visibleToSender(recipientId, channel, senderId))
     .orderBy(desc(usable), asc(contactPoints.createdAt), asc(contactPoints.address));

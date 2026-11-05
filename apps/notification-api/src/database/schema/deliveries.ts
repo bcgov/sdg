@@ -105,8 +105,14 @@ export const deliveries = pgTable(
     delayMinutes: integer().notNull().default(0),
     /** The contact point fixed at planning; null for a "no contact point" row, or once the point is removed. */
     contactPointId: uuid().references(() => contactPoints.id, { onDelete: 'set null' }),
-    /** The point's normalized address at planning, for deduplication (KTD14) and history (R43). */
+    /** The point's normalized address at planning, for history (R43). */
     address: text(),
+    /**
+     * The address again for an all-at-once email to a point usable at planning, so a mailbox shared by recipients
+     * gets one email (KTD14); null otherwise. A point still pending verification, and an escalation step, keep their
+     * own row: they depend on that one recipient's state, which mustn't decide another recipient's email.
+     */
+    dedupeKey: text(),
     status: text().$type<DeliveryStatus>().notNull().default('scheduled'),
     /** Why it ended `failed`, `cancelled` or `skipped` (R54). */
     reason: text(),
@@ -129,10 +135,10 @@ export const deliveries = pgTable(
     index('deliveries_notification_recipient_id_step_idx').on(table.notificationRecipientId, table.step),
     index('deliveries_notification_id_idx').on(table.notificationId),
     index('deliveries_recipient_id_idx').on(table.recipientId),
-    // One mailbox gets one email per notification and step, whichever recipients it belongs to (KTD14).
-    uniqueIndex('deliveries_email_address_key')
-      .on(table.notificationId, table.step, table.address)
-      .where(sql`channel = 'email' AND address IS NOT NULL`),
+    // One mailbox gets one all-at-once email per notification, whichever recipients it belongs to (KTD14).
+    uniqueIndex('deliveries_dedupe_key')
+      .on(table.notificationId, table.step, table.dedupeKey)
+      .where(sql`dedupe_key IS NOT NULL`),
   ],
 );
 

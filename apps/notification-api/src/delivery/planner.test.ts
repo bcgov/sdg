@@ -4,6 +4,7 @@ import {
   defineDeliveryType,
   deliveriesOf,
   inboxItemsOf,
+  notificationRecipientId,
   registerSystem,
   relayedUser,
   runWorker,
@@ -14,6 +15,7 @@ import {
 } from '../testing/delivery.js';
 import { messagesTo } from '../testing/recipients.js';
 import { addressAudience, sendingSender } from '../testing/sending.js';
+import { cancelPendingSteps } from './escalation.js';
 
 const EMAIL = 'planned-email';
 const STEPS = 'planned-steps';
@@ -81,6 +83,72 @@ describe('deduplicating email by address (KTD14)', () => {
 
     expect(await deliveriesOf(app.t, notificationId)).toHaveLength(1);
     expect(messagesTo(app.smtp, user.email)).toBe(1);
+  });
+
+  it('still emails an address-only recipient whose mailbox another recipient has not yet confirmed', async () => {
+    const shared = 'shared-pending@example.com';
+    const user = await relayedUser(app);
+    const added = await app.t
+      .http()
+      .post('/api/v1/me/contact-points')
+      .set(user.auth)
+      .send({ channel: 'email', address: shared });
+    expect(added.status).toBe(201);
+    const audience = {
+      kind: 'recipients',
+      recipients: [
+        { kind: 'user', issuer: app.issuer.issuer, subject: user.subject },
+        { kind: 'address', channel: 'email', address: shared },
+      ],
+    };
+    const notificationId = await sendNotification(app.t, credential, EMAIL, audience);
+    await runWorker(app.t);
+
+    const rows = await deliveriesOf(app.t, notificationId);
+    const outcomes = rows
+      .map(({ recipientId, address, status, reason }) => ({
+        recipient: recipientId === user.recipientId ? 'user' : 'address-only',
+        address,
+        status,
+        reason,
+      }))
+      .toSorted((a, b) => `${a.address}${a.recipient}`.localeCompare(`${b.address}${b.recipient}`));
+    expect(outcomes).toEqual([
+      { recipient: 'address-only', address: shared, status: 'delivered', reason: null },
+      { recipient: 'user', address: shared, status: 'skipped', reason: 'no usable contact point' },
+      { recipient: 'user', address: user.email, status: 'delivered', reason: null },
+    ]);
+    // The confirmation email and the address-only recipient's notification.
+    expect(messagesTo(app.smtp, shared)).toBe(2);
+  });
+
+  it('keeps each user’s escalation step to a shared mailbox, so one user’s read cancels only their own', async () => {
+    const shared = 'shared-escalation@example.com';
+    const [reader, other] = await Promise.all([relayedUser(app), relayedUser(app)]);
+    const withShared = (subject: string) => ({
+      kind: 'user',
+      issuer: app.issuer.issuer,
+      subject,
+      contactPoints: [{ channel: 'email', address: shared }],
+    });
+    const audience = { kind: 'recipients', recipients: [withShared(reader.subject), withShared(other.subject)] };
+    const notificationId = await sendNotification(app.t, credential, STEPS, audience);
+    await runWorker(app.t);
+    const sharedStepOne = (await deliveriesOf(app.t, notificationId)).filter(
+      (row) => row.step === 1 && row.address === shared,
+    );
+    expect(sharedStepOne.map((row) => row.recipientId).toSorted()).toEqual(
+      [reader.recipientId, other.recipientId].toSorted(),
+    );
+
+    const nr = await notificationRecipientId(app.t, notificationId, reader.recipientId);
+    await cancelPendingSteps(app.t.database.db, nr, 'read', app.clock.now());
+    app.clock.advanceMinutes(10);
+    await runWorker(app.t);
+
+    expect(messagesTo(app.smtp, shared)).toBe(1);
+    expect(messagesTo(app.smtp, reader.email)).toBe(0);
+    expect(messagesTo(app.smtp, other.email)).toBe(1);
   });
 });
 
