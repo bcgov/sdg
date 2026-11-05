@@ -123,10 +123,14 @@ describe('credential scopes', () => {
     expect(revoked.status).toBe(200);
     expect(revoked.body.grantedTypes).toEqual(['licence']);
     const list = await t.http().get(credentialsPath(sender.id)).set(bearer(sender.ownerToken));
-    expect(list.body).toEqual([
-      { id: first, clientId: 'fish-first', scopedTypes: ['licence'] },
-      { id: second, clientId: 'fish-second', scopedTypes: [] },
-    ]);
+    // The two credentials were linked concurrently, so their creation order (the list's order) is not fixed.
+    expect(list.body).toHaveLength(2);
+    expect(list.body).toEqual(
+      expect.arrayContaining([
+        { id: first, clientId: 'fish-first', scopedTypes: ['licence'] },
+        { id: second, clientId: 'fish-second', scopedTypes: [] },
+      ]),
+    );
     expect((await probe('fish-first')).body.scopedTypes).toEqual(['licence']);
     // Another sender's grant of the same type is untouched.
     expect((await probe('hunt-only')).body.scopedTypes).toEqual(['catch']);

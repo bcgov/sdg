@@ -8,6 +8,8 @@ import { DatabaseModule } from './database/database.module.js';
 import { DeliveryModule } from './delivery/delivery.module.js';
 import { DeliveryLoop } from './delivery/worker-loop.js';
 import { HealthModule } from './health/health.module.js';
+import { HistoryModule } from './history/history.module.js';
+import { InboxModule } from './inbox/inbox.module.js';
 import { IntegrationsApiModule } from './integrations/integrations.module.js';
 import { LoggingModule } from './logging/logging.module.js';
 import { OutboundModule } from './outbound/outbound.module.js';
@@ -41,6 +43,8 @@ export class AppModule {
             TemplatesApiModule,
             RecipientsApiModule,
             SendingModule,
+            HistoryModule,
+            InboxModule,
           ],
           // Worker loops (run by the worker and all roles).
           worker: { imports: [DeliveryModule], loops: [DeliveryLoop] },
