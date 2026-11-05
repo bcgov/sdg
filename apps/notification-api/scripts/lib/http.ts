@@ -1,7 +1,10 @@
 // A small JSON client for the local scripts. Errors name the call and status, never a token or cookie.
-import type { z } from 'zod';
+import { z } from 'zod';
 
 import type { TokenSource } from './tokens.ts';
+
+/** A created resource's id. */
+export const idSchema = z.object({ id: z.uuid() });
 
 export interface Reply {
   status: number;

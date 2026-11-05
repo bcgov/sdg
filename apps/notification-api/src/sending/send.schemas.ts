@@ -5,7 +5,7 @@ import { addressSettingsSchema, senderEmailPointSchema, systemIdSchema } from '.
 import { ownerSchema, typeKeySchema } from '../senders/senders.schemas.js';
 
 /**
- * The largest send body accepted, which also bounds template data (U9). Express's JSON parser enforces it for every
+ * The largest send body accepted, which also bounds template data. Express's JSON parser enforces it for every
  * route, with a 413 for anything larger.
  */
 export const SEND_BODY_LIMIT = '256kb';

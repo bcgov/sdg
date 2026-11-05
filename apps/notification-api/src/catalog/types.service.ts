@@ -43,7 +43,7 @@ export class TypesService {
     return type;
   }
 
-  /** The type with its data contract and policy, for sends (U9) and templates (U5); null when there is none. */
+  /** The type with its data contract and policy, for sends and templates; null when there is none. */
   async find(key: string): Promise<TypeResponse | null> {
     const [type] = await this.db.select(typeColumns).from(notificationTypes).where(eq(notificationTypes.key, key));
     return type ?? null;

@@ -4,7 +4,8 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { TOKEN_CLIENTS } from '../auth/principal.resolver.js';
 import type { TokenClients } from '../auth/token-kind.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { credentials, credentialTypeScopes, senders, senderTypeGrants } from '../database/schema/index.js';
+import { credentials, credentialTypeScopes, senderTypeGrants } from '../database/schema/index.js';
+import { requireSender } from './require-sender.js';
 import type { CredentialResponse } from './senders.schemas.js';
 
 type Reader = Pick<NotificationDatabase, 'select'>;
@@ -43,7 +44,7 @@ export class CredentialsService {
     if (clientId === this.clients.ownClientId || this.clients.relayingClientIds.includes(clientId)) {
       throw new BadRequestException('This client cannot be linked as a credential');
     }
-    await this.requireSender(senderId);
+    await requireSender(this.db, senderId);
     const [created] = await this.db
       .insert(credentials)
       .values({ senderId, clientId })
@@ -54,7 +55,7 @@ export class CredentialsService {
   }
 
   async list(senderId: string): Promise<CredentialResponse[]> {
-    await this.requireSender(senderId);
+    await requireSender(this.db, senderId);
     const rows = await this.db
       .select(credentialColumns)
       .from(credentials)
@@ -115,10 +116,5 @@ export class CredentialsService {
       .where(and(eq(credentials.id, credentialId), eq(credentials.senderId, senderId)));
     if (!credential) throw new NotFoundException();
     return credential;
-  }
-
-  private async requireSender(senderId: string): Promise<void> {
-    const [sender] = await this.db.select({ id: senders.id }).from(senders).where(eq(senders.id, senderId));
-    if (!sender) throw new NotFoundException();
   }
 }

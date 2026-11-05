@@ -22,7 +22,7 @@ class KeyTakenError extends Error {}
 /**
  * Accepts sends (R26–R29): checks them up front, then in one transaction upserts the recipients they name, records
  * the notification with its pinned templates and policy (KTD7) and records the idempotency key (KTD13). Workers
- * expand and deliver it later (U10).
+ * expand and deliver it later.
  */
 @Injectable()
 export class SendService {

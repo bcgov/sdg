@@ -14,9 +14,6 @@ import { senders } from './senders.js';
 export const DELIVERY_STATUSES = ['scheduled', 'sending', 'delivered', 'failed', 'cancelled', 'skipped'] as const;
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 
-/** The statuses a delivery ends in. */
-export const FINAL_DELIVERY_STATUSES = ['delivered', 'failed', 'cancelled', 'skipped'] as const;
-
 /** A failure callback's lifecycle: queued like a delivery and retried with the same bounds (KTD10). */
 export type CallbackStatus = 'scheduled' | 'sending' | 'delivered' | 'failed' | 'skipped';
 
@@ -43,7 +40,6 @@ export const notificationRecipients = pgTable(
   (table) => [
     unique('notification_recipients_notification_id_recipient_id_key').on(table.notificationId, table.recipientId),
     index('notification_recipients_recipient_id_idx').on(table.recipientId),
-    // The planner's queue.
     index('notification_recipients_unplanned_idx')
       .on(table.createdAt)
       .where(sql`planned_at IS NULL`),

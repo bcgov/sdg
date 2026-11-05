@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
-import type { PgColumn } from 'drizzle-orm/pg-core';
+import type { PgColumn, SelectedFieldsFlat } from 'drizzle-orm/pg-core';
 
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { deliveries } from '../database/schema/index.js';
+import { deliveries, failureCallbacks } from '../database/schema/index.js';
 import { CLOCK, DELIVERY_SETTINGS, type Clock, type DeliverySettings } from './settings.js';
 
 /** The queue columns deliveries and failure callbacks share (KTD1). */
@@ -19,6 +19,41 @@ export function claimable(table: QueueColumns, now: Date): SQL | undefined {
     and(eq(table.status, 'scheduled'), lte(table.dueAt, now)),
     and(eq(table.status, 'sending'), lte(table.leaseUntil, now)),
   );
+}
+
+interface ClaimOptions {
+  now: Date;
+  limit: number;
+  leaseMs: number;
+}
+
+/**
+ * Claims up to `limit` due rows of a queue table (KTD1): `FOR UPDATE SKIP LOCKED` so concurrent workers never claim
+ * the same row, then marks them `sending` under a lease and counts the claim as an attempt.
+ */
+export function claimDue<F extends SelectedFieldsFlat>(
+  db: NotificationDatabase,
+  table: typeof deliveries | typeof failureCallbacks,
+  returning: F,
+  { now, limit, leaseMs }: ClaimOptions,
+) {
+  const due = db
+    .select({ id: table.id })
+    .from(table)
+    .where(claimable(table, now))
+    .orderBy(asc(table.dueAt))
+    .limit(limit)
+    .for('update', { skipLocked: true });
+  return db
+    .update(table)
+    .set({
+      status: 'sending',
+      leaseUntil: new Date(now.getTime() + leaseMs),
+      attempts: sql`${table.attempts} + 1`,
+      updatedAt: now,
+    })
+    .where(inArray(table.id, due))
+    .returning(returning);
 }
 
 const claimedColumns = {
@@ -58,23 +93,10 @@ export class DeliveryClaimer {
   }
 
   async claim(limit = this.settings.batchSize): Promise<ClaimedDelivery[]> {
-    const now = this.clock.now();
-    const due = this.db
-      .select({ id: deliveries.id })
-      .from(deliveries)
-      .where(claimable(deliveries, now))
-      .orderBy(asc(deliveries.dueAt))
-      .limit(limit)
-      .for('update', { skipLocked: true });
-    return this.db
-      .update(deliveries)
-      .set({
-        status: 'sending',
-        leaseUntil: new Date(now.getTime() + this.settings.leaseMs),
-        attempts: sql`${deliveries.attempts} + 1`,
-        updatedAt: now,
-      })
-      .where(inArray(deliveries.id, due))
-      .returning(claimedColumns);
+    return claimDue(this.db, deliveries, claimedColumns, {
+      now: this.clock.now(),
+      limit,
+      leaseMs: this.settings.leaseMs,
+    });
   }
 }

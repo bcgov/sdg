@@ -3,7 +3,7 @@ import { directSendWithEscalation, portalContactPoints } from './e2e/flows-recip
 import { publicFormFollowUp, senderCredentialSetup, senderEmailIntegration } from './e2e/flows-senders.ts';
 import { topicBroadcast } from './e2e/flows-topics.ts';
 import { twoWorkers } from './e2e/flows-workers.ts';
-// `pnpm --filter notification-api e2e`: the spike's end-to-end run (U13) against the local compose stack, with real
+// `pnpm --filter notification-api e2e`: the spike's end-to-end run against the local compose stack, with real
 // Keycloak tokens, Mailpit and the webhook receiver. Manual only; CI runs the unit and integration tests (R5).
 // It DROPS and re-migrates the local `notification` database, seeds it (seed.ts), then drives F1–F6 and a two-worker
 // check, printing PASS or FAIL per flow. Exit code 0: every flow passed. 1: setup or any flow failed.

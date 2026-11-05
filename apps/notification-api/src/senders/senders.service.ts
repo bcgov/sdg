@@ -1,11 +1,13 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, eq } from 'drizzle-orm';
 
+import { TypesService } from '../catalog/types.service.js';
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { generateWebhookSecret } from '../crypto/signing.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { notificationTypes, senderOwners, senders, senderTypeGrants } from '../database/schema/index.js';
+import { senderOwners, senders, senderTypeGrants } from '../database/schema/index.js';
 import { OutboundGuard } from '../outbound/outbound-guard.js';
+import { requireSender } from './require-sender.js';
 import type { CallbackResponse, Owner, SenderResponse } from './senders.schemas.js';
 
 /** Where a sender's callback secret is sealed: the AAD binds it to this row and field (KTD11). */
@@ -17,15 +19,18 @@ export class SendersService {
   private readonly db: NotificationDatabase;
   private readonly cipher: SecretCipher;
   private readonly outbound: OutboundGuard;
+  private readonly types: TypesService;
 
   constructor(
     @InjectDatabase() db: NotificationDatabase,
     @Inject(SecretCipher) cipher: SecretCipher,
     @Inject(OutboundGuard) outbound: OutboundGuard,
+    @Inject(TypesService) types: TypesService,
   ) {
     this.db = db;
     this.cipher = cipher;
     this.outbound = outbound;
+    this.types = types;
   }
 
   async create(name: string): Promise<SenderResponse> {
@@ -57,7 +62,7 @@ export class SendersService {
   }
 
   async addOwner(senderId: string, owner: Owner): Promise<SenderResponse> {
-    await this.requireSender(senderId);
+    await requireSender(this.db, senderId);
     await this.db
       .insert(senderOwners)
       .values({ senderId, ...owner })
@@ -66,7 +71,7 @@ export class SendersService {
   }
 
   async removeOwner(senderId: string, owner: Owner): Promise<SenderResponse> {
-    await this.requireSender(senderId);
+    await requireSender(this.db, senderId);
     await this.db
       .delete(senderOwners)
       .where(
@@ -81,7 +86,7 @@ export class SendersService {
 
   /** Grants a Notification type, which must exist in the catalog (R6, R13). */
   async grant(senderId: string, typeKey: string): Promise<SenderResponse> {
-    await Promise.all([this.requireSender(senderId), this.requireType(typeKey)]);
+    await Promise.all([requireSender(this.db, senderId), this.requireType(typeKey)]);
     await this.db.insert(senderTypeGrants).values({ senderId, typeKey }).onConflictDoNothing();
     return this.get(senderId);
   }
@@ -91,7 +96,7 @@ export class SendersService {
    * ON DELETE CASCADE, so the one DELETE removes both atomically.
    */
   async revoke(senderId: string, typeKey: string): Promise<SenderResponse> {
-    await this.requireSender(senderId);
+    await requireSender(this.db, senderId);
     await this.db
       .delete(senderTypeGrants)
       .where(and(eq(senderTypeGrants.senderId, senderId), eq(senderTypeGrants.typeKey, typeKey)));
@@ -117,15 +122,6 @@ export class SendersService {
   }
 
   private async requireType(typeKey: string): Promise<void> {
-    const [type] = await this.db
-      .select({ key: notificationTypes.key })
-      .from(notificationTypes)
-      .where(eq(notificationTypes.key, typeKey));
-    if (!type) throw new NotFoundException('No Notification type with this key');
-  }
-
-  private async requireSender(senderId: string): Promise<void> {
-    const [sender] = await this.db.select({ id: senders.id }).from(senders).where(eq(senders.id, senderId));
-    if (!sender) throw new NotFoundException();
+    if (!(await this.types.find(typeKey))) throw new NotFoundException('No Notification type with this key');
   }
 }

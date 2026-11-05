@@ -13,7 +13,7 @@ import {
   type DeliveryApp,
 } from '../testing/delivery.js';
 import { messagesTo } from '../testing/recipients.js';
-import { sendingSender } from '../testing/sending.js';
+import { addressAudience, sendingSender } from '../testing/sending.js';
 
 const EMAIL = 'planned-email';
 const STEPS = 'planned-steps';
@@ -45,11 +45,6 @@ beforeAll(async () => {
 });
 
 afterAll(() => app.close());
-
-const addressAudience = (address: string) => ({
-  kind: 'recipients',
-  recipients: [{ kind: 'address', channel: 'email', address }],
-});
 
 describe('deduplicating email by address (KTD14)', () => {
   it('sends one email to a user whose IdP email equals the address the sender supplied', async () => {

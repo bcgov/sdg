@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, asc, desc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { policyChannels, type DeliveryPolicy, type PolicyChannel } from '../catalog/policy.js';
 import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
@@ -13,6 +13,7 @@ import {
   type RecipientKind,
 } from '../database/schema/index.js';
 import { describeError } from '../logging/describe-error.js';
+import { visibleToSender } from '../recipients/contact-points.service.js';
 import { TemplateRenderError } from '../templates/render-error.js';
 import { RenderService } from '../templates/render.service.js';
 import { advanceEscalation } from './escalation.js';
@@ -177,7 +178,6 @@ export class PlannerService {
           deliveryRow(target, step, now, { status: 'skipped', reason: SKIP_REASONS.noContactPoint, finishedAt: now }),
         ];
       }
-      // Escalation steps wait for advanceEscalation; all-at-once deliveries are due now.
       const dueAt = step.step === 0 ? now : null;
       return points.map((point) =>
         deliveryRow(target, step, now, { contactPointId: point.id, address: point.address, dueAt }),
@@ -220,13 +220,7 @@ async function plannablePoints(
   const rows = await db
     .select({ id: contactPoints.id, address: contactPoints.address })
     .from(contactPoints)
-    .where(
-      and(
-        eq(contactPoints.recipientId, recipientId),
-        eq(contactPoints.channel, channel),
-        or(isNull(contactPoints.ownerSenderId), eq(contactPoints.ownerSenderId, senderId)),
-      ),
-    )
+    .where(visibleToSender(recipientId, channel, senderId))
     .orderBy(desc(usable), asc(contactPoints.createdAt), asc(contactPoints.address));
   const byAddress = new Map<string, PlannablePoint>();
   for (const row of rows) if (!byAddress.has(row.address)) byAddress.set(row.address, row);

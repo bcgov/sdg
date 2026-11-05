@@ -14,7 +14,7 @@ import { VerificationService } from './verification.service.js';
 
 /**
  * The recipient registry, contact points, verification, settings and subscriptions (R17, R27, R32–R40). No
- * controllers, so sends (U9) and the worker role's delivery (U10) can import it.
+ * controllers, so sends and the worker role's delivery can import it.
  */
 @Module({
   imports: [CatalogModule, IntegrationsModule],

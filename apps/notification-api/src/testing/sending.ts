@@ -9,6 +9,12 @@ import type { TestIssuer } from './tokens.js';
 
 export const SEND_PATH = '/api/v1/notifications';
 
+/** A send's audience of one address-only email recipient, with the sender's reference when given. */
+export const addressAudience = (address: string, reference?: string) => ({
+  kind: 'recipients',
+  recipients: [{ kind: 'address', channel: 'email', address, ...(reference ? { reference } : {}) }],
+});
+
 /** A sender granted types, with a way to link credentials scoped to some of them. */
 export interface SendingSender {
   id: string;

@@ -1,5 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, or, sql, type SQL } from 'drizzle-orm';
 
 import type { Channel } from '../channels/channels.js';
 import { SecretCipher } from '../crypto/secret-cipher.js';
@@ -54,6 +54,18 @@ export interface UsableContactPoints {
   readonly points: UsableContactPoint[];
   /** The recipient has a user-owned point on the channel that is still waiting for confirmation. */
   readonly pendingVerification: boolean;
+}
+
+/**
+ * The recipient's points on `channel` a delivery from `senderId` may consider (R34): the user's own and the ones that
+ * sender supplied. Another sender's points are never included (R33).
+ */
+export function visibleToSender(recipientId: string, channel: Channel, senderId: string): SQL | undefined {
+  return and(
+    eq(contactPoints.recipientId, recipientId),
+    sql`${contactPoints.channel} = ${channel}`,
+    or(isNull(contactPoints.ownerSenderId), eq(contactPoints.ownerSenderId, senderId)),
+  );
 }
 
 /** One address a sender supplies for a recipient (R33). */
@@ -154,22 +166,22 @@ export class ContactPointsService {
 
   /**
    * The points a delivery from `senderId` on `channel` goes to (R34): the user's own verified points and the points
-   * that sender supplied. Another sender's points are never included (R33).
+   * that sender supplied. Another sender's points are never included (R33). With `onlyId`, just that point is read,
+   * so no other point's secret is opened.
    */
   async usable(
     recipientId: string,
     channel: Channel,
     senderId: string,
-    db: DbOrTx = this.db,
+    { db = this.db, onlyId }: { db?: DbOrTx; onlyId?: string } = {},
   ): Promise<UsableContactPoints> {
     const rows = await db
       .select({ ...ownColumns, ownerSenderId: contactPoints.ownerSenderId, signingSecret: contactPoints.signingSecret })
       .from(contactPoints)
       .where(
         and(
-          eq(contactPoints.recipientId, recipientId),
-          sql`${contactPoints.channel} = ${channel}`,
-          or(isNull(contactPoints.ownerSenderId), eq(contactPoints.ownerSenderId, senderId)),
+          visibleToSender(recipientId, channel, senderId),
+          onlyId === undefined ? undefined : eq(contactPoints.id, onlyId),
         ),
       )
       .orderBy(asc(contactPoints.createdAt), asc(contactPoints.address));

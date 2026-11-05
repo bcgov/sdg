@@ -13,12 +13,17 @@ export class TemplateRenderError extends Error {
   }
 }
 
+/** An error's message, or the thrown value as a string. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /** Runs `render` for `part`, reporting any failure as that part's TemplateRenderError. */
 export async function renderingPart<T>(part: string, render: () => Promise<T>): Promise<T> {
   try {
     return await render();
   } catch (error) {
     if (error instanceof TemplateRenderError) throw error;
-    throw new TemplateRenderError(part, error instanceof Error ? error.message : String(error), { cause: error });
+    throw new TemplateRenderError(part, errorMessage(error), { cause: error });
   }
 }

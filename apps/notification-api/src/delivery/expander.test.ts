@@ -13,7 +13,7 @@ import {
   type DeliveryApp,
   type RelayedUser,
 } from '../testing/delivery.js';
-import { sendingSender } from '../testing/sending.js';
+import { addressAudience, sendingSender } from '../testing/sending.js';
 
 const TYPE = 'broadcast-alert';
 
@@ -50,11 +50,6 @@ async function audienceOf(notificationId: string): Promise<string[]> {
     .where(eq(notificationRecipients.notificationId, notificationId));
   return rows.map((row) => row.recipientId).toSorted((a, b) => a.localeCompare(b));
 }
-
-const addressAudience = (address: string) => ({
-  kind: 'recipients',
-  recipients: [{ kind: 'address', channel: 'email', address }],
-});
 
 describe('expanding audiences (R30, R31, KTD14)', () => {
   it('covers AE12: "everyone" reaches registered users, systems and topic subscribers, not address-only recipients, and is fixed at expansion', async () => {

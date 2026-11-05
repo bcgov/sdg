@@ -7,7 +7,7 @@ import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../datab
 import { topics, topicSubscriptions } from '../database/schema/index.js';
 
 /**
- * The current subscribers of a topic as a subquery, for set-based audience expansion (U10, KTD14):
+ * The current subscribers of a topic as a subquery, for set-based audience expansion (KTD14):
  * `INSERT … SELECT … WHERE recipient_id IN (subscribersQuery(tx, topicId))`.
  */
 export function subscribersQuery(db: DbOrTx, topicId: string) {

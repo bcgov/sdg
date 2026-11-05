@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { PLATFORM_TOPIC, TYPE_KEYS, seedTypes, type SeedType } from './lib/catalog.ts';
 import { baseUrl, exitWithError, loadAppEnv, optionalEnv, requiredEnv } from './lib/env.ts';
-import { api, bearer, expectBody, expectStatus, type Api } from './lib/http.ts';
+import { api, bearer, expectBody, expectStatus, idSchema, type Api } from './lib/http.ts';
 import { personOf, staticToken, type TokenSource } from './lib/tokens.ts';
 import { login } from './login.ts';
 
@@ -45,7 +45,6 @@ export interface Seeded {
   platformTopicId: string;
 }
 
-const idSchema = z.object({ id: z.uuid() });
 const credentialSchema = z.object({ id: z.uuid(), clientId: z.string(), scopedTypes: z.array(z.string()) });
 export type Credential = z.infer<typeof credentialSchema>;
 

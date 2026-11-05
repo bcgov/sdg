@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createTestApp, type TestApp } from '../testing/app.js';
-import { bearer, createSender, type SenderFixture } from '../testing/senders.js';
+import { senderWithCredential, type CredentialSender } from '../testing/recipients.js';
+import { bearer } from '../testing/senders.js';
 import { startTestIssuer, type TestIssuer } from '../testing/tokens.js';
 import { TopicsService } from './topics.service.js';
 
@@ -22,31 +23,13 @@ afterAll(async () => {
   await issuer.close();
 });
 
-interface SenderWithCredential extends SenderFixture {
-  /** A bearer header with the sender's linked credential's client-credentials token. */
-  credential: { authorization: string };
-}
-
-/** A sender with one linked credential. */
-async function senderWithCredential(name: string): Promise<SenderWithCredential> {
-  const sender = await createSender(t, issuer, adminToken, { name, owner: `${name}-owner` });
-  const clientId = `${name}-client`;
-  const linked = await t
-    .http()
-    .post(`/api/v1/senders/${sender.id}/credentials`)
-    .set(bearer(sender.ownerToken))
-    .send({ clientId });
-  expect(linked.status).toBe(201);
-  return { ...sender, credential: bearer(await issuer.credentialToken(clientId)) };
-}
-
 async function platformTopic(key: string, selfSubscribe?: boolean): Promise<string> {
   const res = await t.http().post('/api/v1/admin/topics').set(admin).send({ key, name: key, selfSubscribe });
   expect(res.status).toBe(201);
   return String(res.body.id);
 }
 
-async function senderTopic(sender: SenderWithCredential, key: string): Promise<string> {
+async function senderTopic(sender: CredentialSender, key: string): Promise<string> {
   const res = await t
     .http()
     .post('/api/v1/topics')
@@ -64,7 +47,7 @@ const canBroadcast = async (senderId: string, topicId: string): Promise<boolean>
 
 describe('F6 setup: platform topic, broadcast grant, sender topic', () => {
   it('the admin creates a platform topic and grants a sender, and the sender creates a topic for one permit', async () => {
-    const sender = await senderWithCredential('wildfire');
+    const sender = await senderWithCredential(t, issuer, adminToken, 'wildfire');
     const created = await t
       .http()
       .post('/api/v1/admin/topics')
@@ -108,7 +91,10 @@ describe('F6 setup: platform topic, broadcast grant, sender topic', () => {
 
 describe('broadcast permission (R15, R16)', () => {
   it('a sender without a broadcast grant cannot see or broadcast to a platform topic', async () => {
-    const [granted, ungranted] = await Promise.all([senderWithCredential('roads'), senderWithCredential('rail')]);
+    const [granted, ungranted] = await Promise.all([
+      senderWithCredential(t, issuer, adminToken, 'roads'),
+      senderWithCredential(t, issuer, adminToken, 'rail'),
+    ]);
     const closures = await platformTopic('road-closures');
     expect((await t.http().put(broadcasterPath(closures, granted.id)).set(admin)).status).toBe(200);
 
@@ -124,7 +110,7 @@ describe('broadcast permission (R15, R16)', () => {
   });
 
   it('revoking the grant ends the sender’s permission to broadcast', async () => {
-    const sender = await senderWithCredential('ferries');
+    const sender = await senderWithCredential(t, issuer, adminToken, 'ferries');
     const sailings = await platformTopic('sailings');
     await t.http().put(broadcasterPath(sailings, sender.id)).set(admin);
 
@@ -137,7 +123,10 @@ describe('broadcast permission (R15, R16)', () => {
   });
 
   it('sender A cannot see or broadcast to sender B’s topics, even with the same key', async () => {
-    const [a, b] = await Promise.all([senderWithCredential('fish'), senderWithCredential('hunt')]);
+    const [a, b] = await Promise.all([
+      senderWithCredential(t, issuer, adminToken, 'fish'),
+      senderWithCredential(t, issuer, adminToken, 'hunt'),
+    ]);
     const [topicA, topicB] = await Promise.all([senderTopic(a, 'permit-1'), senderTopic(b, 'permit-1')]);
 
     const [readB, listA] = await Promise.all([
@@ -152,7 +141,10 @@ describe('broadcast permission (R15, R16)', () => {
   });
 
   it('the admin cannot grant broadcast to a sender topic', async () => {
-    const [owner, other] = await Promise.all([senderWithCredential('mines'), senderWithCredential('quarries')]);
+    const [owner, other] = await Promise.all([
+      senderWithCredential(t, issuer, adminToken, 'mines'),
+      senderWithCredential(t, issuer, adminToken, 'quarries'),
+    ]);
     const topic = await senderTopic(owner, 'mine-7');
 
     const res = await t.http().put(broadcasterPath(topic, other.id)).set(admin);
@@ -164,7 +156,7 @@ describe('broadcast permission (R15, R16)', () => {
 
 describe('topic keys and access', () => {
   it('refuses a key already used among platform topics, or within the same sender', async () => {
-    const sender = await senderWithCredential('parks');
+    const sender = await senderWithCredential(t, issuer, adminToken, 'parks');
     await Promise.all([platformTopic('park-alerts'), senderTopic(sender, 'campsite-9')]);
 
     const [platform, own] = await Promise.all([
@@ -176,7 +168,7 @@ describe('topic keys and access', () => {
   });
 
   it('only an admin manages platform topics, and only a credential creates sender topics', async () => {
-    const sender = await senderWithCredential('water');
+    const sender = await senderWithCredential(t, issuer, adminToken, 'water');
     const topic = await platformTopic('water-advisories');
 
     const [ownerCreate, ownerGrant, credentialCreate, adminSenderTopic] = await Promise.all([

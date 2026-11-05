@@ -27,8 +27,6 @@ export const quietHoursSchema = z
   .refine((hours) => hours.start !== hours.end, { message: 'start and end must differ', path: ['end'] });
 export type QuietHours = z.infer<typeof quietHoursSchema>;
 
-// Recipient endpoints
-
 export const settingsSchema = z.object({
   id: z.uuid(),
   language: z.string().nullable(),
@@ -82,8 +80,6 @@ export type ContactPointResponse = z.infer<typeof contactPointSchema>;
 export const contactPointListSchema = z.array(contactPointSchema);
 
 export const subscriptionListSchema = z.array(topicSchema);
-
-// Sender endpoints
 
 export const senderEmailPointSchema = z.object({ channel: z.literal('email'), address: emailAddressSchema });
 
@@ -149,8 +145,6 @@ export type AddressRecipientResponse = z.infer<typeof addressRecipientSchema>;
 /** A user by issuer + subject, or one of the sender's systems by its id (R27). */
 export const recipientRefSchema = z.union([ownerSchema.strict(), z.strictObject({ systemId: systemIdSchema })]);
 export type RecipientRef = z.infer<typeof recipientRefSchema>;
-
-// Public confirm endpoint
 
 export const confirmSchema = z.object({
   token: z.string().min(1).max(200).meta({ description: 'The token from the confirmation link' }),

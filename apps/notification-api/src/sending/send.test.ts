@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { contactPoints, credentials, recipientRegistrations, recipients } from '../database/schema/index.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
 import { bearer } from '../testing/senders.js';
-import { notificationsOf, SEND_PATH, sendingSender, type SendingSender } from '../testing/sending.js';
+import { addressAudience, notificationsOf, SEND_PATH, sendingSender, type SendingSender } from '../testing/sending.js';
 import { ensureSaved, mjml, permitType, templatesApi } from '../testing/templates.js';
 import { startTestIssuer, type TestIssuer } from '../testing/tokens.js';
 
@@ -58,11 +58,6 @@ const send = (credential: { authorization: string }, body: Record<string, unknow
     .post(SEND_PATH)
     .set(credential)
     .send({ type: EXPIRING, data: EXPIRING_DATA, idempotencyKey: randomUUID(), ...body });
-
-const addressAudience = (address: string) => ({
-  kind: 'recipients',
-  recipients: [{ kind: 'address', channel: 'email', address }],
-});
 
 const addressRecipient = (senderId: string, address: string) =>
   t.database.db

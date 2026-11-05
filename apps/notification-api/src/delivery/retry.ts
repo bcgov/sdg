@@ -2,6 +2,9 @@ import type { SendOutcome } from '../outbound/outcome.js';
 
 /** KTD17: at most 6 attempts, backing off from 30 seconds, doubling, capped at an hour. */
 export const MAX_ATTEMPTS = 6;
+
+/** A claim beyond the last attempt: a crashed worker's last try being reclaimed. */
+export const isReclaimedFinalAttempt = (attempts: number): boolean => attempts > MAX_ATTEMPTS;
 export const FIRST_BACKOFF_MS = 30_000;
 export const MAX_BACKOFF_MS = 60 * 60_000;
 

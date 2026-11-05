@@ -5,6 +5,7 @@ import { TypesService } from '../catalog/types.service.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
 import { fragmentVersions, type FragmentKind } from '../database/schema/index.js';
 import { referencedNames } from './engines.js';
+import { errorMessage } from './render-error.js';
 import { DEFAULT_TIME_ZONE } from './render.service.js';
 import { currentTemplates, fragmentClosure, type FragmentRow, type PinnedFragment } from './template-store.js';
 import type { FragmentVersionResponse } from './templates.schemas.js';
@@ -21,7 +22,7 @@ function referencesOrReject(source: string): string[] {
   try {
     return referencedNames([source]);
   } catch (error) {
-    throw rejected('The source does not parse', [error instanceof Error ? error.message : String(error)]);
+    throw rejected('The source does not parse', [errorMessage(error)]);
   }
 }
 

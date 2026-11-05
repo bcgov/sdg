@@ -10,7 +10,7 @@ import {
   type DeliveryApp,
 } from '../testing/delivery.js';
 import { bearer } from '../testing/senders.js';
-import { sendingSender } from '../testing/sending.js';
+import { addressAudience, sendingSender } from '../testing/sending.js';
 import {
   notificationDetailSchema,
   notificationPageSchema,
@@ -28,11 +28,6 @@ let other: { authorization: string };
 /** The intake sender's two F2 sends, to `Jane@Example.com` (with a form reference) and then `jane@example.com`. */
 let first: string;
 let second: string;
-
-const addressAudience = (address: string, reference?: string) => ({
-  kind: 'recipients',
-  recipients: [{ kind: 'address', channel: 'email', address, ...(reference ? { reference } : {}) }],
-});
 
 type Auth = { authorization: string };
 

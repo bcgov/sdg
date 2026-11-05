@@ -1,11 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { recipients } from '../database/schema/index.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
-import { senderWithCredential, type CredentialSender } from '../testing/recipients.js';
+import { relayed, senderWithCredential, userRows, type CredentialSender } from '../testing/recipients.js';
 import { bearer } from '../testing/senders.js';
 import { startTestIssuer, type TestIssuer } from '../testing/tokens.js';
 import { ContactPointsService } from './contact-points.service.js';
@@ -36,15 +34,6 @@ afterAll(async () => {
   await t.close();
   await issuer.close();
 });
-
-const relayed = async (subject: string, claims: Record<string, unknown> = {}) =>
-  bearer(await issuer.relayingUserToken({ subject, claims }));
-
-const userRows = (subject: string) =>
-  t.database.db
-    .select({ id: recipients.id, claimedAt: recipients.claimedAt })
-    .from(recipients)
-    .where(and(eq(recipients.issuer, issuer.issuer), eq(recipients.subject, subject)));
 
 describe('system recipients (R33, KTD10)', () => {
   it('registers https webhook endpoints, each with a signing secret returned once and stored sealed', async () => {
@@ -90,7 +79,7 @@ async function platformTopic(selfSubscribe: boolean): Promise<string> {
 describe('topic subscriptions (R17)', () => {
   it('a user self-subscribes to a platform topic that allows it and is rejected on one that does not', async () => {
     const [open, closed] = await Promise.all([platformTopic(true), platformTopic(false)]);
-    const user = await relayed(randomUUID());
+    const user = await relayed(issuer, randomUUID());
 
     const allowed = await t.http().put(`/api/v1/me/subscriptions/${open}`).set(user);
     const denied = await t.http().put(`/api/v1/me/subscriptions/${closed}`).set(user);
@@ -115,13 +104,13 @@ describe('topic subscriptions (R17)', () => {
 
     expect(refused.status).toBe(404);
     expect(await t.app.get(SubscriptionsService).subscribers(topic)).toEqual([]);
-    expect(await userRows(person.subject)).toEqual([]);
+    expect(await userRows(t, issuer, person.subject)).toEqual([]);
 
     expect((await t.http().put(`/api/v1/admin/topics/${topic}/broadcasters/${permits.id}`).set(admin)).status).toBe(
       200,
     );
     expect((await subscribe()).status).toBe(204);
-    const [row] = await userRows(person.subject);
+    const [row] = await userRows(t, issuer, person.subject);
     expect(await t.app.get(SubscriptionsService).subscribers(topic)).toEqual([row?.id]);
   });
 

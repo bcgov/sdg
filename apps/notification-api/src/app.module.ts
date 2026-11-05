@@ -34,7 +34,6 @@ export class AppModule {
         OutboundModule,
         HealthModule,
         RoleModule.register({
-          // Feature modules with API controllers (served by the api and all roles).
           api: [
             AuthModule.register({ credentialDirectory: DbCredentialDirectory, senderOwnership: DbSenderOwnership }),
             SendersModule,
@@ -46,7 +45,6 @@ export class AppModule {
             HistoryModule,
             InboxModule,
           ],
-          // Worker loops (run by the worker and all roles).
           worker: { imports: [DeliveryModule], loops: [DeliveryLoop] },
         }),
       ],
