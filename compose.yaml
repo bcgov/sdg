@@ -1,7 +1,9 @@
 # Local development stack for the portal (`podman compose up -d` or `docker compose up -d`).
 # Caddy fronts everything at https://sdg.localhost; portal-api and portal-web publish no host ports.
 # Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets
-# come from apps/portal-api/.env (gitignored). See DEVELOPER.md "Local Stack" for the one-time TLS trust step.
+# come from apps/portal-api/.env, notification-api's from apps/notification-api/.env (both gitignored).
+# See DEVELOPER.md "Local Stack" for the one-time TLS trust step.
+# notification-api is at https://notify.sdg.localhost; Mailpit (its mail catcher) at http://localhost:8025.
 # Postgres's host port defaults to 5432; override with POSTGRES_PORT if it is taken.
 # Telemetry is off here; `-f compose.observability.yaml` adds the Grafana LGTM stack and turns it on (DEVELOPER.md).
 name: portal
@@ -52,6 +54,8 @@ x-init-healthcheck: &init-healthcheck
   start_period: 600s
 
 x-database-url: &database-url postgres://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgis:5432/${POSTGRES_DB:-portal}
+# notification-api's own database on the same server (KTD2); its migrate step creates it when missing.
+x-notification-database-url: &notification-database-url postgres://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgis:5432/notification
 
 services:
   postgis:
@@ -127,6 +131,8 @@ services:
       APP_URL: https://sdg.localhost
       TRUST_PROXY: 'true'
       DATABASE_URL: *database-url
+      # The recipient relay (/api/v1/notifications/*) and the public confirm route forward here.
+      NOTIFICATION_API_URL: http://notification-api:3000
     # turbo builds the workspace packages portal-api imports (auth, portal-database) before `nest start --watch`.
     # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
     command: ['pnpm', 'turbo', 'run', 'dev', '--filter=portal-api', '--ui=stream', '--env-mode=loose']
@@ -166,6 +172,94 @@ services:
     depends_on:
       deps:
         condition: service_healthy
+
+  # Init container: notification-api starts only after its database exists and is migrated.
+  notification-migrate:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      DATABASE_URL: *notification-database-url
+    command:
+      - sh
+      - -c
+      - rm -f /tmp/ready && pnpm --filter notification-api db:migrate && touch /tmp/ready && exec sleep infinity
+    init: true
+    restart: 'no'
+    healthcheck: *init-healthcheck
+    depends_on:
+      deps:
+        condition: service_healthy
+      postgis:
+        condition: service_healthy
+
+  # No host ports: reachable only through Caddy at https://notify.sdg.localhost.
+  # Runs the API and the delivery workers in one process (`all` role). Secrets (NOTIFICATION_ENCRYPTION_KEY) and the
+  # Keycloak settings stay in apps/notification-api/.env; the values below override that file's localhost ones.
+  notification-api:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      PORT: '3000'
+      TRUST_PROXY: 'true'
+      NOTIFICATION_ROLE: all
+      DATABASE_URL: *notification-database-url
+      # Exempt from the outbound guard's public-address and TLS checks (R51): the local stack's catchers only.
+      NOTIFICATION_OUTBOUND_ALLOW_HOSTS: mailpit,webhook-receiver
+      DEFAULT_SMTP_HOST: mailpit
+      DEFAULT_SMTP_PORT: '1025'
+      DEFAULT_SMTP_SECURE: 'false'
+      DEFAULT_SMTP_FROM: notifications@sdg.localhost
+      CONFIRM_EMAIL_URL: https://sdg.localhost/confirm-email
+    # Loose env mode, as for portal-api: strict mode would drop the overrides above.
+    command: ['pnpm', 'turbo', 'run', 'dev', '--filter=notification-api', '--ui=stream', '--env-mode=loose']
+    depends_on:
+      notification-migrate:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      webhook-receiver:
+        condition: service_started
+    healthcheck:
+      # Liveness, not readiness: readiness runs Keycloak discovery.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # Catches every email notification-api sends (SMTP on 1025 inside the network). UI and API on the host only.
+  # Accepts any SMTP login, including none, so a sender's own integration can carry credentials (F4).
+  mailpit:
+    image: docker.io/axllent/mailpit:v1.31.6
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    ports:
+      - '127.0.0.1:${MAILPIT_PORT:-8025}:8025'
+
+  # Records every webhook and failure callback notification-api sends, for scripts/e2e.ts to read back
+  # (apps/notification-api/scripts/webhook-receiver.ts: GET/DELETE /requests). Node built-ins only, so no install.
+  webhook-receiver:
+    image: docker.io/library/node:26-slim
+    command: ['node', '/receiver/webhook-receiver.ts']
+    init: true
+    volumes:
+      - ./apps/notification-api/scripts/webhook-receiver.ts:/receiver/webhook-receiver.ts:ro
+    ports:
+      - '127.0.0.1:${WEBHOOK_RECEIVER_PORT:-8090}:8080'
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8080/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   caddy:
     build: apps/portal-web/caddy

@@ -414,6 +414,8 @@ Run `pnpm test:charts` after changing a chart.
 | `deps`       | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
 | `postgis`    | database                                                                                 | `localhost:5432`                   |
 
+The notification-api spike runs alongside (see [Notification stack](#notification-stack)): `notification-api` at `https://notify.sdg.localhost`, `notification-migrate`, `mailpit` (`http://localhost:8025`) and `webhook-receiver` (`http://localhost:8090`).
+
 ## First run
 
 1. Copy `apps/portal-api/.env.example` to `apps/portal-api/.env` and set `SESSION_SECRET` and the `KEYCLOAK_*` values. compose overrides the URLs (`APP_URL`, `DATABASE_URL`, `TRUST_PROXY`), so the file's `localhost` values can stay for host-run development.
@@ -428,6 +430,12 @@ Run `pnpm test:charts` after changing a chart.
    ```
    Firefox keeps its own store: import the certificate there, or set `security.enterprise_roots.enabled` to `true` in `about:config`.
 5. Check the stack end to end with `scripts/compose-smoke.sh --no-up` (TLS, headers, WAF, API proxy, port isolation, migrations).
+
+## Notification stack
+
+notification-api (`apps/notification-api/README.md`) starts with the rest of the stack once `apps/notification-api/.env` exists (copy `.env.example`; set the Keycloak keys, `RELAYING_CLIENT_IDS` and `NOTIFICATION_ENCRYPTION_KEY`). It runs the API and the delivery workers in one process, sends all email to Mailpit and is allowed plain HTTP and SMTP only to Mailpit and the webhook receiver. portal-api relays the signed-in user's notification calls to it (`NOTIFICATION_API_URL`).
+
+The scripts in `apps/notification-api/scripts` drive it with real Keycloak tokens: `login` prints an admin token, `seed` fills an empty database, and `e2e` resets the database and checks flows F1–F6 plus two workers sharing it. Run them with `pnpm --filter notification-api <script>`; the README lists their settings. The end-to-end run is manual and never runs in CI.
 
 ## Observability (optional)
 
@@ -447,6 +455,7 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 - **`schema "cron" does not exist` when migrating**: the `portal-pgdata` volume predates pg_cron, and the `postgis` image only installs the extension on a fresh volume. Recreate it with `podman compose down && podman volume rm portal_portal-pgdata && podman compose up -d --build`, which deletes local data. Keeping the old volume isn't worth it: the image moved from alpine to Debian, which changes collations.
 - **After changing `Dockerfile.dev`, `apps/portal-web/caddy/Dockerfile` or `packages/portal-database/dev-postgres/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
 - **Adding a workspace package**: add its `node_modules` volume to `x-workspace` and `volumes:` in `compose.yaml`.
+- **notification-api or notification-migrate fails with `not found` or `Cannot find module`** on a stack created before it existed: the running `deps` container lacks the `nm-notification-api` volume. Recreate it with `podman compose up -d --force-recreate deps`, then start the stack. After adding `NOTIFICATION_API_URL`, recreate `portal-api` too (podman-compose doesn't for an env change), or `/api/v1/notifications` answers 404.
 - **WAF**: rules using `block` (1001, 1002, 1005, 1007, 1008) follow Coraza's default action (`pass`) and only log a `Coraza: Warning`. Rules using `deny` (1003, 1004) return 403.
 
 # Production Images
