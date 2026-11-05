@@ -15,11 +15,13 @@ import {
   ApiBadGatewayResponse,
   ApiBadRequestResponse,
   ApiCookieAuth,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
@@ -27,6 +29,7 @@ import { z } from 'zod';
 import { SessionAuthGuard } from '../auth/session-auth.guard.js';
 import { SESSION_COOKIE } from '../session/session.module.js';
 import { RelayService, type RelayResponse } from './relay.service.js';
+import { SameOriginJsonGuard } from './same-origin-json.guard.js';
 import { TokenRefreshService } from './token-refresh.service.js';
 
 /** Where the recipient relay is mounted, and notification-api's recipient endpoints it forwards to. */
@@ -74,7 +77,7 @@ function recipientPath(originalUrl: string): string | null {
 @ApiTags('notifications')
 @ApiCookieAuth(SESSION_COOKIE)
 @Controller({ path: 'notifications', version: '1' })
-@UseGuards(RelayEnabledGuard, SessionAuthGuard)
+@UseGuards(RelayEnabledGuard, SameOriginJsonGuard, SessionAuthGuard)
 export class RelayController {
   private readonly relay: RelayService;
   private readonly tokens: TokenRefreshService;
@@ -86,8 +89,12 @@ export class RelayController {
 
   @All(['', '*path'])
   @ApiOkResponse({ description: "notification-api's response for the matching /api/v1/me endpoint" })
-  @ApiUnauthorizedResponse({ description: 'No authenticated session, or the token refresh failed (session ended)' })
-  @ApiBadGatewayResponse({ description: 'notification-api is unreachable' })
+  @ApiUnauthorizedResponse({
+    description: 'No authenticated session, or the identity provider rejected the token refresh (session ended)',
+  })
+  @ApiForbiddenResponse({ description: 'A write from another origin (Sec-Fetch-Site)' })
+  @ApiUnsupportedMediaTypeResponse({ description: 'A write whose body is not application/json' })
+  @ApiBadGatewayResponse({ description: 'notification-api or the identity provider is unreachable' })
   @ApiNotFoundResponse({ description: 'The relay is disabled (NOTIFICATION_API_URL is blank)' })
   async relayRecipient(@Req() req: Request, @Res() res: Response): Promise<void> {
     const pathAndQuery = recipientPath(req.originalUrl);
@@ -101,7 +108,7 @@ export class RelayController {
 /** The public confirm route for portal-web's confirm-email page (R35, KTD15): no session, the token is the proof. */
 @ApiTags('notifications')
 @Controller({ path: 'contact-points', version: '1' })
-@UseGuards(RelayEnabledGuard)
+@UseGuards(RelayEnabledGuard, SameOriginJsonGuard)
 export class ConfirmRelayController {
   private readonly relay: RelayService;
 
@@ -112,6 +119,8 @@ export class ConfirmRelayController {
   @Post('confirm')
   @ApiNoContentResponse({ description: 'Confirmed' })
   @ApiBadRequestResponse({ description: 'The token is invalid, already used or expired' })
+  @ApiForbiddenResponse({ description: 'Sent from another origin (Sec-Fetch-Site)' })
+  @ApiUnsupportedMediaTypeResponse({ description: 'The body is not application/json' })
   @ApiBadGatewayResponse({ description: 'notification-api is unreachable' })
   async confirm(@Body({ schema: confirmBodySchema }) body: ConfirmBody, @Res() res: Response): Promise<void> {
     send(res, await this.relay.forward({ method: 'POST', pathAndQuery: '/api/v1/contact-points/confirm', body }));
