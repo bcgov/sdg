@@ -9,8 +9,9 @@ import { twoWorkers } from './e2e/flows-workers.ts';
 // check, printing PASS or FAIL per flow. Exit code 0: every flow passed. 1: setup or any flow failed.
 //
 // Before running: the stack is up (`podman compose up -d`), Caddy's root is trusted (`pnpm stack:trust`), and you
-// signed in at https://sdg.localhost as the same person who signs in to notification-api below, with the
-// notification-api client's `admin` role. Takes about three minutes (F1 waits out a one-minute escalation delay).
+// signed in at https://sdg.localhost (BC Services Card) for PORTAL_SESSION_COOKIE. The admin who signs in to
+// notification-api below (IDIR, with the client's `admin` role) is a different identity; the relayed flows send to
+// the portal user. Takes about three minutes (F1 waits out a one-minute escalation delay).
 //
 // Reads apps/notification-api/.env (gitignored; the process env wins). Required:
 //   DATABASE_URL                    the local `notification` database from the host, e.g.
