@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-  type HttpException,
-} from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
 
 import type { TypeResponse } from '../catalog/catalog.schemas.js';
@@ -13,6 +6,7 @@ import { sampleData } from '../catalog/data-contract.js';
 import { TypesService } from '../catalog/types.service.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
 import { templateVersions } from '../database/schema/index.js';
+import { badRequest } from '../http/bad-request.js';
 import { TemplateRenderError } from './render-error.js';
 import { DEFAULT_TIME_ZONE } from './render.service.js';
 import { renderParts } from './renderer.js';
@@ -31,17 +25,12 @@ export function toTemplateVersion(row: TemplateRow): TemplateVersionResponse {
   return { id, typeKey, channel, language, version, parts, references, createdAt: createdAt.toISOString() };
 }
 
-/** A 400 listing each problem a save found. */
-export function rejected(message: string, errors: readonly string[]): HttpException {
-  return new BadRequestException({ message, errors });
-}
-
 /** The references of parts, or a 400 when a part does not parse. */
 export function referencesOrReject(params: TemplateParams, parts: Record<string, string>): string[] {
   try {
     return templateReferences(params.channel, parts);
   } catch (error) {
-    if (error instanceof TemplateRenderError) throw rejected('The template does not parse', [error.message]);
+    if (error instanceof TemplateRenderError) throw badRequest('The template does not parse', [error.message]);
     throw error;
   }
 }
@@ -71,7 +60,7 @@ export class VersionsService {
     const type = await this.type(params.typeKey);
     const parsed = partsSchema(params.channel).safeParse(rawParts);
     if (!parsed.success) {
-      throw rejected(
+      throw badRequest(
         `Not the ${params.channel} channel's parts`,
         parsed.error.issues.map((issue) => `${issue.path.join('.') || 'parts'}: ${issue.message}`),
       );
@@ -86,7 +75,7 @@ export class VersionsService {
       fragments,
       timeZone: this.defaultTimeZone,
     });
-    if (errors.length > 0) throw rejected('The template failed its test renders', errors);
+    if (errors.length > 0) throw badRequest('The template failed its test renders', errors);
     return this.insert(params, parts, references);
   }
 
@@ -157,7 +146,7 @@ export class VersionsService {
       });
       return { version: template.version, language: template.language, rendered };
     } catch (error) {
-      if (error instanceof TemplateRenderError) throw rejected('The template did not render', [error.message]);
+      if (error instanceof TemplateRenderError) throw badRequest('The template did not render', [error.message]);
       throw error;
     }
   }

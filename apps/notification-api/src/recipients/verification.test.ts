@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { verificationTokens } from '../database/schema/index.js';
+import { confirmationSends, verificationTokens } from '../database/schema/index.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
 import {
   confirmationToken,
@@ -50,6 +50,25 @@ async function addEmail(user: { authorization: string }, address: string) {
 }
 
 const confirm = (token: string) => t.http().post('/api/v1/contact-points/confirm').send({ token });
+
+const resend = (user: { authorization: string }, id: unknown) =>
+  t
+    .http()
+    .post(`/api/v1/me/contact-points/${String(id)}/resend`)
+    .set(user);
+
+/** Runs `request` while the platform SMTP server refuses every message. */
+async function whileSmtpFails<T>(request: () => Promise<T>): Promise<T> {
+  smtp.failing = true;
+  try {
+    return await request();
+  } finally {
+    smtp.failing = false;
+  }
+}
+
+const sendsTo = async (address: string) =>
+  (await t.database.db.select().from(confirmationSends).where(eq(confirmationSends.address, address))).length;
 
 describe('the IdP email seed (R32, R35)', () => {
   it('stores an email the token does not mark verified as unverified, and sends it a confirmation', async () => {
@@ -194,6 +213,50 @@ describe('confirmation rate limits (R36)', () => {
     expect(resent.status).toBe(429);
     expect(resent.body.retryAfterSeconds).toBeGreaterThan(590);
     expect(messagesTo(smtp, address)).toBe(1);
+  });
+});
+
+describe('a confirmation the platform SMTP fails to send (R36)', () => {
+  it('answers 502 on add, counts nothing, and a resend once SMTP is back goes out and is then counted', async () => {
+    const user = await newUser();
+    const address = `${randomUUID()}@example.com`;
+
+    const added = await whileSmtpFails(() => addEmail(user, address));
+
+    expect(added.status).toBe(502);
+    expect(await sendsTo(address)).toBe(0);
+    const point = (await t.http().get('/api/v1/me/contact-points').set(user)).body.find(
+      (row: { address: string }) => row.address === address,
+    );
+    expect(point).toMatchObject({ verified: false });
+    expect(
+      await t.database.db.select().from(verificationTokens).where(eq(verificationTokens.address, address)),
+    ).toEqual([]);
+
+    expect((await resend(user, point.id)).status).toBe(204);
+    expect(messagesTo(smtp, address)).toBe(1);
+    expect(await sendsTo(address)).toBe(1);
+    expect((await resend(user, point.id)).status).toBe(429);
+    expect((await confirm(confirmationToken(smtp, address))).status).toBe(204);
+  });
+
+  it('releases the reservation of a failed edit and a failed resend, so the next resend goes out', async () => {
+    const user = await newUser();
+    const before = `${randomUUID()}@example.com`;
+    const after = `${randomUUID()}@example.com`;
+    const added = await addEmail(user, before);
+    expect(added.status).toBe(201);
+
+    const edited = await whileSmtpFails(() =>
+      t.http().patch(`/api/v1/me/contact-points/${added.body.id}`).set(user).send({ address: after }),
+    );
+    const resentWhileFailing = await whileSmtpFails(() => resend(user, added.body.id));
+
+    expect([edited.status, resentWhileFailing.status]).toEqual([502, 502]);
+    expect(await sendsTo(after)).toBe(0);
+    expect((await resend(user, added.body.id)).status).toBe(204);
+    expect(messagesTo(smtp, after)).toBe(1);
+    expect(await sendsTo(after)).toBe(1);
   });
 });
 

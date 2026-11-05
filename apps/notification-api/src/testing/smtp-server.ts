@@ -7,10 +7,13 @@ export interface TestSmtpServer {
   readonly commands: string[];
   /** The raw content of each accepted message. */
   readonly messages: string[];
+  /** While true, every MAIL FROM gets a temporary 451 and no message is accepted. */
+  failing: boolean;
   close(): Promise<void>;
 }
 
-function handleSession(socket: Socket, commands: string[], messages: string[]): void {
+function handleSession(socket: Socket, server: Pick<TestSmtpServer, 'commands' | 'messages' | 'failing'>): void {
+  const { commands, messages } = server;
   let buffer = '';
   let data: string[] | null = null;
   const reply = (line: string) => socket.write(`${line}\r\n`);
@@ -34,6 +37,7 @@ function handleSession(socket: Socket, commands: string[], messages: string[]): 
       const verb = line.split(' ')[0]?.toUpperCase();
       if (verb === 'EHLO') reply('250-test-smtp\r\n250 8BITMIME');
       else if (verb === 'STARTTLS') reply('502 5.5.1 STARTTLS not supported');
+      else if (verb === 'MAIL' && server.failing) reply('451 4.3.0 try again later');
       else if (verb === 'DATA') {
         data = [];
         reply('354 end with .');
@@ -46,25 +50,22 @@ function handleSession(socket: Socket, commands: string[], messages: string[]): 
 }
 
 export async function startTestSmtpServer(): Promise<TestSmtpServer> {
-  const commands: string[] = [];
-  const messages: string[] = [];
+  const session = { commands: [] as string[], messages: [] as string[], failing: false };
   const sockets = new Set<Socket>();
   const server = createServer((socket) => {
     sockets.add(socket);
     socket.on('close', () => sockets.delete(socket));
-    handleSession(socket, commands, messages);
+    handleSession(socket, session);
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a TCP server listening on a port.
   const { port } = server.address() as AddressInfo;
-  return {
+  return Object.assign(session, {
     port,
-    commands,
-    messages,
-    close: () =>
+    close: (): Promise<void> =>
       new Promise((resolve, reject) => {
         for (const socket of sockets) socket.destroy();
         server.close((error) => (error ? reject(error) : resolve()));
       }),
-  };
+  });
 }

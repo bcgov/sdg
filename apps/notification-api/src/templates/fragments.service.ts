@@ -4,13 +4,13 @@ import { asc, desc, eq, sql } from 'drizzle-orm';
 import { TypesService } from '../catalog/types.service.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
 import { fragmentVersions, type FragmentKind } from '../database/schema/index.js';
+import { badRequest } from '../http/bad-request.js';
 import { referencedNames } from './engines.js';
 import { errorMessage } from './render-error.js';
 import { DEFAULT_TIME_ZONE } from './render.service.js';
 import { currentTemplates, fragmentClosure, type FragmentRow, type PinnedFragment } from './template-store.js';
 import type { FragmentVersionResponse } from './templates.schemas.js';
 import { fragmentSources, testRender } from './test-render.js';
-import { rejected } from './versions.service.js';
 
 function toFragmentVersion(row: FragmentRow): FragmentVersionResponse {
   const { id, kind, name, version, source, references, createdAt } = row;
@@ -22,7 +22,7 @@ function referencesOrReject(source: string): string[] {
   try {
     return referencedNames([source]);
   } catch (error) {
-    throw rejected('The source does not parse', [errorMessage(error)]);
+    throw badRequest('The source does not parse', [errorMessage(error)]);
   }
 }
 
@@ -57,7 +57,7 @@ export class FragmentsService {
       .limit(1);
     if (existing && existing.kind !== kind) throw new ConflictException(`${name} is already a ${existing.kind}`);
     const errors = await this.testDependents(name, { id: 'candidate', source, references });
-    if (errors.length > 0) throw rejected(`Templates using ${name} failed their test renders`, errors);
+    if (errors.length > 0) throw badRequest(`Templates using ${name} failed their test renders`, errors);
 
     const next = sql<number>`(select coalesce(max(${fragmentVersions.version}), 0) + 1 from ${fragmentVersions}
       where ${eq(fragmentVersions.name, name)})`;

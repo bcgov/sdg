@@ -30,11 +30,11 @@ function tooMany(message: string, retryAfterSeconds: number): HttpException {
 @Injectable()
 export class RateLimitService {
   /**
-   * Records a send to `address` for `recipientId`, or throws a 429. Call inside the transaction that issues the
-   * token: the transaction-scoped advisory locks make concurrent requests for one recipient or address count in turn,
-   * and a rollback takes the reservation back.
+   * Records a send to `address` for `recipientId` and returns the reservation's id, or throws a 429. Call inside the
+   * transaction that issues the token: the transaction-scoped advisory locks make concurrent requests for one
+   * recipient or address count in turn, and a rollback takes the reservation back.
    */
-  async reserveConfirmation(tx: NotificationTransaction, recipientId: string, address: string): Promise<void> {
+  async reserveConfirmation(tx: NotificationTransaction, recipientId: string, address: string): Promise<string> {
     // Always recipient before address, so two transactions never wait on each other's second lock.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`confirm:recipient:${recipientId}`}, 0))`);
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`confirm:address:${address}`}, 0))`);
@@ -69,6 +69,11 @@ export class RateLimitService {
         Math.ceil(waitMs / 1000),
       );
     }
-    await tx.insert(confirmationSends).values({ recipientId, address, sentAt: new Date(now) });
+    const [reserved] = await tx
+      .insert(confirmationSends)
+      .values({ recipientId, address, sentAt: new Date(now) })
+      .returning({ id: confirmationSends.id });
+    if (!reserved) throw new Error('Reserving a confirmation send returned no row');
+    return reserved.id;
   }
 }

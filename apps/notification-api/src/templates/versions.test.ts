@@ -57,9 +57,12 @@ describe('saving a template (R23, R25)', () => {
     const res = await api.save(TYPE, 'email', 'fr-CA', email('{{ permit.nmber }}'));
 
     expect(res.status).toBe(400);
-    expect(res.body.errors).toEqual(
-      expect.arrayContaining([expect.stringContaining('undefined variable: permit.nmber')]),
-    );
+    expect(res.body).toEqual({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'The template failed its test renders',
+      errors: expect.arrayContaining([expect.stringContaining('undefined variable: permit.nmber')]),
+    });
     expect(await versionCount('email', 'fr-CA')).toBe(0);
   });
 

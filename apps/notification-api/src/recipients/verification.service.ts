@@ -17,9 +17,10 @@ import {
   type NotificationDatabase,
   type NotificationTransaction,
 } from '../database/database.module.js';
-import { contactPoints, verificationTokens } from '../database/schema/index.js';
+import { confirmationSends, contactPoints, verificationTokens } from '../database/schema/index.js';
 import { PLATFORM_INTEGRATIONS, type PlatformIntegrations } from '../integrations/platform-defaults.js';
 import { sendEmail, type SmtpConfig } from '../integrations/types/smtp.js';
+import { describeError } from '../logging/describe-error.js';
 import { OutboundGuard } from '../outbound/outbound-guard.js';
 import { renderConfirmationEmail } from './confirmation-email.js';
 import { RateLimitService } from './rate-limit.service.js';
@@ -32,6 +33,8 @@ const hashToken = (token: string): string => createHash('sha256').update(token).
 export interface PendingConfirmation {
   readonly address: string;
   readonly token: string;
+  /** The R36 reservation, released when the email cannot be sent. */
+  readonly sendId: string;
 }
 
 /**
@@ -88,7 +91,7 @@ export class VerificationService {
     contactPointId: string,
     address: string,
   ): Promise<PendingConfirmation> {
-    await this.rateLimit.reserveConfirmation(tx, recipientId, address);
+    const sendId = await this.rateLimit.reserveConfirmation(tx, recipientId, address);
     const token = randomBytes(32).toString('base64url');
     await tx.insert(verificationTokens).values({
       tokenHash: hashToken(token),
@@ -96,11 +99,16 @@ export class VerificationService {
       address,
       expiresAt: new Date(Date.now() + TOKEN_LIFETIME_MS),
     });
-    return { address, token };
+    return { address, token, sendId };
   }
 
-  /** Sends the confirmation email now; 502 when the platform integration fails, which is logged. */
-  async send({ address, token }: PendingConfirmation): Promise<void> {
+  /**
+   * Sends the confirmation email now; 502 when the platform integration fails, which is logged. A failed send gives
+   * back its R36 reservation and drops its unused token, so the limits count only emails that went out and a resend
+   * is not held back by one that never did.
+   */
+  async send(pending: PendingConfirmation): Promise<void> {
+    const { address, token } = pending;
     if (!this.smtp) throw new Error('No platform email integration to send the confirmation with');
     const link = new URL(this.confirmUrl);
     link.searchParams.set('token', token);
@@ -112,7 +120,25 @@ export class VerificationService {
         error: outcome.error,
         retryable: outcome.retryable,
       });
+      await this.release(pending);
       throw new BadGatewayException('The confirmation email could not be sent: try again later');
+    }
+  }
+
+  /** Undoes {@link issue} for a confirmation that was not sent. A failure here is logged; the 502 still stands. */
+  private async release({ token, sendId }: PendingConfirmation): Promise<void> {
+    try {
+      await this.db.transaction(async (tx) => {
+        await Promise.all([
+          tx.delete(confirmationSends).where(eq(confirmationSends.id, sendId)),
+          tx.delete(verificationTokens).where(eq(verificationTokens.tokenHash, hashToken(token))),
+        ]);
+      });
+    } catch (error) {
+      this.logger.error({
+        msg: 'Could not release the reservation of an unsent confirmation email',
+        error: describeError(error),
+      });
     }
   }
 
