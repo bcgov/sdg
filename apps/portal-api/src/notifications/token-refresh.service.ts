@@ -1,5 +1,5 @@
-import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import type { OidcClient, OidcTokens } from '@repo/auth';
+import { BadGatewayException, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { isAuthError, type OidcClient, type OidcTokens } from '@repo/auth';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
 import type { Request } from 'express';
 
@@ -25,6 +25,18 @@ function expiresSoon(tokens: OidcTokens): boolean {
 }
 
 /**
+ * True when the session can't be refreshed again: the IdP rejected the refresh token (`invalid_grant`: expired,
+ * revoked, or the SSO session ended) or there is none. Outages, timeouts and 5xx answers are worth another try.
+ */
+function refreshRejected(error: unknown): boolean {
+  return (
+    isAuthError(error) &&
+    error.code === 'refresh_failed' &&
+    (error.detail === 'invalid_grant' || error.detail === 'no refresh token')
+  );
+}
+
+/**
  * Keeps the session's access token fresh for relayed calls. Refreshes are serialized per session in process, so
  * concurrent requests on one session redeem its refresh token once.
  */
@@ -39,8 +51,9 @@ export class TokenRefreshService {
   }
 
   /**
-   * The session's access token, refreshed and saved first when it expires within 30 seconds. A failed refresh
-   * destroys the session and throws 401.
+   * The session's access token, refreshed and saved first when it expires within 30 seconds. When the IdP rejects the
+   * refresh (KTD16) the session is destroyed and this throws 401; any other refresh failure throws 502 and leaves the
+   * session for the next call to retry.
    */
   async accessToken(req: Request): Promise<string> {
     const auth = req.session.auth;
@@ -51,13 +64,21 @@ export class TokenRefreshService {
     try {
       refreshed = await this.refreshOnce(req.sessionID, auth.tokens);
     } catch (error) {
-      this.logger.warn({ msg: 'Access token refresh failed; ending the session', error: describeError(error) });
-      await sessionOp(req, 'destroy');
-      throw new UnauthorizedException();
+      return this.refreshFailed(req, error);
     }
     auth.tokens = refreshed;
     await sessionOp(req, 'save');
     return refreshed.accessToken;
+  }
+
+  private async refreshFailed(req: Request, error: unknown): Promise<never> {
+    if (!refreshRejected(error)) {
+      this.logger.warn({ msg: 'Access token refresh failed; keeping the session', error: describeError(error) });
+      throw new BadGatewayException('Sign-in could not be renewed right now; try again');
+    }
+    this.logger.warn({ msg: 'Access token refresh rejected; ending the session', error: describeError(error) });
+    await sessionOp(req, 'destroy');
+    throw new UnauthorizedException();
   }
 
   private refreshOnce(sessionId: string, current: OidcTokens): Promise<OidcTokens> {
@@ -67,11 +88,10 @@ export class TokenRefreshService {
     const refresh: Refresh = { from: current.refreshToken, result: this.oidc.refresh(current) };
     this.refreshes.set(sessionId, refresh);
     const forget = (): void => {
-      setTimeout(() => {
-        if (this.refreshes.get(sessionId) === refresh) this.refreshes.delete(sessionId);
-      }, SETTLED_REUSE_MS).unref();
+      if (this.refreshes.get(sessionId) === refresh) this.refreshes.delete(sessionId);
     };
-    refresh.result.then(forget, forget);
+    // A success is reused for a while (see SETTLED_REUSE_MS); a failure is forgotten at once so the next call retries.
+    refresh.result.then(() => setTimeout(forget, SETTLED_REUSE_MS).unref(), forget);
     return refresh.result;
   }
 }

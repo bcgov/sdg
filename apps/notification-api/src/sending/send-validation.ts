@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 
 import type { LinkedCredential } from '../auth/directories.js';
 import type { TypeResponse } from '../catalog/catalog.schemas.js';
@@ -6,6 +6,7 @@ import { contractValidator } from '../catalog/data-contract.js';
 import { policyChannels, type DeliveryPolicy } from '../catalog/policy.js';
 import { TopicsService } from '../catalog/topics.service.js';
 import { TypesService } from '../catalog/types.service.js';
+import { badRequest } from '../http/bad-request.js';
 import { IntegrationResolver } from '../integrations/resolver.service.js';
 import { RecipientsService } from '../recipients/recipients.service.js';
 import type { Audience, SendRequest } from './send.schemas.js';
@@ -68,7 +69,7 @@ export class SendValidator {
       this.checkAudience(senderId, request.audience),
     ]);
     const errors = [...dataErrors, ...channelErrors, ...audience.errors];
-    if (!parsed.success || errors.length > 0) throw new BadRequestException(errors);
+    if (!parsed.success || errors.length > 0) throw badRequest('The send failed its checks', errors);
     return { type, data: parsed.data, systems: audience.systems };
   }
 

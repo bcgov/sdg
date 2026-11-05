@@ -1,71 +1,12 @@
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import type { AddressInfo } from 'node:net';
-
-import { AuthError, type OidcTokens } from '@repo/auth';
 import { principals } from '@repo/portal-database';
-import type supertest from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestApp, resetOidcStub, type TestApp } from '../testing/app.js';
-
-interface Received {
-  method: string;
-  url: string;
-  authorization: string | undefined;
-  contentType: string | undefined;
-  body: string;
-}
-
-type Handler = (req: IncomingMessage, res: ServerResponse) => void;
-
-const json: Handler = (_req, res) => {
-  res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify({ items: [] }));
-};
-
-/** A stand-in notification-api on a loopback port that records every request it receives. */
-async function startUpstream(): Promise<{
-  url: string;
-  received: Received[];
-  respond: { with: Handler };
-  server: Server;
-}> {
-  const received: Received[] = [];
-  const respond = { with: json };
-  const server = createServer((req, res) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => {
-      received.push({
-        method: req.method ?? '',
-        url: req.url ?? '',
-        authorization: req.headers.authorization,
-        contentType: req.headers['content-type'],
-        body: Buffer.concat(chunks).toString('utf8'),
-      });
-      respond.with(req, res);
-    });
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address: AddressInfo | string | null = server.address();
-  if (address === null || typeof address === 'string') throw new Error('upstream did not bind a TCP port');
-  // The trailing slash also checks that portal-api strips it from NOTIFICATION_API_URL.
-  return { url: `http://127.0.0.1:${address.port}/`, received, respond, server };
-}
-
-function tokens(overrides: Partial<OidcTokens> = {}): OidcTokens {
-  return {
-    idToken: 'id-token',
-    accessToken: 'access-token',
-    refreshToken: 'refresh-token',
-    expiresAt: null,
-    ...overrides,
-  };
-}
+import { json, signIn, startUpstream, type Upstream } from '../testing/notification-upstream.js';
 
 describe('notification relay', () => {
   let t: TestApp;
-  let upstream: Awaited<ReturnType<typeof startUpstream>>;
+  let upstream: Upstream;
 
   beforeAll(async () => {
     upstream = await startUpstream();
@@ -84,29 +25,9 @@ describe('notification relay', () => {
     await t.database.db.delete(principals);
   });
 
-  /** Signs in through the stubbed login flow with the given session tokens. */
-  async function signIn(sessionTokens: OidcTokens = tokens()): Promise<supertest.Agent> {
-    t.oidc.handleCallback.mockResolvedValue({
-      user: {
-        issuer: 'https://keycloak.example.com/realms/portal',
-        subject: 'sub-1',
-        name: 'Ada',
-        email: null,
-        emailVerified: false,
-        username: null,
-        claims: {},
-      },
-      tokens: sessionTokens,
-    });
-    const agent = t.http();
-    await agent.get('/api/auth/login');
-    await agent.get('/api/auth/callback').query({ code: 'code-1', state: 'state-1' });
-    return agent;
-  }
-
   describe('recipient routes', () => {
     it('forwards to /api/v1/me with the session access token and returns the upstream response', async () => {
-      const agent = await signIn();
+      const agent = await signIn(t);
       const list = await agent.get('/api/v1/notifications/contact-points?page=2');
       expect(list.status).toBe(200);
       expect(list.body).toEqual({ items: [] });
@@ -134,7 +55,7 @@ describe('notification relay', () => {
     });
 
     it('passes upstream errors through and does not follow redirects', async () => {
-      const agent = await signIn();
+      const agent = await signIn(t);
       upstream.respond.with = (_req, res) =>
         res.writeHead(400, { 'content-type': 'application/json' }).end('{"message":"bad"}');
       const rejected = await agent.post('/api/v1/notifications/contact-points').send({ channel: 'email' });
@@ -150,14 +71,14 @@ describe('notification relay', () => {
     });
 
     it('returns 502 when notification-api is unreachable', async () => {
-      const agent = await signIn();
+      const agent = await signIn(t);
       upstream.respond.with = (req) => req.socket.destroy();
       const res = await agent.get('/api/v1/notifications/contact-points');
       expect(res.status).toBe(502);
     });
 
     it('never relays outside /api/v1/me', async () => {
-      const agent = await signIn();
+      const agent = await signIn(t);
       expect((await agent.get('/api/v1/notifications/%2e%2e/admin/senders')).status).toBe(404);
       expect(upstream.received).toEqual([]);
     });
@@ -169,62 +90,78 @@ describe('notification relay', () => {
     });
   });
 
-  describe('token refresh', () => {
-    it('refreshes a token expiring in 10 seconds before relaying and saves the new tokens', async () => {
-      const agent = await signIn(tokens({ expiresAt: Date.now() + 10_000 }));
-      expect((await agent.get('/api/v1/notifications/contact-points')).status).toBe(200);
-      expect(t.oidc.refresh).toHaveBeenCalledTimes(1);
-      expect(t.oidc.refresh).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'refresh-token' }));
-      // The second request reads the saved session: the refreshed token, still fresh, so no second refresh.
-      expect((await agent.get('/api/v1/notifications/subscriptions')).status).toBe(200);
-      expect(t.oidc.refresh).toHaveBeenCalledTimes(1);
-      expect(upstream.received.map(({ authorization }) => authorization)).toEqual([
-        'Bearer refreshed-access-token',
-        'Bearer refreshed-access-token',
-      ]);
-    });
+  describe('cross-site request protection', () => {
+    const attackerFields = 'channel=email&address=attacker@evil.test';
 
-    it('does not refresh a token with more than 30 seconds left', async () => {
-      const agent = await signIn(tokens({ expiresAt: Date.now() + 60_000 }));
-      await agent.get('/api/v1/notifications/contact-points');
-      expect(t.oidc.refresh).not.toHaveBeenCalled();
-      expect(upstream.received[0]?.authorization).toBe('Bearer access-token');
-    });
-
-    it('refreshes once for two concurrent requests', async () => {
-      const agent = await signIn(tokens({ expiresAt: Date.now() + 10_000 }));
-      const idp = Promise.withResolvers<OidcTokens>();
-      t.oidc.refresh.mockReturnValue(idp.promise);
-      const both = Promise.all([
-        agent.get('/api/v1/notifications/contact-points'),
-        agent.get('/api/v1/notifications/subscriptions'),
-      ]);
-      await expect.poll(() => t.oidc.refresh.mock.calls.length).toBe(1);
-      // Give the second request time to reach the refresh while the first one is still waiting on the IdP.
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      idp.resolve(tokens({ accessToken: 'refreshed-once', expiresAt: Date.now() + 300_000 }));
-      const responses = await both;
-      expect(responses.map(({ status }) => status)).toEqual([200, 200]);
-      expect(t.oidc.refresh).toHaveBeenCalledTimes(1);
-      expect(upstream.received.map(({ authorization }) => authorization)).toEqual([
-        'Bearer refreshed-once',
-        'Bearer refreshed-once',
-      ]);
-    });
-
-    it('returns 401 and destroys the session when the refresh fails', async () => {
-      const agent = await signIn(tokens({ expiresAt: Date.now() + 10_000 }));
-      t.oidc.refresh.mockRejectedValue(new AuthError('refresh_failed', { detail: 'invalid_grant' }));
-      expect((await agent.get('/api/v1/notifications/contact-points')).status).toBe(401);
+    it.each([
+      ['application/x-www-form-urlencoded', attackerFields],
+      ['text/plain', attackerFields],
+      [
+        'multipart/form-data; boundary=x',
+        `--x\r\ncontent-disposition: form-data; name="channel"\r\n\r\nemail\r\n--x--`,
+      ],
+    ])('returns 415 for a %s POST and does not call notification-api', async (type, body) => {
+      const agent = await signIn(t);
+      const res = await agent.post('/api/v1/notifications/contact-points').set('content-type', type).send(body);
+      expect(res.status).toBe(415);
       expect(upstream.received).toEqual([]);
-      expect((await agent.get('/api/auth/me')).status).toBe(401);
+    });
+
+    it.each(['cross-site', 'same-site'])(
+      'returns 403 for a JSON POST with Sec-Fetch-Site: %s and does not call notification-api',
+      async (site) => {
+        const agent = await signIn(t);
+        const res = await agent
+          .post('/api/v1/notifications/contact-points')
+          .set('sec-fetch-site', site)
+          .send({ channel: 'email', address: 'attacker@evil.test' });
+        expect(res.status).toBe(403);
+        expect(upstream.received).toEqual([]);
+      },
+    );
+
+    it('relays same-origin JSON and body-less mutations', async () => {
+      const agent = await signIn(t);
+      upstream.respond.with = (_req, res) => res.writeHead(204).end();
+      const post = await agent
+        .post('/api/v1/notifications/contact-points')
+        .set('sec-fetch-site', 'same-origin')
+        .send({ channel: 'email', address: 'ada@example.com' });
+      expect(post.status).toBe(204);
+      expect((await agent.post('/api/v1/notifications/contact-points/cp-1/resend')).status).toBe(204);
+      expect((await agent.delete('/api/v1/notifications/contact-points/cp-1')).status).toBe(204);
+      expect(upstream.received.map(({ method, url, body }) => ({ method, url, body }))).toEqual([
+        {
+          method: 'POST',
+          url: '/api/v1/me/contact-points',
+          body: '{"channel":"email","address":"ada@example.com"}',
+        },
+        { method: 'POST', url: '/api/v1/me/contact-points/cp-1/resend', body: '' },
+        { method: 'DELETE', url: '/api/v1/me/contact-points/cp-1', body: '' },
+      ]);
+    });
+
+    it('applies the same checks to the public confirm route', async () => {
+      const form = await t.http().post('/api/v1/contact-points/confirm').type('form').send('token=link-token');
+      expect(form.status).toBe(415);
+      const crossSite = await t
+        .http()
+        .post('/api/v1/contact-points/confirm')
+        .set('sec-fetch-site', 'cross-site')
+        .send({ token: 'link-token' });
+      expect(crossSite.status).toBe(403);
+      expect(upstream.received).toEqual([]);
     });
   });
 
   describe('POST /api/v1/contact-points/confirm', () => {
     it('forwards the token without a session or bearer token', async () => {
       upstream.respond.with = (_req, res) => res.writeHead(204).end();
-      const res = await t.http().post('/api/v1/contact-points/confirm').send({ token: 'link-token' });
+      const res = await t
+        .http()
+        .post('/api/v1/contact-points/confirm')
+        .set('sec-fetch-site', 'same-origin')
+        .send({ token: 'link-token' });
       expect(res.status).toBe(204);
       expect(upstream.received).toEqual([
         {

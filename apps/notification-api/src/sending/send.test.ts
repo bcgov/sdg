@@ -188,7 +188,12 @@ describe('request-time rejections (R28)', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toEqual([expect.stringMatching(/^data\.permit\.number: /)]);
+    expect(res.body).toEqual({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'The send failed its checks',
+      errors: [expect.stringMatching(/^data\.permit\.number: /)],
+    });
     expect(await notificationsOf(t, permits.id)).toHaveLength(before.length);
     expect(await addressRecipient(permits.id, 'ae7@example.com')).toEqual([]);
   });
@@ -201,7 +206,7 @@ describe('request-time rejections (R28)', () => {
     const res = await send(credential, { type: APPROVED, data: { reference: 'R-1' }, audience: { kind: 'everyone' } });
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toEqual(['type: The policy needs email, which has no usable integration for this sender']);
+    expect(res.body.errors).toEqual(['type: The policy needs email, which has no usable integration for this sender']);
     expect(await notificationsOf(t, noEmail.id)).toEqual([]);
   });
 
@@ -227,7 +232,7 @@ describe('request-time rejections (R28)', () => {
 
     for (const res of results) {
       expect(res.status).toBe(400);
-      expect(res.body.message).toEqual(['audience.topicId: No topic this sender may broadcast to']);
+      expect(res.body.errors).toEqual(['audience.topicId: No topic this sender may broadcast to']);
     }
   });
 
@@ -251,7 +256,7 @@ describe('request-time rejections (R28)', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toEqual(['audience.recipients.1.systemId: No system recipient with this id']);
+    expect(res.body.errors).toEqual(['audience.recipients.1.systemId: No system recipient with this id']);
     expect(await notificationsOf(t, permits.id)).toHaveLength(before.length);
     expect(await addressRecipient(permits.id, 'bystander@example.com')).toEqual([]);
   });

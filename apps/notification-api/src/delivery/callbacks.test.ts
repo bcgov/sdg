@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { verifyWebhook, type WebhookHeaders } from '../crypto/signing.js';
-import { failureCallbacks } from '../database/schema/index.js';
+import { deliveries, failureCallbacks } from '../database/schema/index.js';
 import {
   attemptsOf,
   defineDeliveryType,
@@ -113,6 +113,54 @@ describe('retries and failure callbacks (R42, KTD10, KTD17)', () => {
       .from(failureCallbacks)
       .where(eq(failureCallbacks.deliveryId, delivery?.id ?? ''));
     expect(row).toMatchObject({ status: 'delivered', attempts: 2, lastError: null });
+  });
+
+  it('fails a delivery whose worker crashed on its last attempt as "attempts exhausted" without sending again', async () => {
+    app.receiver.respond('/crashed-hook', { status: 500 });
+    app.receiver.respond('/callback', { status: 204 });
+    await registerSystem(app.t, credential, 'crashed-system', [app.receiver.url('/crashed-hook')]);
+    const before = app.receiver.requestsTo('/callback').length;
+    const notificationId = await sendNotification(app.t, credential, HOOK, systemAudience('crashed-system'));
+    await runWorker(app.t);
+    const [first] = await deliveriesOf(app.t, notificationId);
+    if (!first) throw new Error('No delivery was planned');
+    // The sixth claim's worker died mid-send: the row is still `sending` and its lease has run out.
+    await app.t.database.db
+      .update(deliveries)
+      .set({ status: 'sending', attempts: 6, leaseUntil: new Date(app.clock.now().getTime() - 1) })
+      .where(eq(deliveries.id, first.id));
+    await runWorker(app.t);
+
+    const [delivery] = await deliveriesOf(app.t, notificationId);
+    expect(delivery).toMatchObject({ status: 'failed', reason: 'attempts exhausted' });
+    expect(app.receiver.requestsTo('/crashed-hook')).toHaveLength(1);
+    expect(await attemptsOf(app.t, first.id)).toHaveLength(1);
+    const calls = app.receiver.requestsTo('/callback').slice(before);
+    expect(calls.map((call) => JSON.parse(call.body).reason)).toEqual(['attempts exhausted']);
+  });
+
+  it('fails a callback whose worker crashed on its last attempt without calling the sender again', async () => {
+    app.receiver.respond('/refuses', { status: 400 });
+    app.receiver.respond('/callback', { status: 503 });
+    await registerSystem(app.t, credential, 'refusing-system', [app.receiver.url('/refuses')]);
+    const notificationId = await sendNotification(app.t, credential, HOOK, systemAudience('refusing-system'));
+    await runWorker(app.t);
+    const [delivery] = await deliveriesOf(app.t, notificationId);
+    const deliveryId = delivery?.id ?? '';
+    const before = app.receiver.requestsTo('/callback').length;
+    await app.t.database.db
+      .update(failureCallbacks)
+      .set({ status: 'sending', attempts: 6, leaseUntil: new Date(app.clock.now().getTime() - 1) })
+      .where(eq(failureCallbacks.deliveryId, deliveryId));
+    app.receiver.respond('/callback', { status: 204 });
+    await runWorker(app.t);
+
+    const [row] = await app.t.database.db
+      .select()
+      .from(failureCallbacks)
+      .where(eq(failureCallbacks.deliveryId, deliveryId));
+    expect(row).toMatchObject({ status: 'failed', reason: 'attempts exhausted' });
+    expect(app.receiver.requestsTo('/callback')).toHaveLength(before);
   });
 });
 
