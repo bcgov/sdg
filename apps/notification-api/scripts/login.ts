@@ -11,7 +11,7 @@
 //   NOTIFICATION_LOGIN_PORT     callback port (default 8400); register http://localhost:<port>/callback on the client
 // Exit code 0: signed in and printed the token. 1: missing settings, sign-in failed or timed out (5 minutes).
 import { spawn } from 'node:child_process';
-import { createServer, type Server, type ServerResponse } from 'node:http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
 import * as client from 'openid-client';
 
@@ -79,18 +79,42 @@ async function exchange(pending: PendingLogin, url: URL, res: ServerResponse): P
   }
 }
 
+/**
+ * Both loopback addresses: `localhost` resolves to either, and binding the name alone takes only the first (::1 on
+ * macOS), so a browser that connects to 127.0.0.1 would find nothing listening.
+ */
+const LOOPBACK_HOSTS = ['127.0.0.1', '::1'] as const;
+
+/** A host without that address family (e.g. no IPv6), which is skipped rather than fatal. */
+const MISSING_FAMILY = new Set(['EADDRNOTAVAIL', 'EAFNOSUPPORT']);
+
+/**
+ * Listens on every loopback address. Any other error (e.g. the port is taken on one of them, where the browser could
+ * reach someone else's server) fails the sign-in, as does having no address at all.
+ */
+function listenOnLoopback(servers: readonly Server[], port: number, fail: (error: Error) => void): void {
+  let missing = 0;
+  servers.forEach((server, index) => {
+    server.on('error', (error: NodeJS.ErrnoException) => {
+      if (MISSING_FAMILY.has(error.code ?? '') && (missing += 1) < servers.length) return;
+      fail(new Error(`The callback server failed on ${LOOPBACK_HOSTS[index]}:${port}: ${error.message}`));
+    });
+    server.listen(port, LOOPBACK_HOSTS[index]);
+  });
+}
+
 /** Serves /callback once, exchanging the code for tokens. */
 function awaitCallback(pending: PendingLogin, port: number): Promise<TokenResponse> {
   return new Promise((resolve, reject) => {
-    let server: Server | undefined;
+    let servers: Server[] = [];
     const finish = (error: unknown, tokens?: TokenResponse): void => {
       clearTimeout(timer);
-      server?.close();
+      for (const server of servers) server.close();
       if (tokens) resolve(tokens);
       else reject(error instanceof Error ? error : new Error(String(error)));
     };
     const timer = setTimeout(() => finish(new Error('Timed out waiting for the sign-in callback')), LOGIN_TIMEOUT_MS);
-    server = createServer((req, res) => {
+    const handle = (req: IncomingMessage, res: ServerResponse): void => {
       const url = new URL(req.url ?? '/', pending.redirectUri);
       if (url.pathname !== '/callback') {
         res.writeHead(404).end();
@@ -103,9 +127,9 @@ function awaitCallback(pending: PendingLogin, port: number): Promise<TokenRespon
           finish(error);
         }
       })();
-    });
-    server.on('error', (error) => finish(new Error(`The callback server failed: ${error.message}`)));
-    server.listen(port, 'localhost');
+    };
+    servers = LOOPBACK_HOSTS.map(() => createServer(handle));
+    listenOnLoopback(servers, port, finish);
   });
 }
 
