@@ -63,7 +63,12 @@ export async function topicBroadcast(ctx: E2eContext): Promise<void> {
   check(deliveryOn(senderDetail, 'webhook').status === 'delivered', 'The sender topic webhook was not delivered');
   check(deliveryOn(senderDetail, 'email', ctx.idpEmail).status === 'delivered', 'The sender topic email failed');
   check(deliveryOn(platformDetail, 'email', ctx.idpEmail).status === 'delivered', 'The platform topic email failed');
-  check(!platformDetail.deliveries.some((d) => d.channel === 'webhook'), 'The platform topic reached a non-subscriber');
+  // The planner records every policy channel per recipient, so the portal user (who never has a webhook, R33) gets a
+  // skipped webhook row. Anything else on that channel would mean a system that never subscribed was reached.
+  check(
+    !platformDetail.deliveries.some((d) => d.channel === 'webhook' && d.status !== 'skipped'),
+    'The platform topic reached a non-subscriber',
+  );
 
   const mails = await ctx.mailpit.messagesTo(ctx.idpEmail);
   const emailed = (permit: string) => mails.some((message) => message.Subject.includes(permit));
