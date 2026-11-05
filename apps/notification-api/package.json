@@ -13,7 +13,10 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node scripts/migrate.ts"
+    "db:migrate": "node scripts/migrate.ts",
+    "login": "node --use-system-ca scripts/login.ts",
+    "seed": "node --use-system-ca scripts/seed.ts",
+    "e2e": "node --use-system-ca scripts/e2e.ts"
   },
   "dependencies": {
     "@nestjs/common": "catalog:",
@@ -75,6 +78,7 @@
     "@types/supertest": "catalog:",
     "drizzle-kit": "catalog:",
     "jose": "catalog:",
+    "openid-client": "catalog:",
     "pino-pretty": "catalog:",
     "supertest": "catalog:",
     "typescript": "catalog:ts6",

@@ -697,6 +697,9 @@ importers:
       jose:
         specifier: 'catalog:'
         version: 6.2.15
+      openid-client:
+        specifier: 'catalog:'
+        version: 6.8.8
       pino-pretty:
         specifier: 'catalog:'
         version: 13.2.0

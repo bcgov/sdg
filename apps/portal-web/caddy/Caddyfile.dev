@@ -40,3 +40,11 @@ grafana.sdg.localhost {
 	import logging
 	reverse_proxy {$GRAFANA_URL:http://grafana:3000}
 }
+
+# notification-api from compose.yaml (API, /api/docs, /healthz). Admin, owner and credential calls from the
+# scripts in apps/notification-api/scripts; the portal reaches it inside the network, not through here.
+notify.sdg.localhost {
+	tls internal
+	import logging
+	reverse_proxy {$NOTIFICATION_API_URL:http://notification-api:3000}
+}
