@@ -60,7 +60,7 @@ Without compose: `pnpm --filter notification-api db:migrate`, then `pnpm --filte
 
 ```sh
 # An admin token (stdout only; short-lived). Opens the browser for the sign-in.
-export NOTIFICATION_ADMIN_TOKEN="$(pnpm --filter notification-api --silent login)"
+export NOTIFICATION_ADMIN_TOKEN="$(pnpm --filter notification-api --silent admin-token)"
 
 # Fill an empty database: three types with en-CA/fr-CA templates, a sender you own with both credentials linked and
 # scoped, a failure callback to the webhook receiver, and a self-subscribe platform topic.
@@ -72,7 +72,7 @@ pnpm --filter notification-api e2e
 
 Without `NOTIFICATION_ADMIN_TOKEN`, `seed` and `e2e` sign you in through the browser themselves and refresh the token while they run, which `e2e` (about three minutes) needs if the realm's tokens are short-lived.
 
-Before `e2e`, sign in at `https://sdg.localhost` as the same person and copy the `portal.sid` cookie's value (browser dev tools) into `PORTAL_SESSION_COOKIE`. The relayed calls use that session; sends address you by the admin token's issuer and subject, so the two sign-ins must be the same person, with a verified email at the IdP.
+Before `e2e`, sign in at `https://sdg.localhost` with BC Services Card and copy the `portal.sid` cookie's value (browser dev tools) into `PORTAL_SESSION_COOKIE`; that identity needs a verified email at the IdP. The relayed calls (F3, F6, F1) use that session, and their sends address the portal user, whose issuer and subject `e2e` reads from the local database. The admin token (IDIR) is a separate identity.
 
 `e2e` prints one line per check and exits 1 if any fails:
 

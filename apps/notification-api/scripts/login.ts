@@ -1,7 +1,7 @@
-// `pnpm --filter notification-api --silent login`: signs a person in to notification-api's own Keycloak client with
+// `pnpm --filter notification-api --silent admin-token`: signs a person in to notification-api's own Keycloak client with
 // authorization code + PKCE (S256) on a localhost callback, then prints their access token to stdout (nothing else
 // goes to stdout). The token is short-lived; use it for admin and sender-owner calls, e.g.
-//   export NOTIFICATION_ADMIN_TOKEN="$(pnpm --filter notification-api --silent login)"
+//   export NOTIFICATION_ADMIN_TOKEN="$(pnpm --filter notification-api --silent admin-token)"
 // seed.ts and e2e.ts call login() themselves when NOTIFICATION_ADMIN_TOKEN is unset, and refresh the token as needed.
 //
 // Reads apps/notification-api/.env (the process env wins):

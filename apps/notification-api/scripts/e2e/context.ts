@@ -1,12 +1,12 @@
 // scripts/e2e.ts's setup: resets the `notification` database, seeds it, gets the credential tokens and prepares the
-// portal user's recipient (the person signed in at https://sdg.localhost, who must be the admin who signed in to
-// notification-api, so that sends to the admin's issuer + subject reach the portal inbox).
+// portal user's recipient: the person signed in at https://sdg.localhost (BC Services Card), who is not the admin
+// (IDIR). Sends address that person by the issuer + subject the relay recorded, read back from the database.
 import { Client, escapeIdentifier } from 'pg';
 import { z } from 'zod';
 
 import { runMigrations } from '../../src/database/run-migrations.ts';
 import { baseUrl, optionalEnv, requiredEnv } from '../lib/env.ts';
-import { api, bearer, cookie, expectBody, expectStatus, type Api } from '../lib/http.ts';
+import { api, bearer, cookie, expectBody, expectStatus, idSchema, type Api } from '../lib/http.ts';
 import { clientCredentialsToken } from '../lib/tokens.ts';
 import { seed, seedConfigFromEnv, type Person, type Seeded } from '../seed.ts';
 import { mailpit, webhookReceiver, type Mailpit, type WebhookReceiver } from './catchers.ts';
@@ -22,7 +22,7 @@ export interface E2eContext {
   /** portal-api's relay (https://sdg.localhost) with the portal session. */
   portal: Api;
   seeded: Seeded;
-  /** The portal user, the same person as the admin. */
+  /** The portal user (the relayed session's person), whom the relayed flows send to. */
   me: Person;
   /** The portal user's verified email from the IdP. */
   idpEmail: string;
@@ -59,8 +59,38 @@ export async function resetDatabase(databaseUrl: string): Promise<void> {
 
 const pointSchema = z.object({ address: z.string(), verified: z.boolean(), source: z.string() });
 
-/** Creates or claims the portal user's recipient (F3), with email on and no quiet hours; returns the IdP email. */
-async function preparePortalRecipient(portal: Api): Promise<string> {
+const userRowSchema = z.object({ issuer: z.string().min(1), subject: z.string().min(1) });
+
+/**
+ * The issuer + subject of a user recipient. The relay's API names the recipient only by id, and portal-api's session
+ * keeps the subject to itself, so this reads it from the local database (which e2e has just reset and owns).
+ */
+async function userRecipient(databaseUrl: string, recipientId: string): Promise<Person> {
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+  try {
+    const { rows } = await client.query(`select issuer, subject from recipients where id = $1 and kind = 'user'`, [
+      recipientId,
+    ]);
+    const [row] = rows;
+    if (row === undefined) throw new Error(`The portal user's recipient ${recipientId} is not a user recipient`);
+    return userRowSchema.parse(row);
+  } finally {
+    await client.end();
+  }
+}
+
+interface PortalRecipient {
+  me: Person;
+  /** The portal user's verified email from the IdP. */
+  idpEmail: string;
+}
+
+/**
+ * Creates or claims the portal user's recipient (F3), with email on and no quiet hours; returns who that is and their
+ * IdP email.
+ */
+async function preparePortalRecipient(portal: Api, databaseUrl: string): Promise<PortalRecipient> {
   const settings = await portal.call('GET', '/api/v1/notifications');
   if (settings.status === 401) {
     throw new Error(
@@ -68,8 +98,9 @@ async function preparePortalRecipient(portal: Api): Promise<string> {
     );
   }
   if (settings.status === 404) throw new Error('portal-api has no notification relay: is NOTIFICATION_API_URL set?');
-  expectStatus(settings, 'Reading the recipient settings through the portal');
-  const [quiet, email] = await Promise.all([
+  const { id } = expectBody(settings, 'Reading the recipient settings through the portal', idSchema);
+  const [me, quiet, email] = await Promise.all([
+    userRecipient(databaseUrl, id),
     portal.call('PATCH', '/api/v1/notifications', { quietHours: null }),
     portal.call('PUT', '/api/v1/notifications/channels/email', { enabled: true }),
   ]);
@@ -79,7 +110,7 @@ async function preparePortalRecipient(portal: Api): Promise<string> {
   const points = expectBody(reply, 'Listing contact points', z.array(pointSchema));
   const idp = points.find((point) => point.source === 'idp' && point.verified);
   if (!idp) throw new Error('The portal user has no verified IdP email contact point, which F1 needs');
-  return idp.address;
+  return { me, idpEmail: idp.address };
 }
 
 function sessionCookie(): string {
@@ -101,9 +132,11 @@ export async function setUp(): Promise<E2eContext> {
     credential('A'),
     credential('B'),
   ]);
-  await resetDatabase(requiredEnv('DATABASE_URL'));
+  const databaseUrl = requiredEnv('DATABASE_URL');
+  await resetDatabase(databaseUrl);
   const seeded = await seed(config);
   const portal = api(baseUrl(optionalEnv('PORTAL_URL', 'https://sdg.localhost')), cookie(sessionCookie()));
+  const { me, idpEmail } = await preparePortalRecipient(portal, databaseUrl);
   return {
     run: Date.now().toString(36),
     notify: {
@@ -113,8 +146,8 @@ export async function setUp(): Promise<E2eContext> {
     },
     portal,
     seeded,
-    me: seeded.admin,
-    idpEmail: await preparePortalRecipient(portal),
+    me,
+    idpEmail,
     mailpit: mailpit(baseUrl(optionalEnv('MAILPIT_URL', 'http://localhost:8025'))),
     receiver: webhookReceiver(baseUrl(optionalEnv('WEBHOOK_RECEIVER_URL', 'http://localhost:8090'))),
     receiverInternalUrl: baseUrl(optionalEnv('WEBHOOK_RECEIVER_INTERNAL_URL', 'http://webhook-receiver:8080')),
