@@ -1,7 +1,7 @@
 import { requiredSampleData, sampleData, type DataContract } from '../catalog/data-contract.js';
 import type { Channel } from '../channels/channels.js';
 import { referencedNames, type FragmentSources } from './engines.js';
-import { TemplateRenderError } from './render-error.js';
+import { errorMessage, TemplateRenderError } from './render-error.js';
 import { partSources, renderParts, type TemplateParts } from './renderer.js';
 import type { PinnedFragment } from './template-store.js';
 
@@ -32,7 +32,7 @@ export function templateReferences(channel: Channel, parts: TemplateParts): stri
     try {
       return referencedNames([source]);
     } catch (error) {
-      throw new TemplateRenderError(part, error instanceof Error ? error.message : String(error), { cause: error });
+      throw new TemplateRenderError(part, errorMessage(error), { cause: error });
     }
   });
   return [...new Set(names)];

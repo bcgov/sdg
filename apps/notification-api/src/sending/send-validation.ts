@@ -94,9 +94,12 @@ export class SendValidator {
     const systems = audience.recipients.flatMap((recipient, index) =>
       recipient.kind === 'system' ? [{ index, systemId: recipient.systemId }] : [],
     );
-    const found = await Promise.all(systems.map(({ systemId }) => this.recipients.findSystem(senderId, systemId)));
-    for (const [position, { index }] of systems.entries()) {
-      const recipientId = found[position];
+    const found = await this.recipients.findSystems(
+      senderId,
+      systems.map(({ systemId }) => systemId),
+    );
+    for (const { index, systemId } of systems) {
+      const recipientId = found.get(systemId);
       if (recipientId) check.systems.set(index, recipientId);
       else
         check.errors.push(problem(['audience', 'recipients', index, 'systemId'], 'No system recipient with this id'));

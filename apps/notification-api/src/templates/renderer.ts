@@ -5,7 +5,7 @@ import { createEngine, renderSource, type FragmentSources } from './engines.js';
 import type { RenderLocale } from './filters.js';
 import { markdownToHtml } from './markdown.js';
 import { compileMjml } from './mjml.js';
-import { renderingPart, TemplateRenderError } from './render-error.js';
+import { errorMessage, renderingPart, TemplateRenderError } from './render-error.js';
 import { parsePayloadTemplate, payloadLeaves, renderPayload, standardEnvelope } from './webhook-payload.js';
 
 export type TemplateParts = Readonly<Record<string, string>>;
@@ -116,6 +116,6 @@ export function partSources(channel: Channel, parts: TemplateParts): { part: str
   try {
     return payloadLeaves(parsePayloadTemplate(payload)).map((source) => ({ part: 'payload', source }));
   } catch (error) {
-    throw new TemplateRenderError('payload', error instanceof Error ? error.message : String(error), { cause: error });
+    throw new TemplateRenderError('payload', errorMessage(error), { cause: error });
   }
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** A Notification type's key. U6's catalog defines the types; grants and scopes name them by key. */
+/** A Notification type's key. The catalog defines the types; grants and scopes name them by key. */
 export const typeKeySchema = z.string().min(1).max(128).meta({ description: 'A Notification type key' });
 
 export const senderParamsSchema = z.object({ senderId: z.uuid() });

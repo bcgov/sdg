@@ -3,8 +3,8 @@ import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nest
 
 import { AdminGuard } from '../auth/admin.guard.js';
 import { CredentialGuard } from '../auth/credential.guard.js';
-import { CurrentPrincipal } from '../auth/current-principal.decorator.js';
-import type { Principal } from '../auth/token-kind.js';
+import { CurrentCredential } from '../auth/current-principal.decorator.js';
+import type { LinkedCredential } from '../auth/directories.js';
 import { BEARER_AUTH } from '../openapi/swagger.js';
 import {
   broadcasterParamsSchema,
@@ -69,12 +69,6 @@ export class AdminTopicsController {
   }
 }
 
-/** The credential's sender; the CredentialGuard guarantees the principal is a credential. */
-function credentialSender(principal: Principal): string {
-  if (principal.kind !== 'credential') throw new Error('Topic credential route reached without a credential');
-  return principal.credential.senderId;
-}
-
 /** Credential endpoints (R16): the sender's own topics, and the platform topics it may broadcast to. */
 @ApiTags('topics')
 @ApiBearerAuth(BEARER_AUTH)
@@ -90,10 +84,10 @@ export class TopicsController {
   @Post()
   @ApiCreatedResponse({ description: "The new topic, owned by the credential's sender", standardSchema: topicSchema })
   create(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Body({ schema: createTopicSchema }) input: CreateTopic,
   ): Promise<TopicResponse> {
-    return this.topics.createForSender(credentialSender(principal), input);
+    return this.topics.createForSender(credential.senderId, input);
   }
 
   @Get()
@@ -101,16 +95,16 @@ export class TopicsController {
     description: "The sender's own topics, then the platform topics it may broadcast to",
     standardSchema: topicListSchema,
   })
-  list(@CurrentPrincipal() principal: Principal): Promise<TopicResponse[]> {
-    return this.topics.listForSender(credentialSender(principal));
+  list(@CurrentCredential() credential: LinkedCredential): Promise<TopicResponse[]> {
+    return this.topics.listForSender(credential.senderId);
   }
 
   @Get(':topicId')
   @ApiOkResponse({ description: 'A topic the sender may broadcast to', standardSchema: topicSchema })
   get(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Param({ schema: topicParamsSchema }) { topicId }: TopicParams,
   ): Promise<TopicResponse> {
-    return this.topics.getForSender(credentialSender(principal), topicId);
+    return this.topics.getForSender(credential.senderId, topicId);
   }
 }

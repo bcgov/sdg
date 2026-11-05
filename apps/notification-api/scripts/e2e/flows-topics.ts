@@ -3,12 +3,11 @@
 import { z } from 'zod';
 
 import { TYPE_KEYS } from '../lib/catalog.ts';
-import { expectBody, expectStatus, type Api } from '../lib/http.ts';
+import { expectBody, expectStatus, idSchema, type Api } from '../lib/http.ts';
 import type { E2eContext } from './context.ts';
 import { deliveryOn, send, settled } from './notifications.ts';
 import { check, waitFor } from './support.ts';
 
-const idSchema = z.object({ id: z.uuid() });
 const inboxSchema = z.object({ items: z.array(z.object({ notificationId: z.uuid() })) });
 
 /** Registers one of the sender's systems with a webhook to the receiver under `path`. */

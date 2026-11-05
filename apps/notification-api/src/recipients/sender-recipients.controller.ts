@@ -2,8 +2,8 @@ import { Body, Controller, HttpCode, Inject, NotFoundException, Param, Post, Use
 import { ApiBearerAuth, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { CredentialGuard } from '../auth/credential.guard.js';
-import { CurrentPrincipal } from '../auth/current-principal.decorator.js';
-import type { Principal } from '../auth/token-kind.js';
+import { CurrentCredential } from '../auth/current-principal.decorator.js';
+import type { LinkedCredential } from '../auth/directories.js';
 import { topicParamsSchema, type TopicParams } from '../catalog/catalog.schemas.js';
 import { BEARER_AUTH } from '../openapi/swagger.js';
 import {
@@ -24,12 +24,6 @@ import {
 import { RecipientsService } from './recipients.service.js';
 import { SubscriptionsService } from './subscriptions.service.js';
 
-/** The credential's sender; the CredentialGuard guarantees the principal is a credential. */
-function credentialSender(principal: Principal): string {
-  if (principal.kind !== 'credential') throw new Error('Sender recipient route reached without a credential');
-  return principal.credential.senderId;
-}
-
 /** Credential endpoints (R33, R39): the sender's users, systems and address-only recipients. */
 @ApiTags('recipients')
 @ApiBearerAuth(BEARER_AUTH)
@@ -49,10 +43,10 @@ export class SenderRecipientsController {
     standardSchema: preRegisteredUserSchema,
   })
   async preRegisterUser(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Body({ schema: preRegisterUserSchema }) { issuer, subject, contactPoints }: PreRegisterUser,
   ): Promise<{ issuer: string; subject: string }> {
-    const senderId = credentialSender(principal);
+    const senderId = credential.senderId;
     await this.recipients.upsertUserForSender(senderId, { issuer, subject }, contactPoints);
     return { issuer, subject };
   }
@@ -61,10 +55,10 @@ export class SenderRecipientsController {
   @HttpCode(200)
   @ApiOkResponse({ description: 'The system with its webhook endpoints', standardSchema: systemRecipientSchema })
   registerSystem(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Body({ schema: registerSystemSchema }) input: RegisterSystem,
   ): Promise<SystemRecipientResponse> {
-    return this.recipients.registerSystem(credentialSender(principal), input);
+    return this.recipients.registerSystem(credential.senderId, input);
   }
 
   @Post('addresses')
@@ -74,10 +68,10 @@ export class SenderRecipientsController {
     standardSchema: addressRecipientSchema,
   })
   setAddressSettings(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Body({ schema: addressSettingsSchema }) input: AddressSettings,
   ): Promise<AddressRecipientResponse> {
-    return this.recipients.setAddressSettings(credentialSender(principal), input);
+    return this.recipients.setAddressSettings(credential.senderId, input);
   }
 }
 
@@ -102,11 +96,11 @@ export class TopicSubscribersController {
   @HttpCode(204)
   @ApiNoContentResponse({ description: 'Subscribed; 404 unless the sender may broadcast to the topic' })
   async subscribe(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Param({ schema: topicParamsSchema }) { topicId }: TopicParams,
     @Body({ schema: recipientRefSchema }) ref: RecipientRef,
   ): Promise<void> {
-    const senderId = credentialSender(principal);
+    const senderId = credential.senderId;
     await this.subscriptions.requireBroadcastable(senderId, topicId);
     const recipientId = await this.resolve(senderId, ref);
     await this.subscriptions.subscribeBySender(senderId, topicId, recipientId);

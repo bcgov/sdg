@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
 import { deliveries, deliveryAttempts, inboxItems, notifications } from '../database/schema/index.js';
+import { toPage } from '../http/pagination.js';
 import { historyConditions } from './history.filters.js';
 import {
   iso,
@@ -57,10 +58,20 @@ function toDelivery(row: DeliveryRow, attempts: AttemptResponse[]): DeliveryResp
   return { id, recipientId, channel, step, contactPointId, address, status, reason, ...times, attempts };
 }
 
-function toInboxItem(row: InboxItemRow): HistoryInboxItem {
-  const { id, recipientId, title, body, actionUrl, language } = row;
+type InboxContentRow = Pick<
+  InboxItemRow,
+  'title' | 'body' | 'actionUrl' | 'language' | 'readAt' | 'acknowledgedAt' | 'createdAt'
+>;
+
+/** An in-app item's content and read state, as history and the inbox both show it. */
+export function inboxItemContent(row: InboxContentRow) {
+  const { title, body, actionUrl, language } = row;
   const times = { readAt: iso(row.readAt), acknowledgedAt: iso(row.acknowledgedAt) };
-  return { id, recipientId, title, body, actionUrl, language, ...times, createdAt: row.createdAt.toISOString() };
+  return { title, body, actionUrl, language, ...times, createdAt: row.createdAt.toISOString() };
+}
+
+function toInboxItem(row: InboxItemRow): HistoryInboxItem {
+  return { id: row.id, recipientId: row.recipientId, ...inboxItemContent(row) };
 }
 
 /**
@@ -84,12 +95,9 @@ export class HistoryService {
       .where(and(...historyConditions(this.db, senderId, query)))
       .orderBy(desc(notifications.createdAt), desc(notifications.id))
       .limit(query.limit + 1);
-    const page = rows.slice(0, query.limit);
+    const { page, nextCursor } = toPage(rows, query.limit);
     const rollUps = await this.rollUps(page.map((row) => row.id));
-    return {
-      items: page.map((row) => toSummary(row, rollUps.get(row.id) ?? emptyRollUp())),
-      nextCursor: rows.length > query.limit ? (page.at(-1)?.id ?? null) : null,
-    };
+    return { items: page.map((row) => toSummary(row, rollUps.get(row.id) ?? emptyRollUp())), nextCursor };
   }
 
   /** One notification with its roll-up, every delivery and attempt, and the in-app items it created. */

@@ -1,12 +1,14 @@
+import { and, eq } from 'drizzle-orm';
 import { expect } from 'vitest';
 
+import { recipients } from '../database/schema/index.js';
+import { ContactPointsService } from '../recipients/contact-points.service.js';
 import type { TestApp } from './app.js';
-import { bearer, createSender } from './senders.js';
+import { bearer, createSender, type SenderFixture } from './senders.js';
 import type { TestSmtpServer } from './smtp-server.js';
 import type { TestIssuer } from './tokens.js';
 
-export interface CredentialSender {
-  id: string;
+export interface CredentialSender extends SenderFixture {
   /** A bearer header with the sender's linked credential's client-credentials token. */
   credential: { authorization: string };
 }
@@ -26,7 +28,24 @@ export async function senderWithCredential(
     .set(bearer(sender.ownerToken))
     .send({ clientId });
   expect(linked.status).toBe(201);
-  return { id: sender.id, credential: bearer(await issuer.credentialToken(clientId)) };
+  return { ...sender, credential: bearer(await issuer.credentialToken(clientId)) };
+}
+
+/** A bearer header with a relaying user's token for `subject`. */
+export const relayed = async (issuer: TestIssuer, subject: string, claims: Record<string, unknown> = {}) =>
+  bearer(await issuer.relayingUserToken({ subject, claims }));
+
+/** The user recipient rows for `subject` at the test issuer. */
+export const userRows = (t: TestApp, issuer: TestIssuer, subject: string) =>
+  t.database.db
+    .select({ id: recipients.id, claimedAt: recipients.claimedAt })
+    .from(recipients)
+    .where(and(eq(recipients.issuer, issuer.issuer), eq(recipients.subject, subject)));
+
+/** The addresses a delivery from `senderId` would email the recipient at. */
+export async function usableEmails(t: TestApp, recipientId: string, senderId: string): Promise<string[]> {
+  const usable = await t.app.get(ContactPointsService).usable(recipientId, 'email', senderId);
+  return usable.points.map((point) => point.address);
 }
 
 /** The platform default email integration pointed at the in-process SMTP server, which the guard allow-lists. */

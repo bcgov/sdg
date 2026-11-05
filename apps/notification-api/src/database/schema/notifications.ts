@@ -55,7 +55,6 @@ export const notifications = pgTable(
   },
   (table) => [
     index('notifications_sender_id_created_at_idx').on(table.senderId, table.createdAt),
-    // The workers' queue of accepted notifications still to expand.
     index('notifications_unexpanded_idx')
       .on(table.createdAt)
       .where(sql`expanded_at IS NULL`),

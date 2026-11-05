@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import type { AuthUser } from '@repo/auth';
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import type { PersonRef } from '../auth/directories.js';
 import { SecretCipher } from '../crypto/secret-cipher.js';
@@ -113,7 +113,7 @@ export class RecipientsService {
 
   /**
    * Pre-registers a user for a sender with that sender's contact points (R27, R33). A user who already exists only
-   * gains the sender's points. Runs in the caller's transaction when given one (U9's accept).
+   * gains the sender's points. Runs in the caller's transaction when given one.
    */
   async upsertUserForSender(
     senderId: string,
@@ -168,6 +168,16 @@ export class RecipientsService {
       .from(recipients)
       .where(and(eq(recipients.senderId, senderId), eq(recipients.systemId, systemId)));
     return row?.id ?? null;
+  }
+
+  /** The sender's own system recipients among `systemIds`, by system id; another sender's systems are absent (R33). */
+  async findSystems(senderId: string, systemIds: readonly string[]): Promise<Map<string, string>> {
+    if (systemIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({ id: recipients.id, systemId: recipients.systemId })
+      .from(recipients)
+      .where(and(eq(recipients.senderId, senderId), inArray(recipients.systemId, [...systemIds])));
+    return new Map(rows.flatMap((row) => (row.systemId === null ? [] : [[row.systemId, row.id] as const])));
   }
 
   /**

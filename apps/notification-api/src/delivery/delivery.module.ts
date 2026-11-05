@@ -15,7 +15,7 @@ import { DeliveryWorker } from './processor.js';
 import { CLOCK, DELIVERY_SETTINGS, deliverySettings, systemClock } from './settings.js';
 
 /**
- * The delivery engine (U10): expansion, planning, claiming, channel senders and failure callbacks, for the worker
+ * The delivery engine: expansion, planning, claiming, channel senders and failure callbacks, for the worker
  * role's DeliveryLoop. No controllers. The lease is sized from the guarded HTTP client's timeout, which every
  * outbound send shares (KTD1).
  */

@@ -23,7 +23,7 @@ import { advanceEscalation, CANCEL_REASONS } from './escalation.js';
 import { transition, type AttemptRecord, type AttemptResult } from './outcomes.js';
 import { SKIP_REASONS } from './planner.js';
 import { nextAllowedInstant } from './quiet-hours.js';
-import { FAILURE_REASONS, MAX_ATTEMPTS } from './retry.js';
+import { FAILURE_REASONS, isReclaimedFinalAttempt } from './retry.js';
 import { CLOCK, type Clock } from './settings.js';
 
 /** What a delivery reads at claim (KTD7): the pinned send, and the recipient's settings as they are now. */
@@ -126,8 +126,8 @@ export class DeliveryWorker {
     context: DeliveryContext,
   ): Promise<AttemptResult | { point: UsableContactPoint }> {
     if (claimed.step > 0 && context.escalationStoppedAt) return { kind: 'cancelled', reason: CANCEL_REASONS.read };
-    // A claim beyond the last attempt is a crashed worker's last try being reclaimed.
-    if (claimed.attempts > MAX_ATTEMPTS) return { kind: 'failed', reason: FAILURE_REASONS.exhausted, attempt: null };
+    if (isReclaimedFinalAttempt(claimed.attempts))
+      return { kind: 'failed', reason: FAILURE_REASONS.exhausted, attempt: null };
     const declaration = CHANNEL_DECLARATIONS[claimed.channel];
     if (declaration.switchable && context.channelsOff.includes(claimed.channel)) {
       return { kind: 'skipped', reason: SKIP_REASONS.channelOff };
@@ -146,7 +146,9 @@ export class DeliveryWorker {
   /** The planned point when it is still there and usable for this sender: removed or unverified ones are not. */
   private async usablePoint(claimed: ClaimedDelivery, context: DeliveryContext): Promise<UsableContactPoint | null> {
     if (claimed.contactPointId === null) return null;
-    const { points } = await this.contactPoints.usable(claimed.recipientId, claimed.channel, context.senderId);
+    const { points } = await this.contactPoints.usable(claimed.recipientId, claimed.channel, context.senderId, {
+      onlyId: claimed.contactPointId,
+    });
     return points.find((point) => point.id === claimed.contactPointId) ?? null;
   }
 

@@ -2,7 +2,8 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { and, asc, eq, inArray, isNotNull, isNull, or, type SQL } from 'drizzle-orm';
 
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { senders, topicBroadcastGrants, topics } from '../database/schema/index.js';
+import { topicBroadcastGrants, topics } from '../database/schema/index.js';
+import { requireSender } from '../senders/require-sender.js';
 import type { CreateTopic, PlatformTopicResponse, TopicResponse } from './catalog.schemas.js';
 
 const topicColumns = {
@@ -68,7 +69,7 @@ export class TopicsService {
 
   /** Grants a sender permission to broadcast to a platform topic (R15). */
   async grantBroadcast(topicId: string, senderId: string): Promise<PlatformTopicResponse> {
-    await Promise.all([this.getPlatform(topicId), this.requireSender(senderId)]);
+    await Promise.all([this.getPlatform(topicId), requireSender(this.db, senderId, 'No sender with this id')]);
     await this.db.insert(topicBroadcastGrants).values({ topicId, senderId }).onConflictDoNothing();
     return this.getPlatform(topicId);
   }
@@ -145,10 +146,5 @@ export class TopicsService {
       .orderBy(asc(topicBroadcastGrants.createdAt), asc(topicBroadcastGrants.senderId));
     for (const row of rows) broadcasters.get(row.topicId)?.push(row.senderId);
     return broadcasters;
-  }
-
-  private async requireSender(senderId: string): Promise<void> {
-    const [sender] = await this.db.select({ id: senders.id }).from(senders).where(eq(senders.id, senderId));
-    if (!sender) throw new NotFoundException('No sender with this id');
   }
 }

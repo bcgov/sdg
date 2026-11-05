@@ -139,7 +139,7 @@ function collectObjectFields(fields: ContractField[], path: string[], object: Ob
   }
 }
 
-/** Every field of the contract, depth first in definition order, with whether it is required (for U5's editor). */
+/** Every field of the contract, depth first in definition order, with whether it is required. */
 export function contractFields(contract: DataContract): ContractField[] {
   const fields: ContractField[] = [];
   collectObjectFields(fields, [], contract);

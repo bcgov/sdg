@@ -12,8 +12,8 @@ import {
 import type { Response } from 'express';
 
 import { CredentialGuard } from '../auth/credential.guard.js';
-import { CurrentPrincipal } from '../auth/current-principal.decorator.js';
-import type { Principal } from '../auth/token-kind.js';
+import { CurrentCredential } from '../auth/current-principal.decorator.js';
+import type { LinkedCredential } from '../auth/directories.js';
 import { BEARER_AUTH } from '../openapi/swagger.js';
 import {
   SEND_BODY_LIMIT,
@@ -48,12 +48,11 @@ export class SendController {
   @ApiConflictResponse({ description: 'The idempotency key was already used with a different body' })
   @ApiPayloadTooLargeResponse({ description: `The body is over ${SEND_BODY_LIMIT}` })
   async send(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Body({ schema: sendSchema }) request: SendRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<SendResponse> {
-    if (principal.kind !== 'credential') throw new Error('Send route reached without a credential');
-    const { response, replayed } = await this.sends.send(principal.credential, request);
+    const { response, replayed } = await this.sends.send(credential, request);
     if (replayed) res.status(HttpStatus.OK);
     return response;
   }

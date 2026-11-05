@@ -14,7 +14,7 @@ export type NotificationDatabase = NodePgDatabase<NotificationSchema> & { $clien
 /** A transaction on the notification database. */
 export type NotificationTransaction = Parameters<Parameters<NotificationDatabase['transaction']>[0]>[0];
 
-/** The database or a transaction on it, for writes a caller may run inside its own transaction (U9's accept). */
+/** The database or a transaction on it, for writes a caller may run inside its own transaction. */
 export type DbOrTx = NotificationDatabase | NotificationTransaction;
 
 /** Injects the notification database. */

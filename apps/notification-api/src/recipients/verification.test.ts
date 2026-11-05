@@ -10,6 +10,7 @@ import {
   messagesTo,
   platformSmtpEnv,
   senderWithCredential,
+  usableEmails,
   type CredentialSender,
 } from '../testing/recipients.js';
 import { bearer } from '../testing/senders.js';
@@ -49,11 +50,6 @@ async function addEmail(user: { authorization: string }, address: string) {
 }
 
 const confirm = (token: string) => t.http().post('/api/v1/contact-points/confirm').send({ token });
-
-const usableEmails = async (recipient: string): Promise<string[]> => {
-  const usable = await t.app.get(ContactPointsService).usable(recipient, 'email', sender.id);
-  return usable.points.map((point) => point.address);
-};
 
 describe('the IdP email seed (R32, R35)', () => {
   it('stores an email the token does not mark verified as unverified, and sends it a confirmation', async () => {
@@ -96,12 +92,12 @@ describe('addresses the user adds (R35, KTD15)', () => {
       verified: false,
       source: 'user',
     });
-    expect(await usableEmails(recipient)).toEqual([first]);
+    expect(await usableEmails(t, recipient, sender.id)).toEqual([first]);
     const usable = await t.app.get(ContactPointsService).usable(recipient, 'email', sender.id);
     expect(usable.pendingVerification).toBe(true);
 
     expect(await confirm(confirmationToken(smtp, 'second@example.com'))).toHaveProperty('status', 204);
-    expect(await usableEmails(recipient)).toEqual([first, 'second@example.com']);
+    expect(await usableEmails(t, recipient, sender.id)).toEqual([first, 'second@example.com']);
   });
 
   it('confirms once per token: the second use is rejected', async () => {
@@ -150,10 +146,10 @@ describe('addresses the user adds (R35, KTD15)', () => {
 
     expect(edited.status).toBe(200);
     expect(edited.body).toMatchObject({ address: after, verified: false });
-    expect(await usableEmails(recipient)).not.toContain(after);
+    expect(await usableEmails(t, recipient, sender.id)).not.toContain(after);
     expect((await confirm(oldToken)).status).toBe(400);
     expect((await confirm(confirmationToken(smtp, after))).status).toBe(204);
-    expect(await usableEmails(recipient)).toContain(after);
+    expect(await usableEmails(t, recipient, sender.id)).toContain(after);
   });
 });
 

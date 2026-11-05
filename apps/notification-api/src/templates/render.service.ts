@@ -53,7 +53,7 @@ function chooseLanguage(
 }
 
 /**
- * Pins templates at accept (U9) and renders them at delivery (U10). A render reads only pinned versions, so a
+ * Pins templates at accept and renders them at delivery. A render reads only pinned versions, so a
  * notification renders the same after the admin publishes new ones (R25, AE10).
  */
 @Injectable()

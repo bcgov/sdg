@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
@@ -9,8 +9,8 @@ import { describeError } from '../logging/describe-error.js';
 import { GuardedHttpClient } from '../outbound/http-dispatcher.js';
 import { failed, type SendOutcome } from '../outbound/outcome.js';
 import { callbackSecretLocation } from '../senders/senders.service.js';
-import { claimable } from './claimer.js';
-import { afterAttempt, FAILURE_REASONS, MAX_ATTEMPTS } from './retry.js';
+import { claimDue } from './claimer.js';
+import { afterAttempt, FAILURE_REASONS, isReclaimedFinalAttempt } from './retry.js';
 import { CLOCK, DELIVERY_SETTINGS, type Clock, type DeliverySettings } from './settings.js';
 
 /** The body of a failure callback: which delivery failed and why (R42). */
@@ -39,6 +39,13 @@ export async function queueFailureCallback(db: DbOrTx, deliveryId: string, now: 
     WHERE d.id = ${deliveryId} AND s.callback_url IS NOT NULL
     ON CONFLICT (delivery_id) DO NOTHING`);
 }
+
+const claimedCallbackColumns = {
+  id: failureCallbacks.id,
+  deliveryId: failureCallbacks.deliveryId,
+  senderId: failureCallbacks.senderId,
+  attempts: failureCallbacks.attempts,
+};
 
 interface ClaimedCallback {
   id: string;
@@ -83,36 +90,18 @@ export class CallbackService {
   }
 
   private claim(): Promise<ClaimedCallback[]> {
-    const now = this.clock.now();
-    const due = this.db
-      .select({ id: failureCallbacks.id })
-      .from(failureCallbacks)
-      .where(claimable(failureCallbacks, now))
-      .orderBy(asc(failureCallbacks.dueAt))
-      .limit(this.settings.batchSize)
-      .for('update', { skipLocked: true });
-    return this.db
-      .update(failureCallbacks)
-      .set({
-        status: 'sending',
-        leaseUntil: new Date(now.getTime() + this.settings.leaseMs),
-        attempts: sql`${failureCallbacks.attempts} + 1`,
-        updatedAt: now,
-      })
-      .where(inArray(failureCallbacks.id, due))
-      .returning({
-        id: failureCallbacks.id,
-        deliveryId: failureCallbacks.deliveryId,
-        senderId: failureCallbacks.senderId,
-        attempts: failureCallbacks.attempts,
-      });
+    return claimDue(this.db, failureCallbacks, claimedCallbackColumns, {
+      now: this.clock.now(),
+      limit: this.settings.batchSize,
+      leaseMs: this.settings.leaseMs,
+    });
   }
 
   private async process(callback: ClaimedCallback): Promise<void> {
     try {
-      // A claim beyond the last attempt is a crashed worker's last try being reclaimed.
-      const outcome =
-        callback.attempts > MAX_ATTEMPTS ? failed(true, FAILURE_REASONS.exhausted) : await this.send(callback);
+      const outcome = isReclaimedFinalAttempt(callback.attempts)
+        ? failed(true, FAILURE_REASONS.exhausted)
+        : await this.send(callback);
       await this.record(callback, outcome);
     } catch (error) {
       // The lease runs out and another poll claims it again.

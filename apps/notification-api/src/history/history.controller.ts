@@ -3,8 +3,8 @@ import { ApiBearerAuth, ApiNotFoundResponse, ApiOkResponse, ApiTags } from '@nes
 
 import { AdminGuard } from '../auth/admin.guard.js';
 import { CredentialGuard } from '../auth/credential.guard.js';
-import { CurrentPrincipal } from '../auth/current-principal.decorator.js';
-import type { Principal } from '../auth/token-kind.js';
+import { CurrentCredential } from '../auth/current-principal.decorator.js';
+import type { LinkedCredential } from '../auth/directories.js';
 import { BEARER_AUTH } from '../openapi/swagger.js';
 import {
   historyQuerySchema,
@@ -28,12 +28,6 @@ const DETAIL = {
   standardSchema: notificationDetailSchema,
 };
 
-/** The credential's sender; the CredentialGuard guarantees the principal is a credential. */
-function credentialSender(principal: Principal): string {
-  if (principal.kind !== 'credential') throw new Error('History route reached without a credential');
-  return principal.credential.senderId;
-}
-
 /** Credential endpoints (R12, R43, R55): the history of the credential's own sender. */
 @ApiTags('notifications')
 @ApiBearerAuth(BEARER_AUTH)
@@ -49,20 +43,20 @@ export class SenderHistoryController {
   @Get()
   @ApiOkResponse(LIST)
   list(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Query({ schema: historyQuerySchema }) query: HistoryQuery,
   ): Promise<NotificationPage> {
-    return this.history.list(credentialSender(principal), query);
+    return this.history.list(credential.senderId, query);
   }
 
   @Get(':notificationId')
   @ApiOkResponse(DETAIL)
   @ApiNotFoundResponse({ description: 'No notification of this sender with this id' })
   get(
-    @CurrentPrincipal() principal: Principal,
+    @CurrentCredential() credential: LinkedCredential,
     @Param({ schema: notificationParamsSchema }) { notificationId }: NotificationParams,
   ): Promise<NotificationDetail> {
-    return this.history.get(credentialSender(principal), notificationId);
+    return this.history.get(credential.senderId, notificationId);
   }
 }
 

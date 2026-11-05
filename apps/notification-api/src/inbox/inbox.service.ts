@@ -1,11 +1,12 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 
-import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
+import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
 import { inboxItems, notificationRecipients, notifications } from '../database/schema/index.js';
 import { cancelPendingSteps, type CANCEL_REASONS } from '../delivery/escalation.js';
 import { CLOCK, type Clock } from '../delivery/settings.js';
-import { iso } from '../history/history.schemas.js';
+import { inboxItemContent } from '../history/history.service.js';
+import { afterCursor, toPage } from '../http/pagination.js';
 import type { InboxItemResponse, InboxPage, InboxQuery } from './inbox.schemas.js';
 
 const itemColumns = {
@@ -35,19 +36,7 @@ interface ItemRow {
 }
 
 function toItem(row: ItemRow): InboxItemResponse {
-  const { id, notificationId, type, title, body, actionUrl, language } = row;
-  const times = { readAt: iso(row.readAt), acknowledgedAt: iso(row.acknowledgedAt) };
-  return {
-    id,
-    notificationId,
-    type,
-    title,
-    body,
-    actionUrl,
-    language,
-    ...times,
-    createdAt: row.createdAt.toISOString(),
-  };
+  return { id: row.id, notificationId: row.notificationId, type: row.type, ...inboxItemContent(row) };
 }
 
 /**
@@ -66,15 +55,14 @@ export class InboxService {
 
   /** The recipient's items, newest first, a cursor page at a time. */
   async list(recipientId: string, { cursor, limit }: InboxQuery): Promise<InboxPage> {
-    const after =
-      cursor === undefined
-        ? undefined
-        : sql`(${inboxItems.createdAt}, ${inboxItems.id}) < (SELECT c.created_at, c.id FROM inbox_items c WHERE c.id = ${cursor})`;
-    const rows = await this.selectItems(and(eq(inboxItems.recipientId, recipientId), after))
+    const rows = await this.selectItems(
+      this.db,
+      and(eq(inboxItems.recipientId, recipientId), afterCursor(inboxItems, cursor)),
+    )
       .orderBy(desc(inboxItems.createdAt), desc(inboxItems.id))
       .limit(limit + 1);
-    const page = rows.slice(0, limit);
-    return { items: page.map(toItem), nextCursor: rows.length > limit ? (page.at(-1)?.id ?? null) : null };
+    const { page, nextCursor } = toPage(rows, limit);
+    return { items: page.map(toItem), nextCursor };
   }
 
   /** Sets the read time once and stops the escalation (R18). Repeating it changes nothing. */
@@ -94,7 +82,7 @@ export class InboxService {
   ): Promise<InboxItemResponse> {
     const now = this.clock.now();
     const owned = and(eq(inboxItems.id, itemId), eq(inboxItems.recipientId, recipientId));
-    await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
       const [item] = await tx
         .select({ notificationRecipientId: inboxItems.notificationRecipientId })
         .from(inboxItems)
@@ -114,14 +102,14 @@ export class InboxService {
         .set(cause === 'read' ? { readAt } : { readAt, acknowledgedAt })
         .where(owned);
       await cancelPendingSteps(tx, item.notificationRecipientId, cause, now);
+      const [row] = await this.selectItems(tx, owned);
+      if (!row) throw new NotFoundException('No inbox item with this id');
+      return toItem(row);
     });
-    const [row] = await this.selectItems(owned);
-    if (!row) throw new NotFoundException('No inbox item with this id');
-    return toItem(row);
   }
 
-  private selectItems(where: SQL | undefined) {
-    return this.db
+  private selectItems(db: DbOrTx, where: SQL | undefined) {
+    return db
       .select(itemColumns)
       .from(inboxItems)
       .innerJoin(notifications, eq(notifications.id, inboxItems.notificationId))

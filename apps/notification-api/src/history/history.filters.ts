@@ -2,6 +2,7 @@ import { and, eq, exists, or, sql, type SQL } from 'drizzle-orm';
 
 import type { NotificationDatabase } from '../database/database.module.js';
 import { deliveries, notificationRecipients, notifications, recipients } from '../database/schema/index.js';
+import { afterCursor } from '../http/pagination.js';
 import { normalizeAddress } from '../recipients/normalize.js';
 import type { HistoryQuery } from './history.schemas.js';
 
@@ -53,10 +54,7 @@ export function historyConditions(db: NotificationDatabase, senderId: string | n
     const referenced = and(eq(recipients.kind, 'address'), eq(recipients.reference, query.reference));
     conditions.push(toRecipient(db, referenced ?? sql`false`));
   }
-  if (query.cursor !== undefined) {
-    conditions.push(
-      sql`(${notifications.createdAt}, ${notifications.id}) < (SELECT c.created_at, c.id FROM notifications c WHERE c.id = ${query.cursor})`,
-    );
-  }
+  const after = afterCursor(notifications, query.cursor);
+  if (after) conditions.push(after);
   return conditions;
 }
