@@ -19,7 +19,7 @@ import {
 } from './directories.js';
 import { OwnerGuard } from './owner.guard.js';
 import { RecipientGuard } from './recipient.guard.js';
-import type { Principal } from './token-kind.js';
+import { ADMIN_ROLE, type Principal } from './token-kind.js';
 
 /** Stands in for recipient creation: recipient endpoints are where a recipient would be created. */
 const recipientHandler = vi.fn<(principal: Principal) => { kind: string; subject: string }>((principal) => ({
@@ -175,6 +175,22 @@ describe('endpoint-class guards', () => {
 
   it('ignore the admin role on a relaying-app token', async () => {
     const token = await issuer.relayingUserToken({ admin: true });
+    expect(await status('admin', token)).toBe(403);
+  });
+
+  // BC Gov's SSO service (the standard realm) puts the token's own client roles in a top-level `client_roles` claim
+  // instead of `resource_access`.
+  it('accept the admin role from the top-level client_roles claim of an own-client token', async () => {
+    const [admin, other] = await Promise.all([
+      issuer.ownClientUserToken({ claims: { client_roles: [ADMIN_ROLE] } }),
+      issuer.ownClientUserToken({ claims: { client_roles: ['viewer'] } }),
+    ]);
+    expect(await status('admin', admin)).toBe(200);
+    expect(await status('admin', other)).toBe(403);
+  });
+
+  it('ignore client_roles admin on a relaying-app token', async () => {
+    const token = await issuer.relayingUserToken({ claims: { client_roles: [ADMIN_ROLE] } });
     expect(await status('admin', token)).toBe(403);
   });
 

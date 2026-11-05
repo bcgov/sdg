@@ -25,7 +25,7 @@ export interface CredentialPrincipal extends PrincipalBase {
 /** A person's token issued to notification-api's own client: admin and owner endpoints. */
 export interface OwnClientUserPrincipal extends PrincipalBase {
   readonly kind: 'own-client-user';
-  /** Holds the `admin` role in `resource_access.<own client>.roles`. */
+  /** Holds the `admin` role on the own client (`resource_access.<own client>.roles` or `client_roles`). */
   readonly isAdmin: boolean;
 }
 
@@ -55,12 +55,22 @@ export function isServiceAccount(claims: Readonly<Record<string, unknown>>): boo
   return asString(claims['preferred_username'])?.startsWith(SERVICE_ACCOUNT_PREFIX) ?? false;
 }
 
-function clientRoles(claims: Readonly<Record<string, unknown>>, clientId: string): readonly unknown[] {
+function resourceAccessRoles(claims: Readonly<Record<string, unknown>>, clientId: string): readonly unknown[] {
   const access: unknown = claims['resource_access'];
   if (typeof access !== 'object' || access === null || !Object.hasOwn(access, clientId)) return [];
   const client: unknown = Object.getOwnPropertyDescriptor(access, clientId)?.value;
   if (typeof client !== 'object' || client === null || !('roles' in client)) return [];
   return Array.isArray(client.roles) ? client.roles : [];
+}
+
+/**
+ * The roles a token holds on `clientId`: Keycloak's `resource_access.<client>.roles`, and the top-level `client_roles`
+ * claim BC Gov's SSO service (the standard realm) uses instead. `client_roles` names no client, so it holds the roles
+ * of the client the token was issued to: callers pass only the token's own `azp`.
+ */
+function clientRoles(claims: Readonly<Record<string, unknown>>, clientId: string): readonly unknown[] {
+  const topLevel: unknown = claims['client_roles'];
+  return [...resourceAccessRoles(claims, clientId), ...(Array.isArray(topLevel) ? topLevel : [])];
 }
 
 function isListedClient(clientId: string, clients: TokenClients): boolean {
