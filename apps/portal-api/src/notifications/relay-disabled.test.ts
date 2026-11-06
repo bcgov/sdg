@@ -20,6 +20,7 @@ describe('notification relay with NOTIFICATION_API_URL blank', () => {
 
     expect((await agent.get('/api/v1/notifications/contact-points')).status).toBe(404);
     expect((await agent.get('/api/v1/notifications')).status).toBe(404);
+    expect((await agent.get('/api/v1/notifications/inbox/stream')).status).toBe(404);
     expect((await t.http().get('/api/v1/notifications/contact-points')).status).toBe(404);
     expect((await t.http().post('/api/v1/contact-points/confirm').send({ token: 'abc' })).status).toBe(404);
   });

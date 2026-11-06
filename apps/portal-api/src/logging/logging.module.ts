@@ -11,7 +11,10 @@ import { isQuietPath } from '../http/quiet-paths.js';
 /** Header values that carry the session or credentials; pino replaces them with "[Redacted]". */
 const REDACTED_PATHS = ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'];
 
-/** pino-http options: JSON lines, pino-pretty in development only, one line per request except probes/scrapes. */
+/**
+ * pino-http options: JSON lines, pino-pretty in development only, one line per request except probes, scrapes and the
+ * inbox stream.
+ */
 export function pinoHttpOptions(env: Pick<Env, 'NODE_ENV' | 'LOG_LEVEL'>): Options {
   return {
     level: env.LOG_LEVEL,
