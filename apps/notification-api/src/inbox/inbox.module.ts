@@ -5,11 +5,12 @@ import { RecipientsModule } from '../recipients/recipients.module.js';
 import { InboxQueriesService } from './inbox-queries.service.js';
 import { InboxController } from './inbox.controller.js';
 import { InboxService } from './inbox.service.js';
+import { ReadAllService } from './read-all.service.js';
 
 /** The in-app inbox for relayed users (R18, R50): the API role's. */
 @Module({
   imports: [RecipientsModule],
   controllers: [InboxController],
-  providers: [{ provide: CLOCK, useValue: systemClock }, InboxQueriesService, InboxService],
+  providers: [{ provide: CLOCK, useValue: systemClock }, InboxQueriesService, InboxService, ReadAllService],
 })
 export class InboxModule {}

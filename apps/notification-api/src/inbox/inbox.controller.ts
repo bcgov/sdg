@@ -13,15 +13,18 @@ import {
   inboxItemSchema,
   inboxPageSchema,
   inboxQuerySchema,
+  readAllSchema,
   unreadCountSchema,
   type ByNotificationParams,
   type InboxItemParams,
   type InboxItemResponse,
   type InboxPage,
   type InboxQuery,
+  type ReadAll,
   type UnreadCount,
 } from './inbox.schemas.js';
 import { InboxService } from './inbox.service.js';
+import { ReadAllService } from './read-all.service.js';
 
 /**
  * Recipient endpoints (R50): the user's own in-app inbox, through a relaying app. Every call first creates or claims
@@ -35,15 +38,18 @@ export class InboxController {
   private readonly recipients: RecipientsService;
   private readonly queries: InboxQueriesService;
   private readonly inbox: InboxService;
+  private readonly readAllService: ReadAllService;
 
   constructor(
     @Inject(RecipientsService) recipients: RecipientsService,
     @Inject(InboxQueriesService) queries: InboxQueriesService,
     @Inject(InboxService) inbox: InboxService,
+    @Inject(ReadAllService) readAllService: ReadAllService,
   ) {
     this.recipients = recipients;
     this.queries = queries;
     this.inbox = inbox;
+    this.readAllService = readAllService;
   }
 
   @Get()
@@ -72,6 +78,16 @@ export class InboxController {
     @Param({ schema: byNotificationParamsSchema }) { notificationId }: ByNotificationParams,
   ): Promise<InboxItemResponse> {
     return this.queries.byNotification(await this.me(principal), notificationId);
+  }
+
+  @Post('read-all')
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: 'Every unread item of yours, read; any escalation still pending for them is cancelled',
+    standardSchema: readAllSchema,
+  })
+  async readAll(@CurrentPrincipal() principal: Principal): Promise<ReadAll> {
+    return this.readAllService.readAll(await this.me(principal));
   }
 
   @Post(':itemId/read')

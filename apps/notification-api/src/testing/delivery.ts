@@ -7,7 +7,7 @@ import { CHANNELS, type Channel } from '../channels/channels.js';
 import { deliveries, deliveryAttempts, inboxItems, notificationRecipients } from '../database/schema/index.js';
 import { CLOCK, type Clock } from '../delivery/settings.js';
 import { DeliveryLoop } from '../delivery/worker-loop.js';
-import { createTestApp, type TestApp } from './app.js';
+import { createTestApp, type TestApp, type TestAppOptions } from './app.js';
 import { platformSmtpEnv } from './recipients.js';
 import { bearer } from './senders.js';
 import { SEND_PATH } from './sending.js';
@@ -167,11 +167,14 @@ export interface DeliveryAppOptions {
   platformEmail?: boolean;
   /** Env overrides, e.g. a short NOTIFICATION_WORKER_POLL_MS so the loop runs on its own. */
   env?: Record<string, string>;
+  /** The database the app uses; defaults to a fresh PGlite. */
+  database?: TestAppOptions['database'];
 }
 
 export async function startDeliveryApp({
   platformEmail = true,
   env = {},
+  database,
 }: DeliveryAppOptions = {}): Promise<DeliveryApp> {
   const [issuer, smtp, receiver] = await Promise.all([
     startTestIssuer(),
@@ -183,6 +186,7 @@ export async function startDeliveryApp({
   const t = await createTestApp({
     env: { ...issuer.env, ...email, ...env },
     issuerFetch: issuer.fetch,
+    ...(database ? { database } : {}),
     overrides: [{ provide: CLOCK, useValue: clock }],
   });
   const adminToken = await issuer.ownClientUserToken({ admin: true });
