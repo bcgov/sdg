@@ -151,7 +151,7 @@ export class NotificationsController implements ReactiveController {
 
   #schedule(change: boolean): void {
     if (change) this.#unreportedChange = true;
-    if (this.#tokenPaused || this.#authPaused || this.status === 'unavailable') return;
+    if (this.#halted) return;
     clearTimeout(this.#timer);
     this.#timer = setTimeout(() => void this.#refetch(true), refetchDebounceMs);
   }
@@ -204,9 +204,10 @@ export class NotificationsController implements ReactiveController {
       this.#setTokenPaused(true);
       return;
     }
-    if (error instanceof SourceError && error.status === 401) this.#signedOut(session.live);
-    if (error instanceof SourceError && error.status === 404) session.live.stop();
-    this.status = error instanceof SourceError && error.status === 404 ? 'unavailable' : 'error';
+    const status = error instanceof SourceError ? error.status : undefined;
+    if (status === 401) this.#signedOut(session.live);
+    if (status === 404) session.live.stop();
+    this.status = status === 404 ? 'unavailable' : 'error';
     this.#host.requestUpdate();
   }
 
@@ -249,8 +250,12 @@ export class NotificationsController implements ReactiveController {
     const session = this.#session;
     if (!session) return;
     await this.#refetch(false);
-    const halted = this.#tokenPaused || this.#authPaused || this.status === 'unavailable';
-    if (this.#session === session && !halted) session.live.start();
+    if (this.#session === session && !this.#halted) session.live.start();
+  }
+
+  /** Paused for a token or a sign-in, or the source has no notifications: no loads and no stream. */
+  get #halted(): boolean {
+    return this.#tokenPaused || this.#authPaused || this.status === 'unavailable';
   }
 
   readonly #onFocus = (): void => this.#schedule(false);
