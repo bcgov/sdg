@@ -109,6 +109,22 @@ describe('NotificationsController', () => {
     second.disconnect();
   });
 
+  it('tells the host after a reconnect, so a host page catches up on changes missed while it was down (R26, R33)', async () => {
+    const api = backend();
+    const { controller, notificationsChangedFn, disconnect } = tab(api);
+    await debounce();
+    expect(notificationsChangedFn).not.toHaveBeenCalled();
+
+    api.state.unread = 5;
+    api.bodies.at(-1)?.end();
+    await vi.advanceTimersByTimeAsync(2_500);
+    await debounce();
+    expect(api.count('inbox/stream')).toBe(2);
+    expect(controller.unread).toBe(5);
+    expect(notificationsChangedFn).toHaveBeenCalledOnce();
+    disconnect();
+  });
+
   it('refetches once for five changed events within 100 ms', async () => {
     const api = backend();
     const { disconnect } = tab(api);

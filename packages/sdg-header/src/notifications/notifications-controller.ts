@@ -114,6 +114,7 @@ export class NotificationsController implements ReactiveController {
   #start(): void {
     const { url, accessTokenFn } = this.#config;
     if (!url) return;
+    let opened = 0;
     const source = new NotificationsSource({
       url,
       // Read at call time, so a host passing a new function each render does not restart the stream.
@@ -123,7 +124,8 @@ export class NotificationsController implements ReactiveController {
     const live = new LiveConnection({
       source,
       onChanged: () => this.#schedule(true),
-      onOpen: () => this.#schedule(false),
+      // A reopened stream may have missed changes, so the host hears about it like a change (R26, R33).
+      onOpen: () => this.#schedule(opened++ > 0),
       onStatus: (status) => this.#onLiveStatus(live, status),
       locks: this.#environment.locks,
       createChannel: this.#environment.createChannel,
