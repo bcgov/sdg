@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 
 import { principals } from '@repo/portal-database';
 import type supertest from 'supertest';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestApp, resetOidcStub, type TestApp } from '../testing/app.js';
 import { json, signIn, startUpstream, type Upstream } from '../testing/notification-upstream.js';
@@ -12,6 +12,9 @@ const STREAM_PATH = '/api/v1/notifications/inbox/stream';
 const OPEN = ': open\n\n';
 const KEEP_ALIVE = ': keep-alive\n\n';
 const CHANGED = 'event: changed\ndata: {}\n\n';
+/** The idle limit for these tests (SESSION_TTL_SECONDS). */
+const TTL_SECONDS = 600;
+const MINUTE = 60_000;
 
 interface OpenUpstream {
   res: ServerResponse;
@@ -109,7 +112,7 @@ describe('notification relay stream', () => {
 
   beforeAll(async () => {
     upstream = await startUpstream();
-    t = await createTestApp({ env: { NOTIFICATION_API_URL: upstream.url } });
+    t = await createTestApp({ env: { NOTIFICATION_API_URL: upstream.url, SESSION_TTL_SECONDS: String(TTL_SECONDS) } });
     baseUrl = await listen(t);
   });
 
@@ -126,6 +129,7 @@ describe('notification relay stream', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     for (const client of clients.splice(0)) client.abort();
     for (const res of opened.splice(0)) res.end();
   });
@@ -207,6 +211,29 @@ describe('notification relay stream', () => {
     await client.readUntil(CHANGED);
 
     expect((await agent.post('/api/auth/logout')).status).toBe(200);
+    up.res.write(KEEP_ALIVE);
+    expect(await client.readToEnd()).toBe(`${OPEN}${KEEP_ALIVE}${CHANGED}${KEEP_ALIVE}`);
+    await up.closed;
+  });
+
+  it('ends an open stream at the next upstream keep-alive once the session is idle-expired', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const start = Date.now();
+    const { agent, cookie } = await signedIn(t);
+    const { client, up } = await openStream(cookie);
+
+    // Background requests keep the stored session alive past the idle limit without restarting its clock.
+    for (const minute of [4, 8]) {
+      vi.setSystemTime(start + minute * MINUTE);
+      // oxlint-disable-next-line no-await-in-loop -- each request runs at its own time.
+      expect((await agent.get('/api/auth/me').set('sdg-background', '1')).status).toBe(200);
+    }
+    up.res.write(KEEP_ALIVE);
+    await delay(250);
+    up.res.write(CHANGED);
+    await client.readUntil(CHANGED);
+
+    vi.setSystemTime(start + TTL_SECONDS * 1000 + MINUTE / 2);
     up.res.write(KEEP_ALIVE);
     expect(await client.readToEnd()).toBe(`${OPEN}${KEEP_ALIVE}${CHANGED}${KEEP_ALIVE}`);
     await up.closed;

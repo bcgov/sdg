@@ -64,6 +64,12 @@ export interface OidcClient {
    * rejects it (`detail` carries the IdP `error` code).
    */
   refresh(current: OidcTokens): Promise<OidcTokens>;
+  /**
+   * Ends the user's IdP session over the back channel: posts `current.refreshToken` with the client credentials to the
+   * discovered `end_session_endpoint` (Keycloak's logout endpoint). Throws `AuthError('end_session_failed')` when there
+   * is no refresh token or the IdP answers with an error (`detail` carries its `error` code, or the HTTP status).
+   */
+  endSession(current: OidcTokens): Promise<void>;
 }
 
 /**

@@ -3,7 +3,8 @@ export type AuthErrorCode =
   | 'callback_failed'
   | 'discovery_failed'
   | 'invalid_token'
-  | 'refresh_failed';
+  | 'refresh_failed'
+  | 'end_session_failed';
 
 const MESSAGES: Record<AuthErrorCode, string> = {
   invalid_state: 'Authorization state is missing or does not match',
@@ -11,6 +12,7 @@ const MESSAGES: Record<AuthErrorCode, string> = {
   discovery_failed: 'OpenID Provider discovery failed',
   invalid_token: 'Token is invalid',
   refresh_failed: 'Token refresh failed',
+  end_session_failed: 'Ending the identity provider session failed',
 };
 
 export interface AuthErrorOptions {

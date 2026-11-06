@@ -16,6 +16,9 @@ export interface PostgresSessionStoreOptions {
   touchThresholdSeconds?: number;
 }
 
+/** The default `touchThresholdSeconds`: rolling sessions write their expiry at most every 5 minutes. */
+export const TOUCH_THRESHOLD_SECONDS = 300;
+
 type Callback<T> = (error: unknown, value?: T) => void;
 
 const logger = new Logger('SessionStore');
@@ -35,7 +38,7 @@ export class PostgresSessionStore extends Store {
     this.db = db;
     this.key = options.key;
     this.ttlMs = options.ttlSeconds * 1000;
-    this.touchThresholdMs = (options.touchThresholdSeconds ?? 300) * 1000;
+    this.touchThresholdMs = (options.touchThresholdSeconds ?? TOUCH_THRESHOLD_SECONDS) * 1000;
   }
 
   override get(sid: string, callback: Callback<SessionData | null>): void {

@@ -42,7 +42,10 @@ export interface FakeIdp {
   /** When true, discovery responds 500. */
   failDiscovery: boolean;
   issueCode(code: IssuedCode): string;
-  /** Registers a refresh token the token endpoint accepts once; each refresh rotates it to a new one. */
+  /**
+   * Registers a refresh token the token endpoint accepts once; each refresh rotates it to a new one. A back-channel
+   * logout (`POST /logout`) revokes it.
+   */
   issueRefreshToken(token?: IssuedRefreshToken): string;
   sign(claims: JWTPayload, options?: SignOptions): Promise<string>;
   close(): Promise<void>;
@@ -131,6 +134,15 @@ export async function startFakeIdp(): Promise<FakeIdp> {
     });
   }
 
+  /** Keycloak's back-channel logout: the refresh token and client credentials, answered 204 with no body. */
+  async function logout(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const form = await readForm(req);
+    if (!clientAuthenticated(form)) return sendJson(res, 401, { error: 'invalid_client' });
+    const presented = form.get('refresh_token') ?? '';
+    if (!refreshTokens.delete(presented)) return sendJson(res, 400, { error: 'invalid_grant' });
+    res.writeHead(204).end();
+  }
+
   async function token(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const form = await readForm(req);
     if (form.get('grant_type') === 'refresh_token') return refresh(form, res);
@@ -161,6 +173,13 @@ export async function startFakeIdp(): Promise<FakeIdp> {
     if (path === '/token' && req.method === 'POST') {
       token(req, res).catch((error: unknown) => {
         console.error('fake idp token endpoint failed', error);
+        sendJson(res, 500, { error: 'server_error' });
+      });
+      return;
+    }
+    if (path === '/logout' && req.method === 'POST') {
+      logout(req, res).catch((error: unknown) => {
+        console.error('fake idp logout endpoint failed', error);
         sendJson(res, 500, { error: 'server_error' });
       });
       return;
