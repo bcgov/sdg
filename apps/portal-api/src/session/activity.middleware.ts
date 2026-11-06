@@ -31,12 +31,14 @@ function isStream(req: Request): boolean {
 /**
  * Applies the idle limit (KTD8), after the session middleware and before any guard. An idle-expired session is ended
  * at the identity provider over the back channel and replaced by an empty one, so the request proceeds signed out.
- * Otherwise a request without the background marker stamps `lastActivityAt` when the stored value is more than the
- * store's touch threshold old, so sessions are not rewritten per request. A signed-in session without a stamp (signed
+ * Otherwise a request without the background marker stamps `lastActivityAt` when the stored value is older than the
+ * store's touch threshold or a tenth of the idle limit, whichever is shorter, so sessions are not rewritten per request. A signed-in session without a stamp (signed
  * in moments ago, or before this existed) gets one at its next request, background or not.
  */
 export function activityMiddleware({ oidc, ttlSeconds }: ActivityOptions): RequestHandler {
   const logger = new Logger('SessionActivity');
+  // A tenth of a short idle limit, so a steadily active user is always re-stamped before the limit passes.
+  const stampAfterMs = Math.min(TOUCH_THRESHOLD_SECONDS, Math.floor(ttlSeconds / 10)) * 1000;
 
   async function endIdleSession(req: Request, session: SessionData): Promise<void> {
     if (session.auth) {
@@ -60,7 +62,7 @@ export function activityMiddleware({ oidc, ttlSeconds }: ActivityOptions): Reque
     if (isStream(req)) return;
     const last = session.lastActivityAt;
     const userAction = req.get(BACKGROUND_HEADER) !== '1';
-    if (last === undefined || (userAction && now - last > TOUCH_THRESHOLD_SECONDS * 1000)) {
+    if (last === undefined || (userAction && now - last > stampAfterMs)) {
       session.lastActivityAt = now;
     }
   }

@@ -39,6 +39,8 @@ export class InboxStreamController implements BeforeApplicationShutdown {
   @ApiOkResponse({ description: 'Server-Sent Events: `changed` whenever your inbox changes, refetch on each' })
   async stream(@CurrentPrincipal() principal: Principal, @Res() res: Response): Promise<void> {
     const recipientId = await this.recipients.claimUser(principal.user);
+    // A client that left while this waited has already fired 'close', so the stream would never end.
+    if (res.destroyed || res.req.socket.destroyed) return;
     const stream = openEventStream(res);
     const unsubscribe = this.signals.subscribe(recipientId, () => stream.changed());
     const expiresIn = msUntilExpiry(principal);

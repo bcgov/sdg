@@ -2,6 +2,7 @@ import type { AddressInfo } from 'node:net';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { RecipientsService } from '../recipients/recipients.service.js';
 import { createTestDatabase, type TestDatabase } from '../testing/database.js';
 import {
   defineDeliveryType,
@@ -208,6 +209,30 @@ describe('GET me/inbox/stream (KTD4)', () => {
     await stream.cancel();
 
     await vi.waitFor(() => expect(counting.live(user.recipientId)).toBe(0));
+  });
+
+  it('subscribes nothing when the client leaves while the stream is being set up', async () => {
+    const user = await relayedUser(app);
+    const recipients = app.t.app.get(RecipientsService);
+    const claim = recipients.claimUser.bind(recipients);
+    const { promise: entered, resolve: enter } = Promise.withResolvers<void>();
+    const { promise: gate, resolve: release } = Promise.withResolvers<void>();
+    const spy = vi.spyOn(recipients, 'claimUser').mockImplementationOnce(async (person) => {
+      enter();
+      await gate;
+      return claim(person);
+    });
+    const controller = new AbortController();
+    const request = fetch(`${base}${STREAM}`, { headers: user.auth, signal: controller.signal }).catch(() => undefined);
+    await entered;
+    controller.abort();
+    await request;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(counting.live(user.recipientId)).toBe(0);
+    spy.mockRestore();
   });
 
   it('ends open streams when the app shuts down', async () => {

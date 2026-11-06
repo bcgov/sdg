@@ -9,6 +9,17 @@ import { INBOX_CHANNEL, InboxSubscribers } from './inbox-signals.js';
 /** Reconnect delays: 1, 2, 4… seconds, capped at 30. */
 const FIRST_RETRY_MS = 1_000;
 const MAX_RETRY_MS = 30_000;
+/**
+ * A connection that dies without a FIN or RST (a node lost in a failover, an idle flow dropped by NAT) never errors on
+ * its own, and LISTEN sends nothing to notice it: TCP keepalive and a periodic query turn that into a failure.
+ */
+const HEALTH_CHECK_MS = 30_000;
+const CLIENT_OPTIONS = {
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10_000,
+  connectionTimeoutMillis: 10_000,
+  query_timeout: 5_000,
+} as const;
 
 /**
  * The api role's listener (KTD3): one dedicated client, not from the shared pool, LISTENing on the inbox channel and
@@ -42,12 +53,14 @@ export class PgInboxSignals extends InboxSubscribers implements OnModuleInit, On
   }
 
   private async connect(): Promise<void> {
-    const client = new Client({ connectionString: this.connectionString });
+    const client = new Client({ connectionString: this.connectionString, ...CLIENT_OPTIONS });
     let failed = false;
+    let health: NodeJS.Timeout | undefined;
     // An error and the end that follows it are one failure.
     const fail = (error: unknown): void => {
       if (failed) return;
       failed = true;
+      clearInterval(health);
       this.lost(client, error);
     };
     client.on('notification', ({ channel, payload }) => {
@@ -69,6 +82,9 @@ export class PgInboxSignals extends InboxSubscribers implements OnModuleInit, On
     }
     this.client = client;
     this.retryMs = FIRST_RETRY_MS;
+    health = setInterval(() => {
+      client.query('SELECT 1').catch(fail);
+    }, HEALTH_CHECK_MS);
     // At start nobody has subscribed yet; after a reconnect, signals sent meanwhile may have been missed.
     this.broadcast();
   }
