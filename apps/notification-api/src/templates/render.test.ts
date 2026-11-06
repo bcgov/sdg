@@ -1,18 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createTestApp, type TestApp } from '../testing/app.js';
+import { bearer } from '../testing/senders.js';
 import { ensureSaved, mjml, permitType, templatesApi, type TemplatesApi } from '../testing/templates.js';
 import { startTestIssuer, type TestIssuer } from '../testing/tokens.js';
 import { RenderService, type RenderRequest, type RenderResult } from './render.service.js';
+import { SAMPLE_NOTIFICATION_ID } from './test-render.js';
 
 let t: TestApp;
 let issuer: TestIssuer;
+let adminToken: string;
 let api: TemplatesApi;
 
 beforeAll(async () => {
   issuer = await startTestIssuer();
   t = await createTestApp({ env: issuer.env, issuerFetch: issuer.fetch });
-  api = templatesApi(t, await issuer.ownClientUserToken({ admin: true }));
+  adminToken = await issuer.ownClientUserToken({ admin: true });
+  api = templatesApi(t, adminToken);
 });
 
 afterAll(async () => {
@@ -26,10 +30,17 @@ const data = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const render = (request: Omit<RenderRequest, 'recipientId'>): Promise<RenderResult> =>
-  t.app.get(RenderService).render({ recipientId: 'recipient-1', ...request });
+const NOTIFICATION_ID = '6f1c1a52-7d3e-4b8a-9c1f-2a4b6c8d0e1f';
 
-async function rendered(request: Omit<RenderRequest, 'recipientId'>) {
+type TestRequest = Omit<RenderRequest, 'recipientId' | 'notificationId' | 'recipientKind'> &
+  Partial<Pick<RenderRequest, 'recipientKind'>>;
+
+const render = (request: TestRequest): Promise<RenderResult> =>
+  t.app
+    .get(RenderService)
+    .render({ recipientId: 'recipient-1', notificationId: NOTIFICATION_ID, recipientKind: 'user', ...request });
+
+async function rendered(request: TestRequest) {
   const result = await render(request);
   if (result.status !== 'rendered') throw new Error('Expected a template');
   return result;
@@ -183,5 +194,70 @@ describe('pinned versions (R25, KTD7)', () => {
       result.parts.channel === 'email' ? [result.parts.subject, result.parts.text.trim()] : null;
     expect(summary(old)).toEqual(['Version 3', 'Frame one Body 3']);
     expect(summary(current)).toEqual(['Version 4', 'Frame two Body 4']);
+  });
+});
+
+describe('notification variables (R36, KTD10)', () => {
+  const link = '{% if recipient.hasInbox %}https://portal.example/inbox/{{ notification.id }}{% endif %}';
+  let pinned: Awaited<ReturnType<TemplatesApi['pin']>>;
+
+  beforeAll(async () => {
+    await api.defineType(permitType('portal-link'));
+    const saves = await Promise.all([
+      api.save('portal-link', 'email', 'en-CA', {
+        subject: 'Permit',
+        html: mjml(`Open ${link}`),
+        text: `Open ${link}`,
+      }),
+      api.save('portal-link', 'in-app', 'en-CA', {
+        title: 'Permit',
+        body: 'x',
+        actionUrl: '/inbox/{{ notification.id }}',
+      }),
+    ]);
+    saves.forEach(ensureSaved);
+    pinned = await api.pin('portal-link');
+  });
+
+  const email = async (request: Omit<TestRequest, 'pinned' | 'channel'>) => {
+    const { parts } = await rendered({ pinned, channel: 'email', ...request });
+    if (parts.channel !== 'email') throw new Error('Expected email parts');
+    return parts;
+  };
+
+  it("renders the notification's id in the email HTML and text parts of a user's email", async () => {
+    const parts = await email({ data: data() });
+    expect(parts.html).toContain(`https://portal.example/inbox/${NOTIFICATION_ID}`);
+    expect(parts.text.trim()).toBe(`Open https://portal.example/inbox/${NOTIFICATION_ID}`);
+  });
+
+  it('renders the id in an in-app action link', async () => {
+    const { parts } = await rendered({ pinned, channel: 'in-app', data: data() });
+    expect(parts.channel === 'in-app' ? parts.actionUrl : null).toBe(`/inbox/${NOTIFICATION_ID}`);
+  });
+
+  it('leaves the guarded link out for an address recipient, who has no inbox', async () => {
+    const parts = await email({ recipientKind: 'address', data: data() });
+    expect(parts.html).not.toContain('portal.example');
+    expect(parts.text.trim()).toBe('Open');
+  });
+
+  it('keeps both variables when the sender data has keys of the same names', async () => {
+    const forged = data({ notification: { id: 'forged' }, recipient: { hasInbox: true } });
+    const [user, address] = await Promise.all([
+      email({ data: forged }),
+      email({ recipientKind: 'address', data: forged }),
+    ]);
+    expect(user.text.trim()).toBe(`Open https://portal.example/inbox/${NOTIFICATION_ID}`);
+    expect(address.text.trim()).toBe('Open');
+  });
+
+  it('previews with a sample notification id, as a recipient with an inbox', async () => {
+    const res = await t
+      .http()
+      .get('/api/v1/admin/types/portal-link/templates/email/en-CA/preview')
+      .set(bearer(adminToken));
+    expect(res.status).toBe(200);
+    expect(res.body.rendered.text.trim()).toBe(`Open https://portal.example/inbox/${SAMPLE_NOTIFICATION_ID}`);
   });
 });

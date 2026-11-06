@@ -20,6 +20,23 @@ portal-api relays `/api/v1/notifications/*` to `/api/v1/me/*` with the signed-in
 
 `NOTIFICATION_ROLE` picks what a process runs: `api` (routes, health, metrics), `worker` (the delivery loop: expand, plan, deliver, failure callbacks; health and metrics only) or `all` (both; the default, and what compose runs). Workers claim work with `FOR UPDATE SKIP LOCKED`, so any number can share a database.
 
+## Template variables
+
+Templates (Liquid, every channel) see the sender's `data` fields by name, plus two variables the platform sets. A `data` field with the same name can't override them:
+
+| Variable             | Value                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| `notification.id`    | The notification's id: the one the send returned, and what the portal inbox links to        |
+| `recipient.hasInbox` | `true` only for a portal user; `false` for address and system recipients, who have no inbox |
+
+There is no portal URL setting, so a template writes the link itself and guards it, because an address recipient has no inbox page to open:
+
+```liquid
+{% if recipient.hasInbox %}https://<portal>/inbox/{{ notification.id }}{% endif %}
+```
+
+Previews and the test renders on save use a sample id and `hasInbox: true`.
+
 ## Environment
 
 Every key is in `.env.example` with a comment; `src/config/env.ts` validates them at boot. The ones you must set:

@@ -18,7 +18,13 @@ import {
   type TemplateParams,
   type TemplateVersionResponse,
 } from './templates.schemas.js';
-import { fragmentSources, SAMPLE_RECIPIENT_ID, templateReferences, testRender } from './test-render.js';
+import {
+  fragmentSources,
+  SAMPLE_RECIPIENT_ID,
+  SAMPLE_VARIABLES,
+  templateReferences,
+  testRender,
+} from './test-render.js';
 
 export function toTemplateVersion(row: TemplateRow): TemplateVersionResponse {
   const { id, typeKey, channel, language, version, parts, references, createdAt } = row;
@@ -141,6 +147,7 @@ export class VersionsService {
         fragments,
         locale: { language: template.language, timeZone: query.timeZone ?? this.defaultTimeZone },
         data: sampleData(type.dataContract),
+        variables: SAMPLE_VARIABLES,
         envelope: { type: type.key, recipientId: SAMPLE_RECIPIENT_ID },
         strict: false,
       });

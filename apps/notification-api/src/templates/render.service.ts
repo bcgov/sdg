@@ -4,7 +4,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { canonicalLanguage } from '../catalog/catalog.schemas.js';
 import type { Channel } from '../channels/channels.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { fragmentVersions, templateVersions } from '../database/schema/index.js';
+import { fragmentVersions, templateVersions, type RecipientKind } from '../database/schema/index.js';
 import { renderParts, type RenderedParts } from './renderer.js';
 import { currentTemplates, fragmentClosure, type Queryable } from './template-store.js';
 
@@ -33,6 +33,10 @@ export interface RenderRequest {
   data: Record<string, unknown>;
   /** Named in a webhook's standard envelope. */
   recipientId: string;
+  /** Templates see it as `notification.id` (R36). */
+  notificationId: string;
+  /** Templates see `recipient.hasInbox`, true only for a user (KTD10). */
+  recipientKind: RecipientKind;
 }
 
 export type RenderResult =
@@ -109,6 +113,10 @@ export class RenderService {
       fragments: Object.fromEntries(fragments.map((fragment) => [fragment.name, fragment.source])),
       locale: { language, timeZone: request.timeZone ?? this.defaultTimeZone },
       data: request.data,
+      variables: {
+        notification: { id: request.notificationId },
+        recipient: { hasInbox: request.recipientKind === 'user' },
+      },
       envelope: { type: pinned.typeKey, recipientId: request.recipientId },
       strict: false,
     });

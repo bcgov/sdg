@@ -160,7 +160,13 @@ export class DeliveryWorker {
     const unsent = { integrationId: null, integrationVersion: null, rendered: null, status: 'failed' } as const;
     let rendered;
     try {
-      rendered = await this.render.render({ ...context, channel: claimed.channel, recipientId: claimed.recipientId });
+      rendered = await this.render.render({
+        ...context,
+        channel: claimed.channel,
+        recipientId: claimed.recipientId,
+        notificationId: claimed.notificationId,
+        recipientKind: context.kind,
+      });
     } catch (error) {
       if (!(error instanceof TemplateRenderError)) throw error;
       return { kind: 'failed', reason: FAILURE_REASONS.renderFailed, attempt: { ...unsent, error: error.message } };

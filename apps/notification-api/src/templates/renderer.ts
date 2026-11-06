@@ -18,24 +18,37 @@ export type RenderedParts =
   /** `payload` is JSON text. */
   | { channel: 'webhook'; payload: string };
 
+/** What every template sees beside the sender's data, which cannot override it (KTD10). */
+export interface NotificationVariables {
+  notification: { id: string };
+  /** True only for a user recipient: address and system recipients have no inbox. */
+  recipient: { hasInbox: boolean };
+}
+
 export interface RenderInput {
   channel: Channel;
   parts: TemplateParts;
   /** The pinned layouts and partials (KTD7). */
   fragments: FragmentSources;
   locale: RenderLocale;
-  /** The sender's data: the templates' variables. */
+  /** The sender's data, which templates see by field name. */
   data: Record<string, unknown>;
+  /** The notification's variables; absent for a platform email that is not a notification. */
+  variables?: NotificationVariables | undefined;
   /** What the webhook's standard envelope names. */
   envelope: { type: string; recipientId: string };
   /** On save, MJML validation is strict (KTD6). */
   strict: boolean;
 }
 
+/** The templates' variables: the sender's data, then the notification's variables over it. */
+const scope = ({ data, variables }: RenderInput): Record<string, unknown> => ({ ...data, ...variables });
+
 const isBlank = (source: string | undefined): source is undefined => source === undefined || source.trim() === '';
 
 async function renderEmail(input: RenderInput): Promise<RenderedParts> {
-  const { parts, data, fragments, locale } = input;
+  const { parts, fragments, locale } = input;
+  const data = scope(input);
   const html = createEngine('html', fragments, locale);
   const text = createEngine('text', fragments, locale);
   const textSource = parts['text'];
@@ -69,7 +82,9 @@ function checkActionLink(rendered: string): string | null {
   return link;
 }
 
-async function renderInApp({ parts, data, fragments, locale }: RenderInput): Promise<RenderedParts> {
+async function renderInApp(input: RenderInput): Promise<RenderedParts> {
+  const { parts, fragments, locale } = input;
+  const data = scope(input);
   const text = createEngine('text', fragments, locale);
   const actionSource = parts['actionUrl'];
   const [title, body, actionUrl] = await Promise.all([
@@ -82,14 +97,16 @@ async function renderInApp({ parts, data, fragments, locale }: RenderInput): Pro
   return { channel: 'in-app', title, body, actionUrl };
 }
 
-async function renderWebhook({ parts, data, fragments, locale, envelope }: RenderInput): Promise<RenderedParts> {
+async function renderWebhook(input: RenderInput): Promise<RenderedParts> {
+  const { parts, data, fragments, locale, envelope } = input;
   const source = parts['payload'];
   if (isBlank(source)) {
     return { channel: 'webhook', payload: JSON.stringify(standardEnvelope({ ...envelope, data })) };
   }
   const text = createEngine('text', fragments, locale);
+  const variables = scope(input);
   const payload = await renderingPart('payload', () =>
-    renderPayload(parsePayloadTemplate(source), (leaf) => renderSource(text, leaf, data)),
+    renderPayload(parsePayloadTemplate(source), (leaf) => renderSource(text, leaf, variables)),
   );
   return { channel: 'webhook', payload: JSON.stringify(payload) };
 }
