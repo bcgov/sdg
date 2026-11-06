@@ -42,6 +42,11 @@ function storedSession(req: Request): Promise<SessionData | null | undefined> {
   });
 }
 
+/** Whether the browser's connection has already closed. */
+function clientGone(req: Request, res: Response): boolean {
+  return res.destroyed || req.socket.destroyed;
+}
+
 /** True for each piped chunk that completes a keep-alive comment, also one split across chunks. */
 function keepAliveScanner(): (chunk: Buffer) => boolean {
   let tail = '';
@@ -91,7 +96,12 @@ export class RelayStreamController implements BeforeApplicationShutdown {
     const accessToken = await this.tokens.accessToken(req);
     const result = await this.relay.stream(UPSTREAM_STREAM_PATH, accessToken);
     if (result.kind === 'response') send(res, result.response);
-    else this.pipe(req, res, result.stream);
+    // A browser that left while this waited has already fired 'close', so pipe() would never hear of it.
+    else if (clientGone(req, res)) {
+      // Destroyed first, so the abort below does not surface as an unhandled stream error.
+      result.stream.body.destroy();
+      result.stream.abort();
+    } else this.pipe(req, res, result.stream);
   }
 
   /** Ends every piped stream, so the HTTP server can close and browsers reconnect to another instance. */

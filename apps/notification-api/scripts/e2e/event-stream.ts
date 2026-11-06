@@ -21,6 +21,36 @@ export interface EventStream {
 
 const reason = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+interface PumpState {
+  frames: Frame[];
+  ended: boolean;
+  /** Why the read failed, unless the stream was closed on purpose. */
+  failure: string | undefined;
+}
+
+/** Reads `body` in the background, splitting it into frames as they arrive. */
+function pump(body: ReadableStream<Uint8Array>, closed: AbortSignal): PumpState {
+  const state: PumpState = { frames: [], ended: false, failure: undefined };
+  const read = async (): Promise<void> => {
+    const decoder = new TextDecoder();
+    let buffer = '';
+    try {
+      for await (const chunk of body) {
+        buffer = (buffer + decoder.decode(chunk, { stream: true })).replaceAll('\r\n', '\n');
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() ?? '';
+        for (const text of parts) state.frames.push({ at: Date.now(), text });
+      }
+    } catch (error) {
+      if (!closed.aborted) state.failure = reason(error);
+    } finally {
+      state.ended = true;
+    }
+  };
+  void read();
+  return state;
+}
+
 /** Opens `url` as an event stream; anything but a 200 `text/event-stream` throws naming `what`. */
 export async function openEventStream(
   what: string,
@@ -39,37 +69,19 @@ export async function openEventStream(
     throw new Error(`${what}: expected a 200 event stream, got ${response.status} ${type}`);
   }
 
-  const frames: Frame[] = [];
-  let ended = false;
-  let failure: string | undefined;
-  const pump = async (body: ReadableStream<Uint8Array>): Promise<void> => {
-    const decoder = new TextDecoder();
-    let buffer = '';
-    try {
-      for await (const chunk of body) {
-        buffer = (buffer + decoder.decode(chunk, { stream: true })).replaceAll('\r\n', '\n');
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() ?? '';
-        for (const text of parts) frames.push({ at: Date.now(), text });
-      }
-    } catch (error) {
-      if (!abort.signal.aborted) failure = reason(error);
-    } finally {
-      ended = true;
-    }
-  };
-  void pump(response.body);
+  const state = pump(response.body, abort.signal);
 
   return {
-    frames: () => frames,
-    ended: () => ended,
+    frames: () => state.frames,
+    ended: () => state.ended,
     next: (description, match, { timeoutMs, since = 0 }) =>
       waitFor(
         description,
         () => {
-          const found = frames.find((frame) => frame.at >= since && match(frame.text));
-          if (found === undefined && ended) {
-            throw new Error(`${what} ended before ${description}${failure === undefined ? '' : `: ${failure}`}`);
+          const found = state.frames.find((frame) => frame.at >= since && match(frame.text));
+          if (found === undefined && state.ended) {
+            const failure = state.failure === undefined ? '' : `: ${state.failure}`;
+            throw new Error(`${what} ended before ${description}${failure}`);
           }
           return Promise.resolve(found);
         },

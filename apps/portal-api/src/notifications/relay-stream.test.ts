@@ -167,6 +167,26 @@ describe('notification relay stream', () => {
     expect(up.res.writableEnded).toBe(false);
   });
 
+  it('aborts the upstream request when the client leaves before the upstream headers arrive', async () => {
+    const { cookie } = await signedIn(t);
+    const { promise: arrived, resolve } = Promise.withResolvers<ServerResponse>();
+    upstream.respond.with = (_req, res) => resolve(res);
+    const controller = new AbortController();
+    const request = fetch(`${baseUrl}${STREAM_PATH}`, { headers: { cookie }, signal: controller.signal }).catch(
+      () => undefined,
+    );
+    const res = await arrived;
+    controller.abort();
+    await request;
+    await delay(100);
+
+    const closed = new Promise<'closed'>((done) => res.on('close', () => done('closed')));
+    res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8' });
+    res.write(OPEN);
+    opened.push(res);
+    expect(await Promise.race([closed, delay(2_000).then(() => 'still open')])).toBe('closed');
+  });
+
   it('ends the client response cleanly when the upstream ends', async () => {
     const { cookie } = await signedIn(t);
     const { client, up } = await openStream(cookie);
