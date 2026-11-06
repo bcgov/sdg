@@ -1,0 +1,25 @@
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium, 1rem);
+  align-items: flex-start;
+}
+
+.detail > p {
+  margin: 0;
+}
+
+.title {
+  margin: 0;
+}
+
+.received {
+  color: var(--typography-color-secondary, #474543);
+  font-size: var(--typography-font-size-small-body, 0.875rem);
+}
+
+/* The sender's message, as notification-api's sanitized HTML. */
+.body {
+  max-width: 70ch;
+  overflow-wrap: anywhere;
+}

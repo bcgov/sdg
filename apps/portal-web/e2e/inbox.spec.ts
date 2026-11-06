@@ -16,9 +16,17 @@ const items = [1, 2, 3].map((n) => ({
   createdAt: `2026-11-05T1${n}:00:00.000Z`,
 }));
 
-/** portal-api's relay, faked in the browser: two unread of three, and a stream that opens and ends. */
+/** portal-api's relay, faked in the browser: two unread of three, one item per page, and a stream that ends. */
 function fulfillNotifications(route: Route) {
   const url = new URL(route.request().url());
+  const byNotification = /\/inbox\/by-notification\/([^/]+)$/u.exec(url.pathname)?.[1];
+  const item = items.find(({ notificationId }) => notificationId === byNotification);
+  if (item) return route.fulfill({ json: item });
+  const read = /\/inbox\/([^/]+)\/read$/u.exec(url.pathname)?.[1];
+  const readItem = items.find(({ id }) => id === read);
+  if (readItem && route.request().method() === 'POST') {
+    return route.fulfill({ json: { ...readItem, readAt: '2026-11-05T15:00:00.000Z' } });
+  }
   if (url.pathname.endsWith('/inbox/unread-count')) return route.fulfill({ json: { unread: 2 } });
   if (url.pathname.endsWith('/inbox/stream')) {
     return route.fulfill({ body: ': open\n\n', contentType: 'text/event-stream' });
@@ -61,5 +69,23 @@ test.describe('portal-web inbox', () => {
     await page.getByRole('link', { name: 'Unread (2)' }).click();
     await expect(page).toHaveURL(/\/inbox\?tab=unread$/u);
     await expect(list.getByRole('listitem')).toHaveCount(2);
+  });
+
+  test('clicking an inbox row opens its notification page and marks it read', async ({ page }) => {
+    await mockSignedIn(page);
+    const read = page.waitForRequest(
+      (request) => request.method() === 'POST' && request.url().endsWith('/api/v1/notifications/inbox/i-1/read'),
+    );
+    await page.goto('/inbox');
+
+    const list = page.getByRole('main').getByRole('list', { name: 'Notifications' });
+    await list.getByRole('link', { name: 'Notification 1' }).click();
+
+    await expect(page).toHaveURL(/\/inbox\/n-1$/u);
+    await expect(page.getByRole('heading', { level: 1, name: 'Notification 1' })).toBeVisible();
+    await expect(page.getByRole('main').getByText('Body 1')).toBeVisible();
+    await read;
+    await page.getByRole('link', { name: 'Back to inbox' }).click();
+    await expect(page).toHaveURL(/\/inbox$/u);
   });
 });

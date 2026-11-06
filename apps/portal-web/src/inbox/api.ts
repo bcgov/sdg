@@ -18,6 +18,13 @@ export interface InboxItem {
   createdAt: string;
 }
 
+/** One item as its notification page shows it: the full sanitized HTML body and the sender's action link. */
+export interface InboxItemDetail extends InboxItem {
+  /** HTML that notification-api has already sanitized. */
+  body: string | null;
+  actionUrl: string | null;
+}
+
 export interface InboxPage {
   items: InboxItem[];
   nextCursor: string | null;
@@ -36,6 +43,8 @@ export class InboxRequestError extends Error {
 
 export const isSessionEnded = (error: unknown): boolean => error instanceof InboxRequestError && error.status === 401;
 
+export const isNotFound = (error: unknown): boolean => error instanceof InboxRequestError && error.status === 404;
+
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 const isNullableString = (value: unknown): value is string | null => value === null || typeof value === 'string';
@@ -51,6 +60,9 @@ function isInboxItem(value: unknown): value is InboxItem {
     typeof value['createdAt'] === 'string'
   );
 }
+
+const isInboxItemDetail = (value: unknown): value is InboxItemDetail =>
+  isRecord(value) && isInboxItem(value) && isNullableString(value['body']) && isNullableString(value['actionUrl']);
 
 function isInboxPage(value: unknown): value is InboxPage {
   return (
@@ -106,6 +118,21 @@ export async function fetchUnreadCount(background: boolean, signal: AbortSignal)
   const body = await requestJson(path, { background, signal });
   if (!isRecord(body) || typeof body['unread'] !== 'number') throw unexpected(`GET ${path}`);
   return body['unread'];
+}
+
+/**
+ * The signed-in user's item for a notification. Missing, malformed and someone else's all answer 404 (R18). Reading it
+ * has no side effects, so a preload may fetch it (KTD12).
+ */
+export async function fetchItemByNotification(
+  notificationId: string,
+  background: boolean,
+  signal: AbortSignal,
+): Promise<InboxItemDetail> {
+  const path = `${INBOX_PATH}/by-notification/${encodeURIComponent(notificationId)}`;
+  const body = await requestJson(path, { background, signal });
+  if (!isInboxItemDetail(body)) throw unexpected(`GET ${path}`);
+  return body;
 }
 
 /** Marks one item read (a user action); returns the item as now stored. No body, so no content type is needed. */

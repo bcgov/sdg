@@ -1,12 +1,12 @@
 import { Button } from '@repo/design-system/components/button';
 import { InlineAlert } from '@repo/design-system/components/inline-alert';
-import { Link } from '@repo/design-system/components/link';
 import { Text } from '@repo/design-system/components/text';
 import type { UseMutationResult } from '@tanstack/react-query';
-import { type RefObject, useCallback, useEffect, useRef } from 'react';
+import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { InboxItem } from '../../inbox/api';
 import { useTabItems, type InboxListQuery, type InboxTab } from '../../inbox/queries';
+import { Link } from '../link';
 
 import styles from './inbox-list.module.css';
 
@@ -141,6 +141,7 @@ function InboxRow({ item, isPending, onMarkRead }: Readonly<InboxRowProps>) {
   const unread = item.readAt === null;
   const title = item.title ?? 'Notification';
   const onPress = useCallback(() => onMarkRead(item), [onMarkRead, item]);
+  const params = useMemo(() => ({ notificationId: item.notificationId }), [item.notificationId]);
   return (
     <li className={unread ? `${styles.row} ${styles.unread}` : styles.row}>
       <span className={styles.marker}>
@@ -153,7 +154,9 @@ function InboxRow({ item, isPending, onMarkRead }: Readonly<InboxRowProps>) {
       </span>
       <div className={styles.content}>
         <p className={styles.title}>
-          <Link href={`/inbox/${encodeURIComponent(item.notificationId)}`}>{title}</Link>
+          <Link to="/inbox/$notificationId" params={params}>
+            {title}
+          </Link>
         </p>
         {item.excerpt ? <p className={styles.excerpt}>{item.excerpt}</p> : null}
         <time className={styles.received} dateTime={item.createdAt}>

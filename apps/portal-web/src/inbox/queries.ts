@@ -10,7 +10,15 @@ import {
 import { useMemo, useState } from 'react';
 
 import { isRefetch } from '../background-fetch';
-import { fetchInboxPage, fetchUnreadCount, markAllRead, markRead, type InboxItem, type InboxPage } from './api';
+import {
+  fetchInboxPage,
+  fetchItemByNotification,
+  fetchUnreadCount,
+  markAllRead,
+  markRead,
+  type InboxItem,
+  type InboxPage,
+} from './api';
 
 export type InboxTab = 'all' | 'unread';
 
@@ -20,6 +28,7 @@ export const inboxKeys = {
   lists: ['inbox', 'list'] as const,
   list: (tab: InboxTab) => ['inbox', 'list', tab] as const,
   unreadCount: ['inbox', 'unread-count'] as const,
+  byNotification: (notificationId: string) => ['inbox', 'by-notification', notificationId] as const,
 };
 
 export const inboxListOptions = (tab: InboxTab) =>
@@ -39,6 +48,16 @@ export const unreadCountOptions = queryOptions({
   retry: false,
 });
 
+/** One notification's page (KTD12); under `['inbox']`, so a read or a change signal refetches it. */
+export const itemByNotificationOptions = (notificationId: string) =>
+  queryOptions({
+    queryKey: inboxKeys.byNotification(notificationId),
+    queryFn: ({ client, queryKey, signal }) =>
+      fetchItemByNotification(notificationId, isRefetch(client, queryKey), signal),
+    // The page offers its own retry; a 404 or 401 is an answer, not worth repeating.
+    retry: false,
+  });
+
 const markedRead = (item: InboxItem, readAt: string): InboxItem => (item.readAt === null ? { ...item, readAt } : item);
 
 type ListData = InfiniteData<InboxPage>;
@@ -52,13 +71,17 @@ function updateCachedItems(client: QueryClient, update: (item: InboxItem) => Inb
   );
 }
 
-/** Marks one item read, shows it read in every cached list, then refetches the inbox. */
+/** Marks one item read, shows it read in every cached list and on its page, then refetches the inbox. */
 export function useMarkRead() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: markRead,
     onSuccess: (updated) => {
       updateCachedItems(client, (item) => (item.id === updated.id ? { ...item, ...updated } : item));
+      // Even when its page has closed before the refetch, so reopening it does not post a second read.
+      client.setQueryData(inboxKeys.byNotification(updated.notificationId), (item) =>
+        item ? { ...item, readAt: updated.readAt } : item,
+      );
       void client.invalidateQueries({ queryKey: inboxKeys.all });
     },
     onError: (error) => console.error('portal-web: could not mark the notification read', error),

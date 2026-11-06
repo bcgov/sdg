@@ -1,14 +1,13 @@
 import { Button } from '@repo/design-system/components/button';
 import { Heading } from '@repo/design-system/components/heading';
 import { InlineAlert } from '@repo/design-system/components/inline-alert';
-import { Link as DesignSystemLink } from '@repo/design-system/components/link';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { createFileRoute, Link, useLocation } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useCallback } from 'react';
 
-import { loginHref } from '../../auth/api';
 import { requireUser } from '../../auth/require-user';
 import { InboxList } from '../../components/inbox-list';
+import { SessionEnded } from '../../components/session-ended';
 import { isSessionEnded } from '../../inbox/api';
 import { inboxListOptions, unreadCountOptions, useMarkAllRead, useMarkRead, type InboxTab } from '../../inbox/queries';
 
@@ -76,21 +75,5 @@ function InboxTabs({ unread }: Readonly<{ unread: number | undefined }>) {
         {unread === undefined ? 'Unread' : `Unread (${unread})`}
       </Link>
     </nav>
-  );
-}
-
-/** Any inbox request answered 401: the session is gone, so offer sign-in back to this page instead of a retry. */
-function SessionEnded() {
-  const href = useLocation({ select: (location) => location.href });
-  return (
-    <>
-      <Heading level={1}>Inbox</Heading>
-      <InlineAlert
-        variant="warning"
-        title="Your session ended"
-        description="Sign in again to see your notifications."
-      />
-      <DesignSystemLink href={loginHref(href)}>Sign in</DesignSystemLink>
-    </>
   );
 }
