@@ -1,9 +1,15 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import { mockNotificationsUnavailable } from './notifications-unavailable';
+
 const user = { id: 'p-1', name: 'Ada Lovelace', email: 'ada@example.com' };
 
-/** Fakes portal-api's /api/auth/me in the browser, so the suite needs no API or Keycloak. */
+/**
+ * Fakes portal-api's /api/auth/me in the browser, with the notification relay off, so the suite needs no API or
+ * Keycloak.
+ */
 async function mockCurrentUser(page: Page, signedIn: () => boolean) {
+  await mockNotificationsUnavailable(page);
   await page.route('**/api/auth/me', (route) =>
     signedIn()
       ? route.fulfill({ json: user })

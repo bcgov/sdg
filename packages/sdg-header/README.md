@@ -200,7 +200,7 @@ With no `user` and no `sign-in-href` there is no account control. Use that while
 
 Set `notifications-url` and the signed-in header shows a bell with the unread count (hidden at 0, `99+` above 99). It opens a popover with the newest 20 notifications, read and unread, "Mark all as read" and "View all". Activating a notification marks it read and opens `${inboxHref}/${notificationId}`. The header keeps one live connection per browser (shared between tabs), refetches when the inbox changes or the tab regains focus, and announces count changes in a polite live region. Without `notifications-url`, or with no user, the header renders as before and sends no requests. A source that answers 404 hides the bell; a 401 stops background requests until the signed-in state changes.
 
-The source is one of two modes. Both use the same paths, relative to the URL:
+The source is one of two modes. Both use the same paths, relative to the URL, and in both every request that is not a user action (count and list loads, refetches, the stream) carries `sdg-background: 1`:
 
 | Request                  | Answer                                                                                    |
 | ------------------------ | ----------------------------------------------------------------------------------------- |
@@ -210,8 +210,8 @@ The source is one of two modes. Both use the same paths, relative to the URL:
 | `POST inbox/read-all`    | any 2xx; marks read every item unread when it runs                                        |
 | `GET inbox/stream`       | `text/event-stream`: `event: changed` when the inbox changed, keep-alive comments between |
 
-- **Relay** (`accessTokenFn` unset): `notifications-url` is a path on your own origin, e.g. `/api/v1/notifications`, that forwards to notification-api's `/api/v1/me` with the user's session. Requests carry your cookies. Every request that is not a user action (count and list loads, refetches, the stream) carries `sdg-background: 1`, so the relay must not count it as activity that extends the sign-in.
-- **Direct** (`accessTokenFn` set): `notifications-url` is notification-api's own `/api/v1/me`, e.g. `https://<notification-api>/api/v1/me`, and your origin must be in its `CORS_ALLOWED_ORIGINS`. The header calls `accessTokenFn({ background })` before each request and sends `Authorization: Bearer <token>`, without cookies. Return `null` when you have no token without the user, e.g. for a background request whose refresh would extend the sign-in: the header then waits for the user's next pointer or key event and asks again with `background: false`.
+- **Relay** (`accessTokenFn` unset): `notifications-url` is a path on your own origin, e.g. `/api/v1/notifications`, that forwards to notification-api's `/api/v1/me` with the user's session. Requests carry your cookies. The relay must not count a `sdg-background: 1` request as activity that extends the sign-in. It passes `inbox/stream` through as it arrives, flushing each chunk, with no total timeout: portal-api answers with notification-api's `content-type: text/event-stream` and `cache-control: no-cache, no-transform` plus `x-accel-buffering: no`. notification-api sends a `: keep-alive` comment every 15 seconds, so an idle timeout longer than that does not close it.
+- **Direct** (`accessTokenFn` set): `notifications-url` is notification-api's own `/api/v1/me`, e.g. `https://<notification-api>/api/v1/me`. Your origin must be in its `CORS_ALLOWED_ORIGINS`, and your sign-in client's id (the token's `azp`) in its `RELAYING_CLIENT_IDS`. The header calls `accessTokenFn({ background })` before each request and sends `Authorization: Bearer <token>`, without cookies. Return `null` when you have no token without the user, e.g. for a background request whose refresh would extend the sign-in: the header then waits for the user's next pointer or key event and asks again with `background: false`.
 
 ## Styling
 

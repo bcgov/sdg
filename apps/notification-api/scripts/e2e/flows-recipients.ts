@@ -12,7 +12,7 @@ const pointSchema = z.object({ id: z.uuid(), address: z.string(), verified: z.bo
 const inboxSchema = z.object({ items: z.array(z.object({ id: z.uuid(), notificationId: z.uuid() })) });
 
 /** Waits for a message to `address` whose subject contains `text`. */
-function mailTo(mailpit: Mailpit, address: string, text: string, timeoutMs?: number): Promise<MailSummary> {
+export function mailTo(mailpit: Mailpit, address: string, text: string, timeoutMs?: number): Promise<MailSummary> {
   return waitFor(
     `an email to ${address} about ${text}`,
     async () => (await mailpit.messagesTo(address)).find((message) => message.Subject.includes(text)),

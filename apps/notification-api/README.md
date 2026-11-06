@@ -14,7 +14,24 @@ NestJS on TypeScript 6, its own `notification` database in the shared Postgres (
 | A person, relayed by portal-api (`RELAYING_CLIENT_IDS`)   | `/api/v1/me/*`: settings, contact points, subscriptions, inbox                       |
 | Nobody                                                    | `POST /api/v1/contact-points/confirm`, `/healthz/live`, `/healthz/ready`, `/metrics` |
 
-portal-api relays `/api/v1/notifications/*` to `/api/v1/me/*` with the signed-in user's token, plus the public confirm route that portal-web's `/confirm-email` page calls.
+portal-api relays `/api/v1/notifications/*` to `/api/v1/me/*` with the signed-in user's token, plus the public confirm route that portal-web's `/confirm-email` page calls. A site that signs in with PKCE can instead call `/api/v1/me/*` from the browser (the header's direct mode): its client id goes in `RELAYING_CLIENT_IDS` and its origin in `CORS_ALLOWED_ORIGINS`.
+
+## Inbox
+
+The user's in-app items, under `/api/v1/me/inbox` (through portal-api: `/api/v1/notifications/inbox`). The `<sdg-header>` bell and portal-web's inbox pages use them:
+
+| Request                                     | Answer                                                                                                                                                      |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET inbox?limit=&cursor=&unread=true`      | `{ items, nextCursor }`, newest first; `unread=true` lists only unread items. Each item has a plain-text `excerpt` of its body (at most 140 characters)     |
+| `GET inbox/unread-count`                    | `{ unread }`                                                                                                                                                |
+| `GET inbox/by-notification/:notificationId` | The user's item for that notification, left unread. 404 when there is none, also when the notification is someone else's                                    |
+| `POST inbox/:itemId/read`                   | The item, read; its pending escalation steps are cancelled. Reading again keeps the first read time                                                         |
+| `POST inbox/read-all`                       | `{ marked }`: every item unread when the request runs is read and its pending escalation steps are cancelled                                                |
+| `GET inbox/stream`                          | Server-Sent Events: `event: changed` (no content) whenever the user's inbox changes, a `: keep-alive` comment every 15 seconds; ends when the token expires |
+
+Every inbox write sends one Postgres `NOTIFY`; each api-role instance LISTENs and signals its own open streams, so the stream works with several instances. Clients refetch through the other requests on each `changed`. The stream and its relayed copy are left out of request logs and latency metrics.
+
+CORS (direct mode) applies only to `/api/v1/me/*`, for the origins in `CORS_ALLOWED_ORIGINS`: `GET` and `POST`, the `authorization`, `content-type` and `sdg-background` request headers, no cookies. An unlisted origin gets no `access-control-allow-origin`, and other paths get no CORS headers.
 
 ## Roles
 
@@ -42,9 +59,11 @@ Previews and the test renders on save use a sample id and `hasInbox: true`.
 Every key is in `.env.example` with a comment; `src/config/env.ts` validates them at boot. The ones you must set:
 
 - `KEYCLOAK_ISSUER_URL`, `NOTIFICATION_CLIENT_ID`: the realm and this service's own client.
-- `RELAYING_CLIENT_IDS`: portal-api's client id, so relayed user tokens are accepted.
+- `RELAYING_CLIENT_IDS`: portal-api's client id, so relayed user tokens are accepted, and the client id of each direct-mode site.
 - `NOTIFICATION_ENCRYPTION_KEY`: 32+ random characters (`openssl rand -base64 48`); seals stored integration secrets.
 - `DATABASE_URL`: from the host, `postgres://portal:portal@localhost:5432/notification`. compose overrides it, and the SMTP, outbound allow-list and confirm-page settings, for the container.
+
+`CORS_ALLOWED_ORIGINS` is optional: exact origins whose pages may call `/api/v1/me/*` directly (empty: no CORS). compose sets `http://localhost:5173`, a host Vite dev server.
 
 The keys under "Local scripts only" are read by `scripts/login.ts`, `seed.ts` and `e2e.ts`, never by the app.
 
@@ -87,20 +106,21 @@ pnpm --filter notification-api seed
 pnpm --filter notification-api e2e
 ```
 
-Without `NOTIFICATION_ADMIN_TOKEN`, `seed` and `e2e` sign you in through the browser themselves and refresh the token while they run, which `e2e` (about three minutes) needs if the realm's tokens are short-lived.
+Without `NOTIFICATION_ADMIN_TOKEN`, `seed` and `e2e` sign you in through the browser themselves and refresh the token while they run, which `e2e` (about three and a half minutes) needs if the realm's tokens are short-lived.
 
-Before `e2e`, sign in at `https://sdg.localhost` with BC Services Card and copy the `portal.sid` cookie's value (browser dev tools) into `PORTAL_SESSION_COOKIE`; that identity needs a verified email at the IdP. The relayed calls (F3, F6, F1) use that session, and their sends address the portal user, whose issuer and subject `e2e` reads from the local database. The admin token (IDIR) is a separate identity.
+Before `e2e`, sign in at `https://sdg.localhost` with BC Services Card and copy the `portal.sid` cookie's value (browser dev tools) into `PORTAL_SESSION_COOKIE`; that identity needs a verified email at the IdP. The relayed calls (F3, F6, F1, I1) use that session, and their sends address the portal user, whose issuer and subject `e2e` reads from the local database. The admin token (IDIR) is a separate identity.
 
 `e2e` prints one line per check and exits 1 if any fails:
 
-| Check | What it proves                                                                                                                                       |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F5    | Two linked credentials, one scoped to `form-received`; a `permit-status` send through it is 403                                                      |
-| F2    | A raw address gets the fr-CA email through the platform default; history finds it by address and by form reference                                   |
-| F4    | An invalid `smtp` config is 400; the saved password is never returned or stored in clear; the sender's email uses it                                 |
-| F3    | Through the portal: a new address is unverified, the Mailpit link confirms it, then it receives a send                                               |
-| F6    | A sender topic (you and a system) and the platform topic (you subscribe yourself) reach email, in-app and webhook                                    |
-| F1    | Escalation: reading the in-app item cancels the email step; the unread one is emailed after the one-minute delay                                     |
-| W2    | A second worker-role process runs in the notification-api container (`E2E_COMPOSE exec`); 30 webhook deliveries each reach the receiver exactly once |
+| Check | What it proves                                                                                                                                                                                                                                                                                                                                          |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F5    | Two linked credentials, one scoped to `form-received`; a `permit-status` send through it is 403                                                                                                                                                                                                                                                         |
+| F2    | A raw address gets the fr-CA email through the platform default; history finds it by address and by form reference                                                                                                                                                                                                                                      |
+| F4    | An invalid `smtp` config is 400; the saved password is never returned or stored in clear; the sender's email uses it                                                                                                                                                                                                                                    |
+| F3    | Through the portal: a new address is unverified, the Mailpit link confirms it, then it receives a send                                                                                                                                                                                                                                                  |
+| F6    | A sender topic (you and a system) and the platform topic (you subscribe yourself) reach email, in-app and webhook                                                                                                                                                                                                                                       |
+| F1    | Escalation: reading the in-app item cancels the email step; the unread one is emailed after the one-minute delay                                                                                                                                                                                                                                        |
+| W2    | A second worker-role process runs in the notification-api container (`E2E_COMPOSE exec`); 30 webhook deliveries each reach the receiver exactly once                                                                                                                                                                                                    |
+| I1    | Through the portal and the compose edge: the relayed stream gets `changed` within 2 s of a send and stays open 31 s on keep-alives; opening a notification by its id and reading it cancels its email reminder; an email links to `/inbox/<notification id>`; the CORS preflight to `notify.sdg.localhost` is allowed from `http://localhost:5173` only |
 
-The run is manual: CI runs only the unit and integration tests (`pnpm --filter notification-api test`).
+I1 runs last because it saves a new version of the `permit-status` email templates (the inbox link). The run is manual: CI runs only the unit and integration tests (`pnpm --filter notification-api test`).
