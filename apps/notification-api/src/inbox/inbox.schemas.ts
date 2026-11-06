@@ -17,6 +17,10 @@ export type ByNotificationParams = z.infer<typeof byNotificationParamsSchema>;
 export const unreadCountSchema = z.object({ unread: z.number().int().min(0) });
 export type UnreadCount = z.infer<typeof unreadCountSchema>;
 
+/** How many unread items one "mark all as read" marked (R20). */
+export const readAllSchema = z.object({ marked: z.number().int().min(0) });
+export type ReadAll = z.infer<typeof readAllSchema>;
+
 /**
  * One of the user's in-app items (R50). Content is null when the type had no in-app template in the user's or the
  * default language, or it failed to render.
