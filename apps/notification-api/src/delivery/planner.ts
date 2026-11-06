@@ -149,6 +149,8 @@ export class PlannerService {
         timeZone: target.timeZone,
         data: target.data,
         recipientId: target.recipientId,
+        notificationId: target.notificationId,
+        recipientKind: target.kind,
       });
       if (result.status === 'no-template' || result.parts.channel !== 'in-app') return empty;
       const { title, body, actionUrl } = result.parts;

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  attemptsOf,
   defineDeliveryType,
   deliveriesOf,
   inboxItemsOf,
@@ -15,12 +16,15 @@ import {
 } from '../testing/delivery.js';
 import { messagesTo } from '../testing/recipients.js';
 import { addressAudience, sendingSender } from '../testing/sending.js';
+import { ensureSaved, mjml, templatesApi } from '../testing/templates.js';
 import { cancelPendingSteps } from './escalation.js';
 
 const EMAIL = 'planned-email';
 const STEPS = 'planned-steps';
 const BOTH = 'planned-both';
-const TYPES = [EMAIL, STEPS, BOTH];
+const LINKED = 'planned-portal-link';
+const TYPES = [EMAIL, STEPS, BOTH, LINKED];
+const PORTAL_LINK = '{% if recipient.hasInbox %}https://portal.example/inbox/{{ notification.id }}{% endif %}';
 
 let app: DeliveryApp;
 let credential: { authorization: string };
@@ -42,6 +46,20 @@ beforeAll(async () => {
     key: BOTH,
     policy: { mode: 'all-at-once', channels: ['email', 'webhook'] },
   });
+  await defineDeliveryType(app.t, app.adminToken, {
+    key: LINKED,
+    policy: { mode: 'all-at-once', channels: ['email'] },
+  });
+  const templates = templatesApi(app.t, app.adminToken);
+  const saves = await Promise.all([
+    templates.save(LINKED, 'in-app', 'en-CA', { title: 'Alert', body: 'x', actionUrl: '/inbox/{{ notification.id }}' }),
+    templates.save(LINKED, 'email', 'en-CA', {
+      subject: 'Alert',
+      html: mjml(`Open ${PORTAL_LINK}`),
+      text: `Open ${PORTAL_LINK}`,
+    }),
+  ]);
+  saves.forEach(ensureSaved);
   const sender = await sendingSender(app.t, app.issuer, app.adminToken, 'planner-sender', TYPES);
   credential = await sender.credential('planner-sender-client', TYPES);
 });
@@ -233,5 +251,34 @@ describe('what each kind of recipient gets (R19, R27, R38, KTD7)', () => {
     ]);
     // Only the confirmation email reached the pending address.
     expect(messagesTo(app.smtp, 'second@example.com')).toBe(1);
+  });
+});
+
+describe('notification variables (R36, KTD10)', () => {
+  it('renders the notification id for a user, and leaves the guarded portal link out of an address email', async () => {
+    const user = await relayedUser(app);
+    const address = 'portal-link-address@example.com';
+    const audience = {
+      kind: 'recipients',
+      recipients: [
+        { kind: 'user', issuer: app.issuer.issuer, subject: user.subject },
+        { kind: 'address', channel: 'email', address },
+      ],
+    };
+    const notificationId = await sendNotification(app.t, credential, LINKED, audience);
+    await runWorker(app.t);
+
+    expect(await inboxItemsOf(app.t, notificationId)).toMatchObject([{ actionUrl: `/inbox/${notificationId}` }]);
+    const rows = await deliveriesOf(app.t, notificationId);
+    const texts = await Promise.all(
+      rows.map(async (row) => {
+        const [attempt] = await attemptsOf(app.t, row.id);
+        return [row.address, attempt?.rendered?.channel === 'email' ? attempt.rendered.text.trim() : null];
+      }),
+    );
+    expect(Object.fromEntries(texts)).toEqual({
+      [address]: 'Open',
+      [user.email]: `Open https://portal.example/inbox/${notificationId}`,
+    });
   });
 });

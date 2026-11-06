@@ -2,11 +2,20 @@ import { requiredSampleData, sampleData, type DataContract } from '../catalog/da
 import type { Channel } from '../channels/channels.js';
 import { referencedNames, type FragmentSources } from './engines.js';
 import { errorMessage, TemplateRenderError } from './render-error.js';
-import { partSources, renderParts, type TemplateParts } from './renderer.js';
+import { partSources, renderParts, type NotificationVariables, type TemplateParts } from './renderer.js';
 import type { PinnedFragment } from './template-store.js';
 
 /** The recipient id previews and test renders put in a webhook's standard envelope. */
 export const SAMPLE_RECIPIENT_ID = '00000000-0000-4000-8000-000000000000';
+
+/** The notification id previews and test renders give templates as `notification.id`. */
+export const SAMPLE_NOTIFICATION_ID = '00000000-0000-4000-8000-000000000001';
+
+/** Previews and test renders render as a recipient with an inbox, so a guarded portal link shows (KTD10). */
+export const SAMPLE_VARIABLES: NotificationVariables = {
+  notification: { id: SAMPLE_NOTIFICATION_ID },
+  recipient: { hasInbox: true },
+};
 
 export interface TestRenderInput {
   typeKey: string;
@@ -57,6 +66,7 @@ export async function testRender(input: TestRenderInput): Promise<string[]> {
           fragments: input.fragments,
           locale: { language: input.language, timeZone: input.timeZone },
           data,
+          variables: SAMPLE_VARIABLES,
           envelope: { type: input.typeKey, recipientId: SAMPLE_RECIPIENT_ID },
           strict: true,
         });

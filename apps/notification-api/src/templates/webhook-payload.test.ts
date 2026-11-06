@@ -26,6 +26,8 @@ async function payload(typeKey: string, data: Record<string, unknown>): Promise<
     channel: 'webhook',
     data,
     recipientId: 'system-1',
+    notificationId: 'notification-1',
+    recipientKind: 'system',
   });
   if (result.status !== 'rendered' || result.parts.channel !== 'webhook') throw new Error('Expected a webhook payload');
   return JSON.parse(result.parts.payload);
@@ -73,6 +75,8 @@ describe('webhook payload templates (R21, R24, KTD6)', () => {
         channel: 'webhook',
         data: {},
         recipientId: 'system-1',
+        notificationId: 'notification-1',
+        recipientKind: 'system',
       }),
     ).toEqual({ status: 'no-template' });
   });
