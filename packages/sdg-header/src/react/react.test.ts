@@ -60,6 +60,21 @@ describe('@repo/sdg-header/react <SdgHeader>', () => {
     expect(element.hasAttribute('navitems')).toBe(false);
   });
 
+  it('passes the notification inputs: URLs as attributes, functions as properties', async () => {
+    const accessTokenFn = vi.fn<() => string | null>(() => null);
+    const notificationsChangedFn = vi.fn<() => void>();
+    const { element } = await renderHeader({
+      notificationsUrl: '/api/v1/notifications',
+      inboxHref: '/messages',
+      accessTokenFn,
+      notificationsChangedFn,
+    });
+    expect(element.getAttribute('notifications-url')).toBe('/api/v1/notifications');
+    expect(element.getAttribute('inbox-href')).toBe('/messages');
+    expect(element.accessTokenFn).toBe(accessTokenFn);
+    expect(element.notificationsChangedFn).toBe(notificationsChangedFn);
+  });
+
   it('shows "SDG" by default and restores it when headerTitle is removed', async () => {
     const { element, rerender } = await renderHeader({});
     expect(element.hasAttribute('header-title')).toBe(false);

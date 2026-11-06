@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { accountMenuStyles } from './account-menu.js';
 import { navPanelStyles } from './nav-panel.js';
+import { bellStyles, popoverStyles } from './notifications/styles.js';
 import { controlStyles, shellStyles } from './styles.js';
 
 const require = createRequire(import.meta.url);
@@ -18,11 +19,12 @@ const tokens = new Map(
 );
 
 /** Every `var(--token, fallback)` in the element's CSS. */
-const usages = [shellStyles, controlStyles, accountMenuStyles, navPanelStyles].flatMap(({ cssText }) =>
-  Array.from(cssText.matchAll(/var\((--[\w-]+)(?:,\s*([^()]+?))?\)/gu), ([, name = '', fallback]) => ({
-    name,
-    fallback: fallback === undefined ? undefined : normalize(fallback),
-  })),
+const usages = [shellStyles, controlStyles, accountMenuStyles, navPanelStyles, bellStyles, popoverStyles].flatMap(
+  ({ cssText }) =>
+    Array.from(cssText.matchAll(/var\((--[\w-]+)(?:,\s*([^()]+?))?\)/gu), ([, name = '', fallback]) => ({
+      name,
+      fallback: fallback === undefined ? undefined : normalize(fallback),
+    })),
 );
 
 describe('design token fallbacks', () => {
