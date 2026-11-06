@@ -12,6 +12,8 @@ import type {
 } from './types.js';
 
 const DEFAULT_SCOPES: readonly string[] = ['openid', 'profile', 'email'];
+/** openid-client's own default timeout for IdP requests. */
+const END_SESSION_TIMEOUT_MS = 30_000;
 
 type Discover = () => Promise<client.Configuration>;
 
@@ -102,6 +104,41 @@ async function exchangeCode(
   return { user: claimsToAuthUser(claims), tokens };
 }
 
+/** The IdP's `error` code from a failed back-channel logout, or the HTTP status when the body has none. */
+async function endSessionErrorDetail(response: Response): Promise<string> {
+  const body: unknown = await response.json().catch(() => null);
+  if (typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string') return body.error;
+  return `HTTP ${response.status}`;
+}
+
+/** Back-channel logout (Keycloak): the refresh token and client credentials, form-posted to `end_session_endpoint`. */
+async function postEndSession(
+  config: client.Configuration,
+  options: OidcClientOptions,
+  refreshToken: string,
+): Promise<void> {
+  const endpoint = config.serverMetadata().end_session_endpoint;
+  if (endpoint === undefined) throw new AuthError('end_session_failed', { detail: 'no end_session_endpoint' });
+  const body = new URLSearchParams({
+    client_id: options.clientId,
+    client_secret: options.clientSecret,
+    refresh_token: refreshToken,
+  });
+  let response: Response;
+  try {
+    response = await (options.fetch ?? fetch)(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(END_SESSION_TIMEOUT_MS),
+    });
+  } catch (error) {
+    throw new AuthError('end_session_failed', { cause: error });
+  }
+  if (!response.ok) throw new AuthError('end_session_failed', { detail: await endSessionErrorDetail(response) });
+  await response.body?.cancel();
+}
+
 /**
  * OIDC relying-party client (authorization code + PKCE S256) for Keycloak.
  * Discovery runs lazily, so creating the client never touches the network.
@@ -166,6 +203,11 @@ export function createOidcClient(options: OidcClientOptions): OidcClient {
       } catch (error) {
         throw toRefreshError(error);
       }
+    },
+
+    async endSession(current: OidcTokens): Promise<void> {
+      if (current.refreshToken === null) throw new AuthError('end_session_failed', { detail: 'no refresh token' });
+      await postEndSession(await discover(), options, current.refreshToken);
     },
   };
 }

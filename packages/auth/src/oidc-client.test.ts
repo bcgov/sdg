@@ -200,6 +200,31 @@ describe('createOidcClient', () => {
       expect((await rejection(client.refresh({ ...current, refreshToken: null }))).code).toBe('refresh_failed');
     });
   });
+  describe('endSession', () => {
+    const current = { idToken: 'id.token', accessToken: 'access', refreshToken: 'unused', expiresAt: null };
+
+    it('posts the refresh token with the client credentials to the logout endpoint, ending the IdP session', async () => {
+      const client = newClient();
+      const refreshToken = idp.issueRefreshToken();
+      await expect(client.endSession({ ...current, refreshToken })).resolves.toBeUndefined();
+      const reused = await rejection(client.refresh({ ...current, refreshToken }));
+      expect(reused.detail).toBe('invalid_grant');
+    });
+    it('throws AuthError(end_session_failed) when the IdP rejects the call or there is no refresh token', async () => {
+      const client = newClient();
+      const rejected = await rejection(client.endSession({ ...current, refreshToken: 'never-issued' }));
+      expect(rejected.code).toBe('end_session_failed');
+      expect(rejected.detail).toBe('invalid_grant');
+      const wrongSecret = newClient({ clientSecret: 'wrong' });
+      const unauthorized = await rejection(
+        wrongSecret.endSession({ ...current, refreshToken: idp.issueRefreshToken() }),
+      );
+      expect(unauthorized.detail).toBe('invalid_client');
+      const missing = await rejection(client.endSession({ ...current, refreshToken: null }));
+      expect(missing.code).toBe('end_session_failed');
+      expect(missing.detail).toBe('no refresh token');
+    });
+  });
   describe('buildEndSessionUrl', () => {
     it('includes client_id, post_logout_redirect_uri and id_token_hint', async () => {
       const client = newClient();

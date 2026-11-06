@@ -1,4 +1,5 @@
 import { Controller, Get, Inject, Logger, Req, Res, UseGuards, type BeforeApplicationShutdown } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiBadGatewayResponse,
   ApiCookieAuth,
@@ -12,22 +13,23 @@ import type { Request, Response } from 'express';
 import type { SessionData } from 'express-session';
 
 import { SessionAuthGuard } from '../auth/session-auth.guard.js';
+import type { Env } from '../config/env.js';
 import { describeError } from '../logging/describe-error.js';
+import { idleExpired } from '../session/activity.middleware.js';
 import { SESSION_COOKIE } from '../session/session.module.js';
 import { RelayEnabledGuard, send } from './relay.controller.js';
 import { RelayService, type UpstreamStream } from './relay.service.js';
 import { TokenRefreshService } from './token-refresh.service.js';
 
-/** The relayed live stream's path in portal-api (the browser's side). */
-export const RELAY_STREAM_PATH = '/api/v1/notifications/inbox/stream';
+export { RELAY_STREAM_PATH } from './relay-stream.path.js';
 /** notification-api's per-user inbox stream (U4). */
 const UPSTREAM_STREAM_PATH = '/api/v1/me/inbox/stream';
 /** The comment notification-api sends every 15 seconds; each one re-checks the session. */
 const KEEP_ALIVE = ': keep-alive';
 
-/** Whether a stored session may keep its stream open: it still holds a completed login. */
-function sessionActive(session: SessionData | null | undefined): boolean {
-  return session?.auth !== undefined;
+/** Whether a stored session may keep its stream open: it still holds a completed login and is not idle-expired. */
+function sessionActive(session: SessionData | null | undefined, ttlSeconds: number): boolean {
+  return session?.auth !== undefined && !idleExpired(session, ttlSeconds);
 }
 
 /** The request's session as stored now; `req.session` is this request's copy, loaded when the stream opened. */
@@ -64,12 +66,19 @@ export class RelayStreamController implements BeforeApplicationShutdown {
   private readonly logger = new Logger(RelayStreamController.name);
   private readonly relay: RelayService;
   private readonly tokens: TokenRefreshService;
+  /** The idle limit, `SESSION_TTL_SECONDS`. */
+  private readonly ttlSeconds: number;
   /** Ends each open stream. */
   private readonly open = new Set<() => void>();
 
-  constructor(@Inject(RelayService) relay: RelayService, @Inject(TokenRefreshService) tokens: TokenRefreshService) {
+  constructor(
+    @Inject(RelayService) relay: RelayService,
+    @Inject(TokenRefreshService) tokens: TokenRefreshService,
+    @Inject(ConfigService) config: ConfigService<Env, true>,
+  ) {
     this.relay = relay;
     this.tokens = tokens;
+    this.ttlSeconds = config.get('SESSION_TTL_SECONDS', { infer: true });
   }
 
   @Get('stream')
@@ -120,10 +129,10 @@ export class RelayStreamController implements BeforeApplicationShutdown {
     res.writeHead(200, headers);
   }
 
-  /** Ends the stream when its session is gone (sign-out, expiry), or when the store can't tell. */
+  /** Ends the stream when its session is gone (sign-out, expiry) or idle-expired, or when the store can't tell. */
   private async recheck(req: Request, end: () => void): Promise<void> {
     try {
-      if (!sessionActive(await storedSession(req))) end();
+      if (!sessionActive(await storedSession(req), this.ttlSeconds)) end();
     } catch (error) {
       this.logger.warn({ msg: 'Inbox stream session re-check failed; ending the stream', error: describeError(error) });
       end();

@@ -40,6 +40,7 @@ export interface OidcStub {
   handleCallback: Mock<OidcClient['handleCallback']>;
   buildEndSessionUrl: Mock<OidcClient['buildEndSessionUrl']>;
   refresh: Mock<OidcClient['refresh']>;
+  endSession: Mock<OidcClient['endSession']>;
 }
 
 export interface TestApp {
@@ -85,6 +86,7 @@ export function createOidcStub(): OidcStub {
     refresh: vi.fn<OidcClient['refresh']>((current) =>
       Promise.resolve({ ...current, accessToken: 'refreshed-access-token', expiresAt: Date.now() + 300_000 }),
     ),
+    endSession: vi.fn<OidcClient['endSession']>().mockResolvedValue(undefined),
   };
 }
 
@@ -96,6 +98,7 @@ export function resetOidcStub(stub: OidcStub): void {
   stub.handleCallback.mockReset().mockImplementation(fresh.handleCallback);
   stub.buildEndSessionUrl.mockReset().mockImplementation(fresh.buildEndSessionUrl);
   stub.refresh.mockReset().mockImplementation(fresh.refresh);
+  stub.endSession.mockReset().mockImplementation(fresh.endSession);
 }
 
 /**
