@@ -7,6 +7,7 @@ import { cancelPendingSteps, type CANCEL_REASONS } from '../delivery/escalation.
 import { CLOCK, type Clock } from '../delivery/settings.js';
 import { InboxQueriesService } from './inbox-queries.service.js';
 import type { InboxItemResponse } from './inbox.schemas.js';
+import { notifyInboxChanged } from './signals/inbox-signals.js';
 
 /**
  * Marking the in-app inbox (R50): a recipient reads and acknowledges only their own items (R12). Reading or
@@ -65,6 +66,7 @@ export class InboxService {
         .set(cause === 'read' ? { readAt } : { readAt, acknowledgedAt })
         .where(owned);
       await cancelPendingSteps(tx, item.notificationRecipientId, cause, now);
+      await notifyInboxChanged(tx, recipientId);
       const marked = await this.queries.findItem(tx, owned);
       if (!marked) throw new NotFoundException('No inbox item with this id');
       return marked;

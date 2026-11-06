@@ -56,7 +56,8 @@ describe.skipIf(!serverUrl)('the delivery queue on Postgres (KTD1)', () => {
     const db = drizzle({ client: pool, schema, casing: 'snake_case' });
     const http = new GuardedHttpClient(new OutboundGuard({ allowHosts: ['127.0.0.1'] }), { timeoutMs: TIMEOUT_MS });
     t = await createTestApp({
-      env: { ...issuer.env, NOTIFICATION_OUTBOUND_ALLOW_HOSTS: '127.0.0.1' },
+      // The app's inbox signal listener connects to DATABASE_URL.
+      env: { ...issuer.env, NOTIFICATION_OUTBOUND_ALLOW_HOSTS: '127.0.0.1', DATABASE_URL: target.href },
       issuerFetch: issuer.fetch,
       database: () => Promise.resolve({ db, close: () => pool.end() }),
       overrides: [

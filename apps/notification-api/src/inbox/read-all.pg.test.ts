@@ -38,7 +38,11 @@ describe.skipIf(!serverUrl)('mark all as read on Postgres (KTD9)', () => {
     await runMigrations(target.href);
     pool = new Pool({ connectionString: target.href, max: 4 });
     const db = drizzle({ client: pool, schema, casing: 'snake_case' });
-    app = await startDeliveryApp({ database: () => Promise.resolve({ db, close: () => pool.end() }) });
+    app = await startDeliveryApp({
+      // The app's inbox signal listener connects to DATABASE_URL.
+      env: { DATABASE_URL: target.href },
+      database: () => Promise.resolve({ db, close: () => pool.end() }),
+    });
     await defineDeliveryType(app.t, app.adminToken, {
       key: ESCALATING,
       policy: { mode: 'escalation', steps: [{ channel: 'email', delayMinutes: 60 }] },

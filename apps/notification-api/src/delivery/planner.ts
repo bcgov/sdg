@@ -12,6 +12,7 @@ import {
   recipients,
   type RecipientKind,
 } from '../database/schema/index.js';
+import { notifyInboxChanged } from '../inbox/signals/inbox-signals.js';
 import { describeError } from '../logging/describe-error.js';
 import { visibleToSender } from '../recipients/contact-points.service.js';
 import { TemplateRenderError } from '../templates/render-error.js';
@@ -129,6 +130,7 @@ export class PlannerService {
         await tx
           .insert(inboxItems)
           .values({ ...inbox, notificationRecipientId, notificationId, recipientId, createdAt: now });
+        await notifyInboxChanged(tx, recipientId);
       }
       const rows = await this.deliveryRows(tx, target, now);
       if (rows.length > 0) await tx.insert(deliveries).values(rows).onConflictDoNothing();

@@ -10,6 +10,7 @@ import { inboxItems, notificationRecipients } from '../database/schema/index.js'
 import { cancelPendingSteps } from '../delivery/escalation.js';
 import { CLOCK, type Clock } from '../delivery/settings.js';
 import type { ReadAll } from './inbox.schemas.js';
+import { notifyInboxChanged } from './signals/inbox-signals.js';
 
 /**
  * "Mark all as read" (R20, KTD9): reads every unread item of the caller's that is committed when it runs, loaded on
@@ -64,5 +65,7 @@ async function markAllRead(tx: NotificationTransaction, recipientId: string, now
     )
     .returning({ notificationRecipientId: inboxItems.notificationRecipientId });
   await Promise.all(marked.map((row) => cancelPendingSteps(tx, row.notificationRecipientId, 'read', now)));
+  // One signal for the whole sweep (KTD3): NOTIFY takes a database-wide lock at commit.
+  if (marked.length > 0) await notifyInboxChanged(tx, recipientId);
   return marked.length;
 }
