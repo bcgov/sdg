@@ -35,6 +35,7 @@ describe('envSchema', () => {
         KEYCLOAK_ISSUER_URL: 'https://keycloak.example.com/realms/standard',
         RELAYING_CLIENT_IDS: [],
         NOTIFICATION_OUTBOUND_ALLOW_HOSTS: [],
+        CORS_ALLOWED_ORIGINS: [],
         DEFAULT_TIMEZONE: 'America/Vancouver',
         OTEL_SERVICE_NAME: 'notification-api',
       });
@@ -50,6 +51,12 @@ describe('envSchema', () => {
       expect(env.RELAYING_CLIENT_IDS).toEqual(['portal', 'other-bff']);
       expect(env.NOTIFICATION_OUTBOUND_ALLOW_HOSTS).toEqual(['mailpit', 'webhook-receiver']);
       expect(validateEnv({ ...valid, RELAYING_CLIENT_IDS: '  ' }).RELAYING_CLIENT_IDS).toEqual([]);
+    });
+
+    it('splits CORS_ALLOWED_ORIGINS into exact origins', () => {
+      const env = validateEnv({ ...valid, CORS_ALLOWED_ORIGINS: 'https://app.example.com, http://localhost:5173,,' });
+      expect(env.CORS_ALLOWED_ORIGINS).toEqual(['https://app.example.com', 'http://localhost:5173']);
+      expect(validateEnv({ ...valid, CORS_ALLOWED_ORIGINS: ' ' }).CORS_ALLOWED_ORIGINS).toEqual([]);
     });
 
     it('accepts each role and treats a blank NOTIFICATION_ROLE as all', () => {
@@ -120,6 +127,21 @@ describe('envSchema', () => {
       expect(errorOf({ ...valid, DEFAULT_TIMEZONE: 'Mars/Olympus_Mons' }).keys).toEqual(['DEFAULT_TIMEZONE']);
       expect(errorOf({ ...valid, DEFAULT_SMTP_PORT: '70000' }).keys).toEqual(['DEFAULT_SMTP_PORT']);
       expect(errorOf({ ...valid, DEFAULT_SMTP_SECURE: 'yes' }).keys).toEqual(['DEFAULT_SMTP_SECURE']);
+    });
+
+    it('rejects a CORS_ALLOWED_ORIGINS entry that is not an exact http or https origin', () => {
+      for (const entry of [
+        'app.example.com',
+        'https://app.example.com/',
+        'https://app.example.com/portal',
+        'https://App.example.com',
+        'ftp://app.example.com',
+        '*',
+      ]) {
+        const error = errorOf({ ...valid, CORS_ALLOWED_ORIGINS: `https://ok.example.com,${entry}` });
+        expect(error.keys).toEqual(['CORS_ALLOWED_ORIGINS.1']);
+        expect(error.message).not.toContain(entry);
+      }
     });
 
     it('lists every bad key at once', () => {
