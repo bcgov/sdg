@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { Logger } from '@nestjs/common';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   defineDeliveryType,
@@ -12,7 +13,7 @@ import {
 } from '../../testing/delivery.js';
 import { sendingSender } from '../../testing/sending.js';
 import { settleSignals, watchSignals } from '../../testing/signals.js';
-import { INBOX_SIGNALS, type InboxSignals } from './inbox-signals.js';
+import { INBOX_SIGNALS, InboxSubscribers, type InboxSignals } from './inbox-signals.js';
 
 const TYPE = 'signals-escalating';
 const INBOX = '/api/v1/me/inbox';
@@ -104,5 +105,29 @@ describe('inbox change signals (KTD3)', () => {
     expect(others.count()).toBe(0);
     expect(gone.count()).toBe(0);
     others.unsubscribe();
+  });
+});
+
+describe('dispatching to subscribers', () => {
+  it('logs a subscriber that throws and still reaches the others', () => {
+    const errors = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const subscribers = new InboxSubscribers();
+    const reached: string[] = [];
+    subscribers.subscribe('recipient-1', () => {
+      throw new Error('write failed');
+    });
+    subscribers.subscribe('recipient-1', () => reached.push('dispatch'));
+
+    subscribers.dispatch('recipient-1');
+    subscribers.broadcast();
+
+    expect(reached).toEqual(['dispatch', 'dispatch']);
+    expect(errors).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: 'recipient-1',
+        error: expect.objectContaining({ message: 'write failed' }),
+      }),
+    );
+    errors.mockRestore();
   });
 });

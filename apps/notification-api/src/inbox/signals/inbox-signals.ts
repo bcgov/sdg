@@ -1,6 +1,10 @@
+import { Logger } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 
 import type { DbOrTx } from '../../database/database.module.js';
+import { describeError } from '../../logging/describe-error.js';
+
+const logger = new Logger('InboxSignals');
 
 /**
  * KTD3: every inbox write (the planner's insert, `mark`, read-all) sends one NOTIFY on this channel, with the
@@ -44,9 +48,15 @@ export class InboxSubscribers implements InboxSignals {
     };
   }
 
-  /** Delivers one signal to the recipient's subscribers. */
+  /** Delivers one signal to the recipient's subscribers. One that throws is logged and skips none of the others. */
   dispatch(recipientId: string): void {
-    for (const callback of this.byRecipient.get(recipientId) ?? []) callback();
+    for (const callback of this.byRecipient.get(recipientId) ?? []) {
+      try {
+        callback();
+      } catch (error) {
+        logger.error({ msg: 'An inbox signal subscriber failed', recipientId, error: describeError(error) });
+      }
+    }
   }
 
   /** Delivers `changed` to every local subscriber, for when signals may have been missed. */
