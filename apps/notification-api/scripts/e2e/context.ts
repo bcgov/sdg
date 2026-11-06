@@ -21,6 +21,10 @@ export interface E2eContext {
   notify: { admin: Api; a: Api; b: Api };
   /** portal-api's relay (https://sdg.localhost) with the portal session. */
   portal: Api;
+  /** The portal session's Cookie header, for calls the JSON client can't make (the relayed live stream). */
+  portalCookie: string;
+  /** Base URLs: the portal (PORTAL_URL) and notification-api (NOTIFICATION_API_BASE_URL). */
+  urls: { portal: string; notify: string };
   seeded: Seeded;
   /** The portal user (the relayed session's person), whom the relayed flows send to. */
   me: Person;
@@ -135,7 +139,9 @@ export async function setUp(): Promise<E2eContext> {
   const databaseUrl = requiredEnv('DATABASE_URL');
   await resetDatabase(databaseUrl);
   const seeded = await seed(config);
-  const portal = api(baseUrl(optionalEnv('PORTAL_URL', 'https://sdg.localhost')), cookie(sessionCookie()));
+  const portalUrl = baseUrl(optionalEnv('PORTAL_URL', 'https://sdg.localhost'));
+  const portalCookie = sessionCookie();
+  const portal = api(portalUrl, cookie(portalCookie));
   const { me, idpEmail } = await preparePortalRecipient(portal, databaseUrl);
   return {
     run: Date.now().toString(36),
@@ -145,6 +151,8 @@ export async function setUp(): Promise<E2eContext> {
       b: api(config.notifyUrl, bearer(tokenB)),
     },
     portal,
+    portalCookie,
+    urls: { portal: portalUrl, notify: config.notifyUrl },
     seeded,
     me,
     idpEmail,
