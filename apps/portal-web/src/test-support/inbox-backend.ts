@@ -55,7 +55,7 @@ const requestUrl = (input: string | URL | Request): string => {
 const unauthorized = () => Response.json({ statusCode: 401, message: 'Unauthorized' }, { status: 401 });
 
 /**
- * portal-api as the browser sees it: the session, the notifications relay (list, count, read, read-all) and the live
+ * portal-api as the browser sees it: the session, the notifications relay (list, count, one item, read, read-all) and the live
  * stream. Tests change `items`, `signedIn` and `failures` and call `signal()` to send `changed` on open streams.
  */
 export class InboxBackend {
@@ -108,6 +108,12 @@ export class InboxBackend {
       const marked = this.items.filter((i) => i.readAt === null).length;
       this.items = this.items.map((item) => (item.readAt === null ? { ...item, readAt } : item));
       return Response.json({ marked });
+    }
+    const byNotification = /^\/by-notification\/([^/?]+)$/u.exec(path);
+    if (method === 'GET' && byNotification) {
+      // Missing and someone else's look the same: notification-api only finds the signed-in user's items.
+      const item = this.items.find(({ notificationId }) => notificationId === decodeURIComponent(byNotification[1]!));
+      return item ? Response.json(item) : Response.json({ statusCode: 404 }, { status: 404 });
     }
     const read = /^\/([^/]+)\/read$/u.exec(path);
     if (method === 'POST' && read) {

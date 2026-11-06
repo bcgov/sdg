@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as InboxIndexRouteImport } from './routes/inbox/index'
+import { Route as InboxNotificationIdRouteImport } from './routes/inbox/$notificationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,17 +35,24 @@ const InboxIndexRoute = InboxIndexRouteImport.update({
   path: '/inbox/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InboxNotificationIdRoute = InboxNotificationIdRouteImport.update({
+  id: '/inbox/$notificationId',
+  path: '/inbox/$notificationId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/help': typeof HelpRoute
+  '/inbox/$notificationId': typeof InboxNotificationIdRoute
   '/inbox/': typeof InboxIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/help': typeof HelpRoute
+  '/inbox/$notificationId': typeof InboxNotificationIdRoute
   '/inbox': typeof InboxIndexRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,29 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/help': typeof HelpRoute
+  '/inbox/$notificationId': typeof InboxNotificationIdRoute
   '/inbox/': typeof InboxIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/confirm-email' | '/help' | '/inbox/'
+  fullPaths:
+    '/' | '/confirm-email' | '/help' | '/inbox/$notificationId' | '/inbox/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/confirm-email' | '/help' | '/inbox'
-  id: '__root__' | '/' | '/confirm-email' | '/help' | '/inbox/'
+  to: '/' | '/confirm-email' | '/help' | '/inbox/$notificationId' | '/inbox'
+  id:
+    | '__root__'
+    | '/'
+    | '/confirm-email'
+    | '/help'
+    | '/inbox/$notificationId'
+    | '/inbox/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   HelpRoute: typeof HelpRoute
+  InboxNotificationIdRoute: typeof InboxNotificationIdRoute
   InboxIndexRoute: typeof InboxIndexRoute
 }
 
@@ -99,6 +116,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InboxIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inbox/$notificationId': {
+      id: '/inbox/$notificationId'
+      path: '/inbox/$notificationId'
+      fullPath: '/inbox/$notificationId'
+      preLoaderRoute: typeof InboxNotificationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -106,6 +130,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ConfirmEmailRoute: ConfirmEmailRoute,
   HelpRoute: HelpRoute,
+  InboxNotificationIdRoute: InboxNotificationIdRoute,
   InboxIndexRoute: InboxIndexRoute,
 }
 export const routeTree = rootRouteImport
