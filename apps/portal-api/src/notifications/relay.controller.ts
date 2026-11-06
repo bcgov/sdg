@@ -56,7 +56,7 @@ export class RelayEnabledGuard implements CanActivate {
   }
 }
 
-function send(res: Response, upstream: RelayResponse): void {
+export function send(res: Response, upstream: RelayResponse): void {
   res.status(upstream.status);
   if (upstream.contentType !== null) res.set('content-type', upstream.contentType);
   res.send(upstream.body);

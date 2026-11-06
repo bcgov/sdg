@@ -56,7 +56,7 @@ export function resolveOtelConfig(
   };
 }
 
-/** Probes and scrapes are neither traced nor timed, matching the logging rule (isQuietPath). */
+/** Probes, scrapes and the inbox stream are neither traced nor timed, matching the logging rule (isQuietPath). */
 export function shouldTraceIncoming(url: string): boolean {
   return !isQuietPath(url);
 }

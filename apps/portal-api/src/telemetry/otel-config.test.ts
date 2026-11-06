@@ -79,17 +79,19 @@ describe('resolveOtelConfig', () => {
   });
 
   describe('quiet paths', () => {
-    it('ignores /healthz/live, /healthz/ready and /metrics via isQuietPath', () => {
+    it('ignores /healthz/live, /healthz/ready, /metrics and the inbox stream via isQuietPath', () => {
       expect(shouldTraceIncoming('/healthz/live')).toBe(false);
       expect(shouldTraceIncoming('/healthz/ready')).toBe(false);
       expect(shouldTraceIncoming('/metrics')).toBe(false);
       expect(shouldTraceIncoming('/metrics?name[]=x')).toBe(false);
+      expect(shouldTraceIncoming('/api/v1/notifications/inbox/stream')).toBe(false);
     });
 
     it('traces /api/* requests', () => {
       expect(shouldTraceIncoming('/api/auth/me')).toBe(true);
       expect(shouldTraceIncoming('/api/v1/things/1')).toBe(true);
       expect(shouldTraceIncoming('/metrics-and-more')).toBe(true);
+      expect(shouldTraceIncoming('/api/v1/notifications/inbox')).toBe(true);
     });
   });
 });
