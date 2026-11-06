@@ -32,13 +32,31 @@ function captureLines(): { stream: Writable; lines: LogLine[] } {
 }
 
 describe('isQuietPath', () => {
-  it('matches the probes and the metrics scrape, with or without a query string', () => {
-    const urls = ['/metrics', '/metrics?x=1', '/healthz/live', '/healthz/ready', '/healthz/ready?full=1'];
+  it('matches the probes, the metrics scrape and the inbox stream, with or without a query string', () => {
+    const urls = [
+      '/metrics',
+      '/metrics?x=1',
+      '/healthz/live',
+      '/healthz/ready',
+      '/healthz/ready?full=1',
+      '/api/v1/me/inbox/stream',
+      '/api/v1/me/inbox/stream?x=1',
+    ];
     expect(urls.filter((url) => !isQuietPath(url))).toEqual([]);
   });
 
   it('does not match API routes or look-alikes', () => {
-    const urls = ['/api/v1/notifications', '/metrics-old', '/api/metrics', '/healthzz', '/api/healthz/live', '/'];
+    const urls = [
+      '/api/v1/notifications',
+      '/metrics-old',
+      '/api/metrics',
+      '/healthzz',
+      '/api/healthz/live',
+      '/',
+      '/api/v1/me/inbox',
+      '/api/v1/me/inbox/streams',
+      '/api/v1/me/inbox/stream/x',
+    ];
     expect(urls.filter((url) => isQuietPath(url))).toEqual([]);
   });
 });
@@ -54,7 +72,7 @@ describe('pinoHttpOptions', () => {
     expect(pinoHttpOptions({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }).transport).toBeUndefined();
   });
 
-  it('logs API requests, skips /healthz and /metrics, and redacts cookie, authorization and set-cookie', async () => {
+  it('logs API requests, skips /healthz, /metrics and the inbox stream, and redacts cookie, authorization and set-cookie', async () => {
     const { stream, lines } = captureLines();
     const { transport: _transport, ...options } = pinoHttpOptions({ NODE_ENV: 'production', LOG_LEVEL: 'info' });
     const logger = pinoHttp({ ...options, logger: pino({ level: 'info', redact: options.redact }, stream) });
@@ -71,6 +89,7 @@ describe('pinoHttpOptions', () => {
     await supertest(server).get('/healthz/live');
     await supertest(server).get('/healthz/ready');
     await supertest(server).get('/metrics');
+    await supertest(server).get('/api/v1/me/inbox/stream');
 
     expect(lines).toHaveLength(1);
     const [line] = lines;
