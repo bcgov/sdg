@@ -205,6 +205,9 @@ services:
       DATABASE_URL: *notification-database-url
       # Exempt from the outbound guard's public-address and TLS checks (R51): the local stack's catchers only.
       NOTIFICATION_OUTBOUND_ALLOW_HOSTS: mailpit,webhook-receiver
+      # Direct mode (KTD7): a page on a host Vite dev server (its default port) may call
+      # https://notify.sdg.localhost/api/v1/me/* with a bearer token.
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
       DEFAULT_SMTP_HOST: mailpit
       DEFAULT_SMTP_PORT: '1025'
       DEFAULT_SMTP_SECURE: 'false'

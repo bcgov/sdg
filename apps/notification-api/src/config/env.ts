@@ -34,6 +34,15 @@ const commaList = z.preprocess(
     ),
 );
 
+/** An exact http(s) origin as a browser sends it in `Origin`: `https://host[:port]`, lowercase, no path. */
+const originSchema = z.string().refine(
+  (value) => {
+    const url = URL.parse(value);
+    return url !== null && (url.protocol === 'https:' || url.protocol === 'http:') && url.origin === value;
+  },
+  { message: 'Must be an origin such as https://host or https://host:8443, with no path or trailing slash' },
+);
+
 /** A blank or unset key is left undefined. */
 const optional = <T extends z.ZodType>(schema: T) => z.preprocess(blankAsMissing, schema.optional());
 
@@ -87,6 +96,8 @@ export const envSchema = z.object({
   NOTIFICATION_CLIENT_ID: z.string().min(1),
   /** Clients (e.g. portal-api) allowed to relay a user's token. */
   RELAYING_CLIENT_IDS: commaList,
+  /** Website origins whose pages may call the recipient endpoints directly (KTD7). Empty by default: no CORS. */
+  CORS_ALLOWED_ORIGINS: commaList.pipe(z.array(originSchema)),
   /** At least 32 characters, e.g. `openssl rand -base64 48`. Keys the stored-secret encryption (KTD11). */
   NOTIFICATION_ENCRYPTION_KEY: z.string().min(32),
   /** Hosts exempt from the outbound guard (KTD12), e.g. the local mail catcher. Empty by default. */
