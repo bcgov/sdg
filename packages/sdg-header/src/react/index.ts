@@ -2,9 +2,9 @@
 import { createElement, type JSX } from 'react';
 
 import { defineSdgHeader } from '../define.js';
-import type { HeaderUser, NavItem, SkipLink } from '../types.js';
+import type { AccessTokenFn, AccessTokenRequest, HeaderUser, NavItem, SkipLink } from '../types.js';
 
-export type { HeaderUser, NavItem, SkipLink };
+export type { AccessTokenFn, AccessTokenRequest, HeaderUser, NavItem, SkipLink };
 
 defineSdgHeader();
 
@@ -27,6 +27,14 @@ export interface SdgHeaderProps {
   signOutFn?: () => void;
   /** Client-side navigation for plain clicks on nav items and the logo, e.g. your router's navigate. */
   navigateFn?: (href: string) => void;
+  /** The notifications source: a relay on your origin, or notification-api's `/api/v1/me` with `accessTokenFn`. */
+  notificationsUrl?: string;
+  /** Your inbox page; each notification opens `${inboxHref}/${notificationId}`. Defaults to `/inbox`. */
+  inboxHref?: string;
+  /** Direct mode: returns notification-api's bearer token, or null to wait for the user's next pointer or key event. */
+  accessTokenFn?: AccessTokenFn;
+  /** Called when the user's inbox changed, e.g. to invalidate your inbox queries. */
+  notificationsChangedFn?: () => void;
   id?: string;
   className?: string;
 }
@@ -44,6 +52,8 @@ export function SdgHeader({
   signInHref,
   navLabel,
   menuLabel,
+  notificationsUrl,
+  inboxHref,
   skipLinks = none,
   navItems = none,
   user = null,
@@ -55,6 +65,8 @@ export function SdgHeader({
     'sign-in-href': signInHref,
     'nav-label': navLabel,
     'menu-label': menuLabel,
+    'notifications-url': notificationsUrl,
+    'inbox-href': inboxHref,
     skipLinks,
     navItems,
     user,

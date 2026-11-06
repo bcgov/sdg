@@ -17,6 +17,10 @@ type Inputs = Partial<
     | 'user'
     | 'signOutFn'
     | 'navigateFn'
+    | 'notificationsUrl'
+    | 'inboxHref'
+    | 'accessTokenFn'
+    | 'notificationsChangedFn'
   >
 >;
 

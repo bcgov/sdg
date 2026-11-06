@@ -102,7 +102,8 @@ describe('@repo/sdg-header package', () => {
       expect(code).not.toContain('//#region');
       expect(code).not.toContain('Registering once lets');
       expect(code).not.toContain('Lit is in dev mode');
-      expect(statSync(join(outDir, 'cdn/sdg-header.js')).size).toBeLessThan(50_000);
+      // The measured size is in README.md (Build): raise this ceiling deliberately, with the README, when it is reached.
+      expect(statSync(join(outDir, 'cdn/sdg-header.js')).size).toBeLessThan(75_000);
     });
 
     it('emits dist/index.d.ts', () => {

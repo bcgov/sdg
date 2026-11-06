@@ -1,4 +1,4 @@
-import { faBars, faRightFromBracket, faXmark, type IconDefinition } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faBell, faRightFromBracket, faXmark, type IconDefinition } from '@fortawesome/free-solid-svg-icons';
 import { html, svg, type TemplateResult } from 'lit';
 
 /**
@@ -21,3 +21,4 @@ function icon({ iconName, icon: [width, height, , , path] }: IconDefinition): Te
 export const barsIcon: TemplateResult = icon(faBars);
 export const xmarkIcon: TemplateResult = icon(faXmark);
 export const signOutIcon: TemplateResult = icon(faRightFromBracket);
+export const bellIcon: TemplateResult = icon(faBell);
