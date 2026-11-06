@@ -6,15 +6,20 @@ import { RecipientGuard } from '../auth/recipient.guard.js';
 import type { Principal } from '../auth/token-kind.js';
 import { BEARER_AUTH } from '../openapi/swagger.js';
 import { RecipientsService } from '../recipients/recipients.service.js';
+import { InboxQueriesService } from './inbox-queries.service.js';
 import {
+  byNotificationParamsSchema,
   inboxItemParamsSchema,
   inboxItemSchema,
   inboxPageSchema,
   inboxQuerySchema,
+  unreadCountSchema,
+  type ByNotificationParams,
   type InboxItemParams,
   type InboxItemResponse,
   type InboxPage,
   type InboxQuery,
+  type UnreadCount,
 } from './inbox.schemas.js';
 import { InboxService } from './inbox.service.js';
 
@@ -28,20 +33,45 @@ import { InboxService } from './inbox.service.js';
 @Controller({ path: 'me/inbox', version: '1' })
 export class InboxController {
   private readonly recipients: RecipientsService;
+  private readonly queries: InboxQueriesService;
   private readonly inbox: InboxService;
 
-  constructor(@Inject(RecipientsService) recipients: RecipientsService, @Inject(InboxService) inbox: InboxService) {
+  constructor(
+    @Inject(RecipientsService) recipients: RecipientsService,
+    @Inject(InboxQueriesService) queries: InboxQueriesService,
+    @Inject(InboxService) inbox: InboxService,
+  ) {
     this.recipients = recipients;
+    this.queries = queries;
     this.inbox = inbox;
   }
 
   @Get()
-  @ApiOkResponse({ description: 'Your in-app items, newest first', standardSchema: inboxPageSchema })
+  @ApiOkResponse({
+    description: 'Your in-app items, or only the unread ones, newest first',
+    standardSchema: inboxPageSchema,
+  })
   async list(
     @CurrentPrincipal() principal: Principal,
     @Query({ schema: inboxQuerySchema }) query: InboxQuery,
   ): Promise<InboxPage> {
-    return this.inbox.list(await this.me(principal), query);
+    return this.queries.list(await this.me(principal), query);
+  }
+
+  @Get('unread-count')
+  @ApiOkResponse({ description: 'How many of your in-app items are unread', standardSchema: unreadCountSchema })
+  async unreadCount(@CurrentPrincipal() principal: Principal): Promise<UnreadCount> {
+    return this.queries.unreadCount(await this.me(principal));
+  }
+
+  @Get('by-notification/:notificationId')
+  @ApiOkResponse({ description: 'Your item for this notification, left as it was', standardSchema: inboxItemSchema })
+  @ApiNotFoundResponse({ description: 'No item of yours for this notification, or not a notification id' })
+  async byNotification(
+    @CurrentPrincipal() principal: Principal,
+    @Param({ schema: byNotificationParamsSchema }) { notificationId }: ByNotificationParams,
+  ): Promise<InboxItemResponse> {
+    return this.queries.byNotification(await this.me(principal), notificationId);
   }
 
   @Post(':itemId/read')

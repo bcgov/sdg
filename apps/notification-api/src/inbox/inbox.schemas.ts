@@ -2,11 +2,20 @@ import { z } from 'zod';
 
 import { pageQuerySchema } from '../history/history.schemas.js';
 
-export const inboxQuerySchema = pageQuerySchema;
+export const inboxQuerySchema = pageQuerySchema.extend({
+  unread: z.stringbool().optional().meta({ description: 'Only items not yet read' }),
+});
 export type InboxQuery = z.infer<typeof inboxQuerySchema>;
 
 export const inboxItemParamsSchema = z.object({ itemId: z.uuid() });
 export type InboxItemParams = z.infer<typeof inboxItemParamsSchema>;
+
+/** Any string: an id that is not a uuid is as missing as one that is not the caller's (R18). */
+export const byNotificationParamsSchema = z.object({ notificationId: z.string() });
+export type ByNotificationParams = z.infer<typeof byNotificationParamsSchema>;
+
+export const unreadCountSchema = z.object({ unread: z.number().int().min(0) });
+export type UnreadCount = z.infer<typeof unreadCountSchema>;
 
 /**
  * One of the user's in-app items (R50). Content is null when the type had no in-app template in the user's or the
@@ -19,6 +28,8 @@ export const inboxItemSchema = z.object({
   title: z.string().nullable(),
   /** Sanitized HTML. */
   body: z.string().nullable(),
+  /** The body as plain text, cut on a word boundary to at most 140 characters; null when the body is. */
+  excerpt: z.string().nullable(),
   actionUrl: z.string().nullable(),
   language: z.string().nullable(),
   readAt: z.iso.datetime().nullable(),
