@@ -9,6 +9,7 @@ import { vi, type Mock } from 'vitest';
 import { AppModule } from '../app.module.js';
 import { configureApp } from '../bootstrap.js';
 import { HTTP_FETCH, type HttpFetch } from '../health/indicators.js';
+import { INBOX_SIGNALS } from '../inbox/signals/inbox-signals.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 export const TEST_ENV = {
@@ -92,6 +93,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .useValue(database.db)
     .overrideProvider(HTTP_FETCH)
     .useValue(issuerFetch);
+  // PGlite's own listener; a test on real Postgres keeps the app's listener, on DATABASE_URL.
+  if (database.signals) builder = builder.overrideProvider(INBOX_SIGNALS).useValue(database.signals);
   for (const { provide, useValue } of options.overrides ?? [])
     builder = builder.overrideProvider(provide).useValue(useValue);
   const moduleRef = await builder.compile();
