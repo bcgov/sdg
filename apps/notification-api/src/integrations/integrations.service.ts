@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { senderIntegrations, senders, type Channel } from '@repo/notification-database';
 import { and, eq, sql } from 'drizzle-orm';
 
-import type { Channel } from '../channels/channels.js';
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { senderIntegrations, senders } from '../database/schema/index.js';
 import type { IntegrationResponse, PutIntegration } from './integrations.schemas.js';
 import { integrationType } from './registry.js';
 import { maskSecretFields, sealSecretFields } from './secret-fields.js';

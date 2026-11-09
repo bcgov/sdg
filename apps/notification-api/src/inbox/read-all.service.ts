@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { inboxItems, notificationRecipients } from '@repo/notification-database';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 
 import {
@@ -6,7 +7,6 @@ import {
   type NotificationDatabase,
   type NotificationTransaction,
 } from '../database/database.module.js';
-import { inboxItems, notificationRecipients } from '../database/schema/index.js';
 import { cancelPendingSteps } from '../delivery/escalation.js';
 import { CLOCK, type Clock } from '../delivery/settings.js';
 import type { ReadAll } from './inbox.schemas.js';

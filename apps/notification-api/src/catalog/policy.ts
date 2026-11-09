@@ -1,10 +1,8 @@
+import type { DeliveryPolicy, PolicyChannel } from '@repo/notification-database';
 import { z } from 'zod';
 
-import type { Channel } from '../channels/channels.js';
-
 /** The channels a policy governs. In-app is never one: every recipient with an inbox gets the in-app item (R38). */
-export const POLICY_CHANNELS = ['email', 'webhook'] as const satisfies readonly Channel[];
-export type PolicyChannel = (typeof POLICY_CHANNELS)[number];
+export const POLICY_CHANNELS = ['email', 'webhook'] as const satisfies readonly PolicyChannel[];
 
 /** A year: delays beyond it are typos, and they keep a step's due time well inside what a Date can hold. */
 export const MAX_DELAY_MINUTES = 525_600;
@@ -46,9 +44,10 @@ const escalationSchema = z.strictObject({
  * A Notification type's delivery policy (R14): every channel at once, or ordered escalation steps that an in-app read
  * or acknowledgement cancels (R18). Each step's delay runs from the previous step's final status (KTD8).
  */
-export const policySchema = z.discriminatedUnion('mode', [allAtOnceSchema, escalationSchema]);
-export type DeliveryPolicy = z.infer<typeof policySchema>;
-export type EscalationStep = z.infer<typeof escalationStepSchema>;
+export const policySchema = z.discriminatedUnion('mode', [
+  allAtOnceSchema,
+  escalationSchema,
+]) satisfies z.ZodType<DeliveryPolicy>;
 
 /**
  * The policy's distinct channels, in order. Escalation applies only to recipients with an inbox, so address-only

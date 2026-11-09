@@ -1,10 +1,12 @@
 // scripts/e2e.ts's setup: resets the `notification` database, seeds it, gets the credential tokens and prepares the
 // portal user's recipient: the person signed in at https://sdg.localhost (BC Services Card), who is not the admin
 // (IDIR). Sends address that person by the issuer + subject the relay recorded, read back from the database.
+import { migrationsFolder } from '@repo/notification-database';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Client, escapeIdentifier } from 'pg';
 import { z } from 'zod';
 
-import { runMigrations } from '../../src/database/run-migrations.ts';
 import { baseUrl, optionalEnv, requiredEnv } from '../lib/env.ts';
 import { api, bearer, cookie, expectBody, expectStatus, idSchema, type Api } from '../lib/http.ts';
 import { clientCredentialsToken } from '../lib/tokens.ts';
@@ -40,7 +42,10 @@ export interface E2eContext {
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
-/** Drops the database DATABASE_URL names and migrates it from scratch. Only ever on a local server. */
+/**
+ * Drops the database DATABASE_URL names, creates it again and applies the @repo/notification-database migrations
+ * (build the package first). Only ever on a local server.
+ */
 export async function resetDatabase(databaseUrl: string): Promise<void> {
   const url = new URL(databaseUrl);
   if (!LOCAL_HOSTS.has(url.hostname)) {
@@ -48,17 +53,23 @@ export async function resetDatabase(databaseUrl: string): Promise<void> {
   }
   const maintenance = new URL(url.href);
   maintenance.pathname = '/postgres';
-  const client = new Client({ connectionString: maintenance.href });
-  await client.connect();
+  const name = escapeIdentifier(decodeURIComponent(url.pathname.slice(1)));
+  const admin = new Client({ connectionString: maintenance.href });
+  await admin.connect();
   try {
     // FORCE ends the running notification-api's connections; its pool reconnects once the database is back.
-    await client.query(
-      `drop database if exists ${escapeIdentifier(decodeURIComponent(url.pathname.slice(1)))} with (force)`,
-    );
+    await admin.query(`drop database if exists ${name} with (force)`);
+    await admin.query(`create database ${name}`);
+  } finally {
+    await admin.end();
+  }
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+  try {
+    await migrate(drizzle({ client }), { migrationsFolder });
   } finally {
     await client.end();
   }
-  await runMigrations(databaseUrl);
 }
 
 const pointSchema = z.object({ address: z.string(), verified: z.boolean(), source: z.string() });
@@ -73,9 +84,10 @@ async function userRecipient(databaseUrl: string, recipientId: string): Promise<
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
-    const { rows } = await client.query(`select issuer, subject from recipients where id = $1 and kind = 'user'`, [
-      recipientId,
-    ]);
+    const { rows } = await client.query(
+      `select issuer, subject from notification.recipients where id = $1 and kind = 'user'`,
+      [recipientId],
+    );
     const [row] = rows;
     if (row === undefined) throw new Error(`The portal user's recipient ${recipientId} is not a user recipient`);
     return userRowSchema.parse(row);

@@ -1,6 +1,7 @@
+import type { Channel } from '@repo/notification-database';
+
 /** The spike's channels (R44). */
-export const CHANNELS = ['in-app', 'email', 'webhook'] as const;
-export type Channel = (typeof CHANNELS)[number];
+export const CHANNELS = ['in-app', 'email', 'webhook'] as const satisfies readonly Channel[];
 
 /** One part of a channel's template (R21). Every part is template source text. */
 export interface TemplatePart {

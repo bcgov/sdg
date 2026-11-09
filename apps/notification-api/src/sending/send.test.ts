@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
+import { contactPoints, credentials, recipientRegistrations, recipients } from '@repo/notification-database';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { contactPoints, credentials, recipientRegistrations, recipients } from '../database/schema/index.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
 import { bearer } from '../testing/senders.js';
 import { addressAudience, notificationsOf, SEND_PATH, sendingSender, type SendingSender } from '../testing/sending.js';

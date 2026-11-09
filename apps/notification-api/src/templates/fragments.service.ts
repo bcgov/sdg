@@ -1,9 +1,9 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { fragmentVersions, type FragmentKind } from '@repo/notification-database';
 import { asc, desc, eq, sql } from 'drizzle-orm';
 
 import { TypesService } from '../catalog/types.service.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { fragmentVersions, type FragmentKind } from '../database/schema/index.js';
 import { badRequest } from '../http/bad-request.js';
 import { referencedNames } from './engines.js';
 import { errorMessage } from './render-error.js';

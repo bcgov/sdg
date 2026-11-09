@@ -1,12 +1,7 @@
+import type { DataContract } from '@repo/notification-database';
 import { describe, expect, it } from 'vitest';
 
-import {
-  contractFields,
-  contractValidator,
-  dataContractSchema,
-  sampleData,
-  type DataContract,
-} from './data-contract.js';
+import { contractFields, contractValidator, dataContractSchema, sampleData } from './data-contract.js';
 
 const permitContract: DataContract = {
   type: 'object',

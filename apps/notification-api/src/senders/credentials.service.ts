@@ -1,10 +1,10 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { credentials, credentialTypeScopes, senderTypeGrants } from '@repo/notification-database';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import { TOKEN_CLIENTS } from '../auth/principal.resolver.js';
 import type { TokenClients } from '../auth/token-kind.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { credentials, credentialTypeScopes, senderTypeGrants } from '../database/schema/index.js';
 import { requireSender } from './require-sender.js';
 import type { CredentialResponse } from './senders.schemas.js';
 

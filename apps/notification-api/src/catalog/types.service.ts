@@ -1,8 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { notificationTypes } from '@repo/notification-database';
 import { asc, eq } from 'drizzle-orm';
 
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { notificationTypes } from '../database/schema/index.js';
 import type { CreateType, TypeResponse } from './catalog.schemas.js';
 
 const typeColumns = {

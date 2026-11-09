@@ -1,6 +1,6 @@
+import type { DeliveryPolicy } from '@repo/notification-database';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import type { DeliveryPolicy } from '../catalog/policy.js';
 import {
   attemptsOf,
   defineDeliveryType,

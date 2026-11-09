@@ -1,8 +1,7 @@
+import { AUDIENCE_KINDS, DELIVERY_STATUSES, NOTIFICATION_STATUSES } from '@repo/notification-database';
 import { z } from 'zod';
 
 import { POLICY_CHANNELS } from '../catalog/policy.js';
-import { DELIVERY_STATUSES } from '../database/schema/deliveries.js';
-import { AUDIENCE_KINDS, NOTIFICATION_STATUSES } from '../database/schema/notifications.js';
 
 export const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 20;

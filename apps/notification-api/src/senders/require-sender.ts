@@ -1,8 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
+import { senders } from '@repo/notification-database';
 import { eq } from 'drizzle-orm';
 
 import type { NotificationDatabase } from '../database/database.module.js';
-import { senders } from '../database/schema/index.js';
 
 /** 404, with `message` when given, unless the sender exists. */
 export async function requireSender(

@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DrizzleModule, InjectDrizzle } from '@nestjs/drizzle';
+import * as schema from '@repo/notification-database/schema';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
 import type { Env } from '../config/env.js';
-import * as schema from './schema/index.js';
 
 export type NotificationSchema = typeof schema;
 

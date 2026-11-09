@@ -1,10 +1,10 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { topics, topicSubscriptions } from '@repo/notification-database';
 import { and, asc, eq } from 'drizzle-orm';
 
 import type { TopicResponse } from '../catalog/catalog.schemas.js';
 import { TopicsService } from '../catalog/topics.service.js';
 import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
-import { topics, topicSubscriptions } from '../database/schema/index.js';
 
 /**
  * The current subscribers of a topic as a subquery, for set-based audience expansion (KTD14):

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
-import type { Channel } from '../channels/channels.js';
+import type { Channel } from '@repo/notification-database';
+
 import type { Env } from '../config/env.js';
 import type { IntegrationConfig } from './registry.js';
 import { smtpConfigSchema } from './types/smtp.js';

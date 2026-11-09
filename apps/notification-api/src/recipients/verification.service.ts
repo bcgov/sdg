@@ -9,6 +9,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { confirmationSends, contactPoints, verificationTokens } from '@repo/notification-database';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 
 import type { Env } from '../config/env.js';
@@ -17,7 +18,6 @@ import {
   type NotificationDatabase,
   type NotificationTransaction,
 } from '../database/database.module.js';
-import { confirmationSends, contactPoints, verificationTokens } from '../database/schema/index.js';
 import { PLATFORM_INTEGRATIONS, type PlatformIntegrations } from '../integrations/platform-defaults.js';
 import { sendEmail, type SmtpConfig } from '../integrations/types/smtp.js';
 import { describeError } from '../logging/describe-error.js';

@@ -1,8 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
-
-import { policyChannels, type DeliveryPolicy, type PolicyChannel } from '../catalog/policy.js';
-import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
 import {
   contactPoints,
   deliveries,
@@ -11,7 +7,13 @@ import {
   notifications,
   recipients,
   type RecipientKind,
-} from '../database/schema/index.js';
+  type DeliveryPolicy,
+  type PolicyChannel,
+} from '@repo/notification-database';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+
+import { policyChannels } from '../catalog/policy.js';
+import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
 import { notifyInboxChanged } from '../inbox/signals/inbox-signals.js';
 import { describeError } from '../logging/describe-error.js';
 import { visibleToSender } from '../recipients/contact-points.service.js';

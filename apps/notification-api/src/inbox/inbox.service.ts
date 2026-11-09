@@ -1,8 +1,8 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { inboxItems, notificationRecipients } from '@repo/notification-database';
 import { and, eq, sql } from 'drizzle-orm';
 
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { inboxItems, notificationRecipients } from '../database/schema/index.js';
 import { cancelPendingSteps, type CANCEL_REASONS } from '../delivery/escalation.js';
 import { CLOCK, type Clock } from '../delivery/settings.js';
 import { InboxQueriesService } from './inbox-queries.service.js';

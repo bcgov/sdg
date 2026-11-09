@@ -1,8 +1,8 @@
+import { deliveries, failureCallbacks } from '@repo/notification-database';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { verifyWebhook, type WebhookHeaders } from '../crypto/signing.js';
-import { deliveries, failureCallbacks } from '../database/schema/index.js';
 import {
   attemptsOf,
   defineDeliveryType,

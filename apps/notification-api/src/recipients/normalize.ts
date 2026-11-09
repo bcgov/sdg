@@ -1,4 +1,6 @@
-import { CHANNEL_DECLARATIONS, type Channel } from '../channels/channels.js';
+import type { Channel } from '@repo/notification-database';
+
+import { CHANNEL_DECLARATIONS } from '../channels/channels.js';
 
 /**
  * The stored form of an address, which recipients and contact points are deduplicated by (KTD17): the channel's own

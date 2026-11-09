@@ -1,7 +1,8 @@
+import type { Channel } from '@repo/notification-database';
 import { z } from 'zod';
 
 import { languageTagSchema } from '../catalog/catalog.schemas.js';
-import { CHANNEL_DECLARATIONS, CHANNELS, type Channel } from '../channels/channels.js';
+import { CHANNEL_DECLARATIONS, CHANNELS } from '../channels/channels.js';
 import { timeZoneSchema } from '../config/env.js';
 import { typeKeySchema } from '../senders/senders.schemas.js';
 

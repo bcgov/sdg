@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
+import { idempotencyKeys } from '@repo/notification-database';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { idempotencyKeys } from '../database/schema/index.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
 import { notificationsOf, SEND_PATH, sendingSender, type SendingSender } from '../testing/sending.js';
 import { startTestIssuer, type TestIssuer } from '../testing/tokens.js';

@@ -25,6 +25,7 @@ x-workspace: &workspace
     - nm-portal-web:/app/apps/portal-web/node_modules
     - nm-auth:/app/packages/auth/node_modules
     - nm-design-system:/app/packages/design-system/node_modules
+    - nm-notification-database:/app/packages/notification-database/node_modules
     - nm-portal-database:/app/packages/portal-database/node_modules
     - nm-sdg-header:/app/packages/sdg-header/node_modules
     - nm-playwright-config:/app/tooling/playwright-config/node_modules
@@ -54,7 +55,7 @@ x-init-healthcheck: &init-healthcheck
   start_period: 600s
 
 x-database-url: &database-url postgres://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgis:5432/${POSTGRES_DB:-portal}
-# notification-api's own database on the same server (KTD2); its migrate step creates it when missing.
+# notification-api's own database on the same server (KTD2); notification-database's migrator creates it when missing.
 x-notification-database-url: &notification-database-url postgres://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgis:5432/notification
 
 services:
@@ -173,7 +174,8 @@ services:
       deps:
         condition: service_healthy
 
-  # Init container: notification-api starts only after its database exists and is migrated.
+  # Init container: notification-api starts only after its database exists and is migrated. turbo builds
+  # @repo/notification-database, then its migrator (the notification-database image's entry point) runs from dist/.
   notification-migrate:
     <<: *workspace
     environment:
@@ -182,7 +184,11 @@ services:
     command:
       - sh
       - -c
-      - rm -f /tmp/ready && pnpm --filter notification-api db:migrate && touch /tmp/ready && exec sleep infinity
+      - >-
+        rm -f /tmp/ready &&
+        pnpm turbo run build --filter=@repo/notification-database --ui=stream &&
+        node packages/notification-database/dist/migrate.js &&
+        touch /tmp/ready && exec sleep infinity
     init: true
     restart: 'no'
     healthcheck: *init-healthcheck
@@ -298,6 +304,7 @@ volumes:
   nm-portal-web:
   nm-auth:
   nm-design-system:
+  nm-notification-database:
   nm-portal-database:
   nm-sdg-header:
   nm-playwright-config:

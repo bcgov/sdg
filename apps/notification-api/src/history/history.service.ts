@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { deliveries, deliveryAttempts, inboxItems, notifications } from '@repo/notification-database';
 import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { deliveries, deliveryAttempts, inboxItems, notifications } from '../database/schema/index.js';
 import { toPage } from '../http/pagination.js';
 import { historyConditions } from './history.filters.js';
 import {

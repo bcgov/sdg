@@ -87,7 +87,7 @@ async function storedConfig(integrationId: string): Promise<string> {
   await client.connect();
   try {
     const result = await client.query<{ config: string }>(
-      'select config::text as config from sender_integrations where id = $1',
+      'select config::text as config from notification.sender_integrations where id = $1',
       [integrationId],
     );
     const row = result.rows[0];

@@ -1,8 +1,8 @@
+import { senderIntegrations } from '@repo/notification-database';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SecretCipher } from '../crypto/secret-cipher.js';
-import { senderIntegrations } from '../database/schema/index.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
 import { integrationPath, SENDER_SMTP } from '../testing/integrations.js';
 import { bearer, createSender } from '../testing/senders.js';

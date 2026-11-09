@@ -1,11 +1,11 @@
+import * as schema from '@repo/notification-database/schema';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Client, Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { runMigrations } from '../database/run-migrations.js';
-import * as schema from '../database/schema/index.js';
 import { ExpanderService } from '../delivery/expander.js';
 import { PlannerService } from '../delivery/planner.js';
+import { createPostgresTestDatabase } from '../testing/database.js';
 import {
   defineDeliveryType,
   deliveriesOf,
@@ -35,7 +35,7 @@ describe.skipIf(!serverUrl)('mark all as read on Postgres (KTD9)', () => {
   let credential: { authorization: string };
 
   beforeAll(async () => {
-    await runMigrations(target.href);
+    await createPostgresTestDatabase(target);
     pool = new Pool({ connectionString: target.href, max: 4 });
     const db = drizzle({ client: pool, schema, casing: 'snake_case' });
     app = await startDeliveryApp({
@@ -90,7 +90,7 @@ describe.skipIf(!serverUrl)('mark all as read on Postgres (KTD9)', () => {
     await holder.connect();
     try {
       await holder.query('begin');
-      await holder.query('select id from notifications where id = $1 for update', [inFlight]);
+      await holder.query('select id from notification.notifications where id = $1 for update', [inFlight]);
       const planning = app.t.app.get(PlannerService).planBatch();
       await someoneWaitsOnALock();
 

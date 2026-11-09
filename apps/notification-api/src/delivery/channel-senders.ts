@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { RenderedParts } from '@repo/notification-database';
 
 import type { ResolvedIntegration } from '../integrations/platform-defaults.js';
 import { sendEmail } from '../integrations/types/smtp.js';
@@ -7,7 +8,6 @@ import { GuardedHttpClient } from '../outbound/http-dispatcher.js';
 import { OutboundGuard } from '../outbound/outbound-guard.js';
 import { failed, type SendOutcome } from '../outbound/outcome.js';
 import type { UsableContactPoint } from '../recipients/contact-points.service.js';
-import type { RenderedParts } from '../templates/renderer.js';
 import { DELIVERY_SETTINGS, type DeliverySettings } from './settings.js';
 
 /** One rendered delivery to hand to its integration. */

@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { credentials, senderOwners } from '@repo/notification-database';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { CredentialDirectory, LinkedCredential, PersonRef, SenderOwnership } from '../auth/directories.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { credentials, senderOwners } from '../database/schema/index.js';
 import { scopesByCredential } from './credentials.service.js';
 
 /** The credential directory the guards use (R8): a client id's link, sender and scoped types, read per token. */

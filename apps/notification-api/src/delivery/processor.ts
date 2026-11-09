@@ -1,16 +1,16 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { SpanStatusCode, trace } from '@opentelemetry/api';
-import { and, eq } from 'drizzle-orm';
-
-import { CHANNEL_DECLARATIONS } from '../channels/channels.js';
-import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
 import {
   deliveries,
   deliveryAttempts,
   notificationRecipients,
   notifications,
   recipients,
-} from '../database/schema/index.js';
+} from '@repo/notification-database';
+import { and, eq } from 'drizzle-orm';
+
+import { CHANNEL_DECLARATIONS } from '../channels/channels.js';
+import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
 import { IntegrationResolver } from '../integrations/resolver.service.js';
 import { describeError } from '../logging/describe-error.js';
 import { ContactPointsService, type UsableContactPoint } from '../recipients/contact-points.service.js';

@@ -1,11 +1,11 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { templateVersions } from '@repo/notification-database';
 import { and, desc, eq, sql } from 'drizzle-orm';
 
 import type { TypeResponse } from '../catalog/catalog.schemas.js';
 import { sampleData } from '../catalog/data-contract.js';
 import { TypesService } from '../catalog/types.service.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { templateVersions } from '../database/schema/index.js';
 import { badRequest } from '../http/bad-request.js';
 import { TemplateRenderError } from './render-error.js';
 import { DEFAULT_TIME_ZONE } from './render.service.js';

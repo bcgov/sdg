@@ -1,35 +1,20 @@
+import type {
+  ArrayProperty,
+  ContractProperty,
+  DataContract,
+  ObjectProperty,
+  ScalarType,
+} from '@repo/notification-database';
 import { z } from 'zod';
 
 import { NOTIFICATION_VARIABLE_NAMES } from '../templates/notification-variables.js';
 
 /**
- * A Notification type's data contract (R13): the subset of JSON Schema the platform supports. The top level is an
- * object; properties are `string`, `number`, `integer`, `boolean`, `object` (with `properties` and optional
- * `required`) or `array` (with `items`). `description` is the only annotation. Any other keyword is rejected, so a
- * contract never claims a constraint sends are not checked against.
+ * A Notification type's data contract (R13): the subset of JSON Schema the platform supports (the package's
+ * `DataContract`). The top level is an object; properties are `string`, `number`, `integer`, `boolean`, `object`
+ * (with `properties` and optional `required`) or `array` (with `items`). `description` is the only annotation. Any
+ * other keyword is rejected, so a contract never claims a constraint sends are not checked against.
  */
-export type ScalarType = 'string' | 'number' | 'integer' | 'boolean';
-
-export interface ScalarProperty {
-  type: ScalarType;
-  description?: string | undefined;
-}
-
-export interface ArrayProperty {
-  type: 'array';
-  items: ContractProperty;
-  description?: string | undefined;
-}
-
-export interface ObjectProperty {
-  type: 'object';
-  properties: Record<string, ContractProperty>;
-  required?: string[] | undefined;
-  description?: string | undefined;
-}
-
-export type ContractProperty = ScalarProperty | ArrayProperty | ObjectProperty;
-export type DataContract = ObjectProperty;
 export type ContractType = ContractProperty['type'];
 
 /** Names a Liquid template can address as `{{ holder.name }}`. */

@@ -1,6 +1,6 @@
-import type { deliveries } from '../database/schema/index.js';
+import type { deliveries, RenderedParts } from '@repo/notification-database';
+
 import type { SendOutcome } from '../outbound/outcome.js';
-import type { RenderedParts } from '../templates/renderer.js';
 import type { ClaimedDelivery } from './claimer.js';
 import { afterAttempt } from './retry.js';
 

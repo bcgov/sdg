@@ -2,7 +2,7 @@
 
 A spike of the platform's shared notification service (plan: `docs/plans/2026-11-04-1302-feat-notification-api-plan.md`). Authorized systems send Notification types from an admin-curated catalog to portal users, people who haven't signed in yet, raw email addresses and other systems, over in-app, email and webhook. Delivery follows each type's policy (all at once, or escalation that an in-app read cancels), the recipient's language and quiet hours, and every send can be found again in history.
 
-NestJS on TypeScript 6, its own `notification` database in the shared Postgres (drizzle migrations in `drizzle/`), Keycloak bearer tokens. API docs at `/api/docs` outside production.
+NestJS on TypeScript 6, its own `notification` database in the shared Postgres (tables in its `notification` schema; schema and drizzle migrations in `packages/notification-database`), Keycloak bearer tokens. API docs at `/api/docs` outside production.
 
 ## Who calls it
 
@@ -76,16 +76,18 @@ cp apps/notification-api/.env.example apps/notification-api/.env   # then fill i
 podman compose up -d --build
 ```
 
-| Service                | What                                                                                  | From the host                  |
-| ---------------------- | ------------------------------------------------------------------------------------- | ------------------------------ |
-| `notification-migrate` | creates the `notification` database when missing, applies `drizzle/`                  | —                              |
-| `notification-api`     | `nest start --watch`, `all` role                                                      | `https://notify.sdg.localhost` |
-| `mailpit`              | catches all email (SMTP `mailpit:1025` inside the network); the platform default SMTP | `http://localhost:8025`        |
-| `webhook-receiver`     | `scripts/webhook-receiver.ts`: records every webhook and callback (`GET /requests`)   | `http://localhost:8090`        |
+| Service                | What                                                                                                              | From the host                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `notification-migrate` | builds `@repo/notification-database`, creates the `notification` database when missing and applies its migrations | —                              |
+| `notification-api`     | `nest start --watch`, `all` role                                                                                  | `https://notify.sdg.localhost` |
+| `mailpit`              | catches all email (SMTP `mailpit:1025` inside the network); the platform default SMTP                             | `http://localhost:8025`        |
+| `webhook-receiver`     | `scripts/webhook-receiver.ts`: records every webhook and callback (`GET /requests`)                               | `http://localhost:8090`        |
 
 Only Mailpit and the webhook receiver are on notification-api's outbound allow-list (`NOTIFICATION_OUTBOUND_ALLOW_HOSTS`), so plain HTTP and SMTP without TLS work for them and nothing else. `pnpm stack:trust` once makes `https://notify.sdg.localhost` trusted; the scripts run Node with `--use-system-ca`. If Node still rejects the certificate, point `NODE_EXTRA_CA_CERTS` at Caddy's root (`podman cp portal_caddy_1:/data/caddy/pki/authorities/local/root.crt caddy-root.crt`).
 
-Without compose: `pnpm --filter notification-api db:migrate`, then `pnpm --filter notification-api dev` (port 3000).
+Without compose: `pnpm --filter @repo/notification-database build`, then `DATABASE_URL=… node packages/notification-database/dist/migrate.js` from the repo root, then `pnpm --filter notification-api dev` (port 3000).
+
+One-off reset after the move to `packages/notification-database`: the tables now live in the `notification` schema, and the migrations restart from a fresh baseline that an older local `notification` database does not match. If you ran notification-api locally before, drop that database once (`podman compose exec postgis dropdb -U portal --force notification`, then restart `notification-migrate`), or reset the whole stack with `podman compose down -v`.
 
 ## Keycloak setup for the scripts
 

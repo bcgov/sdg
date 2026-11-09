@@ -1,10 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { senderIntegrations, type Channel } from '@repo/notification-database';
 import { and, eq } from 'drizzle-orm';
 
-import type { Channel } from '../channels/channels.js';
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { senderIntegrations } from '../database/schema/index.js';
 import { PLATFORM_INTEGRATIONS, type PlatformIntegrations, type ResolvedIntegration } from './platform-defaults.js';
 import { parseIntegrationConfig } from './registry.js';
 import { openSecretFields } from './secret-fields.js';

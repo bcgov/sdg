@@ -1,7 +1,7 @@
+import { notifications } from '@repo/notification-database';
 import { eq } from 'drizzle-orm';
 import { expect } from 'vitest';
 
-import { notifications } from '../database/schema/index.js';
 import type { TestApp } from './app.js';
 import { integrationPath, SENDER_SMTP } from './integrations.js';
 import { bearer, createSender } from './senders.js';

@@ -1,8 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
+import {
+  notificationRecipients,
+  notifications,
+  recipientRegistrations,
+  recipients,
+  topics,
+  topicSubscriptions,
+} from '@repo/notification-database';
 import { asc, eq, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
-import { notifications } from '../database/schema/index.js';
 import { subscribersQuery } from '../recipients/subscriptions.service.js';
 import { CLOCK, DELIVERY_SETTINGS, type Clock, type DeliverySettings } from './settings.js';
 
@@ -19,9 +26,9 @@ interface Unexpanded {
  */
 function everyoneQuery(senderId: string): SQL {
   return sql`
-    SELECT recipient_id FROM recipient_registrations WHERE sender_id = ${senderId}
-    UNION SELECT id FROM recipients WHERE kind = 'system' AND sender_id = ${senderId}
-    UNION SELECT s.recipient_id FROM topic_subscriptions s JOIN topics t ON t.id = s.topic_id
+    SELECT recipient_id FROM ${recipientRegistrations} WHERE sender_id = ${senderId}
+    UNION SELECT id FROM ${recipients} WHERE kind = 'system' AND sender_id = ${senderId}
+    UNION SELECT s.recipient_id FROM ${topicSubscriptions} s JOIN ${topics} t ON t.id = s.topic_id
       WHERE t.sender_id = ${senderId}`;
 }
 
@@ -29,7 +36,7 @@ function everyoneQuery(senderId: string): SQL {
 function audienceQuery(db: DbOrTx, notification: Unexpanded): SQL | null {
   if (notification.audienceKind === 'everyone') return everyoneQuery(notification.senderId);
   if (notification.audienceKind === 'recipients') {
-    return sql`SELECT unnest(recipient_ids) FROM notifications WHERE id = ${notification.id}`;
+    return sql`SELECT unnest(recipient_ids) FROM ${notifications} WHERE id = ${notification.id}`;
   }
   return notification.topicId === null ? null : sql`${subscribersQuery(db, notification.topicId)}`;
 }
@@ -94,8 +101,8 @@ export class ExpanderService {
     if (audience === null) return;
     const withoutAddresses = notification.audienceKind === 'everyone' ? sql`AND kind <> 'address'` : sql``;
     await db.execute(sql`
-      INSERT INTO notification_recipients (notification_id, recipient_id)
-      SELECT ${notification.id}, id FROM recipients WHERE id IN (${audience}) ${withoutAddresses}
+      INSERT INTO ${notificationRecipients} (notification_id, recipient_id)
+      SELECT ${notification.id}, id FROM ${recipients} WHERE id IN (${audience}) ${withoutAddresses}
       ON CONFLICT (notification_id, recipient_id) DO NOTHING`);
   }
 }

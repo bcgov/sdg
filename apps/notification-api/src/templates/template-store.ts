@@ -1,8 +1,7 @@
+import { fragmentVersions, templateVersions, type Channel, type FragmentKind } from '@repo/notification-database';
 import { and, asc, desc, eq, inArray, type SQL } from 'drizzle-orm';
 
-import type { Channel } from '../channels/channels.js';
 import type { NotificationDatabase } from '../database/database.module.js';
-import { fragmentVersions, templateVersions, type FragmentKind } from '../database/schema/index.js';
 
 /** The database or a transaction on it (sends pin templates inside the accept transaction). */
 export type Queryable = Pick<NotificationDatabase, 'select' | 'selectDistinctOn'>;

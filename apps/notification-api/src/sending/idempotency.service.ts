@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 
 import { ConflictException, Injectable } from '@nestjs/common';
+import { IDEMPOTENCY_WINDOW_HOURS, idempotencyKeys, notifications } from '@repo/notification-database';
 import { and, eq, sql } from 'drizzle-orm';
 
 import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
-import { IDEMPOTENCY_WINDOW_HOURS, idempotencyKeys, notifications } from '../database/schema/index.js';
 import type { SendResponse } from './send.schemas.js';
 
 /** JSON with every object's keys sorted, so the same content always serializes the same way. */

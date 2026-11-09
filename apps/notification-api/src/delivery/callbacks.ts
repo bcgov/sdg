@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { deliveries, failureCallbacks, notifications, senders } from '@repo/notification-database';
 import { and, eq, sql } from 'drizzle-orm';
 
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
-import { deliveries, failureCallbacks, notifications, senders } from '../database/schema/index.js';
 import { sendWebhook } from '../integrations/types/webhook.js';
 import { describeError } from '../logging/describe-error.js';
 import { GuardedHttpClient } from '../outbound/http-dispatcher.js';
@@ -31,11 +31,11 @@ export interface FailureCallbackBody {
  */
 export async function queueFailureCallback(db: DbOrTx, deliveryId: string, now: Date): Promise<void> {
   await db.execute(sql`
-    INSERT INTO failure_callbacks (delivery_id, sender_id, due_at)
+    INSERT INTO ${failureCallbacks} (delivery_id, sender_id, due_at)
     SELECT d.id, n.sender_id, ${now.toISOString()}::timestamptz
-    FROM deliveries d
-    JOIN notifications n ON n.id = d.notification_id
-    JOIN senders s ON s.id = n.sender_id
+    FROM ${deliveries} d
+    JOIN ${notifications} n ON n.id = d.notification_id
+    JOIN ${senders} s ON s.id = n.sender_id
     WHERE d.id = ${deliveryId} AND s.callback_url IS NOT NULL
     ON CONFLICT (delivery_id) DO NOTHING`);
 }

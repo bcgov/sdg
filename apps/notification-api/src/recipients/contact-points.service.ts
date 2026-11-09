@@ -1,7 +1,7 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { contactPoints, verificationTokens, type Channel } from '@repo/notification-database';
 import { and, asc, eq, isNull, or, sql, type SQL } from 'drizzle-orm';
 
-import type { Channel } from '../channels/channels.js';
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import {
   InjectDatabase,
@@ -9,7 +9,6 @@ import {
   type NotificationDatabase,
   type NotificationTransaction,
 } from '../database/database.module.js';
-import { contactPoints, verificationTokens } from '../database/schema/index.js';
 import type { ContactPointResponse } from './recipients.schemas.js';
 import { VerificationService, type PendingConfirmation } from './verification.service.js';
 
