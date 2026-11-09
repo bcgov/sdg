@@ -1,11 +1,11 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { senderOwners, senders, senderTypeGrants } from '@repo/notification-database';
 import { and, asc, eq } from 'drizzle-orm';
 
 import { TypesService } from '../catalog/types.service.js';
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { generateWebhookSecret } from '../crypto/signing.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { senderOwners, senders, senderTypeGrants } from '../database/schema/index.js';
 import { OutboundGuard } from '../outbound/outbound-guard.js';
 import { requireSender } from './require-sender.js';
 import type { CallbackResponse, Owner, SenderResponse } from './senders.schemas.js';

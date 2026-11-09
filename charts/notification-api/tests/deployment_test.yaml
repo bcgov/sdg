@@ -1,0 +1,235 @@
+suite: notification-api deployment (every Deployment, both modes)
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.clientId: notification-api
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/notification-api
+  vault.serviceAccountName: abc123-vault
+tests:
+  - it: runs the notification-api image with env from the ConfigMap in every split Deployment
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/notification-api:pr-1
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: sdg-notification-api
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/config"]
+          pattern: ^[0-9a-f]{64}$
+
+  - it: runs the notification-database migrator first in every split Deployment, on the PGO Secret
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: migrate
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ghcr.io/acme/sdg/notification-database:pr-1
+      - equal:
+          path: spec.template.spec.initContainers[0].resources
+          value:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-postgres-pguser-notification
+                key: uri
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-postgres-pguser-notification
+                key: uri
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: runs the migrator first in the combined Deployment too
+    template: templates/deployment.yaml
+    set:
+      mode: combined
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ghcr.io/acme/sdg/notification-database:pr-1
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-postgres-pguser-notification
+                key: uri
+
+  - it: connects to PGO over verified TLS in the app and the migrator
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGSSLMODE
+            value: require
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: NODE_EXTRA_CA_CERTS
+            value: /etc/postgres-ca/ca.crt
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: postgres-ca
+            mountPath: /etc/postgres-ca
+            readOnly: true
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: postgres-ca
+            mountPath: /etc/postgres-ca
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: postgres-ca
+            secret:
+              secretName: sdg-postgres-cluster-cert
+              items:
+                - key: ca.crt
+                  path: ca.crt
+
+  - it: probes the health endpoints on the http port
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: http
+            containerPort: 3000
+            protocol: TCP
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet
+          value:
+            path: /healthz/live
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+          value:
+            path: /healthz/live
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+          value:
+            path: /healthz/ready
+            port: http
+
+  - it: runs restricted with a read-only root and a writable /tmp
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+
+  - it: annotates every split Deployment for scraping /metrics on 3000 when a scraper namespace is set
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    set:
+      global.observability.scraperNamespace: abc123-tools
+      global.observability.environment: test
+    asserts:
+      - isSubset:
+          path: spec.template.metadata.annotations
+          content:
+            sdg.gov.bc.ca/scrape: 'true'
+            sdg.gov.bc.ca/scrape-port: '3000'
+            sdg.gov.bc.ca/scrape-path: /metrics
+            sdg.gov.bc.ca/environment: test
+
+  - it: has no scrape annotation on any Deployment when observability is not configured
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape"]
+
+  - it: passes nodeSelector, tolerations and affinity through
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    set:
+      nodeSelector:
+        zone: a
+      tolerations:
+        - key: dedicated
+          operator: Exists
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            zone: a
+      - equal:
+          path: spec.template.spec.tolerations[0].key
+          value: dedicated

@@ -1,0 +1,239 @@
+suite: notification-api layout (split and combined)
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+  - templates/service.yaml
+  - templates/pdb.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.clientId: notification-api
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/notification-api
+  vault.serviceAccountName: abc123-vault
+tests:
+  - it: split renders an api and a worker Deployment
+    template: templates/deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: metadata.name
+          value: sdg-notification-api-api
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: sdg-notification-api-worker
+        documentIndex: 1
+
+  - it: split runs the api Deployment with role api and a selector of its own
+    template: templates/deployment.yaml
+    documentSelector:
+      path: metadata.name
+      value: sdg-notification-api-api
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: api
+      - isSubset:
+          path: spec.template.metadata.labels
+          content:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: api
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFICATION_ROLE
+            value: api
+
+  - it: split runs the worker Deployment with role worker and a selector of its own
+    template: templates/deployment.yaml
+    documentSelector:
+      path: metadata.name
+      value: sdg-notification-api-worker
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: worker
+      - isSubset:
+          path: spec.template.metadata.labels
+          content:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: worker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFICATION_ROLE
+            value: worker
+
+  - it: split's Service selects only api pods
+    template: templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-notification-api
+      - equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: api
+      - equal:
+          path: spec.ports[0]
+          value:
+            name: http
+            port: 3000
+            targetPort: http
+            protocol: TCP
+
+  - it: combined renders one Deployment with role all
+    template: templates/deployment.yaml
+    set:
+      mode: combined
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: sdg-notification-api
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: all
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFICATION_ROLE
+            value: all
+
+  - it: combined's Service selects the all pods under the same name
+    template: templates/service.yaml
+    set:
+      mode: combined
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-notification-api
+      - equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: all
+
+  - it: fails on an unknown mode
+    template: templates/deployment.yaml
+    set:
+      mode: both
+    asserts:
+      - failedTemplate:
+          errorPattern: 'mode must be split or combined'
+
+  - it: rolls the api out with Kubernetes' default and recreates the worker by default
+    template: templates/deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.strategy
+        documentIndex: 0
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+        documentIndex: 1
+
+  - it: recreates the combined Deployment by default
+    template: templates/deployment.yaml
+    set:
+      mode: combined
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: strategy, replicas and resources are set per role
+    template: templates/deployment.yaml
+    set:
+      strategy.api:
+        type: Recreate
+      replicaCount.api: 2
+      resources.worker:
+        requests:
+          cpu: 5m
+          memory: 64Mi
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+        documentIndex: 0
+      - equal:
+          path: spec.replicas
+          value: 2
+        documentIndex: 0
+      - equal:
+          path: spec.replicas
+          value: 1
+        documentIndex: 1
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests
+          value:
+            cpu: 5m
+            memory: 64Mi
+        documentIndex: 1
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests
+          value:
+            cpu: 50m
+            memory: 192Mi
+        documentIndex: 0
+
+  - it: renders no PodDisruptionBudget by default
+    template: templates/pdb.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: split's PodDisruptionBudget covers only api pods
+    template: templates/pdb.yaml
+    set:
+      podDisruptionBudget.enabled: true
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: spec.minAvailable
+          value: 1
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: api
+
+  - it: combined's PodDisruptionBudget covers the all pods
+    template: templates/pdb.yaml
+    set:
+      mode: combined
+      podDisruptionBudget.enabled: true
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: notification-api
+            app.kubernetes.io/instance: sdg
+            app.kubernetes.io/component: all

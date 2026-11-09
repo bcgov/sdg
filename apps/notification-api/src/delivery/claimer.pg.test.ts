@@ -1,11 +1,10 @@
+import { deliveries, runMigrations } from '@repo/notification-database';
+import * as schema from '@repo/notification-database/schema';
 import { inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Client, Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { runMigrations } from '../database/run-migrations.js';
-import * as schema from '../database/schema/index.js';
-import { deliveries } from '../database/schema/index.js';
 import { GuardedHttpClient } from '../outbound/http-dispatcher.js';
 import { OutboundGuard } from '../outbound/outbound-guard.js';
 import { createTestApp, type TestApp } from '../testing/app.js';

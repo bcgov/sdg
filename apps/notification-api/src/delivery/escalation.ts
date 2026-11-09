@@ -1,7 +1,7 @@
+import { deliveries, notificationRecipients } from '@repo/notification-database';
 import { and, asc, eq, gt, inArray, isNull } from 'drizzle-orm';
 
 import type { DbOrTx } from '../database/database.module.js';
-import { deliveries, notificationRecipients } from '../database/schema/index.js';
 
 const MINUTE_MS = 60_000;
 

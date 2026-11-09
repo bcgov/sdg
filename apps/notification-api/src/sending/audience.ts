@@ -1,5 +1,6 @@
+import type { notifications } from '@repo/notification-database';
+
 import type { DbOrTx } from '../database/database.module.js';
-import type { notifications } from '../database/schema/index.js';
 import type { RecipientsService } from '../recipients/recipients.service.js';
 import type { Audience, SendRecipient } from './send.schemas.js';
 

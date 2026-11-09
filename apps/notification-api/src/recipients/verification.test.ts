@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
+import { confirmationSends, verificationTokens } from '@repo/notification-database';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { confirmationSends, verificationTokens } from '../database/schema/index.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
 import {
   confirmationToken,

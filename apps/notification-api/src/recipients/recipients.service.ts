@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import type { AuthUser } from '@repo/auth';
+import { contactPoints, recipientRegistrations, recipients } from '@repo/notification-database';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import type { PersonRef } from '../auth/directories.js';
 import { SecretCipher } from '../crypto/secret-cipher.js';
 import { generateWebhookSecret } from '../crypto/signing.js';
 import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
-import { contactPoints, recipientRegistrations, recipients } from '../database/schema/index.js';
 import { describeError } from '../logging/describe-error.js';
 import { OutboundGuard } from '../outbound/outbound-guard.js';
 import { ContactPointsService, signingSecretLocation, type SenderContactPoint } from './contact-points.service.js';

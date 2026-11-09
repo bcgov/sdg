@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { notifications } from '@repo/notification-database';
 
 import type { LinkedCredential } from '../auth/directories.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { notifications } from '../database/schema/index.js';
 import { RecipientsService } from '../recipients/recipients.service.js';
 import { RenderService } from '../templates/render.service.js';
 import { audienceColumns } from './audience.js';

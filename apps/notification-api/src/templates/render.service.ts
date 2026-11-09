@@ -1,26 +1,21 @@
 import { Inject, Injectable } from '@nestjs/common';
+import {
+  fragmentVersions,
+  templateVersions,
+  type Channel,
+  type PinnedTemplates,
+  type RecipientKind,
+  type RenderedParts,
+} from '@repo/notification-database';
 import { eq, inArray } from 'drizzle-orm';
 
 import { canonicalLanguage } from '../catalog/catalog.schemas.js';
-import type { Channel } from '../channels/channels.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { fragmentVersions, templateVersions, type RecipientKind } from '../database/schema/index.js';
-import { renderParts, type RenderedParts } from './renderer.js';
+import { renderParts } from './renderer.js';
 import { currentTemplates, fragmentClosure, type Queryable } from './template-store.js';
 
 /** The platform's default IANA zone (`DEFAULT_TIMEZONE`), for recipients without one (R39). */
 export const DEFAULT_TIME_ZONE = Symbol('DEFAULT_TIME_ZONE');
-
-/** The template, layout and partial versions a notification renders with, recorded at accept (KTD7). */
-export interface PinnedTemplates {
-  typeKey: string;
-  /** The type's default language at accept, for recipients whose language has no template (R39). */
-  defaultLanguage: string;
-  /** Template version ids by channel, then language. A channel the type has no template for is absent (R14). */
-  templates: Partial<Record<Channel, Record<string, string>>>;
-  /** Layout and partial version ids by name: every one the pinned templates reach. */
-  fragments: Record<string, string>;
-}
 
 export interface RenderRequest {
   pinned: PinnedTemplates;

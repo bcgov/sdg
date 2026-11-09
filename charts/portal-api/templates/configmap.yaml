@@ -15,6 +15,9 @@ data:
   SESSION_TTL_SECONDS: {{ .Values.sessionTtlSeconds | quote }}
   KEYCLOAK_ISSUER_URL: {{ .Values.keycloak.issuerUrl | required "keycloak.issuerUrl is required" | quote }}
   KEYCLOAK_CLIENT_ID: {{ .Values.keycloak.clientId | required "keycloak.clientId is required" | quote }}
+  {{- with include "common.tplvalue" (dict "value" .Values.notificationApiUrl "context" .) }}
+  NOTIFICATION_API_URL: {{ . | quote }}
+  {{- end }}
   {{- $o := include "common.observability" . | fromYaml }}
   {{- with $o.collectorHost }}
   # OpenTelemetry (src/instrumentation.ts): only when a collector is configured.

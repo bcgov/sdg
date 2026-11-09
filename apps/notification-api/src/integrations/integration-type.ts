@@ -1,6 +1,5 @@
+import type { Channel } from '@repo/notification-database';
 import type { z } from 'zod';
-
-import type { Channel } from '../channels/channels.js';
 
 /**
  * How a channel delivers (R45): the channel it serves, the configuration it takes and which of those fields are

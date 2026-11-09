@@ -1,1 +1,0 @@
--- Baseline: the notification database starts empty. Feature tables arrive in later migrations.

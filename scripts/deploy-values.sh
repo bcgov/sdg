@@ -3,7 +3,7 @@
 # so reusable-deploy.yml, charts-test.sh and deploy-values.test.sh share one computation.  No cluster access.
 #
 #   values   print a values file: images, host, Keycloak and Vault settings
-#   outputs  print release=, url= and values_file= lines (for $GITHUB_OUTPUT)
+#   outputs  print release=, url=, notify_url= and values_file= lines (for $GITHUB_OUTPUT)
 #
 # Environment (all validated; anything unexpected fails instead of reaching the YAML):
 #   TARGET               PR number, test or prod                 REPOSITORY  owner/name (github.repository)
@@ -13,6 +13,16 @@
 #   VAULT_SECRET_PATH    optional; default <plate>-nonprod/portal-api (<plate>-prod/portal-api for prod)
 #   OBSERVABILITY        optional; "true" reports to the observability stack (doc 20): <plate>-tools for PRs and test,
 #                        <plate>-prod for prod. Unset or "false" leaves telemetry off.
+#   NOTIFICATION_CLIENT_ID  notification-api's own Keycloak client (the audience it accepts)
+#   Direct mode (the header calling notification-api from another site). PRs have no GitHub environment, so PR targets
+#   read only the NOTIFICATION_PR_* names (repository variables); test and prod read only the unprefixed names
+#   (environment variables). GitHub environments inherit repository variables and can't set one empty, so one shared
+#   name would carry a PR's localhost origin or test client into TEST. Both optional, comma-separated:
+#   NOTIFICATION_PR_CORS_ORIGINS / NOTIFICATION_CORS_ORIGINS  exact origins; http://localhost[:port] only for PRs
+#   NOTIFICATION_PR_RELAYING_CLIENT_IDS / NOTIFICATION_RELAYING_CLIENT_IDS  clients relaying user tokens, added to
+#                        KEYCLOAK_CLIENT_ID (the portal), which is always one
+#   notification-api's Vault path is derived, never overridden: <plate>-nonprod/notification-api for PRs,
+#   <plate>-nonprod/notification-api-test for test, <plate>-prod/notification-api for prod.
 # `outputs` needs only TARGET, ENVIRONMENT, REPOSITORY and OC_SERVER.
 #
 # Usage: scripts/deploy-values.sh values|outputs
@@ -38,6 +48,8 @@ server="${OC_SERVER#https://api.}"
 server="${server%:6443}"
 cluster="${server%%.*}"
 host="${release}.apps.${server}"
+# notification-api's host: one DNS label under the router's wildcard certificate (charts/common common.notifyHost)
+notify_host="${release}-notify.apps.${server}"
 
 case "${1:-}" in
   values)
@@ -47,6 +59,21 @@ case "${1:-}" in
     check KEYCLOAK_CLIENT_ID '^[A-Za-z0-9._-]+$'
     check VAULT_SECRET_PATH '^([A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+)?$'
     check OBSERVABILITY '^(true|false)?$'
+    check NOTIFICATION_CLIENT_ID '^[A-Za-z0-9._-]+$'
+    client_ids='^([A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*)?$'
+    https_origin='https://[a-z0-9.-]+(:[0-9]+)?'
+    notification_secret="notification-api"
+    if [[ "$TARGET" =~ ^[0-9]+$ ]]; then
+      check NOTIFICATION_PR_RELAYING_CLIENT_IDS "$client_ids"
+      check NOTIFICATION_PR_CORS_ORIGINS "^((${https_origin}|http://localhost(:[0-9]+)?)(,|$))*$"
+      extra_client_ids="${NOTIFICATION_PR_RELAYING_CLIENT_IDS:-}" cors_origins="${NOTIFICATION_PR_CORS_ORIGINS:-}"
+    else
+      check NOTIFICATION_RELAYING_CLIENT_IDS "$client_ids"
+      check NOTIFICATION_CORS_ORIGINS "^((${https_origin})(,|$))*$"
+      extra_client_ids="${NOTIFICATION_RELAYING_CLIENT_IDS:-}" cors_origins="${NOTIFICATION_CORS_ORIGINS:-}"
+      [ "$TARGET" != test ] || notification_secret="notification-api-test"
+    fi
+    [[ "$cors_origins" != *, ]] || { echo "Invalid CORS origins: '${cors_origins}' ends with a comma" >&2; exit 1; }
     plate="${OC_NAMESPACE%-*}"
     vault_role="${plate}-$([ "$ENVIRONMENT" = prod ] && echo prod || echo nonprod)"
     observability=''
@@ -75,11 +102,23 @@ portal-api:
     role: "${vault_role}"
     secretPath: "${VAULT_SECRET_PATH:-${vault_role}/portal-api}"
     serviceAccountName: "${plate}-vault"
+notification-api:
+  keycloak:
+    issuerUrl: "${KEYCLOAK_ISSUER_URL}"
+    clientId: "${NOTIFICATION_CLIENT_ID}"
+    relayingClientIds: "${KEYCLOAK_CLIENT_ID}${extra_client_ids:+,${extra_client_ids}}"
+  corsAllowedOrigins: "${cors_origins}"
+  vault:
+    authPath: "auth/k8s-${cluster}"
+    role: "${vault_role}"
+    secretPath: "${vault_role}/${notification_secret}"
+    serviceAccountName: "${plate}-vault"
 EOF
     ;;
   outputs)
     echo "release=${release}"
     echo "url=https://${host}"
+    echo "notify_url=https://${notify_host}"
     echo "values_file=charts/sdg/values-${ENVIRONMENT:-pr}.yaml"
     ;;
   *)

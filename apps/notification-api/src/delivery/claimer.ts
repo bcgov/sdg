@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { deliveries, failureCallbacks } from '@repo/notification-database';
 import { and, asc, eq, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn, SelectedFieldsFlat } from 'drizzle-orm/pg-core';
 
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { deliveries, failureCallbacks } from '../database/schema/index.js';
 import { CLOCK, DELIVERY_SETTINGS, type Clock, type DeliverySettings } from './settings.js';
 
 /** The queue columns deliveries and failure callbacks share (KTD1). */

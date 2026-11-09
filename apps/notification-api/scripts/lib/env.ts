@@ -1,4 +1,4 @@
-// Environment for the local scripts (login, seed, e2e): apps/notification-api/.env, with the process env winning.
+// Environment for the local scripts (login, seed, send, e2e): apps/notification-api/.env, with the process env winning.
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -45,4 +45,12 @@ export function exitWithError(script: string): (error: unknown) => never {
     console.error(`${script}: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   };
+}
+
+/**
+ * Prints (on stderr, so stdout stays the script's output) where a script is about to act, before its first write, so
+ * a local .env can't silently aim a run at the wrong environment.
+ */
+export function printTarget(script: string, notifyUrl: string, issuer: string): void {
+  console.error(`${script}: notification-api ${notifyUrl}, issuer ${issuer}`);
 }

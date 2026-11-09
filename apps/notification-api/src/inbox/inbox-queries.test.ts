@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
+import type { DeliveryPolicy } from '@repo/notification-database';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { DeliveryPolicy } from '../catalog/policy.js';
 import {
   defineDeliveryType,
   inboxItemsOf,

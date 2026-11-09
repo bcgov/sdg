@@ -1,5 +1,6 @@
-import { requiredSampleData, sampleData, type DataContract } from '../catalog/data-contract.js';
-import type { Channel } from '../channels/channels.js';
+import type { Channel, DataContract } from '@repo/notification-database';
+
+import { requiredSampleData, sampleData } from '../catalog/data-contract.js';
 import { referencedNames, type FragmentSources } from './engines.js';
 import type { NotificationVariables } from './notification-variables.js';
 import { errorMessage, TemplateRenderError } from './render-error.js';

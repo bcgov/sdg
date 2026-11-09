@@ -1,5 +1,5 @@
 # postgres: a Crunchy PGO v5 PostgresCluster (the operator must be installed in the cluster).
-# PGO writes the app credentials to Secret <fullname>-pguser-<user.name>; portal-api reads its uri key.
+# PGO writes each app's credentials to Secret <fullname>-pguser-<name>; portal-api and notification-api read its uri key.
 fullnameOverride: ''
 
 # Image selection is left to the operator: it picks its PostGIS image for these versions. BC Gov Gold's operator
@@ -11,6 +11,12 @@ postGISVersion: '3.5'
 user:
   name: portal
   database: portal
+
+# notification-api's own user and database in the same cluster. PGO adds both, and the Secret, to an existing cluster
+# on upgrade. notification-api keeps its tables in its own schema, so the init SQL doesn't touch this database.
+notificationUser:
+  name: notification
+  database: notification
 
 instances:
   name: db

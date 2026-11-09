@@ -1,6 +1,6 @@
+import { NOTIFICATION_STATUSES } from '@repo/notification-database';
 import { z } from 'zod';
 
-import { NOTIFICATION_STATUSES } from '../database/schema/notifications.js';
 import { addressSettingsSchema, senderEmailPointSchema, systemIdSchema } from '../recipients/recipients.schemas.js';
 import { ownerSchema, typeKeySchema } from '../senders/senders.schemas.js';
 

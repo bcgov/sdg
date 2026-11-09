@@ -41,6 +41,8 @@ migrator:
 # Public origin of portal-web; the OIDC redirect URIs derive from it. Empty: https://<global.host>.
 appUrl: ''
 logLevel: info
+# notification-api's in-cluster base URL (the inbox relay and email confirmation). Rendered with tpl. Empty: not set.
+notificationApiUrl: 'http://{{ .Release.Name }}-notification-api:3000'
 sessionTtlSeconds: 28800
 
 keycloak:

@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto';
 
+import {
+  deliveries,
+  deliveryAttempts,
+  inboxItems,
+  notificationRecipients,
+  type DeliveryPolicy,
+  type Channel,
+} from '@repo/notification-database';
 import { and, asc, eq } from 'drizzle-orm';
 
-import type { DeliveryPolicy } from '../catalog/policy.js';
-import { CHANNELS, type Channel } from '../channels/channels.js';
-import { deliveries, deliveryAttempts, inboxItems, notificationRecipients } from '../database/schema/index.js';
+import { CHANNELS } from '../channels/channels.js';
 import { CLOCK, type Clock } from '../delivery/settings.js';
 import { DeliveryLoop } from '../delivery/worker-loop.js';
 import { createTestApp, type TestApp, type TestAppOptions } from './app.js';

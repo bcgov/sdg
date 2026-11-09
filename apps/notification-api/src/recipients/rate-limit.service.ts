@@ -1,8 +1,8 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { confirmationSends } from '@repo/notification-database';
 import { and, count, desc, eq, gt, sql } from 'drizzle-orm';
 
 import type { NotificationTransaction } from '../database/database.module.js';
-import { confirmationSends } from '../database/schema/index.js';
 
 /** R36's limits (KTD15). */
 export const CONFIRMATION_LIMITS = {

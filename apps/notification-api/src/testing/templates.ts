@@ -1,7 +1,7 @@
+import type { Channel, PinnedTemplates } from '@repo/notification-database';
 import { expect } from 'vitest';
 
-import type { Channel } from '../channels/channels.js';
-import { RenderService, type PinnedTemplates } from '../templates/render.service.js';
+import { RenderService } from '../templates/render.service.js';
 import type { TestApp } from './app.js';
 import { bearer } from './senders.js';
 

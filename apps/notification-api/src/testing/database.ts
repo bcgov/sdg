@@ -1,10 +1,9 @@
 import { PGlite } from '@electric-sql/pglite';
+import * as schema from '@repo/notification-database/schema';
+import { migrateTestDatabase } from '@repo/notification-database/testing';
 import { drizzle } from 'drizzle-orm/pglite';
-import { migrate } from 'drizzle-orm/pglite/migrator';
 
 import type { NotificationDatabase } from '../database/database.module.js';
-import { migrationsFolder } from '../database/run-migrations.js';
-import * as schema from '../database/schema/index.js';
 import type { InboxSignals } from '../inbox/signals/inbox-signals.js';
 import { PgliteInboxSignals } from '../inbox/signals/pglite-inbox-signals.js';
 
@@ -17,13 +16,13 @@ export interface TestDatabase {
 }
 
 /**
- * In-process Postgres (PGlite) with the committed drizzle/ migrations applied, and inbox change signals listening on
- * it. Create one per test file.
+ * In-process Postgres (PGlite) with the committed @repo/notification-database migrations applied, and inbox change
+ * signals listening on it. Create one per test file.
  */
 export async function createTestDatabase(): Promise<TestDatabase> {
   const client = new PGlite();
   const db = drizzle({ client, schema, casing: 'snake_case' });
-  await migrate(db, { migrationsFolder });
+  await migrateTestDatabase(db);
   const signals = await PgliteInboxSignals.listen(client);
   return {
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- PGlite and node-postgres share Drizzle's pg query API; only $client differs.

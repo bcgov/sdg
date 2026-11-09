@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { recipients } from '@repo/notification-database';
 import { eq, sql } from 'drizzle-orm';
 
 import { CHANNEL_DECLARATIONS } from '../channels/channels.js';
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { recipients } from '../database/schema/index.js';
 import type { SettingsResponse, UpdateSettings } from './recipients.schemas.js';
 
 /** The channels a user sees in their settings. Webhooks go only to systems (R33). */

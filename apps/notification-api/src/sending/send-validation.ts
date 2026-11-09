@@ -1,9 +1,10 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import type { DeliveryPolicy } from '@repo/notification-database';
 
 import type { LinkedCredential } from '../auth/directories.js';
 import type { TypeResponse } from '../catalog/catalog.schemas.js';
 import { contractValidator } from '../catalog/data-contract.js';
-import { policyChannels, type DeliveryPolicy } from '../catalog/policy.js';
+import { policyChannels } from '../catalog/policy.js';
 import { TopicsService } from '../catalog/topics.service.js';
 import { TypesService } from '../catalog/types.service.js';
 import { badRequest } from '../http/bad-request.js';

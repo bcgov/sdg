@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
+import { runMigrations } from '@repo/notification-database';
+import * as schema from '@repo/notification-database/schema';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Client, Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { NotificationDatabase } from '../../database/database.module.js';
-import { runMigrations } from '../../database/run-migrations.js';
-import * as schema from '../../database/schema/index.js';
 import { createTestApp, type TestApp } from '../../testing/app.js';
 import { settleSignals, watchSignals } from '../../testing/signals.js';
 import { INBOX_CHANNEL, INBOX_SIGNALS, notifyInboxChanged, type InboxSignals } from './inbox-signals.js';

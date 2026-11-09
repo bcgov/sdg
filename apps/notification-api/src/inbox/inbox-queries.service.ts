@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { inboxItems, notifications } from '@repo/notification-database';
 import { and, count, desc, eq, isNull, type SQL } from 'drizzle-orm';
 import { convert, type HtmlToTextOptions } from 'html-to-text';
 import { z } from 'zod';
 
 import { InjectDatabase, type DbOrTx, type NotificationDatabase } from '../database/database.module.js';
-import { inboxItems, notifications } from '../database/schema/index.js';
 import { inboxItemContent } from '../history/history.service.js';
 import { afterCursor, toPage } from '../http/pagination.js';
 import type { InboxItemResponse, InboxPage, InboxQuery, UnreadCount } from './inbox.schemas.js';

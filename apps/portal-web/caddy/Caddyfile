@@ -28,6 +28,9 @@ import common.caddy
 	import waf
 
 	encode zstd gzip
+	# First: Caddy runs these handle blocks in the order they appear, so the notification host's catch-all comes
+	# before /collect and /telemetry.json (and every handle runs before api_proxy and portal-web).
+	import notify_{$NOTIFY:off}
 	import collect_{$TELEMETRY:off}
 	import api_proxy
 	reverse_proxy {$PORTAL_WEB_URL}

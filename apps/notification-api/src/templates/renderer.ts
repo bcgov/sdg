@@ -1,6 +1,6 @@
+import type { Channel, RenderedParts } from '@repo/notification-database';
 import { convert } from 'html-to-text';
 
-import type { Channel } from '../channels/channels.js';
 import { createEngine, renderSource, type FragmentSources } from './engines.js';
 import type { RenderLocale } from './filters.js';
 import { markdownToHtml } from './markdown.js';
@@ -10,14 +10,6 @@ import { errorMessage, renderingPart, TemplateRenderError } from './render-error
 import { parsePayloadTemplate, payloadLeaves, renderPayload, standardEnvelope } from './webhook-payload.js';
 
 export type TemplateParts = Readonly<Record<string, string>>;
-
-/** One channel's rendered content (R21). */
-export type RenderedParts =
-  | { channel: 'email'; subject: string; html: string; text: string }
-  /** `title` is plain text; `body` is sanitized HTML; `actionUrl` is an absolute https URL, a relative path or null. */
-  | { channel: 'in-app'; title: string; body: string; actionUrl: string | null }
-  /** `payload` is JSON text. */
-  | { channel: 'webhook'; payload: string };
 
 export interface RenderInput {
   channel: Channel;

@@ -21,7 +21,7 @@ tests:
       - notExists:
           path: spec.image
 
-  - it: creates the portal user owning the portal database
+  - it: creates the portal and notification users, each owning its own database
     template: templates/postgrescluster.yaml
     asserts:
       - equal:
@@ -29,6 +29,8 @@ tests:
           value:
             - name: portal
               databases: [portal]
+            - name: notification
+              databases: [notification]
 
   - it: runs one db instance on a 1Gi RWO claim with pod and container security
     template: templates/postgrescluster.yaml
@@ -114,7 +116,7 @@ tests:
             GRANT USAGE ON SCHEMA cron TO portal;
             ALTER SCHEMA public OWNER TO portal;
 
-  - it: lets portal-api reach 5432 and the cluster's own pods reach each other
+  - it: lets portal-api and notification-api reach 5432 and the cluster's own pods reach each other
     template: templates/networkpolicy.yaml
     asserts:
       - isKind:
@@ -130,6 +132,10 @@ tests:
                 - podSelector:
                     matchLabels:
                       app.kubernetes.io/name: portal-api
+                      app.kubernetes.io/instance: sdg
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: notification-api
                       app.kubernetes.io/instance: sdg
               ports:
                 - port: 5432

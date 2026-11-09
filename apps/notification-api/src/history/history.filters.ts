@@ -1,7 +1,7 @@
+import { deliveries, notificationRecipients, notifications, recipients } from '@repo/notification-database';
 import { and, eq, exists, or, sql, type SQL } from 'drizzle-orm';
 
 import type { NotificationDatabase } from '../database/database.module.js';
-import { deliveries, notificationRecipients, notifications, recipients } from '../database/schema/index.js';
 import { afterCursor } from '../http/pagination.js';
 import { normalizeAddress } from '../recipients/normalize.js';
 import type { HistoryQuery } from './history.schemas.js';

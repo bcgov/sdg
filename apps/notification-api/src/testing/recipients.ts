@@ -1,7 +1,7 @@
+import { recipients } from '@repo/notification-database';
 import { and, eq } from 'drizzle-orm';
 import { expect } from 'vitest';
 
-import { recipients } from '../database/schema/index.js';
 import { ContactPointsService } from '../recipients/contact-points.service.js';
 import type { TestApp } from './app.js';
 import { bearer, createSender, type SenderFixture } from './senders.js';

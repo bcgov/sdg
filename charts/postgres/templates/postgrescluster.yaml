@@ -21,6 +21,8 @@ spec:
   users:
     - name: {{ .Values.user.name }}
       databases: [{{ .Values.user.database }}]
+    - name: {{ .Values.notificationUser.name }}
+      databases: [{{ .Values.notificationUser.database }}]
   instances:
     - name: {{ .Values.instances.name }}
       replicas: {{ .Values.instances.replicas }}

@@ -24,6 +24,33 @@
 	}
 }
 
+# notification-api's public host (KTD6). Site blocks pick one with `import notify_{$NOTIFY:off}`; the edge chart always
+# sets NOTIFY, NOTIFY_HOST and NOTIFICATION_API_URL, because Caddy fails on an empty host matcher.
+(notify_off) {
+}
+
+# Every request on NOTIFY_HOST ends here: /api* goes to notification-api, the rest (/metrics, /healthz) gets 404, and
+# nothing reaches portal-api or portal-web. coraza.conf matches this host by its shape (<release>-notify.).
+(notify_on) {
+	@notify host {$NOTIFY_HOST}
+	handle @notify {
+		import notify_routes {$NOTIFICATION_API_URL}
+	}
+}
+
+# Argument 1: notification-api's URL. Shared by notify_on and Caddyfile.dev's notify.sdg.localhost.
+(notify_routes) {
+	handle /api* {
+		reverse_proxy {args[0]} {
+			header_up Host {http.reverse_proxy.upstream.hostport}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+	handle {
+		respond 404
+	}
+}
+
 # Argument 1: extra script-src sources. Production passes "", Caddyfile.dev passes "'unsafe-inline'"
 # for Vite's React Refresh preamble.
 # Argument 2: extra style-src sources. Production passes the hashes of react-aria's fixed <style> elements

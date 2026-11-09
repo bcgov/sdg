@@ -10,6 +10,11 @@ set:
   portal-api.vault.role: abc123-nonprod
   portal-api.vault.secretPath: abc123-nonprod/portal-api
   portal-api.vault.serviceAccountName: abc123-vault
+  notification-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  notification-api.keycloak.clientId: notification-api
+  notification-api.vault.role: abc123-nonprod
+  notification-api.vault.secretPath: abc123-nonprod/notification-api
+  notification-api.vault.serviceAccountName: abc123-vault
 tests:
   - it: global image settings reach every app image
     template: charts/portal-api/templates/deployment.yaml
@@ -40,8 +45,48 @@ tests:
           path: metadata.name
           value: sdg-12-postgres
       - equal:
-          path: spec.users[0].name
-          value: portal
+          path: spec.users
+          value:
+            - name: portal
+              databases: [portal]
+            - name: notification
+              databases: [notification]
+
+  - it: notification-api reads the Secret PGO creates for the notification user
+    template: charts/notification-api/templates/deployment.yaml
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-notification
+                key: uri
+
+  - it: the edge's notification upstream matches the notification-api Service name
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFICATION_API_URL
+            value: http://sdg-12-notification-api:3000
+
+  - it: portal-api calls notification-api at that Service name
+    template: charts/portal-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.NOTIFICATION_API_URL
+          value: http://sdg-12-notification-api:3000
+
+  - it: notification-api's Service carries that name
+    template: charts/notification-api/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-notification-api
 
   - it: edge upstreams match the portal-api and portal-web Service names
     template: charts/edge/templates/deployment.yaml

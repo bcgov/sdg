@@ -1,8 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { topicBroadcastGrants, topics } from '@repo/notification-database';
 import { and, asc, eq, inArray, isNotNull, isNull, or, type SQL } from 'drizzle-orm';
 
 import { InjectDatabase, type NotificationDatabase } from '../database/database.module.js';
-import { topicBroadcastGrants, topics } from '../database/schema/index.js';
 import { requireSender } from '../senders/require-sender.js';
 import type { CreateTopic, PlatformTopicResponse, TopicResponse } from './catalog.schemas.js';
 

@@ -35,6 +35,22 @@ portal-api:
     # Required when enabled, e.g. abc123-vault
     serviceAccountName: ''
 
+notification-api:
+  enabled: true
+  keycloak:
+    # Required, e.g. https://keycloak.example.com/realms/portal
+    issuerUrl: ''
+    # Required: notification-api's own client id (the token audience it accepts)
+    clientId: ''
+  vault:
+    enabled: true
+    # Required when enabled, e.g. abc123-nonprod
+    role: ''
+    # Required when enabled, e.g. abc123-nonprod/notification-api (KV v2 holding NOTIFICATION_ENCRYPTION_KEY)
+    secretPath: ''
+    # Required when enabled, e.g. abc123-vault
+    serviceAccountName: ''
+
 edge:
   enabled: true
 
