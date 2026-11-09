@@ -41,6 +41,8 @@ export interface FakeIdp {
   discoveryRequests: number;
   /** When true, discovery responds 500. */
   failDiscovery: boolean;
+  /** When true, the JWKS endpoint responds 500. */
+  failJwks: boolean;
   issueCode(code: IssuedCode): string;
   /**
    * Registers a refresh token the token endpoint accepts once; each refresh rotates it to a new one. A back-channel
@@ -97,6 +99,7 @@ export async function startFakeIdp(): Promise<FakeIdp> {
     },
     discoveryRequests: 0,
     failDiscovery: false,
+    failJwks: false,
     issueCode(code) {
       counter += 1;
       const value = `code-${counter}`;
@@ -169,7 +172,8 @@ export async function startFakeIdp(): Promise<FakeIdp> {
       idp.discoveryRequests += 1;
       return idp.failDiscovery ? sendJson(res, 500, { error: 'down' }) : sendJson(res, 200, metadata(idp.issuer));
     }
-    if (path === '/jwks') return sendJson(res, 200, { keys: [publicJwk] });
+    if (path === '/jwks')
+      return idp.failJwks ? sendJson(res, 500, { error: 'down' }) : sendJson(res, 200, { keys: [publicJwk] });
     if (path === '/token' && req.method === 'POST') {
       token(req, res).catch((error: unknown) => {
         console.error('fake idp token endpoint failed', error);

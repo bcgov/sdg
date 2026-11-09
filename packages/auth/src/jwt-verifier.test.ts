@@ -15,6 +15,7 @@ beforeAll(async () => {
 afterAll(() => idp.close());
 beforeEach(() => {
   idp.failDiscovery = false;
+  idp.failJwks = false;
   idp.discoveryRequests = 0;
   verifier = createJwtVerifier({ issuerUrl: idp.issuer, fetch: idp.fetch, audience: CLIENT_ID });
 });
@@ -117,6 +118,12 @@ describe('createJwtVerifier', () => {
         .setExpirationTime('5m')
         .sign(privateKey);
       expect(await outcome(forged)).toBe('invalid_token');
+      // A key id the reachable JWKS does not have.
+      const unknownKid = await new SignJWT({ sub: 'x', iss: idp.issuer, aud: CLIENT_ID })
+        .setProtectedHeader({ alg: 'RS256', kid: 'k-unknown' })
+        .setExpirationTime('5m')
+        .sign(privateKey);
+      expect(await outcome(unknownKid)).toBe('invalid_token');
       expect(await outcome('not-a-jwt')).toBe('invalid_token');
     });
     it('rejects alg none and HS256 tokens', async () => {
@@ -128,13 +135,33 @@ describe('createJwtVerifier', () => {
         .sign(new TextEncoder().encode('a-shared-secret-that-is-long-enough!!'));
       expect(await outcome(hs256)).toBe('invalid_token');
     });
-    it('retries JWKS discovery after a failure', async () => {
+    it('throws AuthError(verifier_unavailable) when discovery fails, and retries discovery', async () => {
       const token = await idp.sign({ sub: 'x' });
       idp.failDiscovery = true;
-      expect(await outcome(token)).toBe('invalid_token');
+      expect(await outcome(token)).toBe('verifier_unavailable');
       idp.failDiscovery = false;
       await expect(verifier.verify(token)).resolves.toMatchObject({ subject: 'x' });
       expect(idp.discoveryRequests).toBe(2);
+    });
+    it('throws AuthError(verifier_unavailable) when the JWKS endpoint errors, and retries it', async () => {
+      const token = await idp.sign({ sub: 'x' });
+      idp.failJwks = true;
+      // The client-facing message says nothing about the cause.
+      await expect(verifier.verify(token)).rejects.toMatchObject({
+        code: 'verifier_unavailable',
+        message: 'Token verification is unavailable',
+      });
+      idp.failJwks = false;
+      await expect(verifier.verify(token)).resolves.toMatchObject({ subject: 'x' });
+    });
+    it('throws AuthError(verifier_unavailable) when the JWKS endpoint is unreachable', async () => {
+      const unreachable = createJwtVerifier({
+        issuerUrl: idp.issuer,
+        audience: CLIENT_ID,
+        fetch: (url, init) =>
+          new URL(url).pathname === '/jwks' ? Promise.reject(new TypeError('fetch failed')) : idp.fetch(url, init),
+      });
+      expect(await outcome(await idp.sign({ sub: 'x' }), unreachable)).toBe('verifier_unavailable');
     });
   });
 });
