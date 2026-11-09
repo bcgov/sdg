@@ -18,7 +18,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Automatic dependency patching via [bcgov/renovate-config](https://github.com/bcgov/renovate-config)
 - Maintenance Mode Automation (hands‑off updates, low‑dev mode) via the same Renovate config
 - Enforced code reviews and workflow jobs (pass|fail)
-- Prometheus metrics export from portal-api and the edge
+- Prometheus metrics export from portal-api and the edge, and an optional self-hosted Grafana LGTM stack (ADR 0001)
 - Rolling updates with zero downtime in PROD
 - Database migrations with Drizzle, run as an initContainer before portal-api starts
 - Pod disruption budgets for high availability
@@ -27,7 +27,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - k6 load tests against TEST, weekly
 - Local stack with compose behind Caddy and the WAF at `https://sdg.localhost`
 - **Sample application stack** (pnpm + Turborepo monorepo):
-  - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; Valkey for sessions
+  - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; also the express-session store (encrypted at rest; pg_cron deletes expired sessions every 15 minutes)
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
   - Edge: Caddy with Coraza WAF, routing `/api*` to portal-api and everything else to portal-web
   - Backend: `portal-api`, a NestJS backend-for-frontend with Keycloak (OIDC) sign-in
@@ -105,12 +105,11 @@ Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-1
 
 Nobody sets these by hand; they are created in the namespace and read there.
 
-| Secret                             | Namespace(s)            | Holds                                     | Created by                                                                      |
-| ---------------------------------- | ----------------------- | ----------------------------------------- | ------------------------------------------------------------------------------- |
-| `github-actions-token`             | `<plate>-dev/test/prod` | Deploy service account token              | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
-| `<release>-postgres-pguser-portal` | the release's namespace | `DATABASE_URL` (key `uri`)                | The Crunchy operator, from the chart's `PostgresCluster`                        |
-| `<release>-valkey`                 | the release's namespace | `VALKEY_URL` (key `url`), Valkey password | The valkey chart, once on install; reused on upgrade                            |
-| Sysdig team Secret                 | `<plate>-tools`         | Sysdig API token                          | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
+| Secret                             | Namespace(s)            | Holds                        | Created by                                                                      |
+| ---------------------------------- | ----------------------- | ---------------------------- | ------------------------------------------------------------------------------- |
+| `github-actions-token`             | `<plate>-dev/test/prod` | Deploy service account token | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
+| `<release>-postgres-pguser-portal` | the release's namespace | `DATABASE_URL` (key `uri`)   | The Crunchy operator, from the chart's `PostgresCluster`                        |
+| Sysdig team Secret                 | `<plate>-tools`         | Sysdig API token             | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
 
 On first install portal-api pods wait (`CreateContainerConfigError`) until the operator has created the database user Secret; the migrator then retries until the database accepts connections.
 
@@ -118,10 +117,10 @@ On first install portal-api pods wait (`CreateContainerConfigError`) until the o
 
 portal-api reads two secrets from a Vault KV v2 secret. Deploys use the role `<plate>-nonprod` (pull requests and TEST) or `<plate>-prod` (PROD) with the `<plate>-vault` service account; the path defaults to `<role>/portal-api` and can be changed with `VAULT_SECRET_PATH`.
 
-| Key                      | Description                                                                  |
-| ------------------------ | ---------------------------------------------------------------------------- |
-| `SESSION_SECRET`         | Session signing key, at least 32 characters (e.g. `openssl rand -base64 48`) |
-| `KEYCLOAK_CLIENT_SECRET` | Secret of the Keycloak confidential client named by `KEYCLOAK_CLIENT_ID`     |
+| Key                      | Description                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SESSION_SECRET`         | Session cookie signing and stored-session encryption key, at least 32 characters (e.g. `openssl rand -base64 48`); rotating it signs everyone out |
+| `KEYCLOAK_CLIENT_SECRET` | Secret of the Keycloak confidential client named by `KEYCLOAK_CLIENT_ID`                                                                          |
 
 Values must not contain `'` or newlines. The Vault Agent writes them to `/vault/secrets/portal-api.env`, which portal-api loads with `node --env-file`. See [`charts/README.md`](./charts/README.md) for where every other value lives and how to deploy without Vault.
 
@@ -131,10 +130,22 @@ Set these by hand with `gh secret set` / `gh variable set` when you need them.
 
 **`SYSDIG_API_TOKEN`**
 
-Sysdig API token used to sync the PROD email-alert set on every merge. Sourced from the in-cluster Secret materialized by your `SysdigTeam` CR (BC Gov platform-services provisions this in your `*-tools` namespace). Optional — if unset, the `monitor-prod` step no-ops with a warning, so the deploy still succeeds.
+Sysdig API token used to sync the PROD email-alert set on every PROD deploy (releases). Sourced from the in-cluster Secret materialized by your `SysdigTeam` CR (BC Gov platform-services provisions this in your `*-tools` namespace). Optional — if unset, the `monitor-prod` step no-ops with a warning, so the deploy still succeeds.
 
 - Reference: `${{ secrets.SYSDIG_API_TOKEN }}`
 - Alert templates live in [`monitoring/alerts/`](./monitoring/alerts/) and cover `portal-web`, `portal-api` and `edge`. Add or remove files to customize the alert set per app — see [`bcgov/actions-openshift` (sysdig-monitor)](https://github.com/bcgov/actions-openshift) for the template schema and placeholder vocabulary.
+
+**`OBSERVABILITY`, `GRAFANA_OIDC_CLIENT_ID` and the `tools` environment**
+
+The observability stack (ADR 0001, `charts/README.md`, Observability). Optional, and off until set up by a person on the team:
+
+1. Request a Keycloak client for Grafana (redirect URI `https://grafana-<plate>-{tools,prod}.apps.<cluster>.devops.gov.bc.ca/login/generic_oauth`) with client roles `admin`, `editor` and `viewer`; users without one are refused. Set its id as the `GRAFANA_OIDC_CLIENT_ID` variable.
+2. In Vault, create `<plate>-nonprod/grafana` and `<plate>-prod/grafana` with `OIDC_CLIENT_SECRET` and `ADMIN_PASSWORD`.
+3. Set up the tools namespace and pod discovery with the setup scripts (preview first, then `--apply`):
+   - `scripts/setup-openshift.sh --observability`: the deploy account (`github-actions`, `edit`, token Secret) in `<plate>-tools`, and Alloy's read-only pod discovery (Role and RoleBinding `observability-discovery`) in dev, test and prod. The deploy account can't create RBAC, so this is done by a person.
+   - `scripts/setup-environments.sh --observability`: the `tools` GitHub environment with `OC_NAMESPACE=<plate>-tools` and `OC_TOKEN` from that token. Check `oc describe quota -n <plate>-<env>` first: the stack requests about 140m CPU and 900Mi memory (Vault agent included). In tools (1Gi of PVC in total) only metrics and logs get volumes, 960Mi together, and traces and Grafana's state live on emptyDir; prod's `values-prod.yaml` asks for 12.25Gi.
+4. Run the **Observability** workflow (stack `tools`, later `prod`); it also runs on any change to `charts/observability` on main.
+5. Set the `OBSERVABILITY` variable to `true`. From the next deploy, PR, test and prod releases report to their stack (`scripts/deploy-values.sh`).
 
 **`TLS_CERTIFICATE`, `TLS_PRIVATE_KEY`, `TLS_CA_CERTIFICATE`**
 
@@ -198,10 +209,10 @@ By default, an environment allows deployments from any branch or tag ("No restri
 
 Two workflows can deploy PROD, and both are active by default:
 
-- `merge.yml` deploys every merge to TEST, runs the tests, then deploys PROD by PR number.
+- `merge.yml` deploys every merge to TEST and runs the tests. PROD is release-only: its PROD jobs are commented out.
 - `release.yml` deploys a published [GitHub release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository) to PROD. It finds the PR that the release's commit came from and deploys that PR's images, the same ones `merge.yml` deployed. Nothing is rebuilt.
 
-To make PROD release-only, comment out the `deploy-prod`, `monitor-prod` and `promote` jobs in `merge.yml`. Merges then go to TEST and stop, and PROD changes only when you publish a release.
+PROD is release-only: the `deploy-prod`, `monitor-prod` and `promote` jobs in `merge.yml` are commented out, so merges go to TEST and stop, and PROD changes only when you publish a release. To deploy PROD on every merge instead, uncomment them.
 
 Notes:
 
@@ -250,7 +261,7 @@ Fill out the intake form using the following selections:
 Once the platform team provisions the project:
 
 1. Generate an analysis token in SonarCloud and save it as the repository secret `SONAR_TOKEN`. Without it the `Tests` job skips the Sonar scan.
-2. Check `-Dsonar.projectKey` in [`.github/workflows/analysis.yml`](./.github/workflows/analysis.yml) (default: the repository name) against the key SonarCloud assigned.
+2. Check `-Dsonar.projectKey` in [`.github/workflows/analysis.yml`](./.github/workflows/analysis.yml) (`bcgov_sdg`) against the key SonarCloud assigned.
 
 ## Dependency Scanning with Knip
 
@@ -356,7 +367,7 @@ Don't forget to add your team members!
 This repository is architected and hardened out-of-the-box to align with Levels 1 and 2 of the **OWASP Application Security Verification Standard (ASVS) v4.0.3**. A detailed security mapping matrix is documented in [SECURITY.md](./SECURITY.md#owasp-asvs-alignment), detailing our implementation of:
 
 - **Active WAF Defense:** Inline Coraza WAF running inside the Caddy reverse proxy (the edge).
-- **Tiered Isolation:** NetworkPolicies enforcing network boundaries between the edge, portal-web, portal-api, Valkey and database tiers.
+- **Tiered Isolation:** NetworkPolicies enforcing network boundaries between the edge, portal-web, portal-api and database tiers.
 - **Platform/Container Hardening:** Read-only root filesystems, non-root execution, privilege escalation blocks, default seccomp profiles, and drop capabilities.
 - **Secret Management:** Application secrets from Vault; database and cache credentials generated in-cluster and never stored in GitHub.
 - **Build-Time & Dynamic Testing:** Automated static analysis (Trivy, CodeQL), dependency auditing (Renovate, Knip), and weekly dynamic vulnerability scans (**OWASP ZAP**).
@@ -394,18 +405,18 @@ Run `pnpm test:charts` after changing a chart.
 
 `compose.yaml` runs the whole portal with its dev commands behind Caddy and the Coraza WAF at **https://sdg.localhost**:
 
-| Service             | Runs                                                                                     | Reachable from the host            |
-| ------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------- |
-| `caddy`             | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443) |
-| `portal-web`        | `vite` with HMR                                                                          | only through Caddy                 |
-| `portal-api`        | `nest start --watch`                                                                     | only through Caddy (`/api`)        |
-| `migrate`           | `drizzle-kit migrate`; portal-api starts only after it succeeds                          | —                                  |
-| `deps`              | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
-| `postgis`, `valkey` | databases                                                                                | `localhost:5432`, `localhost:6379` |
+| Service      | Runs                                                                                     | Reachable from the host            |
+| ------------ | ---------------------------------------------------------------------------------------- | ---------------------------------- |
+| `caddy`      | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443) |
+| `portal-web` | `vite` with HMR                                                                          | only through Caddy                 |
+| `portal-api` | `nest start --watch`                                                                     | only through Caddy (`/api`)        |
+| `migrate`    | `drizzle-kit migrate`; portal-api starts only after it succeeds                          | —                                  |
+| `deps`       | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
+| `postgis`    | database                                                                                 | `localhost:5432`                   |
 
 ## First run
 
-1. Copy `apps/portal-api/.env.example` to `apps/portal-api/.env` and set `SESSION_SECRET` and the `KEYCLOAK_*` values. compose overrides the URLs (`APP_URL`, `DATABASE_URL`, `VALKEY_URL`, `TRUST_PROXY`), so the file's `localhost` values can stay for host-run development.
+1. Copy `apps/portal-api/.env.example` to `apps/portal-api/.env` and set `SESSION_SECRET` and the `KEYCLOAK_*` values. compose overrides the URLs (`APP_URL`, `DATABASE_URL`, `TRUST_PROXY`), so the file's `localhost` values can stay for host-run development.
 2. On the Keycloak client, add `https://sdg.localhost/api/auth/callback` and `https://sdg.localhost/` as valid redirect URIs.
 3. Start the stack. The first run installs dependencies and takes a few minutes:
    ```sh
@@ -418,12 +429,23 @@ Run `pnpm test:charts` after changing a chart.
    Firefox keeps its own store: import the certificate there, or set `security.enterprise_roots.enabled` to `true` in `about:config`.
 5. Check the stack end to end with `scripts/compose-smoke.sh --no-up` (TLS, headers, WAF, API proxy, port isolation, migrations).
 
+## Observability (optional)
+
+`compose.observability.yaml` adds the LGTM stack (Prometheus, Loki, Tempo, Grafana, plus Grafana Alloy as the collector) and turns telemetry on for portal-api and the edge:
+
+```sh
+podman compose -f compose.yaml -f compose.observability.yaml up -d
+```
+
+Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), with the `SDG` dashboards and Prometheus, Loki and Tempo linked by `trace_id`. Without the override nothing is wired: portal-api starts no OpenTelemetry SDK (`OTEL_EXPORTER_OTLP_ENDPOINT` unset), and the edge answers `/telemetry.json` with `{"enabled":false}` and `/collect` with 204, so portal-web never loads Faro. To add the stack to a running base stack, recreate `portal-api`, `portal-web` and `caddy` after starting it (podman-compose doesn't recreate them for an env change). Configs live in `charts/observability/files/`, shared with the Helm chart (doc 20, `.mdd/docs/20-observability-lgtm.md`).
+
 ## Troubleshooting
 
 - **`rootlessport cannot expose privileged port 443`**: allow rootless Podman to bind 443 with `podman machine ssh "echo net.ipv4.ip_unprivileged_port_start=443 | sudo tee /etc/sysctl.d/99-unprivileged-ports.conf && sudo sysctl --system"`.
 - **`sdg.localhost` does not resolve** (some Safari versions): add `127.0.0.1 sdg.localhost` to `/etc/hosts`.
 - **`permission denied` under `/data` or `/config` in the caddy logs**: the volumes were created when the edge image ran as root. Remove them with `podman compose down && podman volume rm portal_caddy-data portal_caddy-config`, start the stack, and rerun `pnpm stack:trust` (a new local CA is generated).
-- **After changing `Dockerfile.dev` or `apps/portal-web/caddy/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
+- **`schema "cron" does not exist` when migrating**: the `portal-pgdata` volume predates pg_cron, and the `postgis` image only installs the extension on a fresh volume. Recreate it with `podman compose down && podman volume rm portal_portal-pgdata && podman compose up -d --build`, which deletes local data. Keeping the old volume isn't worth it: the image moved from alpine to Debian, which changes collations.
+- **After changing `Dockerfile.dev`, `apps/portal-web/caddy/Dockerfile` or `packages/portal-database/dev-postgres/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
 - **Adding a workspace package**: add its `node_modules` volume to `x-workspace` and `volumes:` in `compose.yaml`.
 - **WAF**: rules using `block` (1001, 1002, 1005, 1007, 1008) follow Coraza's default action (`pass`) and only log a `Coraza: Warning`. Rules using `deny` (1003, 1004) return 403.
 
@@ -438,7 +460,7 @@ Multi-stage Dockerfiles for OpenShift. The app images build from the repository 
 | `portal-database` | `podman build -f packages/portal-database/Dockerfile .` | `node dist/migrate.js` as portal-api's initContainer (needs `DATABASE_URL`)        |
 | edge              | `podman build apps/portal-web/caddy`                    | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL` |
 
-All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` and `valkey` (migrations, health, SPA routing and caching, edge headers, WAF).
+All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, health, SPA routing and caching, edge headers, WAF).
 
 # Workflows
 
@@ -590,7 +612,7 @@ Runs on merge to main branch.
 Runs on scheduled job (cronjob) or workflow dispatch.
 
 - PR environment purge (Helm releases not updated for 3 days)
-- ZAP scan of the TEST deployment
+- ZAP scan of the TEST deployment; by-design informational alerts are ignored in `.zap/rules.tsv`, each with its reason
 - k6 load tests on TEST after ZAP (see [Load tests](#load-tests)); a breached threshold fails the job
 - Stale branch/PR cleanup
 
@@ -600,7 +622,7 @@ Runs on scheduled job (cronjob) or workflow dispatch.
 
 ## Load tests
 
-[k6](https://grafana.com/docs/k6/latest/) scripts in [`tests/load/`](./tests/load/) load the deployed stack through the edge: `portal-web.ts` (the index and the JS/CSS it links) and `portal-api.ts` (`/api/auth/me` signed out, so no Valkey or Postgres yet). Both share profiles and thresholds from `tests/load/lib/config.ts`: failed requests under 1%, p95 under 500 ms, checks over 99%. The Scheduled workflow runs them weekly against TEST with the `ramp` profile (50 VUs over 5 minutes) and uploads an HTML report per script.
+[k6](https://grafana.com/docs/k6/latest/) scripts in [`tests/load/`](./tests/load/) load the deployed stack through the edge: `portal-web.ts` (the index and the JS/CSS it links) and `portal-api.ts` (`/api/auth/me` signed out, so no session or Postgres lookup). Both share profiles and thresholds from `tests/load/lib/config.ts`: failed requests under 1%, p95 under 500 ms, checks over 99%. The Scheduled workflow runs them weekly against TEST with the `ramp` profile (50 VUs over 5 minutes) and uploads an HTML report per script.
 
 ```bash
 brew install k6                                                     # once
@@ -639,10 +661,10 @@ To safely automate dependency updates, runtime health checks are mandatory to ca
 
 This repository provides out-of-the-box support for self-healing and verification through container probes:
 
-- **portal-api (NestJS)**: Implements `/healthz/live` (process up; startup and liveness probes) and `/healthz/ready` (readiness probe) using NestJS Terminus. Readiness checks PostgreSQL, Valkey and Keycloak and returns `503 Service Unavailable` when any is down. Both sit outside `/api`, so the edge doesn't expose them.
+- **portal-api (NestJS)**: Implements `/healthz/live` (process up; startup and liveness probes) and `/healthz/ready` (readiness probe) using NestJS Terminus. Readiness checks PostgreSQL (which also holds sessions) and Keycloak and returns `503 Service Unavailable` when any is down. Both sit outside `/api`, so the edge doesn't expose them.
 - **portal-web (Caddy)**: readiness/liveness probes check `/` to confirm the web server is responsive and serving assets.
 - **edge (Caddy + Coraza)**: readiness/liveness probes are TCP checks, so the edge's health doesn't depend on its upstreams.
-- **Smoke checks**: after every deploy, `reusable-tests.yml` requests `/` (portal-web, expects 200) and `/api/auth/me` (portal-api through the edge, signed out, so no Valkey session lookup; expects 401) before running Playwright E2E.
+- **Smoke checks**: after every deploy, `reusable-tests.yml` requests `/` (portal-web, expects 200) and `/api/auth/me` (portal-api through the edge, signed out, so no session lookup; expects 401) before running Playwright E2E.
 
 _Tip: For a fully mature maintenance mode setup, extend the readiness checks to query any further external APIs portal-api comes to depend on. If a dependency goes down, the health check should return `503 Service Unavailable`, blocking the automated merge._
 

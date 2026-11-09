@@ -4,5 +4,5 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
     "types": ["node", "vite/client"]
   },
-  "include": ["test/**/*.test.ts", "src/**/*.test.ts"]
+  "include": ["src/**/*.test.ts", "src/testing", "src/types"]
 }

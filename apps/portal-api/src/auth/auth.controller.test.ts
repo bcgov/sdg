@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { AuthError } from '@repo/auth';
 import { identities, principals } from '@repo/portal-database';
 import type supertest from 'supertest';
@@ -152,6 +153,36 @@ describe('AuthController Integration Test Suite', () => {
       app.oidc.handleCallback.mockRejectedValue('string callback failure');
       const { res } = await signIn();
       expect(res.headers['location']).toBe(`${APP}/?authError=login_failed`);
+    });
+  });
+
+  describe('logging', () => {
+    it('Should log the cause when login cannot start', async () => {
+      const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      app.oidc.createAuthorizationRequest.mockRejectedValue(
+        new AuthError('discovery_failed', { cause: new Error('getaddrinfo ENOTFOUND keycloak') }),
+      );
+      expect((await app.http().get('/api/auth/login')).status).toBe(503);
+      expect(error).toHaveBeenCalledWith({
+        msg: 'Could not start login',
+        error: expect.objectContaining({
+          code: 'discovery_failed',
+          cause: expect.objectContaining({ message: 'getaddrinfo ENOTFOUND keycloak' }),
+        }),
+      });
+    });
+
+    it('Should log the cause when the Keycloak logout URL is unavailable', async () => {
+      const { agent } = await signIn();
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      app.oidc.buildEndSessionUrl.mockRejectedValue(new AuthError('discovery_failed'));
+      const res = await agent.post('/api/auth/logout');
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ redirectUrl: `${APP}/` });
+      expect(warn).toHaveBeenCalledWith({
+        msg: 'Keycloak logout URL unavailable',
+        error: expect.objectContaining({ type: 'AuthError', code: 'discovery_failed' }),
+      });
     });
   });
 

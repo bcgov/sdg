@@ -8,6 +8,6 @@ type UpstreamLinkProps = ComponentProps<typeof Link>;
 export type NavLinkProps = Omit<UpstreamLinkProps, 'isButton' | 'buttonVariant' | 'isUnstyled' | 'danger' | 'size'>;
 
 /** A header/navigation item: plain text that underlines on hover, unlike the underlined body-text `Link`. */
-export function NavLink({ className, ...props }: NavLinkProps): JSX.Element {
+export function NavLink({ className, ...props }: Readonly<NavLinkProps>): JSX.Element {
   return <Link {...props} isUnstyled className={[styles['navLink'], className].filter(Boolean).join(' ')} />;
 }

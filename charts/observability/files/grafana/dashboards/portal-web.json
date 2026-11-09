@@ -1,0 +1,678 @@
+{
+  "uid": "sdg-portal-web",
+  "title": "portal-web (browser)",
+  "description": "Browser telemetry from Grafana Faro: web vitals, errors, API calls and sessions (doc 20).",
+  "tags": ["sdg"],
+  "schemaVersion": 41,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Environment (regex)",
+        "type": "textbox",
+        "query": ".+",
+        "current": {
+          "text": ".+",
+          "value": ".+"
+        },
+        "description": "Faro's app environment: test, prod, local or pr-<n>. A regex, e.g. pr-.* or test|local."
+      },
+      {
+        "name": "session",
+        "label": "Session ID",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "description": "A Faro session_id, from Recent sessions or any Faro log line."
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Sessions started",
+      "description": "New Faro sessions (a session spans tabs and reloads until it expires).",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["sum"]
+        },
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"portal-web\", source=\"faro\"} |= \"event_name=session_start\" | logfmt | app_environment=~\"$environment\" | event_name=\"session_start\" [$__range]))",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Page loads",
+      "description": "Full document loads (not client-side route changes).",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["sum"]
+        },
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"portal-web\", source=\"faro\"} |= \"event_name=faro.performance.navigation\" | logfmt | app_environment=~\"$environment\" | event_name=\"faro.performance.navigation\" [$__range]))",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Errors",
+      "description": "Uncaught exceptions and console.error calls.",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["sum"]
+        },
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"portal-web\", source=\"faro\"} |~ \"kind=(exception|log)\" | logfmt | app_environment=~\"$environment\" | kind=\"exception\" or level=\"error\" [$__range]))",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Dead clicks",
+      "description": "Clicks that changed nothing on the page.",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["sum"]
+        },
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"portal-web\", source=\"faro\"} |= \"event_name=faro.frustration.dead_click\" | logfmt | app_environment=~\"$environment\" | event_name=\"faro.frustration.dead_click\" [$__range]))",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Web vitals",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Web vitals p75",
+      "description": "75th percentile, the threshold Core Web Vitals are judged at (good: LCP ≤ 2500 ms, INP ≤ 200 ms).",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 16,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.75, {service_name=\"portal-web\", source=\"faro\"} |= \"type=web-vitals\" | logfmt | app_environment=~\"$environment\" | kind=\"measurement\" | type=\"web-vitals\" | lcp!=\"\" | unwrap lcp [$__auto]) by (app_name)",
+          "legendFormat": "LCP",
+          "queryType": "range"
+        },
+        {
+          "refId": "B",
+          "expr": "quantile_over_time(0.75, {service_name=\"portal-web\", source=\"faro\"} |= \"type=web-vitals\" | logfmt | app_environment=~\"$environment\" | kind=\"measurement\" | type=\"web-vitals\" | fcp!=\"\" | unwrap fcp [$__auto]) by (app_name)",
+          "legendFormat": "FCP",
+          "queryType": "range"
+        },
+        {
+          "refId": "C",
+          "expr": "quantile_over_time(0.75, {service_name=\"portal-web\", source=\"faro\"} |= \"type=web-vitals\" | logfmt | app_environment=~\"$environment\" | kind=\"measurement\" | type=\"web-vitals\" | inp!=\"\" | unwrap inp [$__auto]) by (app_name)",
+          "legendFormat": "INP",
+          "queryType": "range"
+        },
+        {
+          "refId": "D",
+          "expr": "quantile_over_time(0.75, {service_name=\"portal-web\", source=\"faro\"} |= \"type=web-vitals\" | logfmt | app_environment=~\"$environment\" | kind=\"measurement\" | type=\"web-vitals\" | ttfb!=\"\" | unwrap ttfb [$__auto]) by (app_name)",
+          "legendFormat": "TTFB",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "CLS p75",
+      "description": "Cumulative layout shift (good: ≤ 0.1).",
+      "gridPos": {
+        "x": 16,
+        "y": 5,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.75, {service_name=\"portal-web\", source=\"faro\"} |= \"type=web-vitals\" | logfmt | app_environment=~\"$environment\" | kind=\"measurement\" | type=\"web-vitals\" | cls!=\"\" | unwrap cls [$__auto]) by (app_name)",
+          "legendFormat": "CLS",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Vital ratings",
+      "description": "Every reported vital, by the web-vitals rating (good, needs-improvement, poor).",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": {
+              "mode": "normal"
+            },
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (context_rating) (count_over_time({service_name=\"portal-web\", source=\"faro\"} |= \"type=web-vitals\" | logfmt | app_environment=~\"$environment\" | kind=\"measurement\" | type=\"web-vitals\" [$__auto]))",
+          "legendFormat": "{{context_rating}}",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Slowest pages (p75 LCP)",
+      "description": "Pages with the slowest largest contentful paint.",
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "Value",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, quantile_over_time(0.75, {service_name=\"portal-web\", source=\"faro\"} |= \"type=web-vitals\" | logfmt | app_environment=~\"$environment\" | kind=\"measurement\" | type=\"web-vitals\" | lcp!=\"\" | unwrap lcp [$__range]) by (page_url))",
+          "queryType": "instant",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Browser → API",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "API calls from the browser by status",
+      "description": "fetch/XHR calls the browser traced; each one is a trace in Tempo.",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": {
+              "mode": "normal"
+            },
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (event_data_http_response_status_code) (count_over_time({service_name=\"portal-web\", source=\"faro\"} |= \"event_name=faro.tracing.fetch\" | logfmt | app_environment=~\"$environment\" | event_name=\"faro.tracing.fetch\" [$__auto]))",
+          "legendFormat": "{{event_data_http_response_status_code}}",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "API call duration seen by the browser",
+      "description": "Round trip from the browser, including the network and the edge.",
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "custom": {
+            "drawStyle": "line"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.5, {service_name=\"portal-web\", source=\"faro\"} |= \"event_name=faro.tracing.fetch\" | logfmt | app_environment=~\"$environment\" | event_name=\"faro.tracing.fetch\" | unwrap event_data_duration_ns [$__auto]) by (app_name)",
+          "legendFormat": "p50",
+          "queryType": "range"
+        },
+        {
+          "refId": "B",
+          "expr": "quantile_over_time(0.95, {service_name=\"portal-web\", source=\"faro\"} |= \"event_name=faro.tracing.fetch\" | logfmt | app_environment=~\"$environment\" | event_name=\"faro.tracing.fetch\" | unwrap event_data_duration_ns [$__auto]) by (app_name)",
+          "legendFormat": "p95",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Recent browser traces",
+      "description": "Browser fetch spans with the portal-api request nested under them. Open a trace ID for the waterfall.",
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{resource.service.name=\"portal-web\" && resource.deployment.environment=~\"$environment\"}",
+          "limit": 20,
+          "tableType": "traces"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Errors",
+      "description": "Exceptions and console errors, newest first.",
+      "gridPos": {
+        "x": 12,
+        "y": 30,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"portal-web\", source=\"faro\"} |~ \"kind=(exception|log)\" | logfmt | app_environment=~\"$environment\" | kind=\"exception\" or level=\"error\" | label_format level=`{{ if eq .kind \"exception\" }}error{{ else if .level }}{{ .level }}{{ else }}info{{ end }}`",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Session lookup",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Recent sessions",
+      "description": "Sessions with the most Faro events in the time range. Click a session ID to look it up.",
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 8,
+        "h": 12
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "session_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Look up this session",
+                    "url": "/d/sdg-portal-web/portal-web?var-environment=${environment:queryparam}&var-session=${__data.fields.session_id}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "Value",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(50, sum by (session_id) (count_over_time({service_name=\"portal-web\", source=\"faro\"} |= \"session_id=\" | logfmt | app_environment=~\"$environment\" [$__range])))",
+          "queryType": "instant",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Session timeline",
+      "description": "Everything one session sent: sessions, page loads, vitals, fetches, errors. Lines with a trace link to Tempo.",
+      "gridPos": {
+        "x": 8,
+        "y": 41,
+        "w": 16,
+        "h": 12
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"portal-web\", source=\"faro\"} |= \"session_id=$session\" | logfmt | session_id=\"$session\" | label_format level=`{{ if eq .kind \"exception\" }}error{{ else if .level }}{{ .level }}{{ else }}info{{ end }}` | line_format \"{{.kind}} {{.event_name}}{{.type}} {{.page_url}}\"",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Session traces",
+      "description": "Every browser-started trace in the session.",
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{span.session.id=\"$session\"}",
+          "limit": 20,
+          "tableType": "traces"
+        }
+      ]
+    }
+  ]
+}

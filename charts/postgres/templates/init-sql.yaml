@@ -1,5 +1,6 @@
 # PGO runs this once as the superuser after creating the cluster. PG 15+ no longer grants CREATE on public to every
-# user, and drizzle's migrations create their tables there, so the app user takes ownership of the schema.
+# user, and drizzle's migrations create their tables there, so the app user takes ownership of the schema. Clusters
+# created before a change here need it applied by hand (see charts/README.md).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -12,4 +13,7 @@ data:
     {{- if .Values.postGISVersion }}
     CREATE EXTENSION IF NOT EXISTS postgis;
     {{- end }}
+    -- pg_cron needs a superuser to install; the app user schedules its own jobs in migrations.
+    CREATE EXTENSION IF NOT EXISTS pg_cron;
+    GRANT USAGE ON SCHEMA cron TO {{ .Values.user.name }};
     ALTER SCHEMA public OWNER TO {{ .Values.user.name }};

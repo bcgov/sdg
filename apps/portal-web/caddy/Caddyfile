@@ -3,11 +3,23 @@
 {
 	metrics
 	auto_https off
-	admin 0.0.0.0:3003
+	# Admin API on localhost only: /load and /config change the live config. Metrics have their own listener.
+	admin localhost:2019
 	order coraza_waf first
+	# TLS ends at the OpenShift router, so Caddy sees plain http. Trust the router's X-Forwarded-* (it reaches the edge
+	# from the cluster network; the NetworkPolicy admits only the router namespace) so portal-api gets
+	# X-Forwarded-Proto: https and the real client IP. Without it the Secure session cookie is never set (invalid_state).
+	servers {
+		trusted_proxies static private_ranges
+	}
 }
 
 import common.caddy
+
+# Prometheus metrics only (the global `metrics` option above); a scraper allowed onto :3003 gets nothing else.
+:3003 {
+	metrics
+}
 
 :3000 {
 	import logging
@@ -16,7 +28,9 @@ import common.caddy
 	import waf
 
 	encode zstd gzip
+	import collect_{$TELEMETRY:off}
 	import api_proxy
 	reverse_proxy {$PORTAL_WEB_URL}
-	import security_headers ""
+	# style-src hashes: react-aria's fixed touch-action and overscroll-behavior <style> elements (common.caddy).
+	import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
 }

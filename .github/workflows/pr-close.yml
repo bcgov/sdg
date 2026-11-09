@@ -23,7 +23,7 @@ jobs:
       oc_server: ${{ vars.OC_SERVER }}
       oc_token: ${{ secrets.oc_token }}
     with:
-      # helm uninstall <repo>-<pr>; PGO deletes the PostgresCluster's PVCs, PR Valkey has none
+      # helm uninstall <repo>-<pr>; PGO deletes the PostgresCluster's PVCs
       cleanup: helm
       packages: portal-web portal-api portal-database edge
       # The default names the template's Bitnami Postgres PVC

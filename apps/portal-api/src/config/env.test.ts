@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { EnvValidationError, envSchema, validateEnv } from './env.js';
+import { EnvValidationError, validateEnv } from './env.js';
 
 const valid = {
   APP_URL: 'http://localhost:5173/',
   DATABASE_URL: 'postgres://portal:portal@localhost:5432/portal',
-  VALKEY_URL: 'redis://localhost:6379',
   SESSION_SECRET: 'x'.repeat(32),
   KEYCLOAK_ISSUER_URL: 'https://keycloak.example.com/realms/portal/',
   KEYCLOAK_CLIENT_ID: 'portal',
@@ -35,13 +34,21 @@ describe('Env Config Unit Test Suite', () => {
       expect(env.KEYCLOAK_ISSUER_URL).toBe('https://keycloak.example.com/realms/portal');
     });
 
-    it('Should coerce PORT, SESSION_TTL_SECONDS and TRUST_PROXY', () => {
+    it('strips every trailing slash from APP_URL and KEYCLOAK_ISSUER_URL', () => {
       const env = validateEnv({
         ...valid,
-        PORT: '8080',
-        SESSION_TTL_SECONDS: '600',
-        TRUST_PROXY: 'true',
+        APP_URL: 'https://portal.example.com///',
+        KEYCLOAK_ISSUER_URL: 'https://kc.test//',
       });
+      expect(env.APP_URL).toBe('https://portal.example.com');
+      expect(env.KEYCLOAK_ISSUER_URL).toBe('https://kc.test');
+      expect(validateEnv({ ...valid, APP_URL: 'https://portal.example.com/a/' }).APP_URL).toBe(
+        'https://portal.example.com/a',
+      );
+    });
+
+    it('coerces PORT, SESSION_TTL_SECONDS and TRUST_PROXY', () => {
+      const env = validateEnv({ ...valid, PORT: '8080', SESSION_TTL_SECONDS: '600', TRUST_PROXY: 'true' });
       expect(env.PORT).toBe(8080);
       expect(env.SESSION_TTL_SECONDS).toBe(600);
       expect(env.TRUST_PROXY).toBe(true);
@@ -99,36 +106,21 @@ describe('Env Config Unit Test Suite', () => {
       expect(error.message).toContain('SESSION_SECRET');
     });
 
-    it('Should reject non-postgres DATABASE_URL and non-redis VALKEY_URL', () => {
-      const error = errorOf({
-        ...valid,
-        DATABASE_URL: 'mysql://localhost/portal',
-        VALKEY_URL: 'http://localhost:6379',
-      });
-      expect(error.keys.toSorted()).toEqual(['DATABASE_URL', 'VALKEY_URL']);
+    it('rejects a non-postgres DATABASE_URL', () => {
+      const error = errorOf({ ...valid, DATABASE_URL: 'mysql://localhost/portal' });
+      expect(error.keys).toEqual(['DATABASE_URL']);
       expect(error.message).toMatch(/postgres:\/\/ or postgresql:\/\//);
       expect(errorOf({ ...valid, KEYCLOAK_CLIENT_ID: undefined }).keys).toEqual(['KEYCLOAK_CLIENT_ID']);
       expect(errorOf({ ...valid, KEYCLOAK_CLIENT_SECRET: '' }).keys).toEqual(['KEYCLOAK_CLIENT_SECRET']);
     });
 
-    it('Should reject invalid protocols for APP_URL and KEYCLOAK_ISSUER_URL', () => {
-      expect(errorOf({ ...valid, APP_URL: 'ftp://localhost' }).keys).toEqual(['APP_URL']);
-      expect(
-        errorOf({
-          ...valid,
-          KEYCLOAK_ISSUER_URL: 'ftp://keycloak.example.com',
-        }).keys,
-      ).toEqual(['KEYCLOAK_ISSUER_URL']);
+    it('rejects a plain http KEYCLOAK_ISSUER_URL', () => {
+      const error = errorOf({ ...valid, KEYCLOAK_ISSUER_URL: 'http://keycloak.example.com/realms/portal' });
+      expect(error.keys).toEqual(['KEYCLOAK_ISSUER_URL']);
+      expect(error.message).toContain('Must use https://');
     });
 
-    it('Should format root-level validation errors using (root)', () => {
-      const error = errorOf(null!);
-      expect(error.name).toBe('EnvValidationError');
-      expect(error.message).toMatch(/Invalid environment:\n\s+\(root\):/);
-      expect(error.keys).toEqual(['']);
-    });
-
-    it('Should report invalid keys without their values', () => {
+    it('reports invalid keys without their values', () => {
       const secret = 'super-secret-but-short';
       const error = errorOf({
         ...valid,
@@ -141,23 +133,29 @@ describe('Env Config Unit Test Suite', () => {
     });
   });
 
-  describe('EnvValidationError', () => {
-    it('Should format issue with empty path as (root)', () => {
-      const parseResult = envSchema.safeParse(null);
-      expect(parseResult.success).toBe(false);
-      const error = new EnvValidationError(parseResult.error!.issues);
-      expect(error.name).toBe('EnvValidationError');
-      expect(error.message).toMatch(/Invalid environment:\n\s+\(root\):/);
-      expect(error.keys).toEqual(['']);
+  describe('OpenTelemetry vars', () => {
+    it('leaves OTEL_EXPORTER_OTLP_ENDPOINT undefined when unset', () => {
+      const env = validateEnv(valid);
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
+      expect(validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: '' }).OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
+      expect(env.OTEL_TRACES_SAMPLER_ARG).toBe(1);
     });
 
-    it('Should format issue with key path using dot separator', () => {
-      const parseResult = envSchema.safeParse({});
-      expect(parseResult.success).toBe(false);
-      const error = new EnvValidationError(parseResult.error!.issues);
-      expect(error.name).toBe('EnvValidationError');
-      expect(error.message).toContain('  APP_URL:');
-      expect(error.keys).toContain('APP_URL');
+    it('accepts an http(s) OTEL_EXPORTER_OTLP_ENDPOINT and defaults OTEL_SERVICE_NAME to portal-api', () => {
+      const env = validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'http://alloy:4318/' });
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://alloy:4318');
+      expect(env.OTEL_SERVICE_NAME).toBe('portal-api');
+      expect(
+        validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'https://c.example.com' }).OTEL_EXPORTER_OTLP_ENDPOINT,
+      ).toBe('https://c.example.com');
+    });
+
+    it('rejects a non-http OTEL_EXPORTER_OTLP_ENDPOINT and a sampler ratio outside 0–1', () => {
+      expect(errorOf({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'grpc://alloy:4317' }).keys).toEqual([
+        'OTEL_EXPORTER_OTLP_ENDPOINT',
+      ]);
+      expect(errorOf({ ...valid, OTEL_TRACES_SAMPLER_ARG: '2' }).keys).toEqual(['OTEL_TRACES_SAMPLER_ARG']);
+      expect(errorOf({ ...valid, OTEL_TRACES_SAMPLER_ARG: '-0.1' }).keys).toEqual(['OTEL_TRACES_SAMPLER_ARG']);
     });
   });
 });

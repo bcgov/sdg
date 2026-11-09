@@ -18,8 +18,7 @@ type Discover = () => Promise<client.Configuration>;
 /** Lazy discovery: a successful result is cached, a failure is not (the next call retries). */
 function lazyDiscovery(options: OidcClientOptions): Discover {
   let cached: Promise<client.Configuration> | undefined;
-  const execute = options.allowInsecureRequests === true ? [client.allowInsecureRequests] : [];
-  const discoveryOptions: client.DiscoveryRequestOptions = { execute };
+  const discoveryOptions: client.DiscoveryRequestOptions = {};
   if (options.fetch) discoveryOptions[client.customFetch] = options.fetch;
 
   return () => {

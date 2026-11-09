@@ -1,0 +1,209 @@
+{{- $config := include (print $.Template.BasePath "/configmaps.yaml") . | sha256sum }}
+{{- $oidc := .Values.grafana.oidc }}
+{{- $issuer := $oidc.issuerUrl | required "grafana.oidc.issuerUrl is required" | trimSuffix "/" }}
+{{- if and (not .Values.vault.enabled) (not .Values.existingSecret) }}{{ fail "existingSecret is required when vault.enabled is false" }}{{ end }}
+# Alloy: the only collector. Discovers and scrapes the source namespaces' pods, receives OTLP and Faro.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "alloy") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "alloy") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" (dict "context" . "component" "alloy") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "observability.labels" (dict "context" . "component" "alloy") | nindent 8 }}
+      annotations:
+        checksum/config: {{ $config }}
+    spec:
+      serviceAccountName: {{ include "observability.name" (dict "context" . "component" "alloy") }}
+      {{- include "observability.podSpec" . | nindent 6 }}
+      containers:
+        - name: alloy
+          image: {{ include "observability.image" (dict "context" . "component" "alloy") }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          # Storage outside the image's /var/lib/alloy (alloy:alloy 0770), which OpenShift's arbitrary UID can't enter.
+          args: [run, /etc/alloy/sdg, --server.http.listen-addr=0.0.0.0:12345, --storage.path=/alloy-data]
+          env:
+            {{- include "observability.stackUrls" . | nindent 12 }}
+            - name: SOURCE_NAMESPACES
+              value: {{ include "observability.sourceNamespaces" . | quote }}
+          ports:
+            - { name: otlp-http, containerPort: 4318, protocol: TCP }
+            - { name: faro, containerPort: 12347, protocol: TCP }
+            - { name: http, containerPort: 12345, protocol: TCP }
+          readinessProbe:
+            httpGet: { path: /-/ready, port: http }
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources.alloy | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/alloy/sdg, readOnly: true }
+            - { name: data, mountPath: /alloy-data }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "observability.name" (dict "context" . "component" "alloy") }}
+        - name: data
+          emptyDir: { sizeLimit: 512Mi }
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "prometheus") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "prometheus") | nindent 4 }}
+spec:
+  replicas: 1
+  # One ReadWriteOnce volume: the old pod must stop before the new one mounts it.
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" (dict "context" . "component" "prometheus") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "observability.labels" (dict "context" . "component" "prometheus") | nindent 8 }}
+      annotations:
+        checksum/config: {{ $config }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "observability.podSpec" . | nindent 6 }}
+      containers:
+        - name: prometheus
+          image: {{ include "observability.image" (dict "context" . "component" "prometheus") }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yaml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time={{ .Values.retention.metrics }}
+            {{- with .Values.retention.metricsSize }}
+            - --storage.tsdb.retention.size={{ . }}
+            {{- end }}
+            - --web.enable-remote-write-receiver
+            - --enable-feature=exemplar-storage
+          ports:
+            - { name: http, containerPort: 9090, protocol: TCP }
+          readinessProbe:
+            httpGet: { path: /-/ready, port: http }
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources.prometheus | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/prometheus, readOnly: true }
+            - { name: data, mountPath: /prometheus }
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "observability.name" (dict "context" . "component" "prometheus") }}
+        {{- include "observability.dataVolume" (dict "context" . "component" "prometheus") | nindent 8 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "loki") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "loki") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" (dict "context" . "component" "loki") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "observability.labels" (dict "context" . "component" "loki") | nindent 8 }}
+      annotations:
+        checksum/config: {{ $config }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "observability.podSpec" . | nindent 6 }}
+      containers:
+        - name: loki
+          image: {{ include "observability.image" (dict "context" . "component" "loki") }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          args: [-config.file=/etc/loki/loki.yaml, -config.expand-env=true]
+          env:
+            - { name: LOKI_RETENTION, value: {{ .Values.retention.logs | quote }} }
+          ports:
+            - { name: http, containerPort: 3100, protocol: TCP }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources.loki | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/loki, readOnly: true }
+            - { name: data, mountPath: /var/loki }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "observability.name" (dict "context" . "component" "loki") }}
+        {{- include "observability.dataVolume" (dict "context" . "component" "loki") | nindent 8 }}
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "tempo") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "tempo") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" (dict "context" . "component" "tempo") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "observability.labels" (dict "context" . "component" "tempo") | nindent 8 }}
+      annotations:
+        checksum/config: {{ $config }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "observability.podSpec" . | nindent 6 }}
+      containers:
+        - name: tempo
+          image: {{ include "observability.image" (dict "context" . "component" "tempo") }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          args: [-target=all, -config.file=/etc/tempo/tempo.yaml, -config.expand-env=true]
+          env:
+            {{- include "observability.stackUrls" . | nindent 12 }}
+            - { name: TEMPO_RETENTION, value: {{ .Values.retention.traces | quote }} }
+          ports:
+            - { name: http, containerPort: 3200, protocol: TCP }
+            - { name: otlp-http, containerPort: 4318, protocol: TCP }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources.tempo | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/tempo, readOnly: true }
+            - { name: data, mountPath: /var/tempo }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "observability.name" (dict "context" . "component" "tempo") }}
+        {{- include "observability.dataVolume" (dict "context" . "component" "tempo") | nindent 8 }}
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+{{ include "observability.grafanaDeployment" (dict "context" . "config" $config "issuer" $issuer) }}

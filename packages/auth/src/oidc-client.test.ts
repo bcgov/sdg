@@ -26,7 +26,7 @@ function newClient(overrides: Partial<OidcClientOptions> = {}): OidcClient {
     clientSecret: CLIENT_SECRET,
     redirectUri: REDIRECT_URI,
     postLogoutRedirectUri: POST_LOGOUT_URI,
-    allowInsecureRequests: true,
+    fetch: idp.fetch,
     ...overrides,
   });
 }
@@ -70,10 +70,11 @@ describe('createOidcClient', () => {
       await expect(client.discover()).resolves.toBeUndefined();
       expect(idp.discoveryRequests).toBe(3);
     });
-    it('refuses plain http issuers unless allowInsecureRequests is set', async () => {
-      const error = await rejection(newClient({ allowInsecureRequests: false }).discover());
+    it('refuses plain http issuers', async () => {
+      const error = await rejection(newClient({ issuerUrl: idp.issuer.replace('https:', 'http:') }).discover());
       expect(error.code).toBe('discovery_failed');
       expect(error.cause).toBeDefined();
+      expect(idp.discoveryRequests).toBe(0);
     });
   });
   describe('createAuthorizationRequest', () => {

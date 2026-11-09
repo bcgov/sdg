@@ -1,0 +1,86 @@
+# Local LGTM stack (doc 20), layered on compose.yaml:
+#   podman compose -f compose.yaml -f compose.observability.yaml up -d
+# Grafana: https://grafana.sdg.localhost (anonymous admin; local only). Without this file the base stack sends no
+# telemetry: portal-api starts no OpenTelemetry SDK and the edge answers /collect with 204.
+# Configs are shared with the Helm chart (charts/observability/files); image tags are kept in step with its values.yaml.
+x-stack-urls: &stack-urls
+  PROMETHEUS_URL: http://prometheus:9090
+  LOKI_URL: http://loki:3100
+  TEMPO_URL: http://tempo:3200
+  TEMPO_OTLP_URL: http://tempo:4318
+
+services:
+  portal-api:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local
+
+  caddy:
+    environment:
+      TELEMETRY: 'on'
+      FARO_COLLECTOR_URL: http://alloy:12347
+      TELEMETRY_ENVIRONMENT: local
+
+  alloy:
+    image: docker.io/grafana/alloy:v1.21.3
+    command: [run, /etc/alloy/sdg, --server.http.listen-addr=0.0.0.0:12345, --storage.path=/var/lib/alloy/data]
+    environment: *stack-urls
+    volumes:
+      - ./charts/observability/files/alloy/common.alloy:/etc/alloy/sdg/common.alloy:ro
+      - ./charts/observability/files/alloy/compose/metrics.alloy:/etc/alloy/sdg/metrics.alloy:ro
+    depends_on: [prometheus, loki, tempo]
+
+  prometheus:
+    image: docker.io/prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+    volumes:
+      - ./charts/observability/files/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
+
+  loki:
+    image: docker.io/grafana/loki:3.7.9
+    command: [-config.file=/etc/loki/loki.yaml, -config.expand-env=true]
+    environment:
+      LOKI_RETENTION: 168h
+    volumes:
+      - ./charts/observability/files/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/var/loki
+
+  tempo:
+    image: docker.io/grafana/tempo:3.1.1
+    command: [-target=all, -config.file=/etc/tempo/tempo.yaml, -config.expand-env=true]
+    environment:
+      <<: *stack-urls
+      TEMPO_RETENTION: 168h
+    volumes:
+      - ./charts/observability/files/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+
+  grafana:
+    image: docker.io/grafana/grafana:13.3.0
+    environment:
+      <<: *stack-urls
+      GF_SERVER_ROOT_URL: https://grafana.sdg.localhost
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: 'true'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      # Same as the chart: only the image's own plugins, nothing downloaded at startup.
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
+    volumes:
+      - ./charts/observability/files/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./charts/observability/files/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus, loki, tempo]
+
+volumes:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:

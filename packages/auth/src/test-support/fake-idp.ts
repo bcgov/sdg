@@ -4,7 +4,11 @@ import type { AddressInfo } from 'node:net';
 import { exportJWK, generateKeyPair, SignJWT, type CryptoKey, type JWK, type JWTPayload } from 'jose';
 import { calculatePKCECodeChallenge } from 'openid-client';
 
+import type { AuthFetch } from '../types.js';
+
 export const CLIENT_ID = 'portal';
+/** OpenID Connect requires an https issuer; `FakeIdp.fetch` routes it to the loopback server. */
+const ISSUER = 'https://idp.test';
 export const CLIENT_SECRET = 'test-secret';
 
 interface IssuedCode {
@@ -25,6 +29,8 @@ export interface SignOptions {
 /** In-process OpenID Provider on an ephemeral loopback port, for tests only. */
 export interface FakeIdp {
   issuer: string;
+  /** Pass as the client's `fetch`: sends requests for `issuer` to the loopback server and rejects any other URL. */
+  fetch: AuthFetch;
   /** Counts `/.well-known/openid-configuration` requests. */
   discoveryRequests: number;
   /** When true, discovery responds 500. */
@@ -65,8 +71,14 @@ export async function startFakeIdp(): Promise<FakeIdp> {
   const codes = new Map<string, IssuedCode>();
   let counter = 0;
 
+  let loopback = '';
   const idp: FakeIdp = {
-    issuer: '',
+    issuer: ISSUER,
+    fetch: (url, init) => {
+      const target = new URL(url);
+      if (target.origin !== ISSUER) return Promise.reject(new Error(`fake idp: unexpected request to ${url}`));
+      return fetch(`${loopback}${target.pathname}${target.search}`, init);
+    },
     discoveryRequests: 0,
     failDiscovery: false,
     issueCode(code) {
@@ -86,8 +98,8 @@ export async function startFakeIdp(): Promise<FakeIdp> {
     if (form.get('client_id') !== CLIENT_ID || form.get('client_secret') !== CLIENT_SECRET) {
       return sendJson(res, 401, { error: 'invalid_client' });
     }
-    const verifier = form.get('code_verifier') ?? '';
-    if (!issued || (await calculatePKCECodeChallenge(verifier)) !== issued.codeChallenge) {
+    const challenge = await calculatePKCECodeChallenge(form.get('code_verifier') ?? '');
+    if (issued?.codeChallenge !== challenge) {
       return sendJson(res, 400, { error: 'invalid_grant' });
     }
     const idToken = await signToken(privateKey, idp.issuer, { nonce: issued.nonce, ...issued.claims }, {});
@@ -120,7 +132,7 @@ export async function startFakeIdp(): Promise<FakeIdp> {
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address: AddressInfo | string | null = server.address();
   if (address === null || typeof address === 'string') throw new Error('fake idp did not bind a TCP port');
-  idp.issuer = `http://127.0.0.1:${address.port}`;
+  loopback = `http://127.0.0.1:${address.port}`;
   return idp;
 }
 

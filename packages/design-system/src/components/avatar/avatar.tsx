@@ -25,7 +25,13 @@ export function getInitials(name: string): string {
   return (firstLetter(first) + (last === undefined ? '' : firstLetter(last))).toLocaleUpperCase();
 }
 
-export function Avatar({ name, src, size = 'medium', decorative = false, className }: AvatarProps): JSX.Element {
+export function Avatar({
+  name,
+  src,
+  size = 'medium',
+  decorative = false,
+  className,
+}: Readonly<AvatarProps>): JSX.Element {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const handleError = useCallback(() => setFailedSrc(src ?? null), [src]);
   const classes = [styles['avatar'], styles[size], className].filter(Boolean).join(' ');

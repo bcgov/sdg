@@ -26,6 +26,7 @@ import { OIDC_CLIENT } from '@repo/auth/nestjs';
 import type { Request, Response } from 'express';
 
 import type { Env } from '../config/env.js';
+import { describeError } from '../logging/describe-error.js';
 import { PrincipalsService } from '../principals/principals.service.js';
 import { SESSION_COOKIE, sessionOp } from '../session/session.module.js';
 import {
@@ -77,7 +78,7 @@ export class AuthController {
     try {
       request = await this.oidc.createAuthorizationRequest(safeReturnTo(returnTo, '/'));
     } catch (error) {
-      this.logger.error('Could not start login', error instanceof Error ? error.stack : String(error));
+      this.logger.error({ msg: 'Could not start login', error: describeError(error) });
       throw new ServiceUnavailableException('Login is temporarily unavailable');
     }
     req.session.oidc = request.pending;
@@ -102,7 +103,7 @@ export class AuthController {
       ({ principalId } = await this.principals.upsertFromLogin(login.user));
     } catch (error) {
       const code = callbackErrorCode(error);
-      this.logger.warn(`Login callback failed (${code})`, error instanceof Error ? error.stack : String(error));
+      this.logger.warn({ msg: `Login callback failed (${code})`, error: describeError(error) });
       return this.failLogin(req, res, code);
     }
 
@@ -137,7 +138,7 @@ export class AuthController {
       try {
         redirectUrl = (await this.oidc.buildEndSessionUrl(auth.tokens.idToken)).href;
       } catch (error) {
-        this.logger.warn('Keycloak logout URL unavailable', error instanceof Error ? error.stack : String(error));
+        this.logger.warn({ msg: 'Keycloak logout URL unavailable', error: describeError(error) });
       }
     }
     await sessionOp(req, 'destroy');

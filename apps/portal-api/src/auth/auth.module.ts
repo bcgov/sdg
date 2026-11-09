@@ -17,7 +17,6 @@ const oidcModule = OidcModule.forRootAsync({
       clientSecret: config.get('KEYCLOAK_CLIENT_SECRET', { infer: true }),
       redirectUri: `${appUrl}/api/auth/callback`,
       postLogoutRedirectUri: `${appUrl}/`,
-      allowInsecureRequests: config.get('KEYCLOAK_ISSUER_URL', { infer: true }).startsWith('http:'),
     };
   },
 });

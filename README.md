@@ -1,6 +1,6 @@
 # SDG Portal
 
-A web portal on OpenShift: a React + Vite frontend (`portal-web`) and a NestJS backend-for-frontend (`portal-api`) behind a Caddy edge with the Coraza WAF, backed by PostgreSQL/PostGIS and Valkey, with Keycloak sign-in. It is a pnpm + Turborepo monorepo deployed with Helm from GitHub Actions.
+A web portal on OpenShift: a React + Vite frontend (`portal-web`) and a NestJS backend-for-frontend (`portal-api`) behind a Caddy edge with the Coraza WAF, backed by PostgreSQL/PostGIS, with Keycloak sign-in. It is a pnpm + Turborepo monorepo deployed with Helm from GitHub Actions.
 
 ## Developer
 

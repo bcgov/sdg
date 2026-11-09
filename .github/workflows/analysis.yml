@@ -20,7 +20,7 @@ jobs:
   tests:
     name: Tests
     if: (! github.event.pull_request.draft)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: bcgov/action-test-and-analyse@8f699e3fd3fadd9a6adf6f4b1f2638ef7ecfefb9 # v2.0.0
@@ -39,10 +39,16 @@ jobs:
           dir: .
           node_version: '24'
           # Skipped while sonar_token is unset; see DEVELOPER.md (Code Quality with SonarCloud)
+          # Excludes the tsconfig JSONC files (comments fail Sonar's JSON parser) and the typescript-config test fixtures,
+          # and the PostgreSQL .sql files, which Sonar would analyze as Oracle PL/SQL.
+          # Ignores docker:S8431: Renovate pins images as tag@digest, keeping the tag readable.
           sonar_args: >
-            -Dsonar.exclusions=**/coverage/**,**/node_modules/**,**/dist/**,**/*.test.ts,**/*.test.tsx,**/e2e/**,**/routeTree.gen.ts
+            -Dsonar.exclusions=**/coverage/**,**/node_modules/**,**/dist/**,**/*.test.ts,**/*.test.tsx,**/e2e/**,**/routeTree.gen.ts,**/tsconfig*.json,tooling/typescript-config/*.json,tooling/typescript-config/test/fixtures/**,**/*.sql
+            -Dsonar.issue.ignore.multicriteria=e1
+            -Dsonar.issue.ignore.multicriteria.e1.ruleKey=docker:S8431
+            -Dsonar.issue.ignore.multicriteria.e1.resourceKey=**/Dockerfile
             -Dsonar.organization=bcgov-sonarcloud
-            -Dsonar.projectKey=${{ github.event.repository.name }}
+            -Dsonar.projectKey=bcgov_sdg
             -Dsonar.sources=apps,packages,tooling
             -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/e2e/**
             -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info
@@ -56,7 +62,7 @@ jobs:
     if: (! github.event.pull_request.draft)
     permissions:
       contents: read
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
       HELM_UNITTEST_VERSION: v1.2.1
@@ -86,7 +92,7 @@ jobs:
     if: (! github.event.pull_request.draft)
     permissions:
       contents: read
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
@@ -103,7 +109,7 @@ jobs:
     if: (! github.event.pull_request.draft)
     permissions:
       contents: read
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     env:
       ACTIONLINT_VERSION: 1.7.12
@@ -191,6 +197,6 @@ jobs:
     runs-on: ubuntu-slim
     timeout-minutes: 1
     steps:
-      - uses: bcgov/actions/workflow-results@122a9b1c6c082b1b1f18c300020fbdc417b6b0b2 # v0.10.0
+      - uses: bcgov/actions/workflow-results@091f1da89c669d36bf4899830381e5b12d2c889a # v0.11.0
         with:
           needs: ${{ toJson(needs) }}

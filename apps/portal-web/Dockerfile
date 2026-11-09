@@ -3,7 +3,7 @@
 # repository root:
 #   podman build -f apps/portal-web/Dockerfile -t portal-web .
 
-FROM docker.io/library/node:24.22.1-slim AS base
+FROM docker.io/library/node:26.13.0-slim AS base
 ENV CI=true LEFTHOOK=0
 # Same pnpm as the host: the version comes from devEngines in package.json.
 COPY package.json /tmp/package.json
@@ -26,7 +26,7 @@ RUN pnpm --filter "portal-web..." run build
 FROM docker.io/library/caddy:2.11.7-alpine AS caddy
 RUN setcap -r /usr/bin/caddy && ! getcap /usr/bin/caddy | grep -q .
 
-FROM docker.io/library/alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+FROM docker.io/library/alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 # mailcap provides /etc/mime.types (Content-Type for fonts and other types Go doesn't know). apk is then removed.
 RUN apk add --no-cache mailcap && apk --purge del apk-tools
 ENV XDG_CONFIG_HOME=/config XDG_DATA_HOME=/data

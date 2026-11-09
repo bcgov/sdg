@@ -1,0 +1,58 @@
+{{/* Configs from files/ (shared with compose.observability.yaml). Pods roll on change via checksum annotations. */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "alloy") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "alloy") | nindent 4 }}
+data:
+  common.alloy: |
+    {{- .Files.Get "files/alloy/common.alloy" | nindent 4 }}
+  metrics.alloy: |
+    {{- .Files.Get "files/alloy/kubernetes/metrics.alloy" | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "prometheus") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "prometheus") | nindent 4 }}
+data:
+  prometheus.yaml: |
+    {{- .Files.Get "files/prometheus/prometheus.yaml" | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "loki") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "loki") | nindent 4 }}
+data:
+  loki.yaml: |
+    {{- .Files.Get "files/loki/loki.yaml" | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "tempo") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "tempo") | nindent 4 }}
+data:
+  tempo.yaml: |
+    {{- .Files.Get "files/tempo/tempo.yaml" | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.name" (dict "context" . "component" "grafana") }}
+  labels:
+    {{- include "observability.labels" (dict "context" . "component" "grafana") | nindent 4 }}
+data:
+  datasources.yaml: |
+    {{- .Files.Get "files/grafana/provisioning/datasources/datasources.yaml" | nindent 4 }}
+  dashboards.yaml: |
+    {{- .Files.Get "files/grafana/provisioning/dashboards/dashboards.yaml" | nindent 4 }}
+  {{- range $path, $_ := .Files.Glob "files/grafana/dashboards/*.json" }}
+  dashboard-{{ base $path }}: |
+    {{- $.Files.Get $path | nindent 4 }}
+  {{- end }}

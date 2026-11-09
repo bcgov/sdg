@@ -1,0 +1,100 @@
+# Observability: installs charts/observability (doc 20) as release `observability`, separately from the app deploys.
+#   tools  <plate>-tools, collecting from <plate>-dev (PR releases) and <plate>-test; on a chart change on main or by hand
+#   prod   <plate>-prod, collecting from <plate>-prod only; by hand, behind the prod environment's approval
+# Needs a `tools` GitHub environment (OC_NAMESPACE=<plate>-tools, OC_SERVER, secret oc_token), the GRAFANA_OIDC_CLIENT_ID
+# variable and Vault secrets <plate>-nonprod/grafana and <plate>-prod/grafana (DEVELOPER.md, Observability).
+name: Observability
+
+on:
+  push:
+    branches: [main]
+    paths: ['charts/observability/**', 'charts/common/**', '.github/workflows/observability.yml']
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: Which stack to deploy
+        required: true
+        type: choice
+        default: tools
+        options: [tools, prod]
+
+concurrency:
+  # prod shares the Merge group with merge.yml, release.yml and route-tls.yml, so it never overlaps a PROD deploy.
+  group: ${{ (inputs.stack || 'tools') == 'prod' && 'Merge' || 'observability-tools' }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  deploy:
+    name: Helm (observability, ${{ inputs.stack || 'tools' }})
+    environment: ${{ inputs.stack || 'tools' }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    env:
+      STACK: ${{ inputs.stack || 'tools' }}
+      OC_NAMESPACE: ${{ vars.OC_NAMESPACE }}
+      OC_SERVER: ${{ vars.OC_SERVER }}
+      KEYCLOAK_ISSUER_URL: ${{ vars.KEYCLOAK_ISSUER_URL }}
+      GRAFANA_OIDC_CLIENT_ID: ${{ vars.GRAFANA_OIDC_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Values derived from the environment; every input is validated before it reaches the YAML.
+      - name: Vars
+        run: |
+          set -euo pipefail
+          check() { [[ "${!1-}" =~ $2 ]] || { echo "Invalid ${1}: '${!1-}'" >&2; exit 1; }; }
+          check STACK '^(tools|prod)$'
+          check OC_NAMESPACE "^[a-z0-9]+-${STACK}$"
+          check OC_SERVER '^https://api\.([a-z0-9-]+)\.([a-z0-9.-]+):6443$'
+          check KEYCLOAK_ISSUER_URL '^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$'
+          check GRAFANA_OIDC_CLIENT_ID '^[A-Za-z0-9._-]+$'
+          plate="${OC_NAMESPACE%-*}"
+          server="${OC_SERVER#https://api.}"; server="${server%:6443}"
+          role="${plate}-$([ "$STACK" = prod ] && echo prod || echo nonprod)"
+          if [ "$STACK" = prod ]; then sources="[\"${plate}-prod\"]"; else sources="[\"${plate}-dev\", \"${plate}-test\"]"; fi
+          values="${RUNNER_TEMP}/observability-values.yaml"
+          cat > "$values" <<EOF
+          sources:
+            namespaces: ${sources}
+          grafana:
+            host: "grafana-${OC_NAMESPACE}.apps.${server}"
+            oidc:
+              issuerUrl: "${KEYCLOAK_ISSUER_URL}"
+              clientId: "${GRAFANA_OIDC_CLIENT_ID}"
+          vault:
+            authPath: "auth/k8s-${server%%.*}"
+            role: "${role}"
+            secretPath: "${role}/grafana"
+            serviceAccountName: "${plate}-vault"
+          EOF
+          echo "VALUES=${values}" >> "$GITHUB_ENV"
+          cat "$values"
+
+      # The charts are verified with Helm 4; the runner image ships Helm 3
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+
+      - name: Deploy
+        uses: bcgov/action-oc-runner@111868d1fc50db0a40417ba321d865ef5c931bbd # v1.7.0
+        with:
+          oc_namespace: ${{ vars.OC_NAMESPACE }}
+          oc_server: ${{ vars.OC_SERVER }}
+          oc_token: ${{ secrets.oc_token }}
+          commands: |
+            status="$(helm status observability -o json 2>/dev/null | jq -r .info.status || true)"
+            if [[ "$status" == pending-* ]]; then
+              echo "Release observability is ${status}; rolling back"
+              helm rollback observability --wait --timeout 5m || helm uninstall observability --wait --timeout 5m
+            fi
+            helm dependency build charts/observability > /dev/null
+            helm upgrade --install observability charts/observability \
+              -f "charts/observability/values-${STACK}.yaml" -f "$VALUES" \
+              --rollback-on-failure --wait --timeout 10m
+            helm status observability

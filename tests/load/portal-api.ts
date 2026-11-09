@@ -1,5 +1,5 @@
 // portal-api through the edge, signed out (DEVELOPER.md, Load tests). Without a session cookie the request
-// never reaches Valkey: this measures the edge, WAF and Nest pipeline. Signed-in flows need a Keycloak test user.
+// never reaches the session store: this measures the edge, WAF and Nest pipeline. Signed-in flows need a Keycloak test user.
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import type { Options } from 'k6/options';

@@ -18,4 +18,8 @@ spec:
       ports:
         - port: 3000
           protocol: TCP
+    {{- with include "common.scraperIngressRule" (dict "context" . "port" 3003) }}
+    # The observability stack's Alloy scrapes Caddy's metrics-only listener (doc 20).
+    {{- . | nindent 4 }}
+    {{- end }}
 {{- end }}

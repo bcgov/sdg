@@ -6,7 +6,8 @@ metadata:
   name: {{ include "common.fullname" . }}
   labels:
     {{- include "common.labels" (dict "context" . "component" "edge") | nindent 4 }}
-  {{- with .Values.ingress.annotations | default (dict "route.openshift.io/termination" "edge") }}
+  {{- /* disable_cookies: no router sticky-session cookie (SameSite=None; ZAP 10054). The edge is stateless. */}}
+  {{- with .Values.ingress.annotations | default (dict "route.openshift.io/termination" "edge" "haproxy.router.openshift.io/disable_cookies" "true") }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}

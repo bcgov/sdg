@@ -43,7 +43,7 @@ async function createApp(): Promise<INestApplication> {
       JwtAuthModule.forRootAsync({
         imports: [ConfigModule.with({ issuerUrl: idp.issuer })],
         inject: [CONFIG],
-        useFactory: (config: TestConfig) => ({ issuerUrl: config.issuerUrl, audience: CLIENT_ID }),
+        useFactory: (config: TestConfig) => ({ issuerUrl: config.issuerUrl, audience: CLIENT_ID, fetch: idp.fetch }),
       }),
     ],
     controllers: [TestController],
@@ -67,7 +67,7 @@ describe('@repo/auth/nestjs', () => {
         clientSecret: CLIENT_SECRET,
         redirectUri: 'http://app.test/api/auth/callback',
         postLogoutRedirectUri: 'http://app.test/',
-        allowInsecureRequests: true,
+        fetch: idp.fetch,
       }));
       @Module({
         imports: [

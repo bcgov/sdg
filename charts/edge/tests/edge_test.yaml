@@ -134,8 +134,11 @@ tests:
       - isAPIVersion:
           of: networking.k8s.io/v1
       - equal:
-          path: metadata.annotations["route.openshift.io/termination"]
-          value: edge
+          path: metadata.annotations
+          value:
+            route.openshift.io/termination: edge
+            # No router sticky-session cookie (ZAP 10054): the edge is stateless.
+            haproxy.router.openshift.io/disable_cookies: 'true'
       - equal:
           path: spec.rules
           value:

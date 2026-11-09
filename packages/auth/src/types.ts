@@ -24,8 +24,6 @@ export interface OidcClientOptions {
   scopes?: readonly string[];
   /** Custom fetch for all IdP requests (tests, proxies). Defaults to the global `fetch`. */
   fetch?: AuthFetch;
-  /** Allow plain `http:` IdP URLs. Only for local development and tests; never in deployed environments. */
-  allowInsecureRequests?: boolean;
 }
 
 /** State kept server-side between the authorization request and the callback. */

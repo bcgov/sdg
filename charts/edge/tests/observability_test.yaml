@@ -1,0 +1,75 @@
+# Observability wiring (doc 20): telemetry env, scrape annotations and the scraper NetworkPolicy rule.
+suite: edge observability
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+tests:
+  - it: turns telemetry on and points /collect at Alloy when a collector is configured
+    template: templates/deployment.yaml
+    set:
+      global.observability.collectorHost: observability-alloy.abc123-tools.svc
+      global.observability.environment: pr-1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: TELEMETRY
+            value: 'on'
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FARO_COLLECTOR_URL
+            value: http://observability-alloy.abc123-tools.svc:12347
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: TELEMETRY_ENVIRONMENT
+            value: pr-1
+
+  - it: leaves telemetry off when observability is not configured
+    template: templates/deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: TELEMETRY
+            value: 'on'
+      - notExists:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape"]
+
+  - it: annotates the pod for scraping the metrics listener when a scraper namespace is set
+    template: templates/deployment.yaml
+    set:
+      global.observability.scraperNamespace: abc123-tools
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape"]
+          value: 'true'
+      - equal:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape-port"]
+          value: '3003'
+      - equal:
+          path: spec.template.metadata.annotations["sdg.gov.bc.ca/scrape-path"]
+          value: /metrics
+
+  - it: admits the observability stack's Alloy on 3003 when a scraper namespace is set
+    template: templates/networkpolicy.yaml
+    set:
+      global.observability.scraperNamespace: abc123-tools
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: abc123-tools
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: alloy
+            ports:
+              - port: 3003
+                protocol: TCP

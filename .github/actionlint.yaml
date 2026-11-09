@@ -1,0 +1,5 @@
+# GitHub-hosted runner labels newer than actionlint's built-in list.
+# Remove each one once an actionlint release knows it (rule_runner_label.go).
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

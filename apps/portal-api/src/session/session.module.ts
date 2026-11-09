@@ -1,24 +1,26 @@
 import { Inject, Module, RequestMethod, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RedisStore } from 'connect-redis';
+import { getDrizzleToken } from '@nestjs/drizzle';
 import type { Request } from 'express';
-import session, { type Store } from 'express-session';
+import session from 'express-session';
 
 import type { Env } from '../config/env.js';
-import { VALKEY_CLIENT, type ValkeyClient } from '../valkey/valkey.module.js';
+import type { PortalDatabase } from '../database/database.module.js';
+import { PostgresSessionStore } from './postgres-session.store.js';
+import { deriveSessionKey } from './session-cipher.js';
 import './session.types.js';
 
 export const SESSION_COOKIE = 'portal.sid';
-export const SESSION_PREFIX = 'portal:sess:';
-/** The express-session store; tests override it with an in-memory store. */
+/** The express-session store (a `PostgresSessionStore`). */
 export const SESSION_STORE = Symbol('SESSION_STORE');
 
 /** Promisified `req.session` operations, so handlers can await them and errors propagate. */
 export function sessionOp(req: Request, op: 'save' | 'regenerate' | 'destroy'): Promise<void> {
   return new Promise((resolve, reject) => {
-    req.session[op]((error: unknown) =>
-      error ? reject(error instanceof Error ? error : new Error(`Session ${op} failed`, { cause: error })) : resolve(),
-    );
+    req.session[op]((error: unknown) => {
+      if (!error) resolve();
+      else reject(error instanceof Error ? error : new Error(`Session ${op} failed`, { cause: error }));
+    });
   });
 }
 
@@ -26,17 +28,23 @@ export function sessionOp(req: Request, op: 'save' | 'regenerate' | 'destroy'): 
   providers: [
     {
       provide: SESSION_STORE,
-      inject: [VALKEY_CLIENT, ConfigService],
-      useFactory: (client: ValkeyClient, config: ConfigService<Env, true>): Store =>
-        new RedisStore({ client, prefix: SESSION_PREFIX, ttl: config.get('SESSION_TTL_SECONDS', { infer: true }) }),
+      inject: [getDrizzleToken(), ConfigService],
+      useFactory: (db: PortalDatabase, config: ConfigService<Env, true>): PostgresSessionStore =>
+        new PostgresSessionStore(db, {
+          key: deriveSessionKey(config.get('SESSION_SECRET', { infer: true })),
+          ttlSeconds: config.get('SESSION_TTL_SECONDS', { infer: true }),
+        }),
     },
   ],
 })
 export class SessionModule implements NestModule {
   private readonly config: ConfigService<Env, true>;
-  private readonly store: Store;
+  private readonly store: PostgresSessionStore;
 
-  constructor(@Inject(ConfigService) config: ConfigService<Env, true>, @Inject(SESSION_STORE) store: Store) {
+  constructor(
+    @Inject(ConfigService) config: ConfigService<Env, true>,
+    @Inject(SESSION_STORE) store: PostgresSessionStore,
+  ) {
     this.config = config;
     this.store = store;
   }
@@ -58,7 +66,7 @@ export class SessionModule implements NestModule {
         path: '/',
       },
     });
-    // Only /api/* routes get a session; the /healthz probes are outside the prefix and never touch Valkey.
+    // Only /api/* routes get a session; the /healthz probes are outside the prefix and never touch the session store.
     consumer.apply(middleware).forRoutes({ path: '*path', method: RequestMethod.ALL });
   }
 }

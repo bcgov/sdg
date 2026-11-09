@@ -13,6 +13,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@grafana/faro-web-sdk": "catalog:",
+    "@grafana/faro-web-tracing": "catalog:",
     "@repo/design-system": "workspace:*",
     "@repo/sdg-header": "workspace:*",
     "@tanstack/react-query": "catalog:",

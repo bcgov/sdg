@@ -3,7 +3,15 @@ import { CasingCache, toSnakeCase } from 'drizzle-orm/casing';
 import { getTableConfig, IndexedColumn, type Index, type PgColumn } from 'drizzle-orm/pg-core';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { identities, principals, type Identity, type NewPrincipal, type Principal } from './index.js';
+import {
+  identities,
+  principals,
+  sessions,
+  type Identity,
+  type NewPrincipal,
+  type NewSession,
+  type Principal,
+} from './index.js';
 
 // The client and drizzle-kit both use `casing: 'snake_case'`, so DB names are derived from the TS keys.
 const casing = new CasingCache('snake_case');
@@ -83,6 +91,26 @@ describe('portal-database schema', () => {
       expect(columns.get('updated_at')?.onUpdateFn).toBeTypeOf('function');
       expectTypeOf<Identity['claims']>().toEqualTypeOf<Record<string, unknown>>();
       expectTypeOf<Identity['emailVerified']>().toEqualTypeOf<boolean>();
+    });
+  });
+
+  describe('sessions', () => {
+    const config = getTableConfig(sessions);
+    const columns = byName(config.columns);
+
+    it('has text sid primary key, sess and expires_at, all required', () => {
+      expect(config.name).toBe('sessions');
+      expect([...columns.keys()]).toEqual(['sid', 'sess', 'expires_at']);
+      expect(columns.get('sid')).toMatchObject({ primary: true, hasDefault: false, columnType: 'PgText' });
+      expect(columns.get('expires_at')?.getSQLType()).toBe('timestamp with time zone');
+      for (const column of columns.values()) expect(column.notNull).toBe(true);
+      expectTypeOf<NewSession>().toEqualTypeOf<{ sid: string; sess: string; expiresAt: Date }>();
+    });
+
+    it('indexes expires_at for pruning', () => {
+      const index = config.indexes.find((candidate) => candidate.config.name === 'sessions_expires_at_idx');
+      expect(index?.config.unique).toBe(false);
+      expect(indexColumns(index)).toEqual(['expires_at']);
     });
   });
 });

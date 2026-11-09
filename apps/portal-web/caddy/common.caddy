@@ -25,7 +25,12 @@
 }
 
 # Argument 1: extra script-src sources. Production passes "", Caddyfile.dev passes "'unsafe-inline'"
-# for Vite's React Refresh preamble. Caddy leaves a missing argument in place literally, so it is required.
+# for Vite's React Refresh preamble.
+# Argument 2: extra style-src sources. Production passes the hashes of react-aria's fixed <style> elements
+# (checked by portal-web's csp-hashes.test.ts); the bcgov design system's CSS loads as adopted stylesheets
+# (@repo/vite-config adoptedStyleSheets), which style-src doesn't govern. Caddyfile.dev passes "'unsafe-inline'"
+# for Vite's injected styles; it must not also get hashes, which make browsers ignore 'unsafe-inline'.
+# Caddy leaves a missing argument in place literally, so both are required.
 (security_headers) {
 	header {
 		-Server
@@ -36,7 +41,7 @@
 		X-Content-Type-Options "nosniff"
 		Strict-Transport-Security "max-age=31536000"
 		# One line: a newline makes the value invalid, and Go's HTTP/2 server silently drops the whole header.
-		Content-Security-Policy "default-src 'self' https://*.gov.bc.ca; script-src 'self' https://*.gov.bc.ca {args[0]}; style-src 'self' https://fonts.googleapis.com https://use.fontawesome.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://fonts.googleapis.com https://www.w3.org https://*.gov.bc.ca https://*.tile.openstreetmap.org; frame-ancestors 'self'; form-action 'self'; block-all-mixed-content; connect-src 'self' https://*.gov.bc.ca wss://*.gov.bc.ca;"
+		Content-Security-Policy "default-src 'self' https://*.gov.bc.ca; script-src 'self' https://*.gov.bc.ca {args[0]}; style-src 'self' https://fonts.googleapis.com https://use.fontawesome.com {args[1]}; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://fonts.googleapis.com https://www.w3.org https://*.gov.bc.ca https://*.tile.openstreetmap.org; frame-ancestors 'self'; form-action 'self'; block-all-mixed-content; connect-src 'self' https://*.gov.bc.ca wss://*.gov.bc.ca;"
 		Referrer-Policy "same-origin"
 		Permissions-Policy "fullscreen=(self), camera=(), microphone=()"
 		Cross-Origin-Resource-Policy "same-origin"
@@ -46,3 +51,37 @@
 		Cross-Origin-Embedder-Policy "credentialless"
 	}
 }
+
+# Browser telemetry (Grafana Faro). Site blocks pick one with `import collect_{$TELEMETRY:off}`, so a missing
+# TELEMETRY leaves it off. portal-web reads /telemetry.json at startup and only loads Faro when it says enabled.
+(collect_off) {
+	@telemetry_config path /telemetry.json
+	handle @telemetry_config {
+		header Cache-Control "no-store"
+		header Content-Type "application/json"
+		respond `{"enabled":false}` 200
+	}
+	@collect path /collect /collect/*
+	handle @collect {
+		respond 204
+	}
+}
+
+# Needs FARO_COLLECTOR_URL (Alloy's faro.receiver) and TELEMETRY_ENVIRONMENT (pr-<n>, test, prod, local).
+(collect_on) {
+	@telemetry_config path /telemetry.json
+	handle @telemetry_config {
+		header Cache-Control "no-store"
+		header Content-Type "application/json"
+		respond `{"enabled":true,"environment":"{$TELEMETRY_ENVIRONMENT}"}` 200
+	}
+	@collect path /collect /collect/*
+	handle @collect {
+		# The endpoint is public (it takes browser telemetry), so cap what one request can send; Alloy rate-limits.
+		request_body {
+			max_size 64KB
+		}
+		reverse_proxy {$FARO_COLLECTOR_URL}
+	}
+}
+

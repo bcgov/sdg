@@ -10,7 +10,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../charts"
-LEAF_CHARTS=(portal-web portal-api edge postgres valkey)
+LEAF_CHARTS=(portal-web portal-api edge postgres)
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.31.0}"
 
@@ -35,7 +35,7 @@ lint_values() {
     --set "${prefix}vault.serviceAccountName=example-vault"
 }
 
-for chart in "${LEAF_CHARTS[@]}" sdg; do
+for chart in "${LEAF_CHARTS[@]}" sdg observability; do
   helm dependency build "$chart" >/dev/null
 done
 
@@ -46,12 +46,20 @@ done
 # shellcheck disable=SC2046
 helm lint --strict sdg $(lint_values "portal-api.")
 
-helm unittest --strict "${LEAF_CHARTS[@]}" sdg
+# The observability stack is its own release in <plate>-tools and <plate>-prod (doc 20), not part of the umbrella.
+OBSERVABILITY_VALUES=(--set grafana.host=grafana.example.com --set grafana.oidc.issuerUrl=https://keycloak.example.com/realms/standard
+  --set grafana.oidc.clientId=grafana --set vault.role=example-nonprod --set vault.secretPath=example-nonprod/grafana
+  --set vault.serviceAccountName=example-vault --set 'sources.namespaces={example-dev,example-test}')
+for values in values-tools.yaml values-prod.yaml; do
+  helm lint --strict observability -f "observability/${values}" "${OBSERVABILITY_VALUES[@]}"
+done
+
+helm unittest --strict "${LEAF_CHARTS[@]}" sdg observability
 
 # helm-unittest can't select a disabled subchart's templates, so the umbrella condition is checked here.
 # shellcheck disable=SC2046
-if helm template sdg sdg $(lint_values "portal-api.") --set valkey.enabled=false | grep -q 'app.kubernetes.io/name: valkey'; then
-  echo "FAIL: sdg with valkey.enabled=false still renders valkey resources" >&2
+if helm template sdg sdg $(lint_values "portal-api.") --set portal-web.enabled=false | grep -q 'app.kubernetes.io/name: portal-web'; then
+  echo "FAIL: sdg with portal-web.enabled=false still renders portal-web resources" >&2
   exit 1
 fi
 echo "PASS: a disabled subchart renders nothing"
@@ -65,6 +73,9 @@ validate() {
 
 # shellcheck disable=SC2046
 helm template sdg sdg $(lint_values "portal-api.") | validate
+for values in values-tools.yaml values-prod.yaml; do
+  helm template observability observability -f "observability/${values}" "${OBSERVABILITY_VALUES[@]}" | validate
+done
 
 # What reusable-deploy.yml installs: values-<env>.yaml plus scripts/deploy-values.sh output (DEVELOPER.md, Workflows).
 # expect_rendered <env> <manifests> <grep -E pattern> <description>
@@ -79,7 +90,7 @@ for env in pr test prod; do
   esac
   deploy_env=(TARGET="$target" ENVIRONMENT="$environment" TAG=0123abc REPOSITORY=example/sdg OC_NAMESPACE="$namespace"
     OC_SERVER=https://api.gold.devops.gov.bc.ca:6443 KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal
-    KEYCLOAK_CLIENT_ID=portal VAULT_SECRET_PATH='')
+    KEYCLOAK_CLIENT_ID=portal VAULT_SECRET_PATH='' OBSERVABILITY=true)
   outputs="$(env "${deploy_env[@]}" ../scripts/deploy-values.sh outputs)"
   release="$(sed -n 's/^release=//p' <<< "$outputs")"
   values_file="../$(sed -n 's/^values_file=//p' <<< "$outputs")"
@@ -88,6 +99,9 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/portal-api:0123abc" "deploys the tagged GHCR images"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
   expect_rendered "$env" "$manifests" 'vault.hashicorp.com/auth-path: "?auth/k8s-gold' "uses the cluster's Vault auth path"
+  stack="example-$([ "$env" = prod ] && echo prod || echo tools)"
+  expect_rendered "$env" "$manifests" "OTEL_EXPORTER_OTLP_ENDPOINT: \"?http://observability-alloy\.${stack}\.svc:4318" "sends OTLP to Alloy in ${stack}"
+  expect_rendered "$env" "$manifests" "kubernetes.io/metadata.name: ${stack}" "lets Alloy in ${stack} scrape its pods"
   case "$env" in
     pr) storage=256Mi wal=64MB keep=16MB ;;
     test) storage=384Mi wal=96MB keep=32MB ;;

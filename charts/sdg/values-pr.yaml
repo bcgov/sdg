@@ -38,14 +38,3 @@ edge:
       memory: 48Mi
   strategy:
     type: Recreate
-
-# Sessions are throwaway in a PR environment.
-valkey:
-  config:
-    maxmemory: 16mb
-  persistence:
-    enabled: false
-  resources:
-    requests:
-      cpu: 5m
-      memory: 16Mi

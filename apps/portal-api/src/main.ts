@@ -32,4 +32,8 @@ async function main(): Promise<void> {
   logger.log(`portal-api listening on port ${port}`);
 }
 
-main().catch(exitOnFatal('Failed to start portal-api'));
+try {
+  await main();
+} catch (error) {
+  exitOnFatal('Failed to start portal-api')(error);
+}

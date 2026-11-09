@@ -35,6 +35,10 @@ tests:
             min_wal_size: 32MB
             wal_keep_size: 16MB
             shared_buffers: 32MB
+            # From the postgres chart's defaults: Helm merges parameters, so PRs keep pg_cron.
+            shared_preload_libraries: pg_cron
+            cron.database_name: portal
+            cron.use_background_workers: 'on'
 
   - it: lowers Postgres requests and keeps its limit
     template: charts/postgres/templates/postgrescluster.yaml
@@ -78,21 +82,3 @@ tests:
           path: spec.strategy
           value:
             type: Recreate
-
-  - it: lowers Valkey requests and maxmemory without a PVC
-    template: charts/valkey/templates/statefulset.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests: { cpu: 5m, memory: 16Mi }
-            limits: { memory: 192Mi }
-      - notExists:
-          path: spec.volumeClaimTemplates
-
-  - it: writes maxmemory 16mb to valkey.conf
-    template: charts/valkey/templates/configmap.yaml
-    asserts:
-      - matchRegex:
-          path: data["valkey.conf"]
-          pattern: (?m)^maxmemory 16mb$

@@ -1,0 +1,91 @@
+// Alloy pipeline shared by compose and Kubernetes (doc 20). Alloy loads every .alloy file in /etc/alloy/sdg (not
+// /etc/alloy, which holds the image's own example config):
+// this file plus compose/metrics.alloy or kubernetes/metrics.alloy. Endpoints come from the environment:
+//   TEMPO_OTLP_URL   e.g. http://tempo:4318
+//   LOKI_URL         e.g. http://loki:3100
+//   PROMETHEUS_URL   e.g. http://prometheus:9090
+
+// Traces and logs from portal-api (OTLP/HTTP, unauthenticated, reachable only inside the network).
+otelcol.receiver.otlp "apps" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+    logs   = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlphttp.tempo.input]
+    logs   = [otelcol.exporter.otlphttp.loki.input]
+  }
+}
+
+otelcol.exporter.otlphttp "tempo" {
+  client {
+    endpoint = sys.env("TEMPO_OTLP_URL")
+  }
+}
+
+otelcol.exporter.otlphttp "loki" {
+  client {
+    endpoint = sys.env("LOKI_URL") + "/otlp"
+  }
+}
+
+// Browser telemetry from portal-web (Grafana Faro), proxied by the edge from the public /collect. Labels are fixed
+// here, never taken from the payload; the edge also caps request bodies at 64 KiB.
+faro.receiver "web" {
+  server {
+    listen_address           = "0.0.0.0"
+    listen_port              = 12347
+    max_allowed_payload_size = "64KiB"
+
+    rate_limiting {
+      enabled    = true
+      rate       = 50
+      burst_size = 100
+    }
+  }
+
+  extra_log_labels = {
+    service_name = "portal-web",
+    source       = "faro",
+  }
+
+  output {
+    logs   = [loki.process.faro.receiver]
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Faro puts a line's trace in the text (traceID=…); portal-api's OTLP logs carry it as trace_id structured metadata,
+// which Grafana's Loki → Tempo and Tempo → Loki links match. Copy it there, only when it is a 32-hex trace id (the
+// payload is public input).
+loki.process "faro" {
+  stage.regex {
+    expression = `\btraceID=(?P<trace_id>[0-9a-f]{32})\b`
+  }
+
+  stage.structured_metadata {
+    values = { trace_id = "" }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = sys.env("LOKI_URL") + "/loki/api/v1/push"
+  }
+}
+
+// Metrics: compose/metrics.alloy or kubernetes/metrics.alloy forwards scrapes here.
+prometheus.remote_write "default" {
+  endpoint {
+    url = sys.env("PROMETHEUS_URL") + "/api/v1/write"
+  }
+}

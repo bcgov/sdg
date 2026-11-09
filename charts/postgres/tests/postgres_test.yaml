@@ -82,7 +82,7 @@ tests:
       - notExists:
           path: spec.postGISVersion
 
-  - it: init SQL creates PostGIS and gives the app user the public schema
+  - it: init SQL creates PostGIS and pg_cron and gives the app user the public and cron schemas
     template: templates/init-sql.yaml
     asserts:
       - isKind:
@@ -95,6 +95,9 @@ tests:
           value: |
             \c portal
             CREATE EXTENSION IF NOT EXISTS postgis;
+            -- pg_cron needs a superuser to install; the app user schedules its own jobs in migrations.
+            CREATE EXTENSION IF NOT EXISTS pg_cron;
+            GRANT USAGE ON SCHEMA cron TO portal;
             ALTER SCHEMA public OWNER TO portal;
 
   - it: init SQL skips PostGIS without postGISVersion
@@ -106,6 +109,9 @@ tests:
           path: data["init.sql"]
           value: |
             \c portal
+            -- pg_cron needs a superuser to install; the app user schedules its own jobs in migrations.
+            CREATE EXTENSION IF NOT EXISTS pg_cron;
+            GRANT USAGE ON SCHEMA cron TO portal;
             ALTER SCHEMA public OWNER TO portal;
 
   - it: lets portal-api reach 5432 and the cluster's own pods reach each other
@@ -170,7 +176,7 @@ tests:
             requests: { cpu: 10m, memory: 64Mi }
             limits: { memory: 256Mi }
 
-  - it: caps WAL by default so it can't fill a 1Gi data volume
+  - it: caps WAL by default so it can't fill a 1Gi data volume, and preloads pg_cron for the portal database
     template: templates/postgrescluster.yaml
     asserts:
       - equal:
@@ -178,6 +184,9 @@ tests:
           value:
             max_wal_size: 256MB
             min_wal_size: 64MB
+            shared_preload_libraries: pg_cron
+            cron.database_name: portal
+            cron.use_background_workers: 'on'
 
   - it: renders no patroni section without parameters
     template: templates/postgrescluster.yaml

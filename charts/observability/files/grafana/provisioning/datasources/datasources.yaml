@@ -1,0 +1,57 @@
+# Grafana datasources (doc 20). URLs come from the environment (PROMETHEUS_URL, LOKI_URL, TEMPO_URL) so compose and the
+# chart share this file. Traces link to their logs (trace_id) and logs link back to their traces.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: $PROMETHEUS_URL
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: $LOKI_URL
+    editable: false
+    jsonData:
+      derivedFields:
+        # portal-api OTLP logs carry trace_id as structured metadata; pino's stdout JSON as a field.
+        - name: trace_id
+          matcherType: label
+          matcherRegex: trace_id
+          url: '$${__value.raw}'
+          datasourceUid: tempo
+        - name: trace_id (json)
+          matcherRegex: '"trace_id":"(\w+)"'
+          url: '$${__value.raw}'
+          datasourceUid: tempo
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: $TEMPO_URL
+    editable: false
+    jsonData:
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      streamingEnabled:
+        search: true
+      tracesToLogsV2:
+        datasourceUid: loki
+        filterByTraceID: true
+        spanStartTimeShift: -5m
+        spanEndTimeShift: 5m
+        customQuery: true
+        query: '{service_name="$${__span.tags["service.name"]}"} | trace_id="$${__trace.traceId}"'

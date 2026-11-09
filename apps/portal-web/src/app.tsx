@@ -8,7 +8,7 @@ export interface AppProps {
   router: ReturnType<typeof createAppRouter>;
 }
 
-export function App({ queryClient, router }: AppProps) {
+export function App({ queryClient, router }: Readonly<AppProps>) {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />

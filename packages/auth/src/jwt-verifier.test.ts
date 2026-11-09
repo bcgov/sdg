@@ -16,7 +16,7 @@ afterAll(() => idp.close());
 beforeEach(() => {
   idp.failDiscovery = false;
   idp.discoveryRequests = 0;
-  verifier = createJwtVerifier({ issuerUrl: idp.issuer, audience: CLIENT_ID });
+  verifier = createJwtVerifier({ issuerUrl: idp.issuer, fetch: idp.fetch, audience: CLIENT_ID });
 });
 
 /** Resolves to the AuthError code of a rejected verify, or 'accepted'. */
@@ -41,7 +41,7 @@ describe('createJwtVerifier', () => {
       expect(idp.discoveryRequests).toBe(1);
     });
     it('accepts any of several configured audiences', async () => {
-      const multi = createJwtVerifier({ issuerUrl: idp.issuer, audience: ['other', 'api'] });
+      const multi = createJwtVerifier({ issuerUrl: idp.issuer, fetch: idp.fetch, audience: ['other', 'api'] });
       await expect(multi.verify(await idp.sign({ sub: 'x' }, { audience: 'api' }))).resolves.toMatchObject({
         subject: 'x',
       });
@@ -52,7 +52,12 @@ describe('createJwtVerifier', () => {
       // Within the default 30 s tolerance it is still accepted.
       const justExpired = await idp.sign({ sub: 'x' }, { expiresIn: Math.floor(Date.now() / 1000) - 5 });
       await expect(verifier.verify(justExpired)).resolves.toMatchObject({ subject: 'x' });
-      const strict = createJwtVerifier({ issuerUrl: idp.issuer, audience: CLIENT_ID, clockToleranceSeconds: 0 });
+      const strict = createJwtVerifier({
+        issuerUrl: idp.issuer,
+        fetch: idp.fetch,
+        audience: CLIENT_ID,
+        clockToleranceSeconds: 0,
+      });
       expect(await outcome(justExpired, strict)).toBe('invalid_token');
     });
     it('throws AuthError(invalid_token) for a not-yet-valid token', async () => {

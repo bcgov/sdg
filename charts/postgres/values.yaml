@@ -40,6 +40,12 @@ instances:
 parameters:
   max_wal_size: 256MB
   min_wal_size: 64MB
+  # pg_cron runs portal-database's scheduled jobs (e.g. deleting expired sessions). PGO adds its own libraries to
+  # shared_preload_libraries; changing it needs a restart. cron.database_name must be user.database.
+  shared_preload_libraries: pg_cron
+  cron.database_name: portal
+  # Jobs run in background workers, not libpq connections to localhost that pg_hba would need to authenticate.
+  cron.use_background_workers: 'on'
 
 backups:
   # false: no pgBackRest (repo host, sidecars, backup Jobs, repo PVC), and PGO may remove it from an existing
