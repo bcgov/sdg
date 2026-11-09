@@ -40,16 +40,18 @@ export function activityMiddleware({ oidc, ttlSeconds }: ActivityOptions): Reque
   // A tenth of a short idle limit, so a steadily active user is always re-stamped before the limit passes.
   const stampAfterMs = Math.min(TOUCH_THRESHOLD_SECONDS, Math.floor(ttlSeconds / 10)) * 1000;
 
+  /**
+   * The back-channel call runs in the background: a slow identity provider must not hold the request, and regenerating
+   * at once narrows the window in which concurrent requests on the same idle session send their own logout.
+   */
   async function endIdleSession(req: Request, session: SessionData): Promise<void> {
     if (session.auth) {
-      try {
-        await oidc.endSession(session.auth.tokens);
-      } catch (error) {
+      oidc.endSession(session.auth.tokens).catch((error: unknown) => {
         logger.warn({
           msg: 'Ending the idle session at the identity provider failed; ending the portal session anyway',
           error: describeError(error),
         });
-      }
+      });
     }
     await sessionOp(req, 'regenerate');
   }

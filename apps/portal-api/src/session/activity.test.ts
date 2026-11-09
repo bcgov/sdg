@@ -97,11 +97,28 @@ describe('session idle limit and background requests (KTD8)', () => {
     at(11);
     expect((await backgroundRequest(agent)).status).toBe(401);
     expect(t.oidc.endSession).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith({
-      msg: 'Ending the idle session at the identity provider failed; ending the portal session anyway',
-      error: expect.objectContaining({ type: 'AuthError', code: 'end_session_failed', detail: 'invalid_grant' }),
-    });
+    // The call runs in the background, so its failure may be logged after the response.
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith({
+        msg: 'Ending the idle session at the identity provider failed; ending the portal session anyway',
+        error: expect.objectContaining({ type: 'AuthError', code: 'end_session_failed', detail: 'invalid_grant' }),
+      }),
+    );
     expect((await userRequest(agent)).status).toBe(401);
+    expect(await storedIds()).not.toContain(sid);
+  });
+
+  it('signs an idle-expired request out without waiting for the back-channel end-session call', async () => {
+    t.oidc.endSession.mockReturnValue(new Promise<void>(() => undefined));
+    const { agent, sid } = await signedIn();
+    at(6);
+    expect((await backgroundRequest(agent)).status).toBe(200);
+
+    at(11);
+    expect((await backgroundRequest(agent).timeout(2000)).status).toBe(401);
+    expect(t.oidc.endSession).toHaveBeenCalledTimes(1);
+    expect((await userRequest(agent).timeout(2000)).status).toBe(401);
+    expect(t.oidc.endSession).toHaveBeenCalledTimes(1);
     expect(await storedIds()).not.toContain(sid);
   });
 

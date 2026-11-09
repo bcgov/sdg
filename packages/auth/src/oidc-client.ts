@@ -12,8 +12,8 @@ import type {
 } from './types.js';
 
 const DEFAULT_SCOPES: readonly string[] = ['openid', 'profile', 'email'];
-/** openid-client's own default timeout for IdP requests. */
-const END_SESSION_TIMEOUT_MS = 30_000;
+/** Bounds the back-channel logout; callers run it in the background, so a slow IdP only delays the log line. */
+const END_SESSION_TIMEOUT_MS = 5_000;
 
 type Discover = () => Promise<client.Configuration>;
 
