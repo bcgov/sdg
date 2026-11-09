@@ -29,9 +29,12 @@ jobs:
         with:
           # The action's npm cache keys on package-lock.json; this repo uses pnpm
           cache: ''
+          # Workspace packages export their types from dist/, so build them before the type-aware lint;
+          # unbuilt, every import from them lints as `any`
           commands: |
             npm install -g "pnpm@$(node -p "require('./package.json').devEngines.packageManager.version")"
             pnpm install --frozen-lockfile
+            pnpm turbo run build --filter='./packages/*'
             pnpm lint
             pnpm format:check
             pnpm typecheck
