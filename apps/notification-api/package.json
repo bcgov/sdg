@@ -14,6 +14,7 @@
     "test": "vitest run",
     "admin-token": "node --use-system-ca scripts/login.ts",
     "seed": "node --use-system-ca scripts/seed.ts",
+    "send": "node --use-system-ca scripts/send.ts",
     "e2e": "node --use-system-ca scripts/e2e.ts"
   },
   "dependencies": {

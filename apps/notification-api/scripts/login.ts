@@ -9,6 +9,7 @@
 //   NOTIFICATION_CLIENT_ID      notification-api's own client; an admin needs its `admin` client role
 //   NOTIFICATION_CLIENT_SECRET  that client's secret; leave blank for a public client
 //   NOTIFICATION_LOGIN_PORT     callback port (default 8400); register http://localhost:<port>/callback on the client
+// Prints the issuer and client it signs in to on stderr first.
 // Exit code 0: signed in and printed the token. 1: missing settings, sign-in failed or timed out (5 minutes).
 import { spawn } from 'node:child_process';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
@@ -34,6 +35,7 @@ async function startLogin(): Promise<{ pending: PendingLogin; authorizationUrl: 
   const issuer = requiredEnv('KEYCLOAK_ISSUER_URL');
   const clientId = requiredEnv('NOTIFICATION_CLIENT_ID');
   const port = Number(optionalEnv('NOTIFICATION_LOGIN_PORT', '8400'));
+  console.error(`login: issuer ${issuer}, client ${clientId}`);
   const config = await discover(issuer, clientId, optionalEnv('NOTIFICATION_CLIENT_SECRET'));
   const pending: PendingLogin = {
     config,
