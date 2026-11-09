@@ -5,7 +5,7 @@ import type { SessionData } from 'express-session';
 
 import { describeError } from '../logging/describe-error.js';
 import { RELAY_STREAM_PATH } from '../notifications/relay-stream.path.js';
-import { TOUCH_THRESHOLD_SECONDS } from './postgres-session.store.js';
+import { TOUCH_THRESHOLD_SECONDS, type PostgresSessionStore } from './postgres-session.store.js';
 import { sessionOp } from './session.module.js';
 import './session.types.js';
 
@@ -16,6 +16,8 @@ export interface ActivityOptions {
   oidc: OidcClient;
   /** The idle limit, `SESSION_TTL_SECONDS`. */
   ttlSeconds: number;
+  /** Stamps activity on the stored session, leaving the request's copy unmodified. */
+  store: Pick<PostgresSessionStore, 'stampActivity'>;
 }
 
 /** True when a signed-in session's last user activity is older than the idle limit. */
@@ -32,10 +34,12 @@ function isStream(req: Request): boolean {
  * Applies the idle limit (KTD8), after the session middleware and before any guard. An idle-expired session is ended
  * at the identity provider over the back channel and replaced by an empty one, so the request proceeds signed out.
  * Otherwise a request without the background marker stamps `lastActivityAt` when the stored value is older than the
- * store's touch threshold or a tenth of the idle limit, whichever is shorter, so sessions are not rewritten per request. A signed-in session without a stamp (signed
- * in moments ago, or before this existed) gets one at its next request, background or not.
+ * store's touch threshold or a tenth of the idle limit, whichever is shorter, so sessions are not rewritten per request.
+ * A signed-in session without a stamp (signed in moments ago, or before this existed) gets one at its next request,
+ * background or not. The stamp goes straight to the store: changing `req.session` would make express-session save
+ * this request's whole copy at response end, over tokens a concurrent background refresh may have stored meanwhile.
  */
-export function activityMiddleware({ oidc, ttlSeconds }: ActivityOptions): RequestHandler {
+export function activityMiddleware({ oidc, ttlSeconds, store }: ActivityOptions): RequestHandler {
   const logger = new Logger('SessionActivity');
   // A tenth of a short idle limit, so a steadily active user is always re-stamped before the limit passes.
   const stampAfterMs = Math.min(TOUCH_THRESHOLD_SECONDS, Math.floor(ttlSeconds / 10)) * 1000;
@@ -63,9 +67,10 @@ export function activityMiddleware({ oidc, ttlSeconds }: ActivityOptions): Reque
     if (idleExpired(session, ttlSeconds, now)) return endIdleSession(req, session);
     if (isStream(req)) return;
     const last = session.lastActivityAt;
-    const userAction = req.get(BACKGROUND_HEADER) !== '1';
-    if (last === undefined || (userAction && now - last > stampAfterMs)) {
-      session.lastActivityAt = now;
+    // A background request only starts a missing clock.
+    const staleAfterMs = req.get(BACKGROUND_HEADER) === '1' ? Infinity : stampAfterMs;
+    if (last === undefined || now - last > staleAfterMs) {
+      await store.stampActivity(req.sessionID, now, staleAfterMs);
     }
   }
 

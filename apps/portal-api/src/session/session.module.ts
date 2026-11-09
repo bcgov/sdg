@@ -77,7 +77,7 @@ export class SessionModule implements NestModule {
     const oidc = this.moduleRef.get<OidcClient>(OIDC_CLIENT, { strict: false });
     // Only /api/* routes get a session; the /healthz probes are outside the prefix and never touch the session store.
     consumer
-      .apply(middleware, activityMiddleware({ oidc, ttlSeconds }))
+      .apply(middleware, activityMiddleware({ oidc, ttlSeconds, store: this.store }))
       .forRoutes({ path: '*path', method: RequestMethod.ALL });
   }
 }

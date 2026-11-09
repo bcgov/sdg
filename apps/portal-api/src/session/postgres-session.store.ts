@@ -57,6 +57,29 @@ export class PostgresSessionStore extends Store {
     settle('touch', this.extend(sid, session), callback);
   }
 
+  /**
+   * Stamps `lastActivityAt` on the stored session in one locked read-modify-write (KTD8), so the request's own session
+   * copy stays unmodified and express-session never saves it over tokens a concurrent request stored. It writes only
+   * when the stored stamp is missing or older than `at - staleAfterMs` (`Infinity`: only when missing), so a stamp never
+   * moves backwards. A stamp also keeps the row for at least the lifetime from `at`, as saving the copy would have; a
+   * missing or expired session is left alone.
+   */
+  async stampActivity(sid: string, at: number, staleAfterMs: number): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ sess: sessions.sess, expiresAt: sessions.expiresAt })
+        .from(sessions)
+        .where(and(eq(sessions.sid, sid), gt(sessions.expiresAt, new Date())))
+        .for('update');
+      if (!row) return;
+      const data = this.decode(row.sess, sid);
+      if (data.lastActivityAt !== undefined && at - data.lastActivityAt <= staleAfterMs) return;
+      const sess = encryptSession(this.key, JSON.stringify({ ...data, lastActivityAt: at }), sid);
+      const expiresAt = new Date(Math.max(row.expiresAt.getTime(), at + this.ttlMs));
+      await tx.update(sessions).set({ sess, expiresAt }).where(eq(sessions.sid, sid));
+    });
+  }
+
   private async read(sid: string): Promise<SessionData | null> {
     const [row] = await this.db
       .select({ sess: sessions.sess })
@@ -64,8 +87,7 @@ export class PostgresSessionStore extends Store {
       .where(and(eq(sessions.sid, sid), gt(sessions.expiresAt, new Date())));
     if (!row) return null;
     try {
-      const data: SessionData = JSON.parse(decryptSession(this.key, row.sess, sid));
-      return data;
+      return this.decode(row.sess, sid);
     } catch (error) {
       // Unreadable (e.g. SESSION_SECRET rotated): treat as signed out rather than failing the request.
       logger.warn(`Discarding unreadable session: ${error instanceof Error ? error.message : String(error)}`);
@@ -73,13 +95,26 @@ export class PostgresSessionStore extends Store {
     }
   }
 
+  /**
+   * Saves a request's session copy, keeping the stored `lastActivityAt` when it is newer: a copy loaded before a
+   * concurrent request's stamp (e.g. a background token refresh) must not roll the idle clock back.
+   */
   private async write(sid: string, session: SessionData): Promise<void> {
-    const sess = encryptSession(this.key, JSON.stringify(session), sid);
     const expiresAt = this.expiryOf(session);
-    await this.db
-      .insert(sessions)
-      .values({ sid, sess, expiresAt })
-      .onConflictDoUpdate({ target: sessions.sid, set: { sess, expiresAt } });
+    await this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ sess: sessions.sess })
+        .from(sessions)
+        .where(and(eq(sessions.sid, sid), gt(sessions.expiresAt, new Date())))
+        .for('update');
+      const stored = row ? this.decode(row.sess, sid).lastActivityAt : undefined;
+      const lastActivityAt = latest(session.lastActivityAt, stored);
+      const sess = encryptSession(this.key, JSON.stringify({ ...session, lastActivityAt }), sid);
+      await tx
+        .insert(sessions)
+        .values({ sid, sess, expiresAt })
+        .onConflictDoUpdate({ target: sessions.sid, set: { sess, expiresAt } });
+    });
   }
 
   private async remove(sid: string): Promise<void> {
@@ -95,10 +130,21 @@ export class PostgresSessionStore extends Store {
       .where(and(eq(sessions.sid, sid), lt(sessions.expiresAt, stale)));
   }
 
+  private decode(sess: string, sid: string): SessionData {
+    const data: SessionData = JSON.parse(decryptSession(this.key, sess, sid));
+    return data;
+  }
+
   private expiryOf(session: SessionData): Date {
     const expires = session.cookie.expires;
     return expires ? new Date(expires) : new Date(Date.now() + this.ttlMs);
   }
+}
+
+/** The later of two optional epoch-millisecond stamps. */
+function latest(a: number | undefined, b: number | undefined): number | undefined {
+  if (a === undefined) return b;
+  return b === undefined ? a : Math.max(a, b);
 }
 
 /** Bridges to express-session's callback API. The callback runs outside the try, so its own throws aren't misreported. */

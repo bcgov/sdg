@@ -33,6 +33,7 @@ describe('PostgresSessionStore', () => {
 
   const get = (sid: string) => call<SessionData | null>((cb) => store.get(sid, cb));
   const set = (sid: string, data: SessionData) => call<void>((cb) => store.set(sid, data, cb));
+  const stampedAt = async (sid: string) => (await get(sid))?.lastActivityAt;
   const expiryOf = async (sid: string): Promise<Date | undefined> => {
     const [row] = await database.db.select().from(sessions).where(eq(sessions.sid, sid));
     return row?.expiresAt;
@@ -99,6 +100,44 @@ describe('PostgresSessionStore', () => {
     const later = sessionExpiringIn(HOUR_MS + 10 * 60_000);
     await call<void>((cb) => store.touch('sid-1', later, cb));
     expect((await expiryOf('sid-1'))?.getTime()).toBe(later.cookie.expires?.getTime());
+  });
+
+  describe('activity stamps (KTD8)', () => {
+    const MINUTE = 60_000;
+    const T0 = Date.now();
+
+    it('stamps the stored session, leaves the rest of it as stored, and keeps it for the lifetime from then', async () => {
+      const data = sessionExpiringIn(MINUTE);
+      await set('sid-1', data);
+      await store.stampActivity('sid-1', T0, 5 * MINUTE);
+      expect(await get('sid-1')).toEqual({ ...JSON.parse(JSON.stringify(data)), lastActivityAt: T0 });
+      expect((await expiryOf('sid-1'))?.getTime()).toBe(T0 + HOUR_MS);
+    });
+
+    it('stamps only when the stored stamp is older than the interval, and never moves it backwards', async () => {
+      await set('sid-1', { ...sessionExpiringIn(HOUR_MS), lastActivityAt: T0 });
+      await store.stampActivity('sid-1', T0 + 4 * MINUTE, 5 * MINUTE);
+      expect(await stampedAt('sid-1')).toBe(T0);
+      await store.stampActivity('sid-1', T0 - 10 * MINUTE, 5 * MINUTE);
+      expect(await stampedAt('sid-1')).toBe(T0);
+      await store.stampActivity('sid-1', T0 + 6 * MINUTE, 5 * MINUTE);
+      expect(await stampedAt('sid-1')).toBe(T0 + 6 * MINUTE);
+    });
+
+    it('does not revive a destroyed session', async () => {
+      await store.stampActivity('sid-gone', T0, 5 * MINUTE);
+      expect(await database.db.$count(sessions)).toBe(0);
+    });
+
+    it('keeps a newer stored stamp when a session copy with an older or no stamp is saved', async () => {
+      await set('sid-1', { ...sessionExpiringIn(HOUR_MS), lastActivityAt: T0 });
+      await set('sid-1', { ...sessionExpiringIn(HOUR_MS), lastActivityAt: T0 - 10 * MINUTE });
+      expect(await stampedAt('sid-1')).toBe(T0);
+      await set('sid-1', sessionExpiringIn(HOUR_MS));
+      expect(await stampedAt('sid-1')).toBe(T0);
+      await set('sid-1', { ...sessionExpiringIn(HOUR_MS), lastActivityAt: T0 + MINUTE });
+      expect(await stampedAt('sid-1')).toBe(T0 + MINUTE);
+    });
   });
 
   it('logs { msg, err } for a failed operation without a callback', async () => {
