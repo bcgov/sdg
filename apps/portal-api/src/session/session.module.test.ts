@@ -1,16 +1,16 @@
 import 'reflect-metadata';
 import { Global, Module, RequestMethod, type FactoryProvider, type MiddlewareConsumer } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getDrizzleToken } from '@nestjs/drizzle';
 import { Test } from '@nestjs/testing';
-import { RedisStore } from 'connect-redis';
 import type { Request } from 'express';
-import { MemoryStore, type Store } from 'express-session';
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import { createMockConfig } from '../../test/utils/config.service.js';
 import { isRequest } from '../../test/utils/http.js';
-import { VALKEY_CLIENT, type ValkeyClient } from '../valkey/valkey.module.js';
-import { SESSION_COOKIE, SESSION_PREFIX, SESSION_STORE, SessionModule, sessionOp } from './session.module.js';
+import type { PortalDatabase } from '../database/database.module.js';
+import { PostgresSessionStore } from './postgres-session.store.js';
+import { SESSION_COOKIE, SESSION_STORE, SessionModule, sessionOp } from './session.module.js';
 
 interface MockSession {
   save: (fn: (err?: unknown) => void) => void;
@@ -24,8 +24,21 @@ function createRequestWithSession(sessionObj: MockSession): Request {
   throw new Error('Invalid request');
 }
 
-function createMockStore(): Store {
-  return new MemoryStore();
+function isPortalDatabase(value: unknown): value is PortalDatabase {
+  return typeof value === 'object' && value !== null;
+}
+
+function createMockDatabase(): PortalDatabase {
+  const db: unknown = {};
+  if (isPortalDatabase(db)) return db;
+  throw new Error('Invalid database');
+}
+
+function createMockStore(): PostgresSessionStore {
+  return new PostgresSessionStore(createMockDatabase(), {
+    key: Buffer.alloc(32),
+    ttlSeconds: 1800,
+  });
 }
 
 type ForRoutesFn = (route: { path: string; method: RequestMethod }) => MiddlewareConsumer;
@@ -54,43 +67,31 @@ function createMockConsumer(): {
   throw new Error('Invalid middleware consumer');
 }
 
-function isValkeyClient(value: unknown): value is ValkeyClient {
-  return typeof value === 'object' && value !== null;
-}
-
-function createMockValkeyClient(): ValkeyClient {
-  const client: unknown = {};
-  if (isValkeyClient(client)) return client;
-  throw new Error('Invalid Valkey client');
-}
-
 @Global()
 @Module({})
 class TestConfigModule {}
 
 describe('SessionModule Unit Test Suite', () => {
-  it('Should define SESSION_STORE provider with ValkeyClient and ConfigService injection', () => {
+  it('Should define SESSION_STORE provider with getDrizzleToken and ConfigService injection', () => {
     const providers: unknown[] = Reflect.getMetadata('providers', SessionModule) ?? [];
     const provider = providers.find(
-      (p): p is FactoryProvider<Store> =>
+      (p): p is FactoryProvider<PostgresSessionStore> =>
         typeof p === 'object' && p !== null && 'provide' in p && p.provide === SESSION_STORE,
     );
 
     expect(provider).toBeDefined();
-    expect(provider!.inject).toEqual([VALKEY_CLIENT, ConfigService]);
+    expect(provider!.inject).toEqual([getDrizzleToken(), ConfigService]);
 
-    const mockClient = createMockValkeyClient();
+    const mockDb = createMockDatabase();
     const { config: mockConfig, getMock } = createMockConfig({
-      APP_URL: 'https://portal.example.com',
-      SESSION_SECRET: 'a'.repeat(32),
+      SESSION_SECRET: 's'.repeat(32),
       SESSION_TTL_SECONDS: 3600,
     });
 
-    const store = provider!.useFactory(mockClient, mockConfig);
-    expect(store).toBeInstanceOf(RedisStore);
-    expect(getMock).toHaveBeenCalledWith('SESSION_TTL_SECONDS', {
-      infer: true,
-    });
+    const store = provider!.useFactory(mockDb, mockConfig);
+    expect(store).toBeInstanceOf(PostgresSessionStore);
+    expect(getMock).toHaveBeenCalledWith('SESSION_SECRET', { infer: true });
+    expect(getMock).toHaveBeenCalledWith('SESSION_TTL_SECONDS', { infer: true });
   });
 
   describe('configure', () => {
@@ -111,12 +112,8 @@ describe('SessionModule Unit Test Suite', () => {
         path: '*path',
         method: RequestMethod.ALL,
       });
-      expect(getMock).toHaveBeenCalledWith('SESSION_TTL_SECONDS', {
-        infer: true,
-      });
-      expect(getMock).toHaveBeenCalledWith('SESSION_SECRET', {
-        infer: true,
-      });
+      expect(getMock).toHaveBeenCalledWith('SESSION_TTL_SECONDS', { infer: true });
+      expect(getMock).toHaveBeenCalledWith('SESSION_SECRET', { infer: true });
       expect(getMock).toHaveBeenCalledWith('APP_URL', { infer: true });
     });
 
@@ -147,7 +144,7 @@ describe('SessionModule Unit Test Suite', () => {
         SESSION_SECRET: 's'.repeat(32),
         SESSION_TTL_SECONDS: 3600,
       });
-      const mockClient = createMockValkeyClient();
+      const mockDb = createMockDatabase();
 
       const moduleRef = await Test.createTestingModule({
         imports: [
@@ -156,9 +153,9 @@ describe('SessionModule Unit Test Suite', () => {
             module: TestConfigModule,
             providers: [
               { provide: ConfigService, useValue: mockConfig },
-              { provide: VALKEY_CLIENT, useValue: mockClient },
+              { provide: getDrizzleToken(), useValue: mockDb },
             ],
-            exports: [ConfigService, VALKEY_CLIENT],
+            exports: [ConfigService, getDrizzleToken()],
             global: true,
           },
         ],
@@ -166,14 +163,13 @@ describe('SessionModule Unit Test Suite', () => {
 
       expect(moduleRef).toBeDefined();
       expect(moduleRef.get(SessionModule)).toBeInstanceOf(SessionModule);
-      expect(moduleRef.get(SESSION_STORE)).toBeInstanceOf(RedisStore);
+      expect(moduleRef.get(SESSION_STORE)).toBeInstanceOf(PostgresSessionStore);
     });
   });
 
   describe('constants', () => {
-    it('Should export expected cookie name, prefix and store symbol', () => {
+    it('Should export expected cookie name and store symbol', () => {
       expect(SESSION_COOKIE).toBe('portal.sid');
-      expect(SESSION_PREFIX).toBe('portal:sess:');
       expect(typeof SESSION_STORE).toBe('symbol');
     });
   });

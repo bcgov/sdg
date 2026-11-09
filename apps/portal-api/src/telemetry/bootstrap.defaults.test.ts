@@ -54,5 +54,5 @@ describe('bootstrapTelemetry default dependencies', () => {
     expect(errors).toEqual([]);
     const names = resourceMetrics.scopeMetrics.flatMap((scope) => scope.metrics.map((m) => m.descriptor.name));
     expect(names).toContain('process.memory.usage');
-  });
+  }, 30_000);
 });

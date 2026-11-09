@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { EnvValidationError, validateEnv } from './env.js';
 
@@ -34,7 +35,7 @@ describe('Env Config Unit Test Suite', () => {
       expect(env.KEYCLOAK_ISSUER_URL).toBe('https://keycloak.example.com/realms/portal');
     });
 
-    it('strips every trailing slash from APP_URL and KEYCLOAK_ISSUER_URL', () => {
+    it('Should strip every trailing slash from APP_URL and KEYCLOAK_ISSUER_URL', () => {
       const env = validateEnv({
         ...valid,
         APP_URL: 'https://portal.example.com///',
@@ -47,7 +48,7 @@ describe('Env Config Unit Test Suite', () => {
       );
     });
 
-    it('coerces PORT, SESSION_TTL_SECONDS and TRUST_PROXY', () => {
+    it('Should coerce PORT, SESSION_TTL_SECONDS and TRUST_PROXY', () => {
       const env = validateEnv({ ...valid, PORT: '8080', SESSION_TTL_SECONDS: '600', TRUST_PROXY: 'true' });
       expect(env.PORT).toBe(8080);
       expect(env.SESSION_TTL_SECONDS).toBe(600);
@@ -56,21 +57,19 @@ describe('Env Config Unit Test Suite', () => {
       expect(errorOf({ ...valid, PORT: '70000' }).keys).toEqual(['PORT']);
     });
 
-    it('Should support https APP_URL, http KEYCLOAK_ISSUER_URL, postgresql DATABASE_URL and rediss VALKEY_URL without trailing slashes', () => {
+    it('Should support https APP_URL, https KEYCLOAK_ISSUER_URL and postgresql DATABASE_URL without trailing slashes', () => {
       const env = validateEnv({
         ...valid,
         NODE_ENV: 'production',
         APP_URL: 'https://portal.example.com',
-        KEYCLOAK_ISSUER_URL: 'http://keycloak.local/realms/portal',
+        KEYCLOAK_ISSUER_URL: 'https://keycloak.local/realms/portal',
         DATABASE_URL: 'postgresql://portal:portal@localhost:5432/portal',
-        VALKEY_URL: 'rediss://localhost:6379',
         TRUST_PROXY: 'false',
       });
       expect(env.NODE_ENV).toBe('production');
       expect(env.APP_URL).toBe('https://portal.example.com');
-      expect(env.KEYCLOAK_ISSUER_URL).toBe('http://keycloak.local/realms/portal');
+      expect(env.KEYCLOAK_ISSUER_URL).toBe('https://keycloak.local/realms/portal');
       expect(env.DATABASE_URL).toBe('postgresql://portal:portal@localhost:5432/portal');
-      expect(env.VALKEY_URL).toBe('rediss://localhost:6379');
       expect(env.TRUST_PROXY).toBe(false);
     });
 
@@ -106,7 +105,7 @@ describe('Env Config Unit Test Suite', () => {
       expect(error.message).toContain('SESSION_SECRET');
     });
 
-    it('rejects a non-postgres DATABASE_URL', () => {
+    it('Should reject a non-postgres DATABASE_URL', () => {
       const error = errorOf({ ...valid, DATABASE_URL: 'mysql://localhost/portal' });
       expect(error.keys).toEqual(['DATABASE_URL']);
       expect(error.message).toMatch(/postgres:\/\/ or postgresql:\/\//);
@@ -114,13 +113,13 @@ describe('Env Config Unit Test Suite', () => {
       expect(errorOf({ ...valid, KEYCLOAK_CLIENT_SECRET: '' }).keys).toEqual(['KEYCLOAK_CLIENT_SECRET']);
     });
 
-    it('rejects a plain http KEYCLOAK_ISSUER_URL', () => {
+    it('Should reject a plain http KEYCLOAK_ISSUER_URL', () => {
       const error = errorOf({ ...valid, KEYCLOAK_ISSUER_URL: 'http://keycloak.example.com/realms/portal' });
       expect(error.keys).toEqual(['KEYCLOAK_ISSUER_URL']);
       expect(error.message).toContain('Must use https://');
     });
 
-    it('reports invalid keys without their values', () => {
+    it('Should report invalid keys without their values', () => {
       const secret = 'super-secret-but-short';
       const error = errorOf({
         ...valid,
@@ -131,17 +130,29 @@ describe('Env Config Unit Test Suite', () => {
       expect(error.message).not.toContain('hunter2');
       expect(error.message).toMatch(/^Invalid environment:/);
     });
+
+    it('Should format issue with empty path as (root)', () => {
+      const error = new EnvValidationError([
+        {
+          code: z.ZodIssueCode.custom,
+          message: 'Expected object',
+          path: [],
+        },
+      ]);
+      expect(error.message).toMatch(/^Invalid environment:\n\s+\(root\):/);
+      expect(error.keys).toEqual(['']);
+    });
   });
 
   describe('OpenTelemetry vars', () => {
-    it('leaves OTEL_EXPORTER_OTLP_ENDPOINT undefined when unset', () => {
+    it('Should leave OTEL_EXPORTER_OTLP_ENDPOINT undefined when unset', () => {
       const env = validateEnv(valid);
       expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
       expect(validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: '' }).OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
       expect(env.OTEL_TRACES_SAMPLER_ARG).toBe(1);
     });
 
-    it('accepts an http(s) OTEL_EXPORTER_OTLP_ENDPOINT and defaults OTEL_SERVICE_NAME to portal-api', () => {
+    it('Should accept an http(s) OTEL_EXPORTER_OTLP_ENDPOINT and defaults OTEL_SERVICE_NAME to portal-api', () => {
       const env = validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'http://alloy:4318/' });
       expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://alloy:4318');
       expect(env.OTEL_SERVICE_NAME).toBe('portal-api');
@@ -150,7 +161,7 @@ describe('Env Config Unit Test Suite', () => {
       ).toBe('https://c.example.com');
     });
 
-    it('rejects a non-http OTEL_EXPORTER_OTLP_ENDPOINT and a sampler ratio outside 0–1', () => {
+    it('Should reject a non-http OTEL_EXPORTER_OTLP_ENDPOINT and a sampler ratio outside 0–1', () => {
       expect(errorOf({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'grpc://alloy:4317' }).keys).toEqual([
         'OTEL_EXPORTER_OTLP_ENDPOINT',
       ]);

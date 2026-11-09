@@ -18,6 +18,7 @@ export function createRequest(options: {
   originalUrl?: string;
   baseUrl?: string;
   route?: { path: unknown };
+  path?: string;
 }): Request {
   const req = new IncomingMessage(new Socket());
   if (options.method !== undefined) req.method = options.method;
@@ -32,6 +33,7 @@ export function createRequest(options: {
     originalUrl: options.originalUrl,
     baseUrl: options.baseUrl ?? '',
     route: options.route,
+    path: options.path ?? options.url ?? '',
   });
   if (isRequest(customReq)) return customReq;
   throw new Error('Invalid request');

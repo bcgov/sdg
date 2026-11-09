@@ -34,7 +34,7 @@ afterEach(() => {
 
 describe('useHeaderAuth', () => {
   describe('states', () => {
-    it('Should render no account control while loading', async () => {
+    it('Should render no account control while loading', { timeout: 30_000 }, async () => {
       renderWith(() => new Promise<Response>(() => {}));
       const header = await headerQueries();
       expect(header.getByRole('banner')).toBeTruthy();

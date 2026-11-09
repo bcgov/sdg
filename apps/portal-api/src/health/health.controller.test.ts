@@ -31,7 +31,7 @@ describe('Health Integration Test Suite', () => {
   });
 
   describe('GET /healthz/ready', () => {
-    it('returns 200 with database and keycloak up', async () => {
+    it('Should return 200 with database and keycloak up', async () => {
       const res = await t.http().get('/healthz/ready');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('ok');
