@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
   type ExecutionContext,
 } from '@nestjs/common';
@@ -33,7 +34,8 @@ function bearerToken(header: string | string[] | undefined): string | null {
 
 /**
  * Verifies the request's bearer token and classifies it (KTD5). A missing, invalid or unclassifiable token is 401;
- * an error that is no verdict on the token (e.g. the credential lookup failing) is logged and rethrown.
+ * the issuer's keys being out of reach is 503; any other error that is no verdict on the token (e.g. the credential
+ * lookup failing) is logged and rethrown.
  */
 @Injectable()
 export class PrincipalResolver {
@@ -66,6 +68,14 @@ export class PrincipalResolver {
       return principal;
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
+      if (isAuthError(error) && error.code === 'verifier_unavailable') {
+        // No verdict on the token: 503 lets a client retry where a 401 would sign it out.
+        this.logger.warn({
+          msg: 'Could not verify the bearer token: issuer keys unavailable',
+          error: describeError(error),
+        });
+        throw new ServiceUnavailableException();
+      }
       if (isAuthError(error)) {
         this.logger.debug({ msg: 'Rejected bearer token', error: describeError(error) });
         throw new UnauthorizedException();
