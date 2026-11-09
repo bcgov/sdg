@@ -24,12 +24,31 @@ function withChunks(dir: string, file: string): string {
   return [code, ...chunks].join('\n');
 }
 
+/** Runs the given bin and returns the output. */
+function runBin(name: 'vite' | 'tsc', args: string[]) {
+  const script =
+    name === 'vite'
+      ? join(packageDir, 'node_modules/vite/bin/vite.js')
+      : join(packageDir, 'node_modules/typescript/bin/tsc');
+  if (name === 'vite') {
+    const env = { ...process.env, NODE_ENV: 'production' };
+    return execFileSync(process.execPath, [script, ...args], {
+      cwd: packageDir,
+      env,
+    });
+  }
+  return execFileSync(process.execPath, [script, ...args], { cwd: packageDir });
+}
+
 describe('@repo/sdg-header package', () => {
   describe('package.json', () => {
     it('exports "." and "./react" (types + import) and "./cdn"', () => {
       expect(manifest.exports).toEqual({
         '.': { types: './dist/index.d.ts', import: './dist/index.js' },
-        './react': { types: './dist/react/index.d.ts', import: './dist/react/index.js' },
+        './react': {
+          types: './dist/react/index.d.ts',
+          import: './dist/react/index.js',
+        },
         './cdn': './dist/cdn/sdg-header.js',
       });
       expect(manifest.files).toEqual(['dist']);
@@ -37,10 +56,15 @@ describe('@repo/sdg-header package', () => {
     });
 
     it('depends on lit and Font Awesome solid icons via the catalog', () => {
-      expect(manifest.dependencies).toEqual({ '@fortawesome/free-solid-svg-icons': 'catalog:', lit: 'catalog:' });
+      expect(manifest.dependencies).toEqual({
+        '@fortawesome/free-solid-svg-icons': 'catalog:',
+        lit: 'catalog:',
+      });
       // React is only needed by the ./react entry, so it is an optional peer.
       expect(manifest.peerDependencies).toEqual({ react: 'catalog:' });
-      expect(manifest.peerDependenciesMeta).toEqual({ react: { optional: true } });
+      expect(manifest.peerDependenciesMeta).toEqual({
+        react: { optional: true },
+      });
       expect(Object.keys(manifest.devDependencies)).toContain('@bcgov/design-tokens');
     });
 
@@ -55,14 +79,11 @@ describe('@repo/sdg-header package', () => {
 
     beforeAll(() => {
       outDir = mkdtempSync(join(tmpdir(), 'sdg-header-build-'));
-      const bin = (name: string): string => join(packageDir, 'node_modules/.bin', name);
       // Vitest sets NODE_ENV=test, which makes Vite bundle Lit's dev build; build as `pnpm build` does.
-      const env = { ...process.env, NODE_ENV: 'production' };
-      const vite = (...args: string[]) =>
-        execFileSync(bin('vite'), ['build', '--logLevel', 'error', ...args], { cwd: packageDir, env });
+      const vite = (...args: string[]) => runBin('vite', ['build', '--logLevel', 'error', ...args]);
       vite('--outDir', outDir);
       vite('--mode', 'cdn', '--outDir', join(outDir, 'cdn'));
-      execFileSync(bin('tsc'), ['-p', 'tsconfig.build.json', '--outDir', outDir], { cwd: packageDir });
+      runBin('tsc', ['-p', 'tsconfig.build.json', '--outDir', outDir]);
     }, 120_000);
 
     afterAll(() => {

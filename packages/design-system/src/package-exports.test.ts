@@ -11,9 +11,20 @@ import manifest from '../package.json' with { type: 'json' };
 
 // fileURLToPath on the string: jsdom replaces the global URL class.
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), '..');
-const components = readdirSync(join(packageDir, 'src/components'), { withFileTypes: true })
+const components = readdirSync(join(packageDir, 'src/components'), {
+  withFileTypes: true,
+})
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
+
+/** Runs the given bin and returns the output. */
+function runBin(name: 'vite' | 'tsc', args: string[]) {
+  const script =
+    name === 'vite'
+      ? join(packageDir, 'node_modules/vite/bin/vite.js')
+      : join(packageDir, 'node_modules/typescript/bin/tsc');
+  return execFileSync(process.execPath, [script, ...args], { cwd: packageDir });
+}
 
 describe('package.json', () => {
   it('exposes only the components/*, icons, fonts.css and styles.css subpaths (no root export)', () => {
@@ -27,7 +38,10 @@ describe('package.json', () => {
       types: './dist/components/*/index.d.ts',
       import: './dist/components/*/index.js',
     });
-    expect(manifest.exports['./icons']).toEqual({ types: './dist/icons/index.d.ts', import: './dist/icons/index.js' });
+    expect(manifest.exports['./icons']).toEqual({
+      types: './dist/icons/index.d.ts',
+      import: './dist/icons/index.js',
+    });
     expect(manifest.exports['./fonts.css']).toBe('./src/fonts.css');
     expect(manifest.exports['./styles.css']).toBe('./dist/styles.css');
   });
@@ -37,7 +51,10 @@ describe('package.json', () => {
   });
 
   it('peers react, depends on the design system and Font Awesome Free via the catalog', () => {
-    expect(manifest.peerDependencies).toEqual({ react: 'catalog:', 'react-dom': 'catalog:' });
+    expect(manifest.peerDependencies).toEqual({
+      react: 'catalog:',
+      'react-dom': 'catalog:',
+    });
     expect(manifest.dependencies).toEqual({
       '@bcgov/bc-sans': 'catalog:',
       '@bcgov/design-system-react-components': 'catalog:',
@@ -64,9 +81,8 @@ describe('build output', () => {
 
   beforeAll(() => {
     outDir = mkdtempSync(join(tmpdir(), 'design-system-build-'));
-    const bin = (name: string): string => join(packageDir, 'node_modules/.bin', name);
-    execFileSync(bin('vite'), ['build', '--outDir', outDir, '--logLevel', 'error'], { cwd: packageDir });
-    execFileSync(bin('tsc'), ['-p', 'tsconfig.build.json', '--outDir', outDir], { cwd: packageDir });
+    runBin('vite', ['build', '--outDir', outDir, '--logLevel', 'error']);
+    runBin('tsc', ['-p', 'tsconfig.build.json', '--outDir', outDir]);
   }, 120_000);
 
   afterAll(() => {

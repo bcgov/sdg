@@ -28,6 +28,15 @@ function coreModuleGraph(entry: string): Set<string> {
   return seen;
 }
 
+/** Runs the given bin and returns the output. */
+function runBin(name: 'vite' | 'tsc', args: string[]) {
+  const script =
+    name === 'vite'
+      ? join(packageDir, 'node_modules/vite/bin/vite.js')
+      : join(packageDir, 'node_modules/typescript/bin/tsc');
+  return execFileSync(process.execPath, [script, ...args], { cwd: packageDir });
+}
+
 describe('auth package', () => {
   describe('package.json', () => {
     it('exposes only the ., ./nestjs and ./testing subpaths', () => {
@@ -81,9 +90,10 @@ describe('build output', () => {
 
   beforeAll(() => {
     outDir = mkdtempSync(join(tmpdir(), 'auth-build-'));
-    const bin = (name: string): string => join(packageDir, 'node_modules/.bin', name);
-    execFileSync(bin('vite'), ['build', '--outDir', outDir, '--logLevel', 'error'], { cwd: packageDir });
-    execFileSync(bin('tsc'), ['-p', 'tsconfig.build.json', '--outDir', outDir], { cwd: packageDir });
+    // Both vite and tsc are JavaScript scripts that can be invoked directly by the Node runtime (process.execPath),
+    // which is cross-platform, avoids shell invocation, and handles paths with spaces seamlessly
+    runBin('vite', ['build', '--outDir', outDir, '--logLevel', 'error']);
+    runBin('tsc', ['-p', 'tsconfig.build.json', '--outDir', outDir]);
   }, 120_000);
 
   afterAll(() => {

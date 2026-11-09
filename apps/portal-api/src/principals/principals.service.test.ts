@@ -26,17 +26,60 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
  * (as if another transaction had not committed yet), but the row exists by the time of the insert.
  */
 function withStaleLookup(db: PortalDatabase): PortalDatabase {
-  const emptyLookup = { from: () => ({ where: () => ({ limit: () => Promise.resolve([]) }) }) };
+  const emptyLookup = {
+    from: () => ({ where: () => ({ limit: () => Promise.resolve([]) }) }),
+  };
   const transaction: PortalDatabase['transaction'] = (run, config) =>
     db.transaction(
       (tx) =>
-        run(new Proxy(tx, { get: (target, key) => (key === 'select' ? () => emptyLookup : Reflect.get(target, key)) })),
+        run(
+          new Proxy(tx, {
+            get: (target, key) => (key === 'select' ? () => emptyLookup : Reflect.get(target, key)),
+          }),
+        ),
       config,
     );
-  return new Proxy(db, { get: (target, key) => (key === 'transaction' ? transaction : Reflect.get(target, key)) });
+  return new Proxy(db, {
+    get: (target, key) => (key === 'transaction' ? transaction : Reflect.get(target, key)),
+  });
 }
 
-describe('PrincipalsService.upsertFromLogin', () => {
+/**
+ * Simulates an insert returning no rows for the target table.
+ */
+function withFailedInsert(db: PortalDatabase, targetTable: typeof principals | typeof identities): PortalDatabase {
+  const emptyInsert = {
+    values: () => ({
+      returning: () => Promise.resolve([]),
+      onConflictDoUpdate: () => ({
+        returning: () => Promise.resolve([]),
+      }),
+    }),
+  };
+  const transaction: PortalDatabase['transaction'] = (run, config) =>
+    db.transaction(
+      (tx) =>
+        run(
+          new Proxy(tx, {
+            get: (target, key) => {
+              if (key === 'insert') {
+                return (table: typeof principals | typeof identities) => {
+                  if (table === targetTable) return emptyInsert;
+                  return table === principals ? tx.insert(principals) : tx.insert(identities);
+                };
+              }
+              return Reflect.get(target, key);
+            },
+          }),
+        ),
+      config,
+    );
+  return new Proxy(db, {
+    get: (target, key) => (key === 'transaction' ? transaction : Reflect.get(target, key)),
+  });
+}
+
+describe('PrincipalsService Unit Test Suite', () => {
   let database: TestDatabase;
   let service: PrincipalsService;
 
@@ -52,11 +95,15 @@ describe('PrincipalsService.upsertFromLogin', () => {
   });
 
   describe('first login', () => {
-    it('creates a principal and identity and returns principalId', async () => {
+    it('Should create a principal and identity and returns principalId', async () => {
       const { principalId } = await service.upsertFromLogin(user());
       const [principal] = await database.db.select().from(principals);
       const [identity] = await database.db.select().from(identities);
-      expect(principal).toMatchObject({ id: principalId, displayName: 'Ada Lovelace', email: 'ada@example.com' });
+      expect(principal).toMatchObject({
+        id: principalId,
+        displayName: 'Ada Lovelace',
+        email: 'ada@example.com',
+      });
       expect(principal?.lastLoginAt).toBeInstanceOf(Date);
       expect(identity).toMatchObject({
         principalId,
@@ -68,9 +115,17 @@ describe('PrincipalsService.upsertFromLogin', () => {
       });
     });
 
-    it('stores claims without token fields', async () => {
+    it('Should store claims without token fields', async () => {
       await service.upsertFromLogin(
-        user({ claims: { sub: 'sub-123', locale: 'en', access_token: 'a', refresh_token: 'r', id_token: 'i' } }),
+        user({
+          claims: {
+            sub: 'sub-123',
+            locale: 'en',
+            access_token: 'a',
+            refresh_token: 'r',
+            id_token: 'i',
+          },
+        }),
       );
       const [identity] = await database.db.select().from(identities);
       expect(identity?.claims).toEqual({ sub: 'sub-123', locale: 'en' });
@@ -79,21 +134,33 @@ describe('PrincipalsService.upsertFromLogin', () => {
   });
 
   describe('returning login', () => {
-    it('updates identity and principal fields and last_login_at', async () => {
+    it('Should update identity and principal fields and last_login_at', async () => {
       await service.upsertFromLogin(user());
       const [before] = await database.db.select().from(identities);
       await service.upsertFromLogin(
-        user({ name: 'Ada King', email: 'ada.king@example.com', emailVerified: false, username: 'aking' }),
+        user({
+          name: 'Ada King',
+          email: 'ada.king@example.com',
+          emailVerified: false,
+          username: 'aking',
+        }),
       );
       const [principal] = await database.db.select().from(principals);
       const [identity] = await database.db.select().from(identities);
-      expect(principal).toMatchObject({ displayName: 'Ada King', email: 'ada.king@example.com' });
-      expect(identity).toMatchObject({ email: 'ada.king@example.com', emailVerified: false, username: 'aking' });
+      expect(principal).toMatchObject({
+        displayName: 'Ada King',
+        email: 'ada.king@example.com',
+      });
+      expect(identity).toMatchObject({
+        email: 'ada.king@example.com',
+        emailVerified: false,
+        username: 'aking',
+      });
       expect(identity!.lastLoginAt!.getTime()).toBeGreaterThanOrEqual(before!.lastLoginAt!.getTime());
       expect(identity!.updatedAt.getTime()).toBeGreaterThanOrEqual(before!.updatedAt.getTime());
     });
 
-    it('keeps the same principalId', async () => {
+    it('Should keep the same principalId', async () => {
       const first = await service.upsertFromLogin(user());
       const second = await service.upsertFromLogin(user({ name: 'Someone Else' }));
       expect(second.principalId).toBe(first.principalId);
@@ -105,7 +172,7 @@ describe('PrincipalsService.upsertFromLogin', () => {
   });
 
   describe('concurrency', () => {
-    it('does not duplicate principals when two first logins race', async () => {
+    it('Should not duplicate principals when two first logins race', async () => {
       const winner = await service.upsertFromLogin(user());
       const loser = await new PrincipalsService(withStaleLookup(database.db)).upsertFromLogin(user({ name: 'Ada L.' }));
       expect(loser.principalId).toBe(winner.principalId);
@@ -113,6 +180,18 @@ describe('PrincipalsService.upsertFromLogin', () => {
       expect(await database.db.$count(identities)).toBe(1);
       const [principal] = await database.db.select().from(principals).where(eq(principals.id, winner.principalId));
       expect(principal?.displayName).toBe('Ada L.');
+    });
+  });
+
+  describe('error handling', () => {
+    it('Should throw when inserting the principal returns no row', async () => {
+      const failingService = new PrincipalsService(withFailedInsert(database.db, principals));
+      await expect(failingService.upsertFromLogin(user())).rejects.toThrow('Inserting the principal returned no row');
+    });
+
+    it('Should throw when upserting the identity returns no row', async () => {
+      const failingService = new PrincipalsService(withFailedInsert(database.db, identities));
+      await expect(failingService.upsertFromLogin(user())).rejects.toThrow('Upserting the identity returned no row');
     });
   });
 });

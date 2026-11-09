@@ -8,6 +8,11 @@
       "matchDepTypes": ["pnpm.catalog.ts6"],
       "matchPackageNames": ["typescript"],
       "allowedVersions": "<7"
+    },
+    {
+      "description": "OpenTelemetry's experimental (0.x) packages pin its stable ones exactly and the contrib instrumentations track the experimental line, so update them together",
+      "matchPackageNames": ["@opentelemetry/**"],
+      "groupName": "OpenTelemetry"
     }
   ]
 }

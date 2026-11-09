@@ -25,19 +25,25 @@ describe('definePlaywrightConfig', () => {
 
   it('defines chromium, firefox and webkit projects', () => {
     const config = definePlaywrightConfig({ baseURL: 'http://localhost:5173' });
-    expect(config.projects?.map((p) => p.name)).toEqual(['chromium', 'firefox', 'webkit']);
+    expect(config.projects?.map((p) => p.name)).toEqual(['chromium', 'firefox', 'webkit', 'client-setup']);
   });
 
   it('reuses an existing dev server locally but not in CI', () => {
     vi.stubEnv('CI', '');
-    const local = definePlaywrightConfig({ baseURL: 'http://localhost:5173', webServer: { command: 'pnpm dev' } });
+    const local = definePlaywrightConfig({
+      baseURL: 'http://localhost:5173',
+      webServer: { command: 'pnpm dev' },
+    });
     expect(local.webServer).toMatchObject({
       command: 'pnpm dev',
       url: 'http://localhost:5173',
       reuseExistingServer: true,
     });
     vi.stubEnv('CI', 'true');
-    const ci = definePlaywrightConfig({ baseURL: 'http://localhost:5173', webServer: { command: 'pnpm dev' } });
+    const ci = definePlaywrightConfig({
+      baseURL: 'http://localhost:5173',
+      webServer: { command: 'pnpm dev' },
+    });
     expect(ci.webServer).toMatchObject({ reuseExistingServer: false });
   });
 

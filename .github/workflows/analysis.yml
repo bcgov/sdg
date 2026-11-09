@@ -29,9 +29,12 @@ jobs:
         with:
           # The action's npm cache keys on package-lock.json; this repo uses pnpm
           cache: ''
+          # Workspace packages export their types from dist/, so build them before the type-aware lint;
+          # unbuilt, every import from them lints as `any`
           commands: |
             npm install -g "pnpm@$(node -p "require('./package.json').devEngines.packageManager.version")"
             pnpm install --frozen-lockfile
+            pnpm turbo run build --filter='./packages/*'
             pnpm lint
             pnpm format:check
             pnpm typecheck
@@ -41,16 +44,19 @@ jobs:
           # Skipped while sonar_token is unset; see DEVELOPER.md (Code Quality with SonarCloud)
           # Excludes the tsconfig JSONC files (comments fail Sonar's JSON parser) and the typescript-config test fixtures,
           # and the PostgreSQL .sql files, which Sonar would analyze as Oracle PL/SQL.
+          # Test code (tests, e2e, apps' test/ helpers) is excluded like the tests themselves.
+          # Tool config files (vite, vitest, playwright, drizzle) are analyzed but not counted for coverage.
           # Ignores docker:S8431: Renovate pins images as tag@digest, keeping the tag readable.
           sonar_args: >
-            -Dsonar.exclusions=**/coverage/**,**/node_modules/**,**/dist/**,**/*.test.ts,**/*.test.tsx,**/e2e/**,**/routeTree.gen.ts,**/tsconfig*.json,tooling/typescript-config/*.json,tooling/typescript-config/test/fixtures/**,**/*.sql
+            -Dsonar.exclusions=**/coverage/**,**/node_modules/**,**/dist/**,**/*.test.ts,**/*.test.tsx,**/e2e/**,apps/*/test/**,**/routeTree.gen.ts,**/tsconfig*.json,tooling/typescript-config/*.json,tooling/typescript-config/test/fixtures/**,**/*.sql
+            -Dsonar.coverage.exclusions=**/*.config.ts
             -Dsonar.issue.ignore.multicriteria=e1
             -Dsonar.issue.ignore.multicriteria.e1.ruleKey=docker:S8431
             -Dsonar.issue.ignore.multicriteria.e1.resourceKey=**/Dockerfile
             -Dsonar.organization=bcgov-sonarcloud
             -Dsonar.projectKey=bcgov_sdg
             -Dsonar.sources=apps,packages,tooling
-            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/e2e/**
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/e2e/**,apps/*/test/**
             -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info
           sonar_token: ${{ env.sonar_token }}
           dep_scan: warn

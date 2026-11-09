@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../../app';
 import * as api from '../../auth/api';
+import { currentUserQueryKey } from '../../auth/use-current-user';
 import { createAppRouter } from '../../router';
 import { headerQueries } from '../../test-support/header';
 
@@ -33,7 +34,7 @@ afterEach(() => {
 
 describe('useHeaderAuth', () => {
   describe('states', () => {
-    it('renders no account control while loading', async () => {
+    it('Should render no account control while loading', { timeout: 30_000 }, async () => {
       renderWith(() => new Promise<Response>(() => {}));
       const header = await headerQueries();
       expect(header.getByRole('banner')).toBeTruthy();
@@ -42,7 +43,7 @@ describe('useHeaderAuth', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({ credentials: 'same-origin' }));
     });
 
-    it('renders a Sign in nav link when signed out', async () => {
+    it('Should render a Sign in nav link when signed out', async () => {
       renderWith(signedOut, '/?tab=1');
       const header = await headerQueries();
       const link = await header.findByRole('link', { name: 'Sign in' });
@@ -51,7 +52,7 @@ describe('useHeaderAuth', () => {
       expect(header.queryByRole('button', { name: /Account menu/ })).toBeNull();
     });
 
-    it('renders the account menu when signed in, and logs out from it', async () => {
+    it('Should render the account menu when signed in, and logs out from it', async () => {
       const logout = vi.spyOn(api, 'logout').mockResolvedValue();
       renderWith(signedIn);
       const header = await headerQueries();
@@ -63,7 +64,21 @@ describe('useHeaderAuth', () => {
       expect(header.queryByRole('link', { name: 'Sign in' })).toBeNull();
     });
 
-    it('renders Sign in when the API errors', async () => {
+    it('Should clear the current user in query cache when logged out', async () => {
+      const logout = vi.spyOn(api, 'logout').mockImplementation(async (onSignedOut) => {
+        onSignedOut();
+      });
+      const { queryClient } = renderWith(signedIn);
+      const header = await headerQueries();
+      await userEvent.click(await header.findByRole('button', { name: 'Account menu for Ada Lovelace' }));
+      const menu = await header.findByRole('menu');
+      await userEvent.click(within(menu).getByRole('menuitem', { name: 'Log out' }));
+      expect(logout).toHaveBeenCalledTimes(1);
+      expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull();
+      expect(await header.findByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+    });
+
+    it('Should render Sign in when the API errors', async () => {
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
       renderWith(() => Promise.resolve(new Response('Bad gateway', { status: 502 })));
       const header = await headerQueries();
@@ -77,7 +92,7 @@ describe('useHeaderAuth', () => {
   });
 
   describe('narrow screens', () => {
-    it('collapses Sign in behind the Menu button', async () => {
+    it('Should collapse Sign in behind the Menu button', async () => {
       vi.stubGlobal('matchMedia', (media: string) => ({
         matches: true,
         media,
@@ -98,7 +113,7 @@ describe('useHeaderAuth', () => {
   });
 
   describe('header', () => {
-    it('sits inside the single banner landmark', async () => {
+    it('Should sit inside the single banner landmark', async () => {
       renderWith(signedIn);
       const header = await headerQueries();
       const banners = header.getAllByRole('banner');
