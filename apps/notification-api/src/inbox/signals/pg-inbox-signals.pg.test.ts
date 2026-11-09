@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { runMigrations } from '@repo/notification-database';
 import * as schema from '@repo/notification-database/schema';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Client, Pool } from 'pg';
@@ -7,7 +8,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { NotificationDatabase } from '../../database/database.module.js';
 import { createTestApp, type TestApp } from '../../testing/app.js';
-import { createPostgresTestDatabase } from '../../testing/database.js';
 import { settleSignals, watchSignals } from '../../testing/signals.js';
 import { INBOX_CHANNEL, INBOX_SIGNALS, notifyInboxChanged, type InboxSignals } from './inbox-signals.js';
 
@@ -27,7 +27,7 @@ describe.skipIf(!serverUrl)('inbox change signals on Postgres (KTD3)', () => {
   let signals: InboxSignals;
 
   beforeAll(async () => {
-    await createPostgresTestDatabase(target);
+    await runMigrations(target.href);
     pool = new Pool({ connectionString: target.href, max: 2 });
     db = drizzle({ client: pool, schema, casing: 'snake_case' });
     // No signals on the database: the app's own listener connects to DATABASE_URL.

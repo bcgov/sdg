@@ -62,16 +62,15 @@ case "${1:-}" in
     check NOTIFICATION_CLIENT_ID '^[A-Za-z0-9._-]+$'
     client_ids='^([A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*)?$'
     https_origin='https://[a-z0-9.-]+(:[0-9]+)?'
+    notification_secret="notification-api"
     if [[ "$TARGET" =~ ^[0-9]+$ ]]; then
       check NOTIFICATION_PR_RELAYING_CLIENT_IDS "$client_ids"
       check NOTIFICATION_PR_CORS_ORIGINS "^((${https_origin}|http://localhost(:[0-9]+)?)(,|$))*$"
       extra_client_ids="${NOTIFICATION_PR_RELAYING_CLIENT_IDS:-}" cors_origins="${NOTIFICATION_PR_CORS_ORIGINS:-}"
-      notification_secret="notification-api"
     else
       check NOTIFICATION_RELAYING_CLIENT_IDS "$client_ids"
       check NOTIFICATION_CORS_ORIGINS "^((${https_origin})(,|$))*$"
       extra_client_ids="${NOTIFICATION_RELAYING_CLIENT_IDS:-}" cors_origins="${NOTIFICATION_CORS_ORIGINS:-}"
-      notification_secret="notification-api"
       [ "$TARGET" != test ] || notification_secret="notification-api-test"
     fi
     [[ "$cors_origins" != *, ]] || { echo "Invalid CORS origins: '${cors_origins}' ends with a comma" >&2; exit 1; }

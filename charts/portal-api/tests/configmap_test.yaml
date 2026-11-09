@@ -33,12 +33,6 @@ tests:
             KEYCLOAK_CLIENT_ID: portal
             NOTIFICATION_API_URL: http://sdg-notification-api:3000
 
-  - it: points NOTIFICATION_API_URL at the release's notification-api Service
-    asserts:
-      - equal:
-          path: data.NOTIFICATION_API_URL
-          value: http://sdg-notification-api:3000
-
   - it: omits NOTIFICATION_API_URL when notificationApiUrl is empty
     set:
       notificationApiUrl: ''

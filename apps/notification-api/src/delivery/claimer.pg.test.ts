@@ -1,4 +1,4 @@
-import { deliveries } from '@repo/notification-database';
+import { deliveries, runMigrations } from '@repo/notification-database';
 import * as schema from '@repo/notification-database/schema';
 import { inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -8,7 +8,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { GuardedHttpClient } from '../outbound/http-dispatcher.js';
 import { OutboundGuard } from '../outbound/outbound-guard.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
-import { createPostgresTestDatabase } from '../testing/database.js';
 import {
   attemptsOf,
   defineDeliveryType,
@@ -49,7 +48,7 @@ describe.skipIf(!serverUrl)('the delivery queue on Postgres (KTD1)', () => {
   let settings: DeliverySettings;
 
   beforeAll(async () => {
-    await createPostgresTestDatabase(target);
+    await runMigrations(target.href);
     [issuer, receiver] = await Promise.all([startTestIssuer(), startWebhookReceiver()]);
     // Two connections, so two claims really run at once.
     const pool = new Pool({ connectionString: target.href, max: 2 });

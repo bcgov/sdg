@@ -6,18 +6,15 @@ import { z } from 'zod';
 import { PLATFORM_TOPIC, TYPE_KEYS, type SeedType } from './catalog.ts';
 import { expectBody, expectStatus, type Api } from './http.ts';
 
-export interface Person {
-  issuer: string;
-  subject: string;
-}
+const personSchema = z.object({ issuer: z.string(), subject: z.string() });
+export type Person = z.infer<typeof personSchema>;
 
 /** The seed's sender, found by this name among the platform topic's broadcasters. */
-export const SENDER_NAME = 'Permits Office';
+const SENDER_NAME = 'Permits Office';
 
 const credentialSchema = z.object({ id: z.uuid(), clientId: z.string(), scopedTypes: z.array(z.string()) });
 export type Credential = z.infer<typeof credentialSchema>;
 
-const personSchema = z.object({ issuer: z.string(), subject: z.string() });
 const senderSchema = z.object({
   id: z.uuid(),
   name: z.string(),

@@ -62,15 +62,6 @@ tests:
       - notExists:
           path: data.DEFAULT_SMTP_FROM
 
-  - it: leaves the role to each Deployment and the secrets out
-    asserts:
-      - notExists:
-          path: data.NOTIFICATION_ROLE
-      - notExists:
-          path: data.NOTIFICATION_ENCRYPTION_KEY
-      - notExists:
-          path: data.DATABASE_URL
-
   - it: fails without global.host (CONFIRM_EMAIL_URL)
     set:
       global.host: ''

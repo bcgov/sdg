@@ -1,9 +1,7 @@
 // scripts/e2e.ts's setup: resets the `notification` database, seeds it, gets the credential tokens and prepares the
 // portal user's recipient: the person signed in at https://sdg.localhost (BC Services Card), who is not the admin
 // (IDIR). Sends address that person by the issuer + subject the relay recorded, read back from the database.
-import { migrationsFolder } from '@repo/notification-database';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { runMigrations } from '@repo/notification-database';
 import { Client, escapeIdentifier } from 'pg';
 import { z } from 'zod';
 
@@ -43,8 +41,8 @@ export interface E2eContext {
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /**
- * Drops the database DATABASE_URL names, creates it again and applies the @repo/notification-database migrations
- * (build the package first). Only ever on a local server.
+ * Drops the database DATABASE_URL names, then recreates and migrates it with @repo/notification-database's
+ * runMigrations (build the package first). Only ever on a local server.
  */
 export async function resetDatabase(databaseUrl: string): Promise<void> {
   const url = new URL(databaseUrl);
@@ -59,17 +57,10 @@ export async function resetDatabase(databaseUrl: string): Promise<void> {
   try {
     // FORCE ends the running notification-api's connections; its pool reconnects once the database is back.
     await admin.query(`drop database if exists ${name} with (force)`);
-    await admin.query(`create database ${name}`);
   } finally {
     await admin.end();
   }
-  const client = new Client({ connectionString: databaseUrl });
-  await client.connect();
-  try {
-    await migrate(drizzle({ client }), { migrationsFolder });
-  } finally {
-    await client.end();
-  }
+  await runMigrations(databaseUrl);
 }
 
 const pointSchema = z.object({ address: z.string(), verified: z.boolean(), source: z.string() });

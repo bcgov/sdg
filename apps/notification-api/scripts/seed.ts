@@ -34,7 +34,7 @@ import {
 import { personOf, staticToken, type TokenSource } from './lib/tokens.ts';
 import { login } from './login.ts';
 
-export type { Credential, Person } from './lib/seed-steps.ts';
+export type { Person } from './lib/seed-steps.ts';
 
 export interface SeedConfig {
   /** notification-api's base URL, e.g. https://notify.sdg.localhost. */

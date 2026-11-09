@@ -155,6 +155,13 @@ echo "portal-api"
   -e KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal \
   -e KEYCLOAK_CLIENT_ID=portal -e KEYCLOAK_CLIENT_SECRET=smoke \
   "$(image portal-api)" >/dev/null
+# Started now so both APIs boot while the portal-api checks wait.
+"$ENGINE" run -d --name "$PREFIX-notification-api" --read-only "${OCP[@]}" \
+  -e "DATABASE_URL=$NOTIFY_DATABASE_URL" -e NOTIFICATION_ROLE=api -e TRUST_PROXY=true \
+  -e KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal -e NOTIFICATION_CLIENT_ID=notification-api \
+  -e CORS_ALLOWED_ORIGINS=http://localhost:5173 -e CONFIRM_EMAIL_URL=https://portal.example.gov.bc.ca/confirm-email \
+  -e "NOTIFICATION_ENCRYPTION_KEY=$(head -c 48 /dev/urandom | base64)" \
+  "$(image notification-api)" >/dev/null
 live() { "$ENGINE" exec "$1" node -e \
   "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"; }
 # Waits up to 60s for container $1's /healthz/live, then checks it and that its first log line is JSON.
@@ -168,12 +175,6 @@ check_api() {
 check_api "$PREFIX-api"
 
 echo "notification-api"
-"$ENGINE" run -d --name "$PREFIX-notification-api" --read-only "${OCP[@]}" \
-  -e "DATABASE_URL=$NOTIFY_DATABASE_URL" -e NOTIFICATION_ROLE=api -e TRUST_PROXY=true \
-  -e KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal -e NOTIFICATION_CLIENT_ID=notification-api \
-  -e CORS_ALLOWED_ORIGINS=http://localhost:5173 -e CONFIRM_EMAIL_URL=https://portal.example.gov.bc.ca/confirm-email \
-  -e "NOTIFICATION_ENCRYPTION_KEY=$(head -c 48 /dev/urandom | base64)" \
-  "$(image notification-api)" >/dev/null
 check_api "$PREFIX-notification-api"
 
 echo "portal-web and edge"
