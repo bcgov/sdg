@@ -1,0 +1,132 @@
+suite: notification-api secrets (Vault Agent Injector and existingSecret)
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.clientId: notification-api
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/notification-api
+  vault.serviceAccountName: abc123-vault
+tests:
+  - it: annotates every split Deployment for an init-only Vault agent rendering notification-api.env
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    asserts:
+      - isSubset:
+          path: spec.template.metadata.annotations
+          content:
+            vault.hashicorp.com/agent-inject: 'true'
+            vault.hashicorp.com/agent-pre-populate-only: 'true'
+            vault.hashicorp.com/agent-inject-token: 'false'
+            vault.hashicorp.com/role: abc123-nonprod
+            vault.hashicorp.com/auth-path: auth/k8s-silver
+            vault.hashicorp.com/namespace: platform-services
+            vault.hashicorp.com/agent-inject-secret-notification-api.env: abc123-nonprod/notification-api
+            vault.hashicorp.com/agent-requests-cpu: 10m
+            vault.hashicorp.com/agent-limits-mem: 64Mi
+      - equal:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/agent-inject-template-notification-api.env"]
+          value: |
+            {{- with secret "abc123-nonprod/notification-api" }}
+            NOTIFICATION_ENCRYPTION_KEY='{{ index .Data.data "NOTIFICATION_ENCRYPTION_KEY" }}'
+            {{- end }}
+
+  - it: starts node with the rendered env file and the Vault service account
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value:
+            [node, --env-file=/vault/secrets/notification-api.env, --import=./dist/instrumentation.js, dist/main.js]
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: abc123-vault
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: true
+      - notExists:
+          path: spec.template.spec.containers[0].envFrom[1]
+
+  - it: annotates the combined Deployment for Vault too
+    template: templates/deployment.yaml
+    set:
+      mode: combined
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/agent-inject-secret-notification-api.env"]
+          value: abc123-nonprod/notification-api
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value:
+            [node, --env-file=/vault/secrets/notification-api.env, --import=./dist/instrumentation.js, dist/main.js]
+
+  - it: fails without vault.role
+    template: templates/deployment.yaml
+    set:
+      vault.role: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: vault.role is required
+
+  - it: fails without vault.secretPath
+    template: templates/deployment.yaml
+    set:
+      vault.secretPath: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: vault.secretPath is required
+
+  - it: fails without vault.serviceAccountName
+    template: templates/deployment.yaml
+    set:
+      vault.serviceAccountName: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: vault.serviceAccountName is required
+
+  - it: reads secrets from existingSecret when Vault is disabled
+    template: templates/deployment.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+    set:
+      vault.enabled: false
+      existingSecret: notification-api-secrets
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: notification-api-secrets
+      - notExists:
+          path: spec.template.spec.containers[0].command
+      - notExists:
+          path: spec.template.metadata.annotations["vault.hashicorp.com/agent-inject"]
+      - notExists:
+          path: spec.template.spec.serviceAccountName
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  # AE6: never start notification-api without a source for NOTIFICATION_ENCRYPTION_KEY.
+  - it: fails when Vault is disabled and no existingSecret is given
+    template: templates/deployment.yaml
+    set:
+      vault.enabled: false
+    asserts:
+      - failedTemplate:
+          errorPattern: existingSecret is required when vault.enabled is false

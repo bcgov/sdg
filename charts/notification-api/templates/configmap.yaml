@@ -1,0 +1,29 @@
+# Non-secret env for src/config/env.ts. NOTIFICATION_ROLE is set per Deployment; secrets come from the Crunchy Secret
+# and Vault (deployment.yaml). No DEFAULT_SMTP_*: no platform default email integration for now (R13).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" .) | nindent 4 }}
+data:
+  NODE_ENV: production
+  PORT: '3000'
+  LOG_LEVEL: {{ .Values.logLevel | quote }}
+  # Ingress -> edge -> notification-api: trust X-Forwarded-* from the proxies.
+  TRUST_PROXY: 'true'
+  KEYCLOAK_ISSUER_URL: {{ .Values.keycloak.issuerUrl | required "keycloak.issuerUrl is required" | quote }}
+  NOTIFICATION_CLIENT_ID: {{ .Values.keycloak.clientId | required "keycloak.clientId is required" | quote }}
+  RELAYING_CLIENT_IDS: {{ .Values.keycloak.relayingClientIds | quote }}
+  CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | quote }}
+  # portal-web's confirm page: confirmation emails link to <this>?token=...
+  CONFIRM_EMAIL_URL: {{ printf "https://%s/confirm-email" ((.Values.global | default dict).host | required "global.host is required (CONFIRM_EMAIL_URL)") | quote }}
+  {{- $o := include "common.observability" . | fromYaml }}
+  {{- with $o.collectorHost }}
+  # OpenTelemetry (src/instrumentation.ts): only when a collector is configured.
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s:4318" . | quote }}
+  OTEL_SERVICE_NAME: notification-api
+  {{- with $o.environment }}
+  OTEL_RESOURCE_ATTRIBUTES: {{ printf "deployment.environment=%s" . | quote }}
+  {{- end }}
+  {{- end }}

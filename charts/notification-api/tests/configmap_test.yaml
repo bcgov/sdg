@@ -1,0 +1,117 @@
+suite: notification-api configmap
+templates:
+  - templates/configmap.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  global.host: sdg.example.com
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.clientId: notification-api
+  vault.role: abc123-nonprod
+  vault.secretPath: abc123-nonprod/notification-api
+  vault.serviceAccountName: abc123-vault
+tests:
+  - it: holds the non-secret env for the zod schema
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: sdg-notification-api
+      - equal:
+          path: data
+          value:
+            NODE_ENV: production
+            PORT: '3000'
+            LOG_LEVEL: info
+            TRUST_PROXY: 'true'
+            KEYCLOAK_ISSUER_URL: https://keycloak.example.com/realms/portal
+            NOTIFICATION_CLIENT_ID: notification-api
+            RELAYING_CLIENT_IDS: ''
+            CORS_ALLOWED_ORIGINS: ''
+            CONFIRM_EMAIL_URL: https://sdg.example.com/confirm-email
+
+  - it: renders the relaying clients and browser origins from values
+    set:
+      keycloak.relayingClientIds: portal,direct-mode
+      corsAllowedOrigins: https://a.example.com,http://localhost:5173
+    asserts:
+      - equal:
+          path: data.RELAYING_CLIENT_IDS
+          value: portal,direct-mode
+      - equal:
+          path: data.CORS_ALLOWED_ORIGINS
+          value: https://a.example.com,http://localhost:5173
+
+  - it: configures no platform default email integration (R13)
+    set:
+      keycloak.relayingClientIds: portal
+    asserts:
+      - notExists:
+          path: data.DEFAULT_SMTP_HOST
+      - notExists:
+          path: data.DEFAULT_SMTP_PORT
+      - notExists:
+          path: data.DEFAULT_SMTP_SECURE
+      - notExists:
+          path: data.DEFAULT_SMTP_USER
+      - notExists:
+          path: data.DEFAULT_SMTP_PASSWORD
+      - notExists:
+          path: data.DEFAULT_SMTP_FROM
+
+  - it: leaves the role to each Deployment and the secrets out
+    asserts:
+      - notExists:
+          path: data.NOTIFICATION_ROLE
+      - notExists:
+          path: data.NOTIFICATION_ENCRYPTION_KEY
+      - notExists:
+          path: data.DATABASE_URL
+
+  - it: fails without global.host (CONFIRM_EMAIL_URL)
+    set:
+      global.host: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: global.host is required
+
+  - it: fails without a Keycloak issuer URL
+    set:
+      keycloak.issuerUrl: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: keycloak.issuerUrl is required
+
+  - it: fails without notification-api's client id
+    set:
+      keycloak.clientId: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: keycloak.clientId is required
+
+  - it: sets the OTLP endpoint and resource attributes when a collector is configured
+    set:
+      global.observability.collectorHost: observability-alloy.abc123-tools.svc
+      global.observability.environment: test
+    asserts:
+      - equal:
+          path: data.OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://observability-alloy.abc123-tools.svc:4318
+      - equal:
+          path: data.OTEL_SERVICE_NAME
+          value: notification-api
+      - equal:
+          path: data.OTEL_RESOURCE_ATTRIBUTES
+          value: deployment.environment=test
+
+  - it: sets no OTEL vars when observability is not configured
+    asserts:
+      - notExists:
+          path: data.OTEL_EXPORTER_OTLP_ENDPOINT
+      - notExists:
+          path: data.OTEL_SERVICE_NAME
+      - notExists:
+          path: data.OTEL_RESOURCE_ATTRIBUTES
