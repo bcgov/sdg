@@ -16,12 +16,15 @@ describe('portal-api platform middleware', () => {
   let otel: OtelHandle;
   let createTestApp: typeof import('./testing/app.js').createTestApp;
   let t: TestApp;
+  // The whole app loads here behind OpenTelemetry's import hooks: a few seconds alone, past the 10s default when
+  // turbo runs every package's tests at once.
+  const IMPORT_TIMEOUT_MS = 30_000;
 
   beforeAll(async () => {
     otel = await bootstrapTelemetry({});
     ({ createTestApp } = await import('./testing/app.js'));
     t = await createTestApp();
-  });
+  }, IMPORT_TIMEOUT_MS);
 
   afterAll(async () => {
     await t.close();
