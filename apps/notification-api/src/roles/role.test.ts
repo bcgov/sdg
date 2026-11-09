@@ -47,6 +47,10 @@ describe('NOTIFICATION_ROLE', () => {
     RoleModule: typeof import('./role.js').RoleModule;
   };
 
+  // The whole app loads here behind OpenTelemetry's import hooks: about 4s alone, past the 10s default when turbo runs
+  // every package's tests at once.
+  const IMPORT_TIMEOUT_MS = 30_000;
+
   beforeAll(async () => {
     otel = await (await import('../telemetry/bootstrap.js')).bootstrapTelemetry({});
     const [testing, config, database, health, role] = await Promise.all([
@@ -63,7 +67,7 @@ describe('NOTIFICATION_ROLE', () => {
       HealthModule: health.HealthModule,
       RoleModule: role.RoleModule,
     };
-  });
+  }, IMPORT_TIMEOUT_MS);
 
   afterAll(() => otel.shutdown());
 
