@@ -32,5 +32,8 @@
   "files.associations": {
     ".oxlintrc.json": "jsonc",
     ".oxfmtrc.json": "jsonc"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   }
 }
