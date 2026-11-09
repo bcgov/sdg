@@ -49,5 +49,6 @@ Teams work in parallel, so two pull requests can pick the same number. If anothe
 | ADR                                            | Title                                                                       | Status   | Product team |
 | ---------------------------------------------- | --------------------------------------------------------------------------- | -------- | ------------ |
 | [0001](0001-self-hosted-lgtm-observability.md) | Self-hosted Grafana LGTM stack, with Prometheus, for the portal's telemetry | Proposed | SDG portal   |
+| [0002](0002-shared-notification-service.md)    | A shared notification-api service, with the inbox in the shared header      | Proposed | SDG portal   |
 
 Add a row for each new ADR. Keep the table sorted by number.
