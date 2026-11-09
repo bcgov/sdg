@@ -12,6 +12,11 @@ set:
   portal-api.vault.role: abc123-nonprod
   portal-api.vault.secretPath: abc123-nonprod/portal-api
   portal-api.vault.serviceAccountName: abc123-vault
+  notification-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  notification-api.keycloak.clientId: notification-api
+  notification-api.vault.role: abc123-nonprod
+  notification-api.vault.secretPath: abc123-nonprod/notification-api
+  notification-api.vault.serviceAccountName: abc123-vault
 tests:
   - it: runs Postgres without pgBackRest on a 256Mi volume
     template: charts/postgres/templates/postgrescluster.yaml
@@ -78,6 +83,29 @@ tests:
   - it: recreates portal-web on rollout
     template: charts/portal-web/templates/deployment.yaml
     asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: runs notification-api as one combined Deployment with PR requests, its limit and Recreate
+    template: charts/notification-api/templates/deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: sdg-12-notification-api
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFICATION_ROLE
+            value: all
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { memory: 384Mi }
       - equal:
           path: spec.strategy
           value:

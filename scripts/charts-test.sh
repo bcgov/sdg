@@ -10,7 +10,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../charts"
-LEAF_CHARTS=(portal-web portal-api edge postgres)
+LEAF_CHARTS=(portal-web portal-api notification-api edge postgres)
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.31.0}"
 
@@ -34,6 +34,8 @@ lint_values() {
     --set "${prefix}vault.secretPath=example-nonprod/portal-api" \
     --set "${prefix}vault.serviceAccountName=example-vault"
 }
+# The umbrella needs them for both apps that require them.
+umbrella_values() { echo "$(lint_values "portal-api.") $(lint_values "notification-api.")"; }
 
 for chart in "${LEAF_CHARTS[@]}" sdg observability; do
   helm dependency build "$chart" >/dev/null
@@ -44,7 +46,7 @@ for chart in "${LEAF_CHARTS[@]}"; do
   helm lint --strict "$chart" $(lint_values "")
 done
 # shellcheck disable=SC2046
-helm lint --strict sdg $(lint_values "portal-api.")
+helm lint --strict sdg $(umbrella_values)
 
 # The observability stack is its own release in <plate>-tools and <plate>-prod (doc 20), not part of the umbrella.
 OBSERVABILITY_VALUES=(--set grafana.host=grafana.example.com --set grafana.oidc.issuerUrl=https://keycloak.example.com/realms/standard
@@ -56,9 +58,11 @@ done
 
 helm unittest --strict "${LEAF_CHARTS[@]}" sdg observability
 
-# helm-unittest can't select a disabled subchart's templates, so the umbrella condition is checked here.
+# helm-unittest can't select a disabled subchart's templates, so the umbrella condition is checked here. Rendered
+# first, so a render error fails the script instead of reading as "nothing rendered".
 # shellcheck disable=SC2046
-if helm template sdg sdg $(lint_values "portal-api.") --set portal-web.enabled=false | grep -q 'app.kubernetes.io/name: portal-web'; then
+disabled="$(helm template sdg sdg $(umbrella_values) --set portal-web.enabled=false)"
+if grep -q 'app.kubernetes.io/name: portal-web' <<< "$disabled"; then
   echo "FAIL: sdg with portal-web.enabled=false still renders portal-web resources" >&2
   exit 1
 fi
@@ -72,7 +76,7 @@ validate() {
 }
 
 # shellcheck disable=SC2046
-helm template sdg sdg $(lint_values "portal-api.") | validate
+helm template sdg sdg $(umbrella_values) | validate
 for values in values-tools.yaml values-prod.yaml; do
   helm template observability observability -f "observability/${values}" "${OBSERVABILITY_VALUES[@]}" | validate
 done
@@ -90,7 +94,7 @@ for env in pr test prod; do
   esac
   deploy_env=(TARGET="$target" ENVIRONMENT="$environment" TAG=0123abc REPOSITORY=example/sdg OC_NAMESPACE="$namespace"
     OC_SERVER=https://api.gold.devops.gov.bc.ca:6443 KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal
-    KEYCLOAK_CLIENT_ID=portal VAULT_SECRET_PATH='' OBSERVABILITY=true)
+    KEYCLOAK_CLIENT_ID=portal VAULT_SECRET_PATH='' OBSERVABILITY=true NOTIFICATION_CLIENT_ID=notification-api)
   outputs="$(env "${deploy_env[@]}" ../scripts/deploy-values.sh outputs)"
   release="$(sed -n 's/^release=//p' <<< "$outputs")"
   values_file="../$(sed -n 's/^values_file=//p' <<< "$outputs")"
@@ -99,6 +103,16 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/portal-api:0123abc" "deploys the tagged GHCR images"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
   expect_rendered "$env" "$manifests" 'vault.hashicorp.com/auth-path: "?auth/k8s-gold' "uses the cluster's Vault auth path"
+  # notification-api (R1): in every environment, on its own host, with its own Vault path (KTD8, KTD10)
+  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/notification-api:0123abc" "deploys notification-api"
+  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/notification-database:0123abc" "migrates with notification-database"
+  expect_rendered "$env" "$manifests" "host: \"?${release}-notify\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-notify.<apps domain>"
+  case "$env" in
+    pr) notify_secret=example-nonprod/notification-api ;;
+    test) notify_secret=example-nonprod/notification-api-test ;;
+    prod) notify_secret=example-prod/notification-api ;;
+  esac
+  expect_rendered "$env" "$manifests" "agent-inject-secret-notification-api.env: \"?${notify_secret}\"?$" "reads ${notify_secret} from Vault"
   stack="example-$([ "$env" = prod ] && echo prod || echo tools)"
   expect_rendered "$env" "$manifests" "OTEL_EXPORTER_OTLP_ENDPOINT: \"?http://observability-alloy\.${stack}\.svc:4318" "sends OTLP to Alloy in ${stack}"
   expect_rendered "$env" "$manifests" "kubernetes.io/metadata.name: ${stack}" "lets Alloy in ${stack} scrape its pods"
