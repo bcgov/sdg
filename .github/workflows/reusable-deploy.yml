@@ -32,6 +32,9 @@ on:
       url:
         description: Public URL of the deployment
         value: ${{ jobs.deploy.outputs.url }}
+      notify_url:
+        description: Public URL of notification-api (<release>-notify on the apps domain)
+        value: ${{ jobs.deploy.outputs.notify_url }}
 
 permissions: {}
 
@@ -44,6 +47,7 @@ jobs:
     outputs:
       triggered: ${{ steps.deploy.outputs.triggered }}
       url: ${{ steps.vars.outputs.url }}
+      notify_url: ${{ steps.vars.outputs.notify_url }}
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     env:
@@ -59,13 +63,20 @@ jobs:
       VAULT_SECRET_PATH: ${{ vars.VAULT_SECRET_PATH }}
       # Optional: "true" reports to the observability stack (doc 20; scripts/deploy-values.sh)
       OBSERVABILITY: ${{ vars.OBSERVABILITY }}
+      # notification-api (scripts/deploy-values.sh). PR deploys have no GitHub environment, so they read the
+      # NOTIFICATION_PR_* repository variables; test and prod read the unprefixed environment variables.
+      NOTIFICATION_CLIENT_ID: ${{ vars.NOTIFICATION_CLIENT_ID }}
+      NOTIFICATION_PR_CORS_ORIGINS: ${{ vars.NOTIFICATION_PR_CORS_ORIGINS }}
+      NOTIFICATION_PR_RELAYING_CLIENT_IDS: ${{ vars.NOTIFICATION_PR_RELAYING_CLIENT_IDS }}
+      NOTIFICATION_CORS_ORIGINS: ${{ vars.NOTIFICATION_CORS_ORIGINS }}
+      NOTIFICATION_RELAYING_CLIENT_IDS: ${{ vars.NOTIFICATION_RELAYING_CLIENT_IDS }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       # Release name, URL and values file come from one script, shared with scripts/charts-test.sh;
-      # release=, url= and values_file= become step outputs and env vars for the commands below
+      # release=, url=, notify_url= and values_file= become step outputs and env vars for the commands below
       - name: Vars
         id: vars
         run: |
@@ -95,7 +106,7 @@ jobs:
             fi
 
             # file:// dependencies: leaf charts before the umbrella, which packages them
-            for chart in portal-web portal-api edge postgres sdg; do
+            for chart in portal-web portal-api notification-api edge postgres sdg; do
               helm dependency build "charts/${chart}" > /dev/null
             done
 
