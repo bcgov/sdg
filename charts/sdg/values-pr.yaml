@@ -1,6 +1,6 @@
 # Pull request environments (<plate>-dev, release <repo>-<pr>), layered on values.yaml by reusable-deploy.yml.
-# Each PR runs the whole stack in a namespace it may share, so PRs are throwaway and small: about 70m CPU,
-# 370Mi memory (requests) and 256Mi of PVC each. Only requests are lowered; each chart's limits still apply.
+# Each PR runs the whole stack in a namespace it may share, so PRs are throwaway and small: about 85m CPU,
+# 480Mi memory (requests) and 256Mi of PVC each. Only requests are lowered; each chart's limits still apply.
 postgres:
   instances:
     storage: 256Mi
@@ -30,6 +30,18 @@ portal-api:
 portal-web:
   strategy:
     type: Recreate
+
+# One pod running both roles (NOTIFICATION_ROLE=all) instead of an api and a worker Deployment.
+notification-api:
+  mode: combined
+  resources:
+    all:
+      requests:
+        cpu: 20m
+        memory: 128Mi
+  strategy:
+    all:
+      type: Recreate
 
 edge:
   resources:

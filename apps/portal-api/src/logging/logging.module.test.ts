@@ -51,13 +51,31 @@ function captureLines(): { stream: Writable; lines: LogLine[] } {
 
 describe('LoggingModule Unit Test Suite', () => {
   describe('isQuietPath', () => {
-    it('Should match the probes and the metrics scrape, with or without a query string', () => {
-      const urls = ['/metrics', '/metrics?x=1', '/healthz/live', '/healthz/ready', '/healthz/ready?full=1'];
+    it('Should match the probes, the metrics scrape and the inbox stream relay, with or without a query string', () => {
+      const urls = [
+        '/metrics',
+        '/metrics?x=1',
+        '/healthz/live',
+        '/healthz/ready',
+        '/healthz/ready?full=1',
+        '/api/v1/notifications/inbox/stream',
+        '/api/v1/notifications/inbox/stream?x=1',
+      ];
       expect(urls.filter((url) => !isQuietPath(url))).toEqual([]);
     });
 
     it('Should not match API routes or look-alikes', () => {
-      const urls = ['/api/auth/me', '/metrics-old', '/api/metrics', '/healthzz', '/api/healthz/live', '/'];
+      const urls = [
+        '/api/auth/me',
+        '/metrics-old',
+        '/api/metrics',
+        '/healthzz',
+        '/api/healthz/live',
+        '/',
+        '/api/v1/notifications/inbox',
+        '/api/v1/notifications/inbox/streams',
+        '/api/v1/notifications/inbox/stream/x',
+      ];
       expect(urls.filter((url) => isQuietPath(url))).toEqual([]);
     });
   });
@@ -79,7 +97,7 @@ describe('LoggingModule Unit Test Suite', () => {
       expect(pinoHttpOptions({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }).transport).toBeUndefined();
     });
 
-    it('Should log API requests, skips /healthz and /metrics, and redacts cookie, authorization and set-cookie', async () => {
+    it('Should log API requests, skips /healthz, /metrics and the inbox stream, and redacts cookie, authorization and set-cookie', async () => {
       const { stream, lines } = captureLines();
       const { transport: _transport, ...options } = pinoHttpOptions({
         NODE_ENV: 'production',
@@ -102,6 +120,7 @@ describe('LoggingModule Unit Test Suite', () => {
       await supertest(server).get('/healthz/live');
       await supertest(server).get('/healthz/ready');
       await supertest(server).get('/metrics');
+      await supertest(server).get('/api/v1/notifications/inbox/stream');
 
       expect(lines).toHaveLength(1);
       const [line] = lines;

@@ -1,0 +1,17 @@
+# Reached by portal-api and the edge as http://<release>-notification-api:3000, in either mode.
+{{- $role := include "notification-api.servedRole" . }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" $role) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "notification-api.selectorLabels" (dict "context" . "role" $role) | nindent 4 }}

@@ -58,11 +58,31 @@ export interface OidcClient {
   createAuthorizationRequest(returnTo: string): Promise<AuthorizationRequest>;
   handleCallback(callbackUrl: URL, pending: PendingAuthorization): Promise<CallbackResult>;
   buildEndSessionUrl(idToken: string | null): Promise<URL>;
+  /**
+   * Redeems `current.refreshToken` (refresh grant) for new tokens. The previous ID token and refresh token are kept
+   * when the response omits them. Throws `AuthError('refresh_failed')` when there is no refresh token or the IdP
+   * rejects it (`detail` carries the IdP `error` code).
+   */
+  refresh(current: OidcTokens): Promise<OidcTokens>;
+  /**
+   * Ends the user's IdP session over the back channel: posts `current.refreshToken` with the client credentials to the
+   * discovered `end_session_endpoint` (Keycloak's logout endpoint). Throws `AuthError('end_session_failed')` when there
+   * is no refresh token or the IdP answers with an error (`detail` carries its `error` code, or the HTTP status).
+   */
+  endSession(current: OidcTokens): Promise<void>;
 }
+
+/**
+ * Decides whether a token's audience is accepted, from its verified claims (signature, `iss`, `exp` and `nbf` already
+ * checked). Lets the accepted audiences change without rebuilding the verifier. `false` rejects the token as
+ * `invalid_token`; a thrown error rejects `verify` with that error unchanged.
+ */
+export type AudiencePredicate = (claims: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>;
 
 export interface JwtVerifierOptions {
   issuerUrl: string;
-  audience: string | readonly string[];
+  /** The accepted `aud` value(s), any of which must be present; or a predicate over the verified claims. */
+  audience: string | readonly string[] | AudiencePredicate;
   /** Default 30 seconds. */
   clockToleranceSeconds?: number;
   /** Custom fetch for discovery and JWKS requests. Defaults to the global `fetch`. */

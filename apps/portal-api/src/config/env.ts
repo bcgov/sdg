@@ -48,6 +48,11 @@ export const envSchema = z.object({
   KEYCLOAK_ISSUER_URL: urlWithProtocol(['https:']).transform(withoutTrailingSlashes),
   KEYCLOAK_CLIENT_ID: z.string().min(1),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),
+  /** notification-api base URL for the relay routes (src/notifications); blank or unset disables them (404). */
+  NOTIFICATION_API_URL: z.preprocess(
+    blankAsMissing,
+    urlWithProtocol(['http:', 'https:']).transform(withoutTrailingSlashes).optional(),
+  ),
   ...otelEnvSchema.shape,
 });
 

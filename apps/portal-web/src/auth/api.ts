@@ -5,11 +5,16 @@ export interface CurrentUser {
   email: string | null;
 }
 
+import { BACKGROUND_HEADER } from '../background-fetch';
+
 export const AUTH_PATH = '/api/auth';
 
 export type Navigate = (url: string) => void;
 
-const assignLocation: Navigate = (url) => window.location.assign(url);
+/** A full-page navigation, e.g. to portal-api's login. */
+export function assignLocation(url: string): void {
+  window.location.assign(url);
+}
 
 function isCurrentUser(value: unknown): value is CurrentUser {
   if (typeof value !== 'object' || value === null || !('id' in value) || !('name' in value) || !('email' in value)) {
@@ -19,11 +24,14 @@ function isCurrentUser(value: unknown): value is CurrentUser {
   return typeof id === 'string' && typeof name === 'string' && (typeof email === 'string' || email === null);
 }
 
-/** `null` when signed out (401). Any other failure throws, so callers can tell "signed out" from "API down". */
-export async function fetchCurrentUser(): Promise<CurrentUser | null> {
+/**
+ * `null` when signed out (401). Any other failure throws, so callers can tell "signed out" from "API down".
+ * `background` marks a refetch that is not a user action, so it does not extend the sign-in (KTD8).
+ */
+export async function fetchCurrentUser(background = false): Promise<CurrentUser | null> {
   const response = await fetch(`${AUTH_PATH}/me`, {
     credentials: 'same-origin',
-    headers: { accept: 'application/json' },
+    headers: background ? { accept: 'application/json', [BACKGROUND_HEADER]: '1' } : { accept: 'application/json' },
   });
   if (!response.ok) {
     // Read the unused body anyway: Chromium never finishes a request whose body is left unread, so the page

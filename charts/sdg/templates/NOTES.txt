@@ -2,9 +2,12 @@
 {{- if index .Values "edge" "enabled" }}
 
   URL: https://{{ .Values.global.host }}
+{{- if index .Values "notification-api" "enabled" }}
+  notification-api: https://{{ include "common.notifyHost" . }} (in the cluster: http://{{ .Release.Name }}-notification-api:3000)
+{{- end }}
 {{- end }}
 {{- if index .Values "postgres" "enabled" }}
 
-PostgreSQL ({{ .Release.Name }}-postgres) is created by the Crunchy operator; portal-api's migrator waits for it:
+PostgreSQL ({{ .Release.Name }}-postgres) is created by the Crunchy operator; the portal-api and notification-api migrators wait for it:
   kubectl get postgrescluster {{ .Release.Name }}-postgres -n {{ .Release.Namespace }}
 {{- end }}

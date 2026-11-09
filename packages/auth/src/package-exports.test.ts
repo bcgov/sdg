@@ -39,12 +39,13 @@ function runBin(name: 'vite' | 'tsc', args: string[]) {
 
 describe('auth package', () => {
   describe('package.json', () => {
-    it('exposes only the . and ./nestjs subpaths', () => {
-      expect(Object.keys(manifest.exports).toSorted()).toEqual(['.', './nestjs']);
-      expect(manifest.exports['.']).toEqual({
-        types: './dist/index.d.ts',
-        import: './dist/index.js',
+    it('exposes only the ., ./nestjs and ./testing subpaths', () => {
+      expect(Object.keys(manifest.exports).toSorted()).toEqual(['.', './nestjs', './testing']);
+      expect(manifest.exports['./testing']).toEqual({
+        types: './dist/testing/index.d.ts',
+        import: './dist/testing/index.js',
       });
+      expect(manifest.exports['.']).toEqual({ types: './dist/index.d.ts', import: './dist/index.js' });
       expect(manifest.exports['./nestjs']).toEqual({
         types: './dist/nestjs/index.d.ts',
         import: './dist/nestjs/index.js',
@@ -99,13 +100,16 @@ describe('build output', () => {
     if (outDir) rmSync(outDir, { recursive: true, force: true });
   });
 
-  it('emits JS and declarations for both entries, without test files', () => {
-    for (const entry of ['index', 'nestjs/index']) {
+  it('emits JS and declarations for every entry, without test files', () => {
+    for (const entry of ['index', 'nestjs/index', 'testing/index']) {
       expect(existsSync(join(outDir, `${entry}.js`))).toBe(true);
       expect(existsSync(join(outDir, `${entry}.d.ts`))).toBe(true);
     }
     expect(existsSync(join(outDir, 'claims.test.d.ts'))).toBe(false);
-    expect(existsSync(join(outDir, 'test-support'))).toBe(false);
+  });
+
+  it('keeps the testing entry on Node built-ins and the runtime dependencies', () => {
+    expect(bareImports(join(outDir, 'testing/index.js'))).toEqual(['jose', 'node:http', 'openid-client']);
   });
 
   it('keeps dependencies external and the core entry free of Nest', () => {

@@ -87,7 +87,7 @@ jobs:
   #         sysdig_api_token: ${{ secrets.SYSDIG_API_TOKEN }}
   #         oc_namespace: ${{ vars.OC_NAMESPACE }}
   #         app: ${{ github.event.repository.name }}
-  #         components: portal-web,portal-api,edge
+  #         components: portal-web,portal-api,notification-api-api,notification-api-worker,edge
 
   # promote:
   #   name: Promote Images
@@ -97,7 +97,7 @@ jobs:
   #     packages: write
   #   strategy:
   #     matrix:
-  #       package: [portal-web, portal-api, portal-database, edge]
+  #       package: [portal-web, portal-api, portal-database, notification-api, notification-database, edge]
   #   timeout-minutes: 1
   #   steps:
   #     - uses: shrink/actions-docker-registry-tag@e6aaef25c595b6e0edd18bf4c7dbfea3abd43299 # v5

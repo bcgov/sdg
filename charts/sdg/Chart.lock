@@ -5,11 +5,14 @@ dependencies:
 - name: portal-api
   repository: file://../portal-api
   version: 0.1.0
+- name: notification-api
+  repository: file://../notification-api
+  version: 0.1.0
 - name: edge
   repository: file://../edge
   version: 0.1.0
 - name: postgres
   repository: file://../postgres
   version: 0.1.0
-digest: sha256:f255e22ad684770ec073e212201f26b1413b1a9cf407eb36ab1691ad924415ca
-generated: "2026-10-27T10:58:50.143936-07:00"
+digest: sha256:9012184f9b69d8867b07baffde14b380f405cd9fb434c1f3a8ffec44ad1b4c79
+generated: "2026-11-09T14:21:04.493203-07:00"

@@ -4,6 +4,7 @@ export { createJwtVerifier } from './jwt-verifier.js';
 export { createOidcClient } from './oidc-client.js';
 export { safeReturnTo } from './return-to.js';
 export type {
+  AudiencePredicate,
   AuthFetch,
   AuthorizationRequest,
   AuthUser,

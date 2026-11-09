@@ -140,18 +140,18 @@ tests:
             # No router sticky-session cookie (ZAP 10054): the edge is stateless.
             haproxy.router.openshift.io/disable_cookies: 'true'
       - equal:
-          path: spec.rules
+          path: spec.rules[0]
           value:
-            - host: sdg.example.com
-              http:
-                paths:
-                  - path: /
-                    pathType: Prefix
-                    backend:
-                      service:
-                        name: sdg-edge
-                        port:
-                          name: http
+            host: sdg.example.com
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: sdg-edge
+                      port:
+                        name: http
       - equal:
           path: spec.tls
           value:
@@ -174,10 +174,14 @@ tests:
       - equal:
           path: spec.ingressClassName
           value: nginx
+      # The notification host stays derived from global.host, so the secret's certificate must cover it too.
+      - equal:
+          path: spec.rules[1].host
+          value: sdg-notify.example.com
       - equal:
           path: spec.tls
           value:
-            - hosts: [portal.gov.bc.ca]
+            - hosts: [portal.gov.bc.ca, sdg-notify.example.com]
               secretName: portal-tls
       - equal:
           path: metadata.annotations
@@ -261,3 +265,105 @@ tests:
           path: spec.strategy
           value:
             type: Recreate
+
+  # KTD8: notification-api's public host is one DNS label, <first label>-notify, so the router's single-label
+  # wildcard certificate covers it. common.notifyHost derives it; KTD7's WAF host rule matches that shape.
+  - it: serves the derived notification host on the same Ingress and default certificate
+    template: templates/ingress.yaml
+    release:
+      name: sdg-12
+    set:
+      global.host: sdg-12.apps.gold.devops.gov.bc.ca
+    asserts:
+      - equal:
+          path: spec.rules
+          value:
+            - host: sdg-12.apps.gold.devops.gov.bc.ca
+              http:
+                paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: sdg-12-edge
+                        port:
+                          name: http
+            - host: sdg-12-notify.apps.gold.devops.gov.bc.ca
+              http:
+                paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: sdg-12-edge
+                        port:
+                          name: http
+      - equal:
+          path: spec.tls
+          value:
+            - {}
+
+  - it: has no notification host rule without global.host
+    template: templates/ingress.yaml
+    set:
+      global.host: ''
+      ingress.host: portal.gov.bc.ca
+    asserts:
+      - lengthEqual:
+          path: spec.rules
+          count: 1
+      - equal:
+          path: spec.rules[0].host
+          value: portal.gov.bc.ca
+
+  - it: routes the notification host to notification-api (common.caddy notify_on)
+    template: templates/deployment.yaml
+    release:
+      name: sdg-12
+    set:
+      global.host: sdg-12.apps.gold.devops.gov.bc.ca
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFY
+            value: 'on'
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFY_HOST
+            value: sdg-12-notify.apps.gold.devops.gov.bc.ca
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFICATION_API_URL
+            value: http://sdg-12-notification-api:3000
+
+  # Always set: Caddy fails on an empty host matcher, and {$NOTIFY:off} doesn't cover a set-but-empty variable.
+  - it: turns the notification host off when no host resolves
+    template: templates/deployment.yaml
+    set:
+      global.host: ''
+      ingress.host: portal.gov.bc.ca
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFY
+            value: 'off'
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFY_HOST
+            value: ''
+
+  - it: notification-api upstream can be overridden
+    template: templates/deployment.yaml
+    set:
+      upstreams.notificationApi: http://notify.other:3000
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NOTIFICATION_API_URL
+            value: http://notify.other:3000

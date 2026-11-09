@@ -1,0 +1,43 @@
+/* Title on the left, "Mark all as read" at the top right (R13). */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-padding-small, 0.5rem);
+  align-items: center;
+  justify-content: space-between;
+  margin-block-end: var(--layout-margin-medium, 1rem);
+}
+
+.heading {
+  margin: 0;
+}
+
+/* Focus lands here after "Mark all as read" removes the pressed button; it is not a control, so no ring. */
+.heading:focus {
+  outline: none;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--layout-padding-medium, 1rem);
+  margin-block-end: var(--layout-margin-medium, 1rem);
+  border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
+}
+
+.tab {
+  padding: var(--layout-padding-small, 0.5rem) var(--layout-padding-xsmall, 0.25rem);
+  color: var(--typography-color-link, #255a90);
+  text-decoration: none;
+  border-bottom: var(--layout-border-width-large, 3px) solid transparent;
+}
+
+.tab:hover {
+  text-decoration: underline;
+}
+
+/* The current tab is bold and underlined by a bar, not by colour alone. */
+.tab[aria-current='page'] {
+  color: var(--typography-color-primary, #2d2d2d);
+  font-weight: var(--typography-font-weights-bold, 700);
+  border-bottom-color: var(--surface-color-primary-default, #013366);
+}

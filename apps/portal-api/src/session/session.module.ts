@@ -1,11 +1,15 @@
 import { Inject, Module, RequestMethod, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ModuleRef } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
+import type { OidcClient } from '@repo/auth';
+import { OIDC_CLIENT } from '@repo/auth/nestjs';
 import type { Request } from 'express';
 import session from 'express-session';
 
 import type { Env } from '../config/env.js';
 import type { PortalDatabase } from '../database/database.module.js';
+import { activityMiddleware } from './activity.middleware.js';
 import { PostgresSessionStore } from './postgres-session.store.js';
 import { deriveSessionKey } from './session-cipher.js';
 import './session.types.js';
@@ -40,13 +44,16 @@ export function sessionOp(req: Request, op: 'save' | 'regenerate' | 'destroy'): 
 export class SessionModule implements NestModule {
   private readonly config: ConfigService<Env, true>;
   private readonly store: PostgresSessionStore;
+  private readonly moduleRef: ModuleRef;
 
   constructor(
     @Inject(ConfigService) config: ConfigService<Env, true>,
     @Inject(SESSION_STORE) store: PostgresSessionStore,
+    @Inject(ModuleRef) moduleRef: ModuleRef,
   ) {
     this.config = config;
     this.store = store;
+    this.moduleRef = moduleRef;
   }
 
   configure(consumer: MiddlewareConsumer): void {
@@ -66,7 +73,11 @@ export class SessionModule implements NestModule {
         path: '/',
       },
     });
+    // AuthModule provides the OIDC client; importing it here would close an import cycle through AuthController.
+    const oidc = this.moduleRef.get<OidcClient>(OIDC_CLIENT, { strict: false });
     // Only /api/* routes get a session; the /healthz probes are outside the prefix and never touch the session store.
-    consumer.apply(middleware).forRoutes({ path: '*path', method: RequestMethod.ALL });
+    consumer
+      .apply(middleware, activityMiddleware({ oidc, ttlSeconds, store: this.store }))
+      .forRoutes({ path: '*path', method: RequestMethod.ALL });
   }
 }

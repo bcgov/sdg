@@ -10,11 +10,19 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as InboxIndexRouteImport } from './routes/inbox/index'
+import { Route as InboxNotificationIdRouteImport } from './routes/inbox/$notificationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRoute = HelpRouteImport.update({
@@ -22,31 +30,60 @@ const HelpRoute = HelpRouteImport.update({
   path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InboxIndexRoute = InboxIndexRouteImport.update({
+  id: '/inbox/',
+  path: '/inbox/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxNotificationIdRoute = InboxNotificationIdRouteImport.update({
+  id: '/inbox/$notificationId',
+  path: '/inbox/$notificationId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/help': typeof HelpRoute
+  '/inbox/$notificationId': typeof InboxNotificationIdRoute
+  '/inbox/': typeof InboxIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/help': typeof HelpRoute
+  '/inbox/$notificationId': typeof InboxNotificationIdRoute
+  '/inbox': typeof InboxIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/help': typeof HelpRoute
+  '/inbox/$notificationId': typeof InboxNotificationIdRoute
+  '/inbox/': typeof InboxIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/help'
+  fullPaths:
+    '/' | '/confirm-email' | '/help' | '/inbox/$notificationId' | '/inbox/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/help'
-  id: '__root__' | '/' | '/help'
+  to: '/' | '/confirm-email' | '/help' | '/inbox/$notificationId' | '/inbox'
+  id:
+    | '__root__'
+    | '/'
+    | '/confirm-email'
+    | '/help'
+    | '/inbox/$notificationId'
+    | '/inbox/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConfirmEmailRoute: typeof ConfirmEmailRoute
   HelpRoute: typeof HelpRoute
+  InboxNotificationIdRoute: typeof InboxNotificationIdRoute
+  InboxIndexRoute: typeof InboxIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +95,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/confirm-email': {
+      id: '/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/confirm-email'
+      preLoaderRoute: typeof ConfirmEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/help': {
       id: '/help'
       path: '/help'
@@ -65,12 +109,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inbox/': {
+      id: '/inbox/'
+      path: '/inbox'
+      fullPath: '/inbox/'
+      preLoaderRoute: typeof InboxIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox/$notificationId': {
+      id: '/inbox/$notificationId'
+      path: '/inbox/$notificationId'
+      fullPath: '/inbox/$notificationId'
+      preLoaderRoute: typeof InboxNotificationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConfirmEmailRoute: ConfirmEmailRoute,
   HelpRoute: HelpRoute,
+  InboxNotificationIdRoute: InboxNotificationIdRoute,
+  InboxIndexRoute: InboxIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

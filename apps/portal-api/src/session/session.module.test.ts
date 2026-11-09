@@ -1,8 +1,10 @@
 import 'reflect-metadata';
 import { Global, Module, RequestMethod, type FactoryProvider, type MiddlewareConsumer } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { ModuleRef } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { Test } from '@nestjs/testing';
+import { OIDC_CLIENT } from '@repo/auth/nestjs';
 import type { Request } from 'express';
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
@@ -67,6 +69,20 @@ function createMockConsumer(): {
   throw new Error('Invalid middleware consumer');
 }
 
+type ModuleRefGetFn = (token: unknown, options: { strict: boolean }) => unknown;
+
+function isModuleRef(value: unknown): value is ModuleRef {
+  return typeof value === 'object' && value !== null && 'get' in value;
+}
+
+/** A ModuleRef whose `get` hands back an OIDC client stub, as AuthModule provides in the app. */
+function createMockModuleRef(): { moduleRef: ModuleRef; getMock: Mock<ModuleRefGetFn> } {
+  const getMock = vi.fn<ModuleRefGetFn>(() => ({}));
+  const moduleRefObj: unknown = { get: getMock };
+  if (isModuleRef(moduleRefObj)) return { moduleRef: moduleRefObj, getMock };
+  throw new Error('Invalid module ref');
+}
+
 @Global()
 @Module({})
 class TestConfigModule {}
@@ -102,12 +118,16 @@ describe('SessionModule Unit Test Suite', () => {
         SESSION_TTL_SECONDS: 1800,
       });
       const mockStore = createMockStore();
-      const module = new SessionModule(mockConfig, mockStore);
+      const { moduleRef, getMock: moduleRefGetMock } = createMockModuleRef();
+      const module = new SessionModule(mockConfig, mockStore, moduleRef);
 
       const { consumer, applyMock, forRoutesMock } = createMockConsumer();
       module.configure(consumer);
 
+      expect(moduleRefGetMock).toHaveBeenCalledWith(OIDC_CLIENT, { strict: false });
       expect(applyMock).toHaveBeenCalledTimes(1);
+      // express-session, then the activity middleware that refreshes tokens and enforces the idle limit.
+      expect(applyMock.mock.calls[0]).toHaveLength(2);
       expect(forRoutesMock).toHaveBeenCalledWith({
         path: '*path',
         method: RequestMethod.ALL,
@@ -124,12 +144,16 @@ describe('SessionModule Unit Test Suite', () => {
         SESSION_TTL_SECONDS: 3600,
       });
       const mockStore = createMockStore();
-      const module = new SessionModule(mockConfig, mockStore);
+      const { moduleRef, getMock: moduleRefGetMock } = createMockModuleRef();
+      const module = new SessionModule(mockConfig, mockStore, moduleRef);
 
       const { consumer, applyMock, forRoutesMock } = createMockConsumer();
       module.configure(consumer);
 
+      expect(moduleRefGetMock).toHaveBeenCalledWith(OIDC_CLIENT, { strict: false });
       expect(applyMock).toHaveBeenCalledTimes(1);
+      // express-session, then the activity middleware that refreshes tokens and enforces the idle limit.
+      expect(applyMock.mock.calls[0]).toHaveLength(2);
       expect(forRoutesMock).toHaveBeenCalledWith({
         path: '*path',
         method: RequestMethod.ALL,

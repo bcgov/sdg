@@ -1,0 +1,30 @@
+{{- if .Values.networkPolicy.enabled }}
+# Every notification-api pod (api, worker or all): only the edge and portal-api may connect, plus the observability
+# stack's Alloy when configured (R9).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "common.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "common.peerSelectorLabels" (dict "name" "edge" "context" $) | nindent 14 }}
+        - podSelector:
+            matchLabels:
+              {{- include "common.peerSelectorLabels" (dict "name" "portal-api" "context" $) | nindent 14 }}
+      ports:
+        - port: 3000
+          protocol: TCP
+    {{- with include "common.scraperIngressRule" (dict "context" . "port" 3000) }}
+    # The observability stack's Alloy scrapes /metrics (doc 20).
+    {{- . | nindent 4 }}
+    {{- end }}
+{{- end }}

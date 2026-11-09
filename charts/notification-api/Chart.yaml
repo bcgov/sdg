@@ -1,0 +1,10 @@
+apiVersion: v2
+name: notification-api
+description: 'notification-api: the shared notification service, with the notification-database migrator as an initContainer.'
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

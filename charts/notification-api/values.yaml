@@ -1,0 +1,139 @@
+# notification-api: the shared notification service (apps/notification-api), with the notification-database migrator
+# as the initContainer of every Deployment. Env contract: apps/notification-api/src/config/env.ts.
+# Reached by portal-api inside the cluster and by outside callers through the edge's notification host.
+global:
+  image:
+    # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
+    registry: ''
+    # Image tag, e.g. a PR number (12), a commit SHA or a release version. Required here or in image.tag.
+    tag: ''
+  # Required: the portal's public hostname; CONFIRM_EMAIL_URL is https://<host>/confirm-email.
+  host: ''
+  # Observability (doc 20): empty = off. See common.observability in charts/common.
+  observability:
+    collectorHost: ''
+    scraperNamespace: ''
+    environment: ''
+
+fullnameOverride: ''
+
+# split: an api Deployment (NOTIFICATION_ROLE=api, behind the Service) and a worker Deployment (NOTIFICATION_ROLE=worker).
+# combined: one Deployment with NOTIFICATION_ROLE=all (PR environments).
+mode: split
+
+# Per Deployment, keyed by role: api and worker in split mode, all in combined mode.
+replicaCount:
+  api: 1
+  worker: 1
+  all: 1
+
+# Rollout strategy per role. Empty: Kubernetes' default RollingUpdate. The worker has no Service, so a short gap is
+# harmless, and Recreate keeps two worker generations from claiming work side by side.
+strategy:
+  api: {}
+  worker:
+    type: Recreate
+  all:
+    type: Recreate
+
+resources:
+  api:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 384Mi
+  worker:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 384Mi
+  all:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 384Mi
+
+image:
+  registry: ''
+  name: notification-api
+  tag: ''
+  pullPolicy: IfNotPresent
+
+migrator:
+  image:
+    registry: ''
+    name: notification-database
+    tag: ''
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+logLevel: info
+
+keycloak:
+  # Required, e.g. https://keycloak.example.com/realms/portal
+  issuerUrl: ''
+  # Required: notification-api's own client id, the audience it accepts on tokens (NOTIFICATION_CLIENT_ID).
+  clientId: ''
+  # Comma-separated clients allowed to relay a user's token (RELAYING_CLIENT_IDS), e.g. the portal's client.
+  relayingClientIds: ''
+
+# Comma-separated browser origins allowed to call the recipient endpoints directly (CORS_ALLOWED_ORIGINS).
+# Empty: no CORS.
+corsAllowedOrigins: ''
+
+# Crunchy PGO user Secret (<cluster>-pguser-<user>); use key pgbouncer-uri when PgBouncer is enabled.
+database:
+  secretName: '{{ .Release.Name }}-postgres-pguser-notification'
+  secretKey: uri
+  # PGO only accepts TLS and its uri has no sslmode: node-postgres reads PGSSLMODE (require = verified TLS).
+  sslMode: require
+  # PGO's CA (<cluster>-cluster-cert), trusted through NODE_EXTRA_CA_CERTS. Empty: the system trust store.
+  caSecretName: '{{ .Release.Name }}-postgres-cluster-cert'
+  caSecretKey: ca.crt
+
+# Secrets issued outside the cluster (NOTIFICATION_ENCRYPTION_KEY) via the Vault Agent Injector.
+# The agent init container renders /vault/secrets/notification-api.env (dotenv) and node loads it with --env-file.
+# Values must not contain ' or newlines.
+vault:
+  enabled: true
+  # Required when enabled, e.g. abc123-nonprod
+  role: ''
+  authPath: auth/k8s-silver
+  namespace: platform-services
+  # Required when enabled: KV v2 path, e.g. abc123-nonprod/notification-api
+  secretPath: ''
+  # Required when enabled: the service account Vault's role trusts, e.g. abc123-vault
+  serviceAccountName: ''
+  keys:
+    - NOTIFICATION_ENCRYPTION_KEY
+  # The injector's defaults (250m CPU request) don't fit small namespace quotas; the init-only agent needs little.
+  agentResources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
+
+# Used when vault.enabled is false: a Secret holding the same keys, loaded with envFrom.
+existingSecret: ''
+
+networkPolicy:
+  enabled: true
+
+# Covers the Deployment behind the Service (api in split mode, all in combined mode).
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

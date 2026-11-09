@@ -169,4 +169,17 @@ describe('Env Config Unit Test Suite', () => {
       expect(errorOf({ ...valid, OTEL_TRACES_SAMPLER_ARG: '-0.1' }).keys).toEqual(['OTEL_TRACES_SAMPLER_ARG']);
     });
   });
+
+  describe('NOTIFICATION_API_URL', () => {
+    it('is undefined when unset or blank, and loses trailing slashes when set', () => {
+      expect(validateEnv(valid).NOTIFICATION_API_URL).toBeUndefined();
+      expect(validateEnv({ ...valid, NOTIFICATION_API_URL: ' ' }).NOTIFICATION_API_URL).toBeUndefined();
+      expect(
+        validateEnv({ ...valid, NOTIFICATION_API_URL: 'http://notification-api:3000/' }).NOTIFICATION_API_URL,
+      ).toBe('http://notification-api:3000');
+      expect(errorOf({ ...valid, NOTIFICATION_API_URL: 'ftp://notification-api' }).keys).toEqual([
+        'NOTIFICATION_API_URL',
+      ]);
+    });
+  });
 });

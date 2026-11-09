@@ -32,10 +32,15 @@ logLevel: INFO
 upstreams:
   portalApi: 'http://{{ .Release.Name }}-portal-api:3000'
   portalWeb: 'http://{{ .Release.Name }}-portal-web:8080'
+  # The notification host's /api* (common.caddy notify_on).
+  notificationApi: 'http://{{ .Release.Name }}-notification-api:3000'
 
 ingress:
   enabled: true
   # Empty: global.host. One of them is required.
+  # notification-api's host is always derived from global.host as <first label>-notify.<rest> (common.notifyHost),
+  # never from this one: the router's wildcard certificate covers it, and the WAF's host rule (coraza.conf) matches
+  # that shape. Without global.host there is no notification host and the edge serves only this host.
   host: ''
   # Empty: no ingressClassName (OpenShift's ingress-to-route controller handles class-less Ingresses).
   className: ''
@@ -45,7 +50,8 @@ ingress:
   # would merge a map).
   annotations: {}
   tls:
-    # Empty: the controller's default certificate.
+    # Empty: the controller's default certificate. Set, it is used for the notification host too, so its
+    # certificate must cover both hosts.
     secretName: ''
 
 resources:

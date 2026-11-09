@@ -9,7 +9,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Pull Request-based pipeline
 - Sandboxed development environments: a full, throwaway stack per pull request
 - Gated/controlled production deployments (optional)
-- Container publishing (ghcr.io) of four images: `portal-web`, `portal-api`, `portal-database` and `edge`
+- Container publishing (ghcr.io) of six images: `portal-web`, `portal-api`, `portal-database`, `notification-api`, `notification-database` and `edge`
 - Helm charts (`charts/`) with an `sdg` umbrella chart, deployed with Helm from GitHub Actions
 - Secrets from Vault, injected by the Vault Agent sidecar; database and cache credentials generated in-cluster
 - Security, vulnerability, infrastructure, and container scan tools
@@ -18,9 +18,9 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Automatic dependency patching via [bcgov/renovate-config](https://github.com/bcgov/renovate-config)
 - Maintenance Mode Automation (hands‑off updates, low‑dev mode) via the same Renovate config
 - Enforced code reviews and workflow jobs (pass|fail)
-- Prometheus metrics export from portal-api and the edge, and an optional self-hosted Grafana LGTM stack (ADR 0001)
+- Prometheus metrics export from portal-api, notification-api and the edge, and an optional self-hosted Grafana LGTM stack (ADR 0001)
 - Rolling updates with zero downtime in PROD
-- Database migrations with Drizzle, run as an initContainer before portal-api starts
+- Database migrations with Drizzle, run as an initContainer before portal-api and notification-api start
 - Pod disruption budgets for high availability
 - Self-healing through probes/checks (startup, readiness, liveness)
 - Helm chart lint, unit tests and schema validation; workflow lint (actionlint)
@@ -29,9 +29,10 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - **Sample application stack** (pnpm + Turborepo monorepo):
   - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; also the express-session store (encrypted at rest; pg_cron deletes expired sessions every 15 minutes)
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
-  - Edge: Caddy with Coraza WAF, routing `/api*` to portal-api and everything else to portal-web
+  - Edge: Caddy with Coraza WAF, routing `/api*` to portal-api and everything else to portal-web, and the notification host's `/api*` to notification-api
   - Backend: `portal-api`, a NestJS backend-for-frontend with Keycloak (OIDC) sign-in
-  - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `portal-database`
+  - Notifications: `notification-api`, the shared notification service (`apps/notification-api/README.md`), on its own `<release>-notify` host
+  - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `portal-database`, `notification-database`
 
 # Setup
 
@@ -54,7 +55,7 @@ Setup takes an hour or less. Scripts in [`scripts/`](./scripts/) do the GitHub a
    ```bash
    scripts/setup-openshift.sh --plate abc123          # preview, then add --apply
    ```
-6. **GitHub environments, secrets and variables**: creates the `test` and `prod` environments (PROD with required reviewers if you name them; without `--reviewers` it reports the current ones), and sets the `OC_NAMESPACE` variable and `OC_TOKEN` secret for pull requests (repository level), TEST and PROD, plus the `OC_SERVER` variable. It also checks the `KEYCLOAK_ISSUER_URL` and `KEYCLOAK_CLIENT_ID` variables for each and prints the `gh variable set` command for any that are missing; it never invents them. Without `--plate` it reads the plate from existing `OC_NAMESPACE` variables. Secrets that are already set are never overwritten. Secret values are piped from `oc` straight into `gh secret set`; they're never printed or written to disk, and previews show only the secret's name.
+6. **GitHub environments, secrets and variables**: creates the `test` and `prod` environments (PROD with required reviewers if you name them; without `--reviewers` it reports the current ones), and sets the `OC_NAMESPACE` variable and `OC_TOKEN` secret for pull requests (repository level), TEST and PROD, plus the `OC_SERVER` variable. It also checks the `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_CLIENT_ID` and `NOTIFICATION_CLIENT_ID` variables for each and prints the `gh variable set` command for any that are missing; it never invents them. Without `--plate` it reads the plate from existing `OC_NAMESPACE` variables. Secrets that are already set are never overwritten. Secret values are piped from `oc` straight into `gh secret set`; they're never printed or written to disk, and previews show only the secret's name.
    ```bash
    scripts/setup-environments.sh --plate abc123 --reviewers alice,bcgov/my-team   # preview, then add --apply
    ```
@@ -62,9 +63,16 @@ Setup takes an hour or less. Scripts in [`scripts/`](./scripts/) do the GitHub a
    ```bash
    scripts/setup-github.sh                              # preview, then add --apply
    ```
-8. **Vault secrets** (by hand): write `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` to Vault at `<plate>-nonprod/portal-api` (pull requests and TEST) and `<plate>-prod/portal-api` (PROD). See [Vault](#vault).
+8. **Vault secrets** (by hand): write `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` to Vault at `<plate>-nonprod/portal-api` (pull requests and TEST) and `<plate>-prod/portal-api` (PROD). Write notification-api's `NOTIFICATION_ENCRYPTION_KEY` to `<plate>-nonprod/notification-api` before the first pull request opens, `<plate>-nonprod/notification-api-test` before the first merge, and `<plate>-prod/notification-api` before the first release is published. See [Vault](#vault).
 9. **Keycloak clients** (by hand): add `https://<release>.apps.<cluster>.devops.gov.bc.ca/api/auth/callback` and `https://<release>.apps.<cluster>.devops.gov.bc.ca/` as valid redirect URIs. Wildcards are allowed on the pull request and TEST clients, so `https://<repo>-*.apps.<cluster>.devops.gov.bc.ca/*` covers every pull request. They are not allowed in PROD: list the exact `https://<repo>-prod.apps.<cluster>.devops.gov.bc.ca` URIs (and the vanity URL's, if you set [`ROUTE_HOST`](#optional-values)).
-10. **First pull request**: open one to run the pipeline, then make the packages public (see [Packages](#packages)).
+   For notification-api, in each environment's realm (the one its `KEYCLOAK_ISSUER_URL` names; dev, test and prod loginproxy issue different secrets for the same client id):
+   - notification-api's own client, whose id is the `NOTIFICATION_CLIENT_ID` variable. Give the people who set up an environment its `admin` client role, and add `http://localhost:<NOTIFICATION_LOGIN_PORT>/callback` (default `http://localhost:8400/callback`) as a valid redirect URI for the admin login script.
+   - Two service-account clients, which the seed links as its sender's two credentials (`SENDER_CREDENTIAL_A_*`, `SENDER_CREDENTIAL_B_*`).
+   - For direct mode, the tester's site signs in with its own client in the same realm. Add that client id to the environment's relaying clients and the site's origin to its CORS origins (see [GitHub](#github)).
+
+   [`apps/notification-api/README.md`](./apps/notification-api/README.md) shows how to seed and test an environment with them.
+
+10. **First pull request**: before opening it, check the PR namespace has room (see [Pull Request](#pull-request)), then open one to run the pipeline and check that all six packages are public (see [Packages](#packages)).
 11. **Optional** (by hand): [SonarCloud](#code-quality-with-sonarcloud), [Renovate](#renovate), Sysdig, a vanity URL with TLS, PROD deployment rules and team members, all described below.
 
 ## Secrets, Variables and Environments
@@ -73,31 +81,40 @@ Configuration lives in three places:
 
 - **GitHub** holds what the workflows need to reach the cluster and render the chart. Repository-level values are used by pull request deploys; `test` and `prod` environment values override them for those deploys. Checklist steps 5 and 6 set the required ones.
 - **OpenShift** holds credentials that are created in the cluster and never leave it.
-- **Vault** holds the application secrets that people choose. The Vault Agent sidecar renders them into portal-api's pod at startup.
+- **Vault** holds the application secrets that people choose. The Vault Agent sidecar renders them into portal-api's and notification-api's pods at startup.
 
 ### GitHub
 
-| Environment | Name                                                  | Description                                                                            |
-| ----------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| none        | `vars.OC_SERVER`                                      | OpenShift API server, `https://api.<cluster>.devops.gov.bc.ca:6443` (repository-level) |
-| none        | `vars.OC_NAMESPACE`                                   | PR namespace, `<plate>-dev`                                                            |
-| none        | `secrets.OC_TOKEN`                                    | PR service token (from the `github-actions-token` Secret in `<plate>-dev`)             |
-| none        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PR portal-api Keycloak client                                                          |
-| test        | `vars.OC_NAMESPACE`                                   | TEST namespace, `<plate>-test`                                                         |
-| test        | `secrets.OC_TOKEN`                                    | TEST service token (from `<plate>-test`)                                               |
-| test        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | TEST portal-api Keycloak client                                                        |
-| prod        | `vars.OC_NAMESPACE`                                   | PROD namespace, `<plate>-prod`                                                         |
-| prod        | `secrets.OC_TOKEN`                                    | PROD service token (from `<plate>-prod`)                                               |
-| prod        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PROD portal-api Keycloak client                                                        |
-| any (opt)   | `vars.VAULT_SECRET_PATH`                              | Vault KV path; default `<plate>-nonprod/portal-api` (PROD: `<plate>-prod/portal-api`)  |
-| prod (opt)  | `vars.ROUTE_HOST`                                     | Vanity URL hostname (repository or environment)                                        |
-| prod (opt)  | `secrets.TLS_CERTIFICATE`                             | Leaf certificate PEM for vanity URL                                                    |
-| prod (opt)  | `secrets.TLS_PRIVATE_KEY`                             | Private key PEM for vanity URL                                                         |
-| prod (opt)  | `secrets.TLS_CA_CERTIFICATE`                          | Issuing CA PEM for vanity URL                                                          |
-| none (opt)  | `secrets.SONAR_TOKEN`                                 | See [SonarCloud](#code-quality-with-sonarcloud)                                        |
-| none (opt)  | `secrets.SYSDIG_API_TOKEN`                            | PROD alert sync                                                                        |
+| Environment      | Name                                                  | Description                                                                                                                                                           |
+| ---------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| none             | `vars.OC_SERVER`                                      | OpenShift API server, `https://api.<cluster>.devops.gov.bc.ca:6443` (repository-level)                                                                                |
+| none             | `vars.OC_NAMESPACE`                                   | PR namespace, `<plate>-dev`                                                                                                                                           |
+| none             | `secrets.OC_TOKEN`                                    | PR service token (from the `github-actions-token` Secret in `<plate>-dev`)                                                                                            |
+| none             | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PR portal-api Keycloak client                                                                                                                                         |
+| none             | `vars.NOTIFICATION_CLIENT_ID`                         | PR notification-api Keycloak client (its own, in the same realm)                                                                                                      |
+| test             | `vars.OC_NAMESPACE`                                   | TEST namespace, `<plate>-test`                                                                                                                                        |
+| test             | `secrets.OC_TOKEN`                                    | TEST service token (from `<plate>-test`)                                                                                                                              |
+| test             | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | TEST portal-api Keycloak client                                                                                                                                       |
+| test             | `vars.NOTIFICATION_CLIENT_ID`                         | TEST notification-api Keycloak client                                                                                                                                 |
+| prod             | `vars.OC_NAMESPACE`                                   | PROD namespace, `<plate>-prod`                                                                                                                                        |
+| prod             | `secrets.OC_TOKEN`                                    | PROD service token (from `<plate>-prod`)                                                                                                                              |
+| prod             | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PROD portal-api Keycloak client                                                                                                                                       |
+| prod             | `vars.NOTIFICATION_CLIENT_ID`                         | PROD notification-api Keycloak client                                                                                                                                 |
+| any (opt)        | `vars.VAULT_SECRET_PATH`                              | portal-api's Vault KV path; default `<plate>-nonprod/portal-api` (PROD: `<plate>-prod/portal-api`). notification-api's is derived, with no override ([Vault](#vault)) |
+| none (opt)       | `vars.NOTIFICATION_PR_CORS_ORIGINS`                   | PR only: comma-separated origins whose pages may call notification-api directly (direct mode); `https://` or `http://localhost[:port]`                                |
+| none (opt)       | `vars.NOTIFICATION_PR_RELAYING_CLIENT_IDS`            | PR only: comma-separated Keycloak clients (direct-mode sites) allowed to relay a user's token, added to `KEYCLOAK_CLIENT_ID`                                          |
+| test, prod (opt) | `vars.NOTIFICATION_CORS_ORIGINS`                      | That environment's direct-mode origins; `https://` only. Set on the environment, not the repository                                                                   |
+| test, prod (opt) | `vars.NOTIFICATION_RELAYING_CLIENT_IDS`               | That environment's extra relaying clients, added to `KEYCLOAK_CLIENT_ID`. Set on the environment, not the repository                                                  |
+| prod (opt)       | `vars.ROUTE_HOST`                                     | Vanity URL hostname (repository or environment)                                                                                                                       |
+| prod (opt)       | `secrets.TLS_CERTIFICATE`                             | Leaf certificate PEM for vanity URL                                                                                                                                   |
+| prod (opt)       | `secrets.TLS_PRIVATE_KEY`                             | Private key PEM for vanity URL                                                                                                                                        |
+| prod (opt)       | `secrets.TLS_CA_CERTIFICATE`                          | Issuing CA PEM for vanity URL                                                                                                                                         |
+| none (opt)       | `secrets.SONAR_TOKEN`                                 | See [SonarCloud](#code-quality-with-sonarcloud)                                                                                                                       |
+| none (opt)       | `secrets.SYSDIG_API_TOKEN`                            | PROD alert sync                                                                                                                                                       |
 
 Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-12`, `sdg-test`, `sdg-prod`) at `https://<release>.apps.<cluster>.devops.gov.bc.ca`. [`scripts/deploy-values.sh`](./scripts/deploy-values.sh) derives the host, images and Vault settings (role `<plate>-nonprod`/`<plate>-prod`, service account `<plate>-vault`, auth path `auth/k8s-<cluster>`) from these values; sizes per environment live in `charts/sdg/values-{pr,test,prod}.yaml`. The Keycloak issuer URL and client id reach portal-api through a ConfigMap; they are not secrets.
+
+notification-api uses the same issuer as portal-api, its own client (`NOTIFICATION_CLIENT_ID`), and its own host, `https://<release>-notify.apps.<cluster>.devops.gov.bc.ca` (see [`charts/README.md`](./charts/README.md), notification-api). It always accepts tokens relayed by the portal's client (`KEYCLOAK_CLIENT_ID`), plus any extra relaying clients, and allows no browser origins unless some are listed. Pull requests have no GitHub environment, so they read only the `NOTIFICATION_PR_*` repository variables, which may hold `http://localhost` origins for a local test page. TEST and PROD read only the unprefixed names, set as environment variables, with `https://` origins only. Environments inherit repository variables and can't set one to empty, so one shared name would carry a PR's localhost origin or test client into TEST. `scripts/deploy-values.sh` rejects anything else.
 
 **Copied the template before `OC_NAMESPACE` became a variable?** Move it: `gh variable set OC_NAMESPACE --body <plate>-dev`, and the same with `--env test` / `--env prod` (or run `scripts/setup-environments.sh --apply`). The old secret is unused and can be deleted. `DB_PASSWORD` is no longer used either (see [OpenShift](#openshift)).
 
@@ -105,13 +122,14 @@ Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-1
 
 Nobody sets these by hand; they are created in the namespace and read there.
 
-| Secret                             | Namespace(s)            | Holds                        | Created by                                                                      |
-| ---------------------------------- | ----------------------- | ---------------------------- | ------------------------------------------------------------------------------- |
-| `github-actions-token`             | `<plate>-dev/test/prod` | Deploy service account token | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
-| `<release>-postgres-pguser-portal` | the release's namespace | `DATABASE_URL` (key `uri`)   | The Crunchy operator, from the chart's `PostgresCluster`                        |
-| Sysdig team Secret                 | `<plate>-tools`         | Sysdig API token             | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
+| Secret                                   | Namespace(s)            | Holds                                         | Created by                                                                      |
+| ---------------------------------------- | ----------------------- | --------------------------------------------- | ------------------------------------------------------------------------------- |
+| `github-actions-token`                   | `<plate>-dev/test/prod` | Deploy service account token                  | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
+| `<release>-postgres-pguser-portal`       | the release's namespace | `DATABASE_URL` (key `uri`)                    | The Crunchy operator, from the chart's `PostgresCluster`                        |
+| `<release>-postgres-pguser-notification` | the release's namespace | notification-api's `DATABASE_URL` (key `uri`) | The Crunchy operator, also on upgrade of an existing cluster                    |
+| Sysdig team Secret                       | `<plate>-tools`         | Sysdig API token                              | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
 
-On first install portal-api pods wait (`CreateContainerConfigError`) until the operator has created the database user Secret; the migrator then retries until the database accepts connections.
+On first install portal-api and notification-api pods wait (`CreateContainerConfigError`) until the operator has created their database user Secrets; the migrators then retry until the database accepts connections.
 
 ### Vault
 
@@ -123,6 +141,24 @@ portal-api reads two secrets from a Vault KV v2 secret. Deploys use the role `<p
 | `KEYCLOAK_CLIENT_SECRET` | Secret of the Keycloak confidential client named by `KEYCLOAK_CLIENT_ID`                                                                          |
 
 Values must not contain `'` or newlines. The Vault Agent writes them to `/vault/secrets/portal-api.env`, which portal-api loads with `node --env-file`. See [`charts/README.md`](./charts/README.md) for where every other value lives and how to deploy without Vault.
+
+notification-api reads one key, `NOTIFICATION_ENCRYPTION_KEY`: at least 32 characters with no `'` or newline (e.g. `openssl rand -base64 48`), which seals the integration secrets it stores. Its path is derived per environment, with no override, so no two environments share a key:
+
+| Environment   | Path                                    | Write it before                |
+| ------------- | --------------------------------------- | ------------------------------ |
+| Pull requests | `<plate>-nonprod/notification-api`      | the first pull request opens   |
+| TEST          | `<plate>-nonprod/notification-api-test` | the first merge                |
+| PROD          | `<plate>-prod/notification-api`         | the first release is published |
+
+For example, with the Vault CLI (BC Gov: `VAULT_ADDR=https://vault.developer.gov.bc.ca`, `VAULT_NAMESPACE=platform-services`), or in the Vault web UI:
+
+```bash
+vault login -method=oidc role=<plate>
+vault kv get -mount=<plate>-nonprod notification-api   # expect "No value found": never replace an existing key
+openssl rand -base64 48 | tr -d '\n' | vault kv put -mount=<plate>-nonprod notification-api NOTIFICATION_ENCRYPTION_KEY=-
+```
+
+Likewise `-mount=<plate>-nonprod notification-api-test` and `-mount=<plate>-prod notification-api`. Write each key once: a new key can't open the integration secrets stored under the old one, and rotating it is separate work. A deploy whose path or key is missing fails rather than starting notification-api without it. The deploys use the same `<plate>-nonprod`/`<plate>-prod` roles as portal-api; if the first deploy's Vault Agent can't read the new path, the role's policy needs it.
 
 ### Optional Values
 
@@ -219,6 +255,7 @@ Notes:
 - Publish releases from a commit on `main` that was merged from a PR. Commits pushed straight to `main` have no PR images to deploy.
 - If the `prod` environment limits deployment branches and tags, add a tag rule for your release tags (e.g. `v*`), or releases can't deploy.
 - Both workflows share a concurrency group, so they never deploy PROD at the same time.
+- `release.yml` checks that all six images exist for the PR. PROD's notification-api needs `<plate>-prod/notification-api` in Vault and the `prod` environment's `NOTIFICATION_CLIENT_ID` before the first release.
 
 ## Updating Dependencies
 
@@ -348,7 +385,9 @@ If `@testing-library/user-event` is flagged but exported from `test-utils.tsx`:
 
 ### Packages
 
-Packages are available from your repository (link on right). All four (`portal-web`, `portal-api`, `portal-database`, `edge`) should have visibility set to public for the workflows to run successfully.
+Packages are available from your repository (link on right). All six (`portal-web`, `portal-api`, `portal-database`, `notification-api`, `notification-database`, `edge`) must be public for the workflows to run successfully: the cluster and `release.yml` pull them without credentials.
+
+A package the workflows publish with their built-in token inherits the repository's visibility, so in a public repository each is public from its first build, as the existing images are. After a new package's first build (e.g. the first pull request that builds `notification-api` and `notification-database`), check it shows as public. If it doesn't, or a deploy can't pull its image, a person changes its visibility in that package's settings page (Danger Zone, Change visibility); no workflow setting controls it.
 
 E.g. `https://github.com/<owner>/<repo>/packages`
 
@@ -414,6 +453,8 @@ Run `pnpm test:charts` after changing a chart.
 | `deps`       | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
 | `postgis`    | database                                                                                 | `localhost:5432`                   |
 
+The notification-api spike runs alongside (see [Notification stack](#notification-stack)): `notification-api` at `https://notify.sdg.localhost`, `notification-migrate`, `mailpit` (`http://localhost:8025`) and `webhook-receiver` (`http://localhost:8090`).
+
 ## First run
 
 1. Copy `apps/portal-api/.env.example` to `apps/portal-api/.env` and set `SESSION_SECRET` and the `KEYCLOAK_*` values. compose overrides the URLs (`APP_URL`, `DATABASE_URL`, `TRUST_PROXY`), so the file's `localhost` values can stay for host-run development.
@@ -428,6 +469,12 @@ Run `pnpm test:charts` after changing a chart.
    ```
    Firefox keeps its own store: import the certificate there, or set `security.enterprise_roots.enabled` to `true` in `about:config`.
 5. Check the stack end to end with `scripts/compose-smoke.sh --no-up` (TLS, headers, WAF, API proxy, port isolation, migrations).
+
+## Notification stack
+
+notification-api (`apps/notification-api/README.md`) starts with the rest of the stack once `apps/notification-api/.env` exists (copy `.env.example`; set the Keycloak keys, `RELAYING_CLIENT_IDS` and `NOTIFICATION_ENCRYPTION_KEY`). It runs the API and the delivery workers in one process, sends all email to Mailpit and is allowed plain HTTP and SMTP only to Mailpit and the webhook receiver. portal-api relays the signed-in user's notification calls to it (`NOTIFICATION_API_URL`). Caddy serves `https://notify.sdg.localhost` through the WAF as the deployed edge serves `<release>-notify`, so direct-mode preflight from `http://localhost:5173` can be tried locally. `notification-migrate` builds `@repo/notification-database` and applies its migrations first (`packages/notification-database/README.md`). If you ran notification-api locally before its tables moved to the `notification` schema, reset its database once (`apps/notification-api/README.md`, Running locally).
+
+The scripts in `apps/notification-api/scripts` drive it with real Keycloak tokens: `admin-token` prints an admin token, `seed` creates whatever part of the test catalog, sender and credentials is missing (re-runnable), `send` sends one test notification as a sender credential, and `e2e` resets the local database and checks flows F1–F6 plus two workers sharing it. Run them with `pnpm --filter notification-api <script>`; the README lists their settings. `admin-token`, `seed` and `send` also work against a deployed environment's notification host (README, Running against a deployed environment); `e2e` is local only. The end-to-end run is manual and never runs in CI.
 
 ## Observability (optional)
 
@@ -447,20 +494,23 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 - **`schema "cron" does not exist` when migrating**: the `portal-pgdata` volume predates pg_cron, and the `postgis` image only installs the extension on a fresh volume. Recreate it with `podman compose down && podman volume rm portal_portal-pgdata && podman compose up -d --build`, which deletes local data. Keeping the old volume isn't worth it: the image moved from alpine to Debian, which changes collations.
 - **After changing `Dockerfile.dev`, `apps/portal-web/caddy/Dockerfile` or `packages/portal-database/dev-postgres/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
 - **Adding a workspace package**: add its `node_modules` volume to `x-workspace` and `volumes:` in `compose.yaml`.
+- **notification-api or notification-migrate fails with `not found` or `Cannot find module`** on a stack created before it existed: the running `deps` container lacks the `nm-notification-api` or `nm-notification-database` volume. Recreate it with `podman compose up -d --force-recreate deps`, then start the stack. After adding `NOTIFICATION_API_URL`, recreate `portal-api` too (podman-compose doesn't for an env change), or `/api/v1/notifications` answers 404.
 - **WAF**: rules using `block` (1001, 1002, 1005, 1007, 1008) follow Coraza's default action (`pass`) and only log a `Coraza: Warning`. Rules using `deny` (1003, 1004) return 403.
 
 # Production Images
 
 Multi-stage Dockerfiles for OpenShift. The app images build from the repository root:
 
-| Image             | Build                                                   | Runs                                                                               |
-| ----------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `portal-web`      | `podman build -f apps/portal-web/Dockerfile .`          | Caddy serving the built SPA on `:8080` (cluster-internal)                          |
-| `portal-api`      | `podman build -f apps/portal-api/Dockerfile .`          | `node dist/main.js` on `:3000` (cluster-internal)                                  |
-| `portal-database` | `podman build -f packages/portal-database/Dockerfile .` | `node dist/migrate.js` as portal-api's initContainer (needs `DATABASE_URL`)        |
-| edge              | `podman build apps/portal-web/caddy`                    | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL` |
+| Image                   | Build                                                         | Runs                                                                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `portal-web`            | `podman build -f apps/portal-web/Dockerfile .`                | Caddy serving the built SPA on `:8080` (cluster-internal)                                                                                                                   |
+| `portal-api`            | `podman build -f apps/portal-api/Dockerfile .`                | `node dist/main.js` on `:3000` (cluster-internal)                                                                                                                           |
+| `portal-database`       | `podman build -f packages/portal-database/Dockerfile .`       | `node dist/migrate.js` as portal-api's initContainer (needs `DATABASE_URL`)                                                                                                 |
+| `notification-api`      | `podman build -f apps/notification-api/Dockerfile .`          | `node dist/main.js` on `:3000`; the edge publishes only its `/api*` on the notification host                                                                                |
+| `notification-database` | `podman build -f packages/notification-database/Dockerfile .` | `node dist/migrate.js` as notification-api's initContainer (needs `DATABASE_URL`)                                                                                           |
+| edge                    | `podman build apps/portal-web/caddy`                          | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL`; on `NOTIFY_HOST` (when `NOTIFY=on`), `/api*` → `NOTIFICATION_API_URL` and 404 otherwise |
 
-All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, health, SPA routing and caching, edge headers, WAF).
+All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, including two notification migrators at once, health, SPA routing and caching, edge headers, WAF, and the notification host's routing, preflight and audit log).
 
 # Workflows
 
@@ -549,10 +599,12 @@ Runs on pull request submission.
 - Build action pushes to GitHub Container Registry (ghcr.io)
 - Build triggers select new builds vs reusing builds
 - Deploy only when changes are made
-- Builds `portal-web`, `portal-api`, `portal-database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
+- Builds `portal-web`, `portal-api`, `portal-database`, `notification-api`, `notification-database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`, with notification-api as one pod running both roles
 - Smoke checks through the edge and Playwright E2E (chromium) when changes are made
-- Posts sticky comment with deployment links when deployments occur
+- Posts sticky comment with deployment links (the portal and notification-api's `https://<repo>-<pr>-notify.apps.<cluster>.devops.gov.bc.ca`) when deployments occur
 - Other checks and updates as required
+
+Each PR environment requests about 85m CPU and 480Mi memory (`charts/sdg/values-pr.yaml`), and all of them share `<plate>-dev` and its quota (`oc describe quota -n <plate>-dev`). Where another app shares that namespace, about one PR environment fits at a time: a deploy that doesn't fit fails, and so does the PR's `PR Results` check. Before a deploy that needs the slot, close the other PRs (PR Closed uninstalls their releases) or have a person run `helm uninstall <repo>-<pr> -n <plate>-dev` for each; the Scheduled purge only removes releases idle for 3 days.
 
 ![](.github/graphics/pr-open.png)
 
@@ -585,7 +637,7 @@ Runs on pull request submission or merge to the default branch.
 Runs on pull request close or merge.
 
 - Uninstalls the PR's Helm release (`helm uninstall <repo>-<pr>`)
-- Merge retags successful build images as `latest`
+- Merge retags successful build images as `latest` (all six packages)
 
 ![](.github/graphics/pr-close.png)
 
@@ -595,7 +647,7 @@ Runs on pull request close or merge.
 
 Runs on merge to main branch.
 
-- Zero-downtime* TEST deployment
+- Zero-downtime* TEST deployment, including notification-api (its worker is replaced, not rolled, so delivery pauses briefly; needs `<plate>-nonprod/notification-api-test` in Vault and the `test` environment's `NOTIFICATION_CLIENT_ID`)
 - Smoke checks and Playwright E2E on TEST
 - Zero-downtime* PROD deployment
 - Labels successful deployment images as PROD

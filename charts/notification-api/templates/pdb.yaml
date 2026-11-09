@@ -1,0 +1,15 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+# Only the pods behind the Service: the worker has no Service and a short delivery gap is harmless (KTD12).
+{{- $role := include "notification-api.servedRole" . }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" $role) | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "notification-api.selectorLabels" (dict "context" . "role" $role) | nindent 6 }}
+{{- end }}

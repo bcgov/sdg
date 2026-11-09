@@ -20,6 +20,8 @@ export const TEST_ENV = {
   KEYCLOAK_ISSUER_URL: 'https://keycloak.example.com/realms/portal',
   KEYCLOAK_CLIENT_ID: 'portal',
   KEYCLOAK_CLIENT_SECRET: 'test-client-secret',
+  /** Blank: the notification relay is off unless a test sets it. */
+  NOTIFICATION_API_URL: '',
 } as const;
 
 export const TEST_USER: AuthUser = {
@@ -41,6 +43,8 @@ export interface OidcStub {
   createAuthorizationRequest: Mock<OidcClient['createAuthorizationRequest']>;
   handleCallback: Mock<OidcClient['handleCallback']>;
   buildEndSessionUrl: Mock<OidcClient['buildEndSessionUrl']>;
+  refresh: Mock<OidcClient['refresh']>;
+  endSession: Mock<OidcClient['endSession']>;
 }
 
 export interface TestApp {
@@ -88,6 +92,10 @@ export function createOidcStub(): OidcStub {
       if (idToken) url.searchParams.set('id_token_hint', idToken);
       return Promise.resolve(url);
     }),
+    refresh: vi.fn<OidcClient['refresh']>((current) =>
+      Promise.resolve({ ...current, accessToken: 'refreshed-access-token', expiresAt: Date.now() + 300_000 }),
+    ),
+    endSession: vi.fn<OidcClient['endSession']>().mockResolvedValue(undefined),
   };
 }
 
@@ -98,6 +106,8 @@ export function resetOidcStub(stub: OidcStub): void {
   stub.createAuthorizationRequest.mockReset().mockImplementation(fresh.createAuthorizationRequest);
   stub.handleCallback.mockReset().mockImplementation(fresh.handleCallback);
   stub.buildEndSessionUrl.mockReset().mockImplementation(fresh.buildEndSessionUrl);
+  stub.refresh.mockReset().mockImplementation(fresh.refresh);
+  stub.endSession.mockReset().mockImplementation(fresh.endSession);
 }
 
 /**

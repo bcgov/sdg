@@ -12,7 +12,13 @@ base_env() {
   export TARGET=12 TAG=0123abc REPOSITORY=Acme/sdg ENVIRONMENT='' VAULT_SECRET_PATH='' OBSERVABILITY=''
   export OC_NAMESPACE=d62e77-dev OC_SERVER=https://api.gold.devops.gov.bc.ca:6443
   export KEYCLOAK_ISSUER_URL=https://dev.loginproxy.gov.bc.ca/auth/realms/standard KEYCLOAK_CLIENT_ID=sdg-1234
+  export NOTIFICATION_CLIENT_ID=sdg-notifications-5678
+  unset NOTIFICATION_PR_CORS_ORIGINS NOTIFICATION_PR_RELAYING_CLIENT_IDS NOTIFICATION_CORS_ORIGINS \
+    NOTIFICATION_RELAYING_CLIENT_IDS
 }
+
+# notification <values>: the notification-api block only
+notification() { sed -n '/^notification-api:/,/^[a-z]/p' <<< "$1"; }
 
 # expect <name> <haystack> <needle>
 expect() {
@@ -96,6 +102,67 @@ export OBSERVABILITY=true TARGET=prod ENVIRONMENT=prod OC_NAMESPACE=d62e77-prod
 values="$("$SCRIPT" values)"
 expect "prod reports to its own stack" "$values" "    collectorHost: \"observability-alloy.d62e77-prod.svc\""
 expect "prod is scraped from <plate>-prod" "$values" "    scraperNamespace: \"d62e77-prod\""
+
+# notification-api (KTD10): derived Vault paths, the portal always relays, PR-only direct-mode variables
+base_env
+values="$(notification "$("$SCRIPT" values)")"; outputs="$("$SCRIPT" outputs)"
+expect "notification-api Keycloak client id passes through" "$values" "    clientId: \"sdg-notifications-5678\""
+expect "the portal's client always relays" "$values" "    relayingClientIds: \"sdg-1234\""
+expect "no browser origins by default" "$values" "  corsAllowedOrigins: \"\""
+expect "PR notification Vault path is <plate>-nonprod/notification-api" "$values" \
+  "    secretPath: \"d62e77-nonprod/notification-api\""
+expect "PR notify url is https://<release>-notify.<apps domain>" "$outputs" \
+  "notify_url=https://sdg-12-notify.apps.gold.devops.gov.bc.ca"
+
+base_env
+export NOTIFICATION_PR_CORS_ORIGINS=http://localhost:5173,https://tester.example.gov.bc.ca
+export NOTIFICATION_PR_RELAYING_CLIENT_IDS=direct-tester-1,direct-tester-2
+values="$(notification "$("$SCRIPT" values)")"
+expect "PR takes NOTIFICATION_PR_CORS_ORIGINS, localhost included" "$values" \
+  "  corsAllowedOrigins: \"http://localhost:5173,https://tester.example.gov.bc.ca\""
+expect "PR adds NOTIFICATION_PR_RELAYING_CLIENT_IDS to the portal's client" "$values" \
+  "    relayingClientIds: \"sdg-1234,direct-tester-1,direct-tester-2\""
+
+base_env
+export TARGET=test ENVIRONMENT=test OC_NAMESPACE=d62e77-test
+export NOTIFICATION_PR_CORS_ORIGINS=http://localhost:5173 NOTIFICATION_PR_RELAYING_CLIENT_IDS=direct-tester-1
+values="$(notification "$("$SCRIPT" values)")"
+expect "test ignores the PR-only origins" "$values" "  corsAllowedOrigins: \"\""
+expect "test ignores the PR-only relaying clients" "$values" "    relayingClientIds: \"sdg-1234\""
+expect "test notification Vault path is <plate>-nonprod/notification-api-test" "$values" \
+  "    secretPath: \"d62e77-nonprod/notification-api-test\""
+export NOTIFICATION_CORS_ORIGINS=https://site.example.gov.bc.ca NOTIFICATION_RELAYING_CLIENT_IDS=site-client
+values="$(notification "$("$SCRIPT" values)")"
+expect "test takes NOTIFICATION_CORS_ORIGINS" "$values" "  corsAllowedOrigins: \"https://site.example.gov.bc.ca\""
+expect "test adds NOTIFICATION_RELAYING_CLIENT_IDS" "$values" "    relayingClientIds: \"sdg-1234,site-client\""
+
+base_env
+export TARGET=prod ENVIRONMENT=prod OC_NAMESPACE=d62e77-prod
+expect "prod notification Vault path is <plate>-prod/notification-api" "$(notification "$("$SCRIPT" values)")" \
+  "    secretPath: \"d62e77-prod/notification-api\""
+
+base_env
+export VAULT_SECRET_PATH=d62e77-nonprod/sdg/portal-api
+expect "VAULT_SECRET_PATH leaves notification-api's path alone" "$(notification "$("$SCRIPT" values)")" \
+  "    secretPath: \"d62e77-nonprod/notification-api\""
+
+# rejects_in <name> <target> <var> <value>: like rejects, for a test or prod target
+rejects_in() {
+  local out
+  base_env
+  export TARGET="$2" ENVIRONMENT="$2" OC_NAMESPACE="d62e77-$2" "$3=$4"
+  if out="$("$SCRIPT" values 2>&1)"; then echo "FAIL: $1: accepted $3='$4'"; FAILED=1
+  elif grep -q "$3" <<< "$out"; then echo "PASS: $1"
+  else echo "FAIL: $1: error does not name $3: $out"; FAILED=1; fi
+}
+rejects_in "localhost origin for test" test NOTIFICATION_CORS_ORIGINS 'http://localhost:5173'
+rejects_in "localhost origin for prod" prod NOTIFICATION_CORS_ORIGINS 'http://localhost:5173'
+rejects_in "http origin for test" test NOTIFICATION_CORS_ORIGINS 'http://site.example.gov.bc.ca'
+rejects "missing notification-api client id" NOTIFICATION_CLIENT_ID ''
+rejects "origin with a path" NOTIFICATION_PR_CORS_ORIGINS 'https://site.example.gov.bc.ca/app'
+rejects "origin with a trailing slash" NOTIFICATION_PR_CORS_ORIGINS 'https://site.example.gov.bc.ca/'
+rejects "non-localhost http origin for PRs" NOTIFICATION_PR_CORS_ORIGINS 'http://site.example.gov.bc.ca'
+rejects "relaying client id with a quote" NOTIFICATION_PR_RELAYING_CLIENT_IDS "a'b"
 
 rejects "OBSERVABILITY other than true/false" OBSERVABILITY 'yes'
 rejects "missing Keycloak issuer" KEYCLOAK_ISSUER_URL ''
