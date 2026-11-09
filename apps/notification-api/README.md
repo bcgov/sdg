@@ -91,22 +91,33 @@ One-off reset after the move to `packages/notification-database`: the tables now
 
 ## Keycloak setup for the scripts
 
+Both in the realm `KEYCLOAK_ISSUER_URL` names. Each deployed environment has its own issuer (dev, test or prod loginproxy), so each needs its own (DEVELOPER.md, Checklist step 9):
+
 - On notification-api's client: an `admin` client role assigned to you, and `http://localhost:8400/callback` (or your `NOTIFICATION_LOGIN_PORT`) as a valid redirect URI. Set `NOTIFICATION_CLIENT_SECRET` if the client is confidential.
 - Two service-account clients whose tokens carry an audience notification-api accepts: their ids and secrets go in `SENDER_CREDENTIAL_A_*` and `SENDER_CREDENTIAL_B_*`.
 
-## Login, seed and the end-to-end run
+## Login, seed, send and the end-to-end run
 
 ```sh
 # An admin token (stdout only; short-lived). Opens the browser for the sign-in.
 export NOTIFICATION_ADMIN_TOKEN="$(pnpm --filter notification-api --silent admin-token)"
 
-# Fill an empty database: three types with en-CA/fr-CA templates, a sender you own with both credentials linked and
-# scoped, a failure callback to the webhook receiver, and a self-subscribe platform topic.
+# Three types with en-CA/fr-CA templates, a self-subscribe platform topic, a sender you own that may broadcast to it,
+# both credentials linked and scoped, and a failure callback to the webhook receiver when WEBHOOK_RECEIVER_INTERNAL_URL
+# is set. Creates only what is missing: run it again to finish a failed run; after a full seed it changes nothing.
+# Prints the sender and platform topic ids.
 pnpm --filter notification-api seed
+
+# One `permit-status` notification as credential A: to a topic (e.g. the platform topic id seed printed), or to one
+# user by the issuer and subject of their token. Prints the notification id.
+pnpm --filter notification-api send --topic <topic id>
+pnpm --filter notification-api send --issuer <iss> --subject <sub>
 
 # The end-to-end run. DROPS and re-migrates the local notification database, seeds it, then checks every flow.
 pnpm --filter notification-api e2e
 ```
+
+`seed` and `send` print the base URL and issuer they act on (stderr) before their first write, and `admin-token` the issuer and client it signs in to. `send` without `--topic`, or without both `--issuer` and `--subject`, prints its usage and exits 1 before calling anything.
 
 Without `NOTIFICATION_ADMIN_TOKEN`, `seed` and `e2e` sign you in through the browser themselves and refresh the token while they run, which `e2e` (about three and a half minutes) needs if the realm's tokens are short-lived.
 
@@ -126,3 +137,24 @@ Before `e2e`, sign in at `https://sdg.localhost` with BC Services Card and copy 
 | I1    | Through the portal and the compose edge: the relayed stream gets `changed` within 2 s of a send and stays open 31 s on keep-alives; opening a notification by its id and reading it cancels its email reminder; an email links to `/inbox/<notification id>`; the CORS preflight to `notify.sdg.localhost` is allowed from `http://localhost:5173` only |
 
 I1 runs last because it saves a new version of the `permit-status` email templates (the inbox link). The run is manual: CI runs only the unit and integration tests (`pnpm --filter notification-api test`).
+
+## Running against a deployed environment
+
+Every `sdg` release runs notification-api (`charts/README.md`, notification-api). Outside the cluster it answers at `https://<release>-notify.apps.<cluster domain>`, e.g. `https://sdg-12-notify.apps.gold.devops.gov.bc.ca` for PR 12 (the PR comment links it) and `https://sdg-test-notify.apps.gold.devops.gov.bc.ca` for TEST. Only `/api` is public there; `/metrics` and `/healthz` are not, and `/api/docs` is off in production.
+
+Point the script settings at that environment, in `.env` or in the shell (the shell wins):
+
+- `NOTIFICATION_API_BASE_URL`: the notification host above.
+- `KEYCLOAK_ISSUER_URL`, `NOTIFICATION_CLIENT_ID`, `NOTIFICATION_CLIENT_SECRET`: that environment's realm and client. The loginproxy differs per environment (`dev.loginproxy.gov.bc.ca` for PRs, `test.loginproxy.gov.bc.ca` for TEST), and so does each client's secret.
+- `SENDER_CREDENTIAL_A_*`, `SENDER_CREDENTIAL_B_*`: the two service-account clients in that realm, with that realm's secrets.
+- `WEBHOOK_RECEIVER_INTERNAL_URL`: blank. A deployed environment has no webhook receiver, so the seed sets no failure callback.
+
+Then, in order:
+
+1. Get a fresh `NOTIFICATION_ADMIN_TOKEN` with `admin-token` from that realm (you need the `admin` role on its notification-api client; a token from another realm is rejected) and run `seed`. Check the URL and issuer it prints first. If it fails partway, run it again.
+2. Portal inbox: sign in to the environment's portal with BC Services Card and subscribe to the seed's platform topic through portal-api's relay. portal-web has no page for that yet, so run `await fetch('/api/v1/notifications/subscriptions/<platform topic id>', { method: 'PUT' })` in the browser console on the portal (204). Then `send --topic <platform topic id>`: the notification appears in the bell and the inbox without a reload.
+3. Direct mode: the tester's page signs in with its own client in the same realm, and that client and the page's origin must be in the environment's relaying clients and CORS origins (`NOTIFICATION_PR_*` for PRs, the `test` environment's variables for TEST; DEVELOPER.md, GitHub). Read `iss` and `sub` from the page's own access token and `send --issuer <iss> --subject <sub>`.
+
+A person's BC Services Card subject probably differs from one client to the next, so the portal and a direct-mode site may see different inboxes for the same person. Direct mode shows the inbox of the identity the site signs in as, which is why step 3 addresses that identity rather than the portal user.
+
+No platform default email server is configured in deployed environments, so `permit-status`'s email step fails and is recorded in the notification's history, while the in-app item is delivered. A sender can add its own email integration. `e2e` is local only: it resets the database through compose and needs Mailpit and the webhook receiver.
