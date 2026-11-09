@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { NOTIFICATION_VARIABLE_NAMES } from '../templates/notification-variables.js';
+
 /**
  * A Notification type's data contract (R13): the subset of JSON Schema the platform supports. The top level is an
  * object; properties are `string`, `number`, `integer`, `boolean`, `object` (with `properties` and optional
@@ -72,8 +74,23 @@ const propertySchema: z.ZodType<ContractProperty> = z
   .union([scalarSchema, arraySchema, objectSchema])
   .meta({ id: 'DataContractProperty' });
 
-/** Validates a data contract when the admin defines a type. */
-export const dataContractSchema: z.ZodType<DataContract> = objectSchema;
+/**
+ * Validates a data contract when the admin defines a type. Templates see the platform's variables over the sender's
+ * data, so a top-level property with a variable's name would never reach them; nested properties can use the names.
+ */
+export const dataContractSchema: z.ZodType<DataContract> = objectSchema
+  .superRefine((contract, ctx) => {
+    for (const name of NOTIFICATION_VARIABLE_NAMES) {
+      if (Object.hasOwn(contract.properties, name)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `${name} is reserved for platform template variables`,
+          path: ['properties', name],
+        });
+      }
+    }
+  })
+  .meta({ id: 'DataContract' });
 
 const scalarValidators: Record<ScalarType, () => z.ZodType> = {
   string: () => z.string(),

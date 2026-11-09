@@ -112,6 +112,40 @@ describe('admin Notification types (R13, R14)', () => {
     expect(keys.filter((key) => key.startsWith('rejected-'))).toEqual([]);
   });
 
+  it.each(['recipient', 'notification'])(
+    'rejects a contract with a top-level %s property, which templates see as a platform variable',
+    async (name) => {
+      const res = await t
+        .http()
+        .post(typesPath)
+        .set(admin)
+        .send({
+          ...permitApproved,
+          key: `reserved-${name}`,
+          dataContract: { type: 'object', properties: { [name]: { type: 'string' } } },
+        });
+
+      expect(res.status).toBe(400);
+      expect(JSON.stringify(res.body)).toContain(`${name} is reserved for platform template variables`);
+      expect((await t.http().get(`${typesPath}/reserved-${name}`).set(admin)).status).toBe(404);
+    },
+  );
+
+  it('accepts a recipient property nested inside another object', async () => {
+    const dataContract = {
+      type: 'object',
+      properties: { permit: { type: 'object', properties: { recipient: { type: 'string' } } } },
+    };
+    const res = await t
+      .http()
+      .post(typesPath)
+      .set(admin)
+      .send({ ...permitApproved, key: 'nested-recipient', dataContract });
+
+    expect(res.status).toBe(201);
+    expect(res.body.dataContract).toEqual(dataContract);
+  });
+
   it('refuses a key that is already defined, keeping the first definition', async () => {
     const first = await t.http().post(typesPath).set(admin).send(typeDefinition('duplicate-key'));
     const second = await t

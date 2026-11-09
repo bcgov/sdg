@@ -39,7 +39,7 @@ CORS (direct mode) applies only to `/api/v1/me/*`, for the origins in `CORS_ALLO
 
 ## Template variables
 
-Templates (Liquid, every channel) see the sender's `data` fields by name, plus two variables the platform sets. A `data` field with the same name can't override them:
+Templates (Liquid, every channel) see the sender's `data` fields by name, plus two variables the platform sets. Their names are reserved: a type's data contract can't define a top-level `notification` or `recipient` property (creating the type answers 400), though nested properties can use them:
 
 | Variable             | Value                                                                                       |
 | -------------------- | ------------------------------------------------------------------------------------------- |
