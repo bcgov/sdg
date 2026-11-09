@@ -5,6 +5,7 @@ import { createEngine, renderSource, type FragmentSources } from './engines.js';
 import type { RenderLocale } from './filters.js';
 import { markdownToHtml } from './markdown.js';
 import { compileMjml } from './mjml.js';
+import type { NotificationVariables } from './notification-variables.js';
 import { errorMessage, renderingPart, TemplateRenderError } from './render-error.js';
 import { parsePayloadTemplate, payloadLeaves, renderPayload, standardEnvelope } from './webhook-payload.js';
 
@@ -17,13 +18,6 @@ export type RenderedParts =
   | { channel: 'in-app'; title: string; body: string; actionUrl: string | null }
   /** `payload` is JSON text. */
   | { channel: 'webhook'; payload: string };
-
-/** What every template sees beside the sender's data, which cannot override it (KTD10). */
-export interface NotificationVariables {
-  notification: { id: string };
-  /** True only for a user recipient: address and system recipients have no inbox. */
-  recipient: { hasInbox: boolean };
-}
 
 export interface RenderInput {
   channel: Channel;

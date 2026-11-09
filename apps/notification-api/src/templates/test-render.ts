@@ -1,8 +1,9 @@
 import { requiredSampleData, sampleData, type DataContract } from '../catalog/data-contract.js';
 import type { Channel } from '../channels/channels.js';
 import { referencedNames, type FragmentSources } from './engines.js';
+import type { NotificationVariables } from './notification-variables.js';
 import { errorMessage, TemplateRenderError } from './render-error.js';
-import { partSources, renderParts, type NotificationVariables, type TemplateParts } from './renderer.js';
+import { partSources, renderParts, type TemplateParts } from './renderer.js';
 import type { PinnedFragment } from './template-store.js';
 
 /** The recipient id previews and test renders put in a webhook's standard envelope. */
