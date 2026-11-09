@@ -135,3 +135,92 @@ sdg.gov.bc.ca/environment: {{ . | quote }}
       protocol: TCP
 {{- end -}}
 {{- end -}}
+
+{{/*
+Notification hostname (KTD8): the portal host with -notify appended to its first DNS label, so it stays under the
+router's single-label wildcard certificate, e.g. sdg-12.apps.gold.devops.gov.bc.ca -> sdg-12-notify.apps.gold.devops.gov.bc.ca.
+No override: the edge's WAF host rule (coraza.conf) matches this shape. Empty when global.host is empty.
+Usage: include "common.notifyHost" $
+*/}}
+{{- define "common.notifyHost" -}}
+{{- with (.Values.global | default dict).host -}}
+{{- $labels := splitList "." . -}}
+{{- prepend (rest $labels) (printf "%s-notify" (first $labels)) | join "." -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Database env for an app on a Crunchy PGO user Secret: DATABASE_URL from the Secret, PGSSLMODE, and the cluster CA
+through NODE_EXTRA_CA_CERTS when database.caSecretName is set (mounted by common.postgresCaMount and common.postgresCaVolume).
+Usage: include "common.databaseUrlEnv" (dict "database" .Values.database "context" $)
+*/}}
+{{- define "common.databaseUrlEnv" -}}
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "common.tplvalue" (dict "value" .database.secretName "context" .context) }}
+      key: {{ .database.secretKey }}
+- name: PGSSLMODE
+  value: {{ .database.sslMode | quote }}
+{{- if .database.caSecretName }}
+- name: NODE_EXTRA_CA_CERTS
+  value: /etc/postgres-ca/ca.crt
+{{- end }}
+{{- end -}}
+
+{{/* Container volumeMount for the Postgres CA; empty without database.caSecretName. Usage: include "common.postgresCaMount" .Values.database */}}
+{{- define "common.postgresCaMount" -}}
+{{- if .caSecretName -}}
+- name: postgres-ca
+  mountPath: /etc/postgres-ca
+  readOnly: true
+{{- end -}}
+{{- end -}}
+
+{{/* Pod volume for the Postgres CA; empty without database.caSecretName. Usage: include "common.postgresCaVolume" (dict "database" .Values.database "context" $) */}}
+{{- define "common.postgresCaVolume" -}}
+{{- if .database.caSecretName -}}
+- name: postgres-ca
+  secret:
+    secretName: {{ include "common.tplvalue" (dict "value" .database.caSecretName "context" .context) }}
+    items:
+      - key: {{ .database.caSecretKey }}
+        path: ca.crt
+{{- end -}}
+{{- end -}}
+
+{{/*
+Vault Agent template: one dotenv line per key. The Vault braces are emitted literally, not run by Helm.
+Usage: include "common.vaultTemplate" .Values.vault
+*/}}
+{{- define "common.vaultTemplate" -}}
+{{ printf "{{- with secret %q }}" .secretPath }}
+{{- range .keys }}
+{{- if not (regexMatch "^[A-Z0-9_]+$" .) }}
+{{- fail (printf "vault.keys entries must match ^[A-Z0-9_]+$, got %q" .) }}
+{{- end }}
+{{ printf "%s='{{ index .Data.data %q }}'" . . }}
+{{- end }}
+{{ "{{- end }}" }}
+{{- end -}}
+
+{{/*
+Pod annotations for an init-only Vault agent that renders /vault/secrets/<envFile> (dotenv) for node --env-file.
+Usage: include "common.vaultAnnotations" (dict "vault" .Values.vault "envFile" "portal-api.env")
+*/}}
+{{- define "common.vaultAnnotations" -}}
+{{- $vault := .vault -}}
+vault.hashicorp.com/agent-inject: 'true'
+vault.hashicorp.com/agent-pre-populate-only: 'true'
+vault.hashicorp.com/agent-inject-token: 'false'
+vault.hashicorp.com/agent-requests-cpu: {{ $vault.agentResources.requests.cpu | quote }}
+vault.hashicorp.com/agent-requests-mem: {{ $vault.agentResources.requests.memory | quote }}
+vault.hashicorp.com/agent-limits-cpu: {{ $vault.agentResources.limits.cpu | quote }}
+vault.hashicorp.com/agent-limits-mem: {{ $vault.agentResources.limits.memory | quote }}
+vault.hashicorp.com/role: {{ $vault.role | required "vault.role is required when vault.enabled is true" | quote }}
+vault.hashicorp.com/auth-path: {{ $vault.authPath | quote }}
+vault.hashicorp.com/namespace: {{ $vault.namespace | quote }}
+vault.hashicorp.com/agent-inject-secret-{{ .envFile }}: {{ $vault.secretPath | required "vault.secretPath is required when vault.enabled is true" | quote }}
+vault.hashicorp.com/agent-inject-template-{{ .envFile }}: |
+  {{- include "common.vaultTemplate" $vault | nindent 2 }}
+{{- end -}}

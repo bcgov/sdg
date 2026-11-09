@@ -26,7 +26,7 @@ spec:
         {{- . | nindent 8 }}
         {{- end }}
         {{- if .Values.vault.enabled }}
-        {{- include "portal-api.vaultAnnotations" . | nindent 8 }}
+        {{- include "common.vaultAnnotations" (dict "vault" .Values.vault "envFile" "portal-api.env") | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.vault.enabled }}
@@ -44,12 +44,12 @@ spec:
           image: {{ include "common.image" (dict "image" .Values.migrator.image "context" $) }}
           imagePullPolicy: {{ .Values.migrator.image.pullPolicy }}
           env:
-            {{- include "portal-api.databaseUrlEnv" . | nindent 12 }}
+            {{- include "common.databaseUrlEnv" (dict "database" .Values.database "context" $) | nindent 12 }}
           securityContext:
             {{- include "common.containerSecurityContext" . | nindent 12 }}
           resources:
             {{- toYaml .Values.migrator.resources | nindent 12 }}
-          {{- with include "portal-api.postgresCaMount" . }}
+          {{- with include "common.postgresCaMount" .Values.database }}
           volumeMounts:
             {{- . | nindent 12 }}
           {{- end }}
@@ -69,7 +69,7 @@ spec:
                 name: {{ .Values.existingSecret }}
             {{- end }}
           env:
-            {{- include "portal-api.databaseUrlEnv" . | nindent 12 }}
+            {{- include "common.databaseUrlEnv" (dict "database" .Values.database "context" $) | nindent 12 }}
           ports:
             - name: http
               containerPort: 3000
@@ -97,19 +97,14 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            {{- with include "portal-api.postgresCaMount" . }}
+            {{- with include "common.postgresCaMount" .Values.database }}
             {{- . | nindent 12 }}
             {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
-        {{- if .Values.database.caSecretName }}
-        - name: postgres-ca
-          secret:
-            secretName: {{ include "common.tplvalue" (dict "value" .Values.database.caSecretName "context" .) }}
-            items:
-              - key: {{ .Values.database.caSecretKey }}
-                path: ca.crt
+        {{- with include "common.postgresCaVolume" (dict "database" .Values.database "context" $) }}
+        {{- . | nindent 8 }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
