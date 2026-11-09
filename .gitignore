@@ -52,3 +52,6 @@ lefthook-local.yml
 .mdd/audits/
 # MDD active jobs (ephemeral — deleted on completion)
 .mdd/jobs/
+
+# E2E authentication files
+**/client-auth.json

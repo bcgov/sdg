@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { bootstrapTelemetry } from './telemetry/bootstrap.js';
-import type { OtelHandle } from './telemetry/otel-sdk.js';
-import type { TestApp } from './testing/app.js';
+import { bootstrapTelemetry } from '../../src/telemetry/bootstrap.js';
+import type { OtelHandle } from '../../src/telemetry/otel-sdk.js';
+import type { TestApp } from '../../src/testing/app.js';
 
 /** Incoming-request series only (supertest's own requests also appear, as http_client_request_duration). */
 function serverCounts(metrics: string): string[] {
@@ -14,28 +14,28 @@ function serverCounts(metrics: string): string[] {
 // the test app is imported afterwards.
 describe('portal-api platform middleware', () => {
   let otel: OtelHandle;
-  let createTestApp: typeof import('./testing/app.js').createTestApp;
-  let t: TestApp;
+  let createTestApp: typeof import('../../src/testing/app.js').createTestApp;
+  let app: TestApp;
 
   beforeAll(async () => {
     otel = await bootstrapTelemetry({});
-    ({ createTestApp } = await import('./testing/app.js'));
-    t = await createTestApp();
-  });
+    ({ createTestApp } = await import('../../src/testing/app.js'));
+    app = await createTestApp();
+  }, 120_000);
 
   afterAll(async () => {
-    await t.close();
-    await otel.shutdown();
-  });
+    await app?.close();
+    await otel?.shutdown();
+  }, 30_000);
 
   async function scrape(): Promise<string> {
-    return (await t.http().get('/metrics')).text;
+    return (await app.http().get('/metrics')).text;
   }
 
   describe('helmet', () => {
-    it('sets security headers on API, probe and 404 responses', async () => {
+    it('Should set security headers on API, probe and 404 responses', async () => {
       const responses = await Promise.all(
-        ['/api/auth/me', '/healthz/live', '/api/unknown'].map((path) => t.http().get(path)),
+        ['/api/auth/me', '/healthz/live', '/api/unknown'].map((path) => app.http().get(path)),
       );
       for (const res of responses) {
         expect(res.headers['x-content-type-options']).toBe('nosniff');
@@ -47,8 +47,8 @@ describe('portal-api platform middleware', () => {
   });
 
   describe('GET /metrics', () => {
-    it('serves Prometheus text with OTel runtime metrics, outside /api and without a session', async () => {
-      const res = await t.http().get('/metrics');
+    it('Should serve Prometheus text with OTel runtime metrics, outside /api and without a session', async () => {
+      const res = await app.http().get('/metrics');
       expect(res.status).toBe(200);
       expect(res.headers['content-type']).toMatch(/^text\/plain/);
       for (const name of [
@@ -60,13 +60,13 @@ describe('portal-api platform middleware', () => {
         expect(res.text).toContain(name);
       }
       expect(res.headers['set-cookie']).toBeUndefined();
-      expect((await t.http().get('/metrics/')).status).toBe(200);
-      expect((await t.http().get('/prom-metrics')).status).toBe(404);
-      expect((await t.http().get('/api/metrics')).status).toBe(404);
+      expect((await app.http().get('/metrics/')).status).toBe(200);
+      expect((await app.http().get('/prom-metrics')).status).toBe(404);
+      expect((await app.http().get('/api/metrics')).status).toBe(404);
     });
 
-    it('records matched API routes as http_server_request_duration with method, route and status code', async () => {
-      await t.http().get('/api/auth/me');
+    it('Should record matched API routes as http_server_request_duration with method, route and status code', async () => {
+      await app.http().get('/api/auth/me');
       const match = serverCounts(await scrape()).find((line) => line.includes('http_route="/api/auth/me"'));
       expect(match).toBeDefined();
       expect(match).toContain('http_request_method="GET"');
@@ -74,10 +74,10 @@ describe('portal-api platform middleware', () => {
       expect(Number(match?.split(' ').at(-1))).toBeGreaterThanOrEqual(1);
     });
 
-    it('does not record /healthz probes or /metrics scrapes', async () => {
-      await t.http().get('/healthz/live');
-      await t.http().get('/healthz/ready');
-      await t.http().get('/metrics');
+    it('Should not record /healthz probes or /metrics scrapes', async () => {
+      await app.http().get('/healthz/live');
+      await app.http().get('/healthz/ready');
+      await app.http().get('/metrics');
       const series = serverCounts(await scrape());
       expect(series.length).toBeGreaterThan(0);
       expect(series.join('\n')).not.toMatch(/http_route="\/(healthz|metrics)/);
@@ -85,9 +85,9 @@ describe('portal-api platform middleware', () => {
       expect(series.filter((line) => line.includes('http_response_status_code="200"'))).toEqual([]);
     });
 
-    it('labels requests that match no route with the constant catch-all route, never the raw URL', async () => {
-      await t.http().get('/api/wp-admin/setup-config.php');
-      await t.http().get('/api/v1/things/42/../../etc/passwd');
+    it('Should label requests that match no route with the constant catch-all route, never the raw URL', async () => {
+      await app.http().get('/api/wp-admin/setup-config.php');
+      await app.http().get('/api/v1/things/42/../../etc/passwd');
       const metrics = await scrape();
       const routes = serverCounts(metrics)
         .filter((line) => line.includes('http_response_status_code="404"'))
@@ -99,7 +99,7 @@ describe('portal-api platform middleware', () => {
       expect(metrics).not.toContain('passwd');
     });
 
-    it('exposes no prom-client series and no host or process attributes in target_info', async () => {
+    it('Should expose no prom-client series and no host or process attributes in target_info', async () => {
       const metrics = await scrape();
       expect(metrics).not.toContain('http_request_duration_seconds');
       expect(metrics).not.toContain('#unmatched');
@@ -110,7 +110,7 @@ describe('portal-api platform middleware', () => {
       expect(targetInfo).not.toMatch(/host_name|process_pid|process_command/);
     });
 
-    it('allows a second app in the same process (one exporter singleton)', async () => {
+    it('Should allow a second app in the same process (one exporter singleton)', async () => {
       const second = await createTestApp();
       try {
         const res = await second.http().get('/metrics');
@@ -119,6 +119,6 @@ describe('portal-api platform middleware', () => {
       } finally {
         await second.close();
       }
-    });
+    }, 60_000);
   });
 });

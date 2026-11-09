@@ -29,7 +29,11 @@ export const TEST_USER: AuthUser = {
   email: 'ada@example.com',
   emailVerified: true,
   username: 'ada',
-  claims: { iss: TEST_ENV.KEYCLOAK_ISSUER_URL, sub: 'sub-123', name: 'Ada Lovelace' },
+  claims: {
+    iss: TEST_ENV.KEYCLOAK_ISSUER_URL,
+    sub: 'sub-123',
+    name: 'Ada Lovelace',
+  },
 };
 
 export interface OidcStub {
@@ -71,7 +75,12 @@ export function createOidcStub(): OidcStub {
     handleCallback: vi.fn<OidcClient['handleCallback']>(() =>
       Promise.resolve<CallbackResult>({
         user: TEST_USER,
-        tokens: { idToken: 'id-token', accessToken: 'access-token', refreshToken: 'refresh-token', expiresAt: null },
+        tokens: {
+          idToken: 'id-token',
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          expiresAt: null,
+        },
       }),
     ),
     buildEndSessionUrl: vi.fn<OidcClient['buildEndSessionUrl']>((idToken) => {
@@ -102,14 +111,19 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const database = await createTestDatabase();
   const oidc = createOidcStub();
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers: options.controllers ?? [] })
+  const moduleRef = await Test.createTestingModule({
+    imports: [AppModule],
+    controllers: options.controllers ?? [],
+  })
     .overrideProvider(getDrizzleToken())
     .useValue(database.db)
     .overrideProvider(OIDC_CLIENT)
     .useValue(oidc)
     .compile();
 
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({
+    logger: false,
+  });
   configureApp(app);
   await app.init();
 

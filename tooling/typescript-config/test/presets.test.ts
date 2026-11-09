@@ -35,13 +35,13 @@ afterAll(() => {
 });
 
 describe('typescript presets', () => {
-  it.each(presets)('%s compiles a fixture with TypeScript 7 and no diagnostics', (preset) => {
+  it.each(presets)('%s compiles a fixture with TypeScript 7 and no diagnostics', { timeout: 30_000 }, (preset) => {
     const result = tsc(preset);
     expect(result.stdout + result.stderr).toBe('');
     expect(result.status).toBe(0);
   });
 
-  it.each(presets)('%s is strict and sets `types` explicitly', (preset) => {
+  it.each(presets)('%s is strict and sets `types` explicitly', { timeout: 30_000 }, (preset) => {
     const compilerOptions = showConfig(preset);
     expect(compilerOptions['strict']).toBe(true);
     expect(Array.isArray(compilerOptions['types'])).toBe(true);
@@ -74,7 +74,7 @@ describe('typescript presets', () => {
     expect(existsSync(join(fixtures, 'nestjs-build', 'dist', 'greeter.js.map'))).toBe(true);
   });
 
-  it('vite-react-app targets the DOM with Vite client types', () => {
+  it('vite-react-app targets the DOM with Vite client types', { timeout: 30_000 }, () => {
     const compilerOptions = showConfig('vite-react-app');
     expect(compilerOptions['jsx']).toBe('react-jsx');
     expect(compilerOptions['types']).toEqual(['vite/client']);

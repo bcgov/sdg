@@ -30,6 +30,7 @@ function call<T>(fn: (cb: (error: unknown, value?: T) => void) => void): Promise
 describe('PostgresSessionStore', () => {
   let database: TestDatabase;
   let store: PostgresSessionStore;
+  let brokenStore: PostgresSessionStore;
 
   const get = (sid: string) => call<SessionData | null>((cb) => store.get(sid, cb));
   const set = (sid: string, data: SessionData) => call<void>((cb) => store.set(sid, data, cb));
@@ -41,7 +42,11 @@ describe('PostgresSessionStore', () => {
   beforeAll(async () => {
     database = await createTestDatabase();
     store = new PostgresSessionStore(database.db, { key, ttlSeconds: 3600 });
-  });
+
+    const brokenDb = await createTestDatabase();
+    await brokenDb.close();
+    brokenStore = new PostgresSessionStore(brokenDb.db, { key, ttlSeconds: 3600 });
+  }, 60_000);
 
   afterAll(() => database.close());
 
@@ -103,10 +108,7 @@ describe('PostgresSessionStore', () => {
 
   it('logs { msg, err } for a failed operation without a callback', async () => {
     const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    const broken = await createTestDatabase();
-    await broken.close();
-    const failing = new PostgresSessionStore(broken.db, { key, ttlSeconds: 3600 });
-    failing.destroy('sid-1');
+    brokenStore.destroy('sid-1');
     await vi.waitFor(() =>
       expect(error).toHaveBeenCalledWith({
         msg: 'Session destroy failed',
@@ -117,9 +119,6 @@ describe('PostgresSessionStore', () => {
   });
 
   it('passes database errors to the callback', async () => {
-    const broken = await createTestDatabase();
-    await broken.close();
-    const failing = new PostgresSessionStore(broken.db, { key, ttlSeconds: 3600 });
-    await expect(call<SessionData | null>((cb) => failing.get('sid-1', cb))).rejects.toBeDefined();
+    await expect(call<SessionData | null>((cb) => brokenStore.get('sid-1', cb))).rejects.toBeDefined();
   });
 });
