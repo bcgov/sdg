@@ -14,6 +14,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.ts",
+    "db:studio": "drizzle-kit studio",
     "admin-token": "node --use-system-ca scripts/login.ts",
     "seed": "node --use-system-ca scripts/seed.ts",
     "e2e": "node --use-system-ca scripts/e2e.ts"
