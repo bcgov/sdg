@@ -43,7 +43,13 @@ describe('database package', () => {
         types: './dist/testing/index.d.ts',
         import: './dist/testing/index.js',
       });
-      expect(Object.keys(schemaEntry).toSorted()).toEqual(['identities', 'principals']);
+      expect(Object.keys(schemaEntry).toSorted()).toEqual([
+        'SERVICE_CLIENT_ACTIONS',
+        'identities',
+        'principals',
+        'serviceClientEvents',
+        'serviceClients',
+      ]);
     });
 
     it('peers drizzle-orm and depends on it and pg via the catalog', () => {
@@ -119,10 +125,15 @@ describe('database package', () => {
       }
     });
 
-    it('exposes the principals and identities tables on db.query', async () => {
+    it('exposes every core table on db.query', async () => {
       const db = createDatabase(DATABASE_URL, options);
       try {
-        expect(Object.keys(db.query).toSorted()).toEqual(['identities', 'principals']);
+        expect(Object.keys(db.query).toSorted()).toEqual([
+          'identities',
+          'principals',
+          'serviceClientEvents',
+          'serviceClients',
+        ]);
         // Builds SQL without connecting: the relational API knows both tables and the snake_case casing.
         expect(db.query.principals.findFirst().toSQL().sql).toMatch(
           /from "core"\."principals".*"display_name"|"display_name".*from "core"\."principals"/s,

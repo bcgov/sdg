@@ -49,6 +49,6 @@ const issuerUrl = (config: ConfigService<Env, true>): string => config.get('KEYC
     SharedGuard,
     InternalGuard,
   ],
-  exports: [PrincipalResolver, UserinfoClient, PortalGuard, AdminGuard, SharedGuard, InternalGuard],
+  exports: [KEYCLOAK_CLIENTS, PrincipalResolver, UserinfoClient, PortalGuard, AdminGuard, SharedGuard, InternalGuard],
 })
 export class AuthModule {}

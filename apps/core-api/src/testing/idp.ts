@@ -1,5 +1,5 @@
 import type { AuthFetch } from '@repo/auth';
-import { startFakeIdp, type FakeIdp } from '@repo/auth/testing';
+import { startFakeIdp, type FakeIdp, type SignOptions } from '@repo/auth/testing';
 import { z } from 'zod';
 
 export const PORTAL_CLIENT_ID = 'sdg-portal';
@@ -22,8 +22,8 @@ export interface TestIdp {
   portalToken: (claims?: Record<string, unknown>) => Promise<string>;
   /** A person token issued to the admin client, holding `roles` in `client_roles`. */
   adminToken: (roles: string[], claims?: Record<string, unknown>) => Promise<string>;
-  /** A client-credentials token, as Keycloak issues it to a service account. */
-  serviceAccountToken: (clientId?: string) => Promise<string>;
+  /** A client-credentials token, as Keycloak issues it to a service account (`options` e.g. to issue it expired). */
+  serviceAccountToken: (clientId?: string, options?: SignOptions) => Promise<string>;
   /** A person token from a client core-api does not know. */
   unknownClientToken: () => Promise<string>;
   reset: () => void;
@@ -85,10 +85,10 @@ export async function startTestIdp(): Promise<TestIdp> {
     userinfoRequests: 0,
     portalToken: (claims = {}) => person(PORTAL_CLIENT_ID, claims),
     adminToken: (roles, claims = {}) => person(ADMIN_CLIENT_ID, { sub: 'idir-1', client_roles: roles, ...claims }),
-    serviceAccountToken: (clientId = SERVICE_CLIENT_ID) =>
+    serviceAccountToken: (clientId = SERVICE_CLIENT_ID, options = {}) =>
       idp.sign(
         { sub: 'svc-1', azp: clientId, client_id: clientId, preferred_username: `service-account-${clientId}` },
-        { audience: 'account' },
+        { audience: 'account', ...options },
       ),
     unknownClientToken: () => person('someone-else', {}),
     reset: () => {

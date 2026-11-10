@@ -6,6 +6,7 @@ import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { readiness } from './health/readiness.js';
 import { PrincipalsModule } from './principals/principals.module.js';
+import { RegistryModule } from './registry/registry.module.js';
 
 /** Routes served outside /api (configureApp's `unprefixed`): the BFF-only /internal/*, never forwarded. */
 export const UNPREFIXED_ROUTES: readonly string[] = ['internal/{*path}'];
@@ -17,6 +18,7 @@ export const UNPREFIXED_ROUTES: readonly string[] = ['internal/{*path}'];
     DatabaseModule,
     AuthModule,
     PrincipalsModule,
+    RegistryModule,
     HealthModule.forRootAsync(readiness),
   ],
 })

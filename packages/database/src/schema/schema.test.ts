@@ -3,7 +3,18 @@ import { CasingCache, toSnakeCase } from 'drizzle-orm/casing';
 import { getTableConfig, IndexedColumn, type Index, type PgColumn } from 'drizzle-orm/pg-core';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { identities, principals, type Identity, type NewPrincipal, type Principal } from './index.js';
+import {
+  identities,
+  principals,
+  SERVICE_CLIENT_ACTIONS,
+  serviceClientEvents,
+  serviceClients,
+  type Identity,
+  type NewPrincipal,
+  type Principal,
+  type ServiceClient,
+  type ServiceClientEvent,
+} from './index.js';
 
 // The client and drizzle-kit both use `casing: 'snake_case'`, so DB names are derived from the TS keys.
 const casing = new CasingCache('snake_case');
@@ -18,7 +29,8 @@ const indexColumns = (index: Index | undefined): string[] =>
 
 describe('database schema', () => {
   it('puts every table in the core schema', () => {
-    expect([principals, identities].map((table) => getTableConfig(table).schema)).toEqual(['core', 'core']);
+    const tables = [principals, identities, serviceClients, serviceClientEvents];
+    expect(tables.map((table) => getTableConfig(table).schema)).toEqual(['core', 'core', 'core', 'core']);
   });
 
   describe('principals', () => {
@@ -87,6 +99,58 @@ describe('database schema', () => {
       expect(columns.get('updated_at')?.onUpdateFn).toBeTypeOf('function');
       expectTypeOf<Identity['claims']>().toEqualTypeOf<Record<string, unknown>>();
       expectTypeOf<Identity['emailVerified']>().toEqualTypeOf<boolean>();
+    });
+  });
+
+  describe('service_clients', () => {
+    const config = getTableConfig(serviceClients);
+    const columns = byName(config.columns);
+
+    it('is keyed by the Keycloak client id, with a display name, an enabled flag and timestamps', () => {
+      expect([...columns.keys()]).toEqual(['client_id', 'display_name', 'enabled', 'created_at', 'updated_at']);
+      expect(columns.get('client_id')).toMatchObject({ primary: true, notNull: true, columnType: 'PgText' });
+      expect(columns.get('display_name')?.notNull).toBe(true);
+      expect(columns.get('enabled')).toMatchObject({ notNull: true, default: true, columnType: 'PgBoolean' });
+      expect(columns.get('updated_at')?.onUpdateFn).toBeTypeOf('function');
+      expectTypeOf<ServiceClient>().toEqualTypeOf<{
+        clientId: string;
+        displayName: string;
+        enabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+      }>();
+    });
+  });
+
+  describe('service_client_events', () => {
+    const config = getTableConfig(serviceClientEvents);
+    const columns = byName(config.columns);
+
+    it('records the client id, action, actor and time, with an identity id for ordering', () => {
+      expect([...columns.keys()]).toEqual([
+        'id',
+        'client_id',
+        'action',
+        'actor_principal_id',
+        'actor_name',
+        'created_at',
+      ]);
+      expect(columns.get('id')).toMatchObject({ primary: true, columnType: 'PgBigInt53' });
+      expect(columns.get('id')?.generatedIdentity?.type).toBe('always');
+      for (const name of ['client_id', 'action', 'actor_principal_id', 'actor_name', 'created_at']) {
+        expect(columns.get(name)?.notNull).toBe(true);
+      }
+      expectTypeOf<ServiceClientEvent['action']>().toEqualTypeOf<'added' | 'disabled' | 'enabled' | 'removed'>();
+      expectTypeOf<ServiceClientEvent['id']>().toEqualTypeOf<number>();
+    });
+
+    it('has no foreign key, so history outlives the clients and principals it names', () => {
+      expect(config.foreignKeys).toEqual([]);
+    });
+
+    it('allows only the known actions', () => {
+      expect(SERVICE_CLIENT_ACTIONS).toEqual(['added', 'disabled', 'enabled', 'removed']);
+      expect(config.checks.map((check) => check.name)).toEqual(['service_client_events_action_check']);
     });
   });
 });

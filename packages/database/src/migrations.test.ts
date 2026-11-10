@@ -13,7 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { migrationsSchema } from './migrations-folder.js';
 import * as schema from './schema/index.js';
-import { identities, principals } from './schema/index.js';
+import { identities, principals, serviceClientEvents, serviceClients } from './schema/index.js';
 
 const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), '../migrations');
 
@@ -49,7 +49,7 @@ function readLatestSnapshot(): DrizzleSnapshotJSON {
 /** `table.column:notNull` and index names as the schema declares them (snake_case, like the client). */
 function describeSchema(): { columns: string[]; indexes: string[] } {
   const casing = new CasingCache('snake_case');
-  const configs = [principals, identities].map((table) => getTableConfig(table));
+  const configs = [principals, identities, serviceClients, serviceClientEvents].map((table) => getTableConfig(table));
   return {
     columns: configs.flatMap((config) =>
       config.columns.map((column) => `${config.name}.${casing.getColumnCasing(column)}:${column.notNull}`),
@@ -80,7 +80,7 @@ describe('database migrations', () => {
   });
 
   describe('migration chain', () => {
-    it('creates core.principals and core.identities and nothing in public', async () => {
+    it('creates the core tables and nothing in public', async () => {
       const tables = await db.execute<{ table_schema: string; table_name: string }>(
         sql`select table_schema, table_name from information_schema.tables
             where table_schema in ('core', 'public', 'drizzle') order by table_schema, table_name`,
@@ -89,12 +89,14 @@ describe('database migrations', () => {
         { table_schema: 'core', table_name: '__drizzle_migrations' },
         { table_schema: 'core', table_name: 'identities' },
         { table_schema: 'core', table_name: 'principals' },
+        { table_schema: 'core', table_name: 'service_client_events' },
+        { table_schema: 'core', table_name: 'service_clients' },
       ]);
     });
 
     it('records the journal in core.__drizzle_migrations', async () => {
       expect(migrationsSchema).toBe('core');
-      expect(readJournal().entries.map((entry) => entry.tag)).toEqual(['0000_baseline']);
+      expect(readJournal().entries.map((entry) => entry.tag)).toEqual(['0000_baseline', '0001_service_registry']);
       expect(await appliedCount()).toBe(readJournal().entries.length);
     });
 
@@ -187,6 +189,59 @@ describe('database migrations', () => {
         .where(eq(principals.id, principalId))
         .returning();
       expect(after?.updatedAt.getTime()).toBeGreaterThan(before?.updatedAt.getTime() ?? Infinity);
+    });
+  });
+
+  describe('service registry constraints', () => {
+    beforeEach(async () => {
+      await db.delete(serviceClients);
+      await db.delete(serviceClientEvents);
+    });
+
+    const event = { clientId: 'partner', actorPrincipalId: crypto.randomUUID(), actorName: 'Ada' };
+
+    it('rejects a second client with the same client id', async () => {
+      await db.insert(serviceClients).values({ clientId: 'partner', displayName: 'Partner' });
+      const error: unknown = await db
+        .insert(serviceClients)
+        .values({ clientId: 'partner', displayName: 'Again' })
+        .then(
+          () => undefined,
+          (reason: unknown) => reason,
+        );
+      expect(error).toMatchObject({ cause: { code: '23505', constraint: 'service_clients_pkey' } });
+    });
+
+    it('enables a new client by default', async () => {
+      const [created] = await db.insert(serviceClients).values({ clientId: 'partner', displayName: 'P' }).returning();
+      expect(created).toMatchObject({ enabled: true, createdAt: expect.any(Date) });
+    });
+
+    it('keeps events after their client is removed and numbers them in insertion order', async () => {
+      await db.insert(serviceClients).values({ clientId: 'partner', displayName: 'P' });
+      const rows = await db
+        .insert(serviceClientEvents)
+        .values([
+          { ...event, action: 'added' },
+          { ...event, action: 'removed' },
+        ])
+        .returning();
+      await db.delete(serviceClients);
+      expect(await db.$count(serviceClientEvents)).toBe(2);
+      expect((rows[1]?.id ?? 0) > (rows[0]?.id ?? Infinity)).toBe(true);
+    });
+
+    it('rejects an unknown action', async () => {
+      const error: unknown = await db
+        .execute(
+          sql`insert into core.service_client_events (client_id, action, actor_principal_id, actor_name)
+              values ('partner', 'renamed', ${event.actorPrincipalId}, 'Ada')`,
+        )
+        .then(
+          () => undefined,
+          (reason: unknown) => reason,
+        );
+      expect(error).toMatchObject({ cause: { code: '23514', constraint: 'service_client_events_action_check' } });
     });
   });
 });
