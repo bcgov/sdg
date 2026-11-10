@@ -1,4 +1,11 @@
-import { createRemoteJWKSet, customFetch, jwtVerify, type JWTVerifyGetKey, type RemoteJWKSetOptions } from 'jose';
+import {
+  createRemoteJWKSet,
+  customFetch,
+  jwtVerify,
+  type JWTPayload,
+  type JWTVerifyGetKey,
+  type RemoteJWKSetOptions,
+} from 'jose';
 
 import { claimsToAuthUser } from './claims.js';
 import { AuthError } from './errors.js';
@@ -31,43 +38,81 @@ async function fetchJwksUri(issuerUrl: string, fetchImpl: AuthFetch): Promise<UR
   return new URL(jwksUri);
 }
 
-/** Resolves the issuer's remote JWKS lazily; caches success, retries after a failure. */
-function lazyKeySet(options: JwtVerifierOptions): () => Promise<JWTVerifyGetKey> {
+/** The issuer's keys could not be loaded (discovery or JWKS): no verdict on the token. */
+class KeySetUnavailable extends Error {
+  override readonly name = 'KeySetUnavailable';
+}
+
+/**
+ * jose's JWKS fetch, failing with `KeySetUnavailable` on a network error, a timeout (jose's abort signal) or a non-200
+ * answer, before jose turns the latter into a generic `JOSEError` indistinguishable from a token problem.
+ */
+function jwksFetch(fetchImpl: AuthFetch): AuthFetch {
+  return async (url, init) => {
+    let response: Response;
+    try {
+      response = await fetchImpl(url, init);
+    } catch (error) {
+      throw new KeySetUnavailable('JWKS request failed', { cause: error });
+    }
+    if (response.status !== 200) throw new KeySetUnavailable(`JWKS responded with HTTP ${response.status}`);
+    return response;
+  };
+}
+
+/**
+ * The issuer's remote JWKS, discovered on first use; caches a successful discovery, retries after a failure. Fails
+ * with `KeySetUnavailable` when discovery or the JWKS request fails.
+ */
+function lazyKeySet(options: JwtVerifierOptions): JWTVerifyGetKey {
   let cached: Promise<JWTVerifyGetKey> | undefined;
   const fetchImpl: AuthFetch = options.fetch ?? ((url, init) => fetch(url, init));
-  const jwksOptions: RemoteJWKSetOptions = {};
-  if (options.fetch) jwksOptions[customFetch] = options.fetch;
+  const jwksOptions: RemoteJWKSetOptions = { [customFetch]: jwksFetch(fetchImpl) };
 
-  return () => {
+  return async (protectedHeader, token) => {
     cached ??= fetchJwksUri(options.issuerUrl, fetchImpl)
       .then((uri) => createRemoteJWKSet(uri, jwksOptions))
       .catch((error: unknown) => {
         cached = undefined;
-        throw error;
+        throw new KeySetUnavailable('OpenID Provider discovery failed', { cause: error });
       });
-    return cached;
+    return (await cached)(protectedHeader, token);
   };
+}
+
+/** jose's `audience` option: the configured value(s), or none when a predicate decides after verification. */
+function joseAudience(audience: JwtVerifierOptions['audience']): string | string[] | undefined {
+  if (typeof audience === 'function') return undefined;
+  return typeof audience === 'string' ? audience : [...audience];
 }
 
 /** Verifies bearer JWTs (signature via the issuer's JWKS, `iss`, `aud`, `exp`, `nbf`). */
 export function createJwtVerifier(options: JwtVerifierOptions): JwtVerifier {
   const keySet = lazyKeySet(options);
-  const audience = typeof options.audience === 'string' ? options.audience : [...options.audience];
+  const audience = joseAudience(options.audience);
+  const predicate = typeof options.audience === 'function' ? options.audience : undefined;
   const clockTolerance = options.clockToleranceSeconds ?? DEFAULT_CLOCK_TOLERANCE_SECONDS;
 
   return {
     async verify(token: string): Promise<AuthUser> {
+      let payload: JWTPayload;
       try {
-        const { payload } = await jwtVerify(token, await keySet(), {
+        ({ payload } = await jwtVerify(token, keySet, {
           algorithms: ALGORITHMS,
           issuer: options.issuerUrl,
           audience,
           clockTolerance,
-        });
-        return claimsToAuthUser(payload);
+        }));
       } catch (error) {
-        throw new AuthError('invalid_token', { cause: error });
+        // Not being able to check the token (its issuer's keys are out of reach) is no verdict that it is invalid.
+        const code = error instanceof KeySetUnavailable ? 'verifier_unavailable' : 'invalid_token';
+        throw new AuthError(code, { cause: error });
       }
+      // A predicate that throws (say, its lookup is down) rejects with its own error: that is no verdict on the token.
+      if (predicate && !(await predicate(payload))) {
+        throw new AuthError('invalid_token', { cause: new Error('audience not accepted') });
+      }
+      return claimsToAuthUser(payload);
     },
   };
 }

@@ -3,7 +3,9 @@ export { AuthError, isAuthError, type AuthErrorCode, type AuthErrorOptions } fro
 export { createJwtVerifier } from './jwt-verifier.js';
 export { createOidcClient } from './oidc-client.js';
 export { safeReturnTo } from './return-to.js';
+export { audiences, clientRoles, isServiceAccount } from './tokens.js';
 export type {
+  AudiencePredicate,
   AuthFetch,
   AuthorizationRequest,
   AuthUser,

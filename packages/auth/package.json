@@ -15,6 +15,10 @@
     "./nestjs": {
       "types": "./dist/nestjs/index.d.ts",
       "import": "./dist/nestjs/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "scripts": {

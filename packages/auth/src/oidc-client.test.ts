@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthError } from './errors.js';
 import { createOidcClient } from './oidc-client.js';
@@ -29,6 +29,11 @@ function newClient(overrides: Partial<OidcClientOptions> = {}): OidcClient {
     fetch: idp.fetch,
     ...overrides,
   });
+}
+
+/** The fake IdP's fetch, except that requests to `pathname` fail with `failure`. */
+function failingAt(pathname: string, failure: unknown): OidcClientOptions['fetch'] {
+  return (url, init) => (new URL(url).pathname === pathname ? Promise.reject(failure) : idp.fetch(url, init));
 }
 
 async function rejection(promise: Promise<unknown>): Promise<AuthError> {
@@ -164,6 +169,89 @@ describe('createOidcClient', () => {
       const badVerifier = await login(client);
       const pending = { ...badVerifier.pending, codeVerifier: 'x'.repeat(43) };
       expect((await rejection(client.handleCallback(badVerifier.callbackUrl, pending))).code).toBe('callback_failed');
+    });
+  });
+  describe('refresh', () => {
+    const current = {
+      idToken: 'previous.id.token',
+      accessToken: 'old-access',
+      refreshToken: 'unused',
+      expiresAt: 0,
+    };
+
+    it('returns the new access and refresh tokens and keeps the previous ID token when none is sent', async () => {
+      const refreshToken = idp.issueRefreshToken();
+      const before = Date.now();
+      const tokens = await newClient().refresh({ ...current, refreshToken });
+      expect(tokens.idToken).toBe('previous.id.token');
+      expect(tokens.accessToken).toMatch(/^refreshed-access-\d+$/);
+      expect(tokens.refreshToken).toMatch(/^refreshed-refresh-\d+$/);
+      expect(tokens.refreshToken).not.toBe(refreshToken);
+      expect(tokens.expiresAt).toBeGreaterThanOrEqual(before + 299_000);
+    });
+    it('replaces the ID token when the response has one', async () => {
+      const refreshToken = idp.issueRefreshToken({ idTokenClaims: { sub: 'user-1' } });
+      const tokens = await newClient().refresh({ ...current, refreshToken });
+      expect(tokens.idToken).not.toBe('previous.id.token');
+      expect(tokens.idToken.split('.')).toHaveLength(3);
+    });
+    it('throws AuthError(refresh_failed) for a rejected or missing refresh token', async () => {
+      const client = newClient();
+      const used = idp.issueRefreshToken();
+      await client.refresh({ ...current, refreshToken: used });
+      const rejected = await rejection(client.refresh({ ...current, refreshToken: used }));
+      expect(rejected.code).toBe('refresh_failed');
+      expect(rejected.detail).toBe('invalid_grant');
+      expect((await rejection(client.refresh({ ...current, refreshToken: null }))).code).toBe('refresh_failed');
+    });
+    it('throws AuthError(refresh_failed) without the invalid_grant detail when the IdP is unreachable', async () => {
+      const client = newClient({ fetch: failingAt('/token', new TypeError('fetch failed')) });
+      const unreachable = await rejection(client.refresh({ ...current, refreshToken: idp.issueRefreshToken() }));
+      expect(unreachable.code).toBe('refresh_failed');
+      expect(unreachable.detail).not.toBe('invalid_grant');
+    });
+  });
+  describe('endSession', () => {
+    const current = { idToken: 'id.token', accessToken: 'access', refreshToken: 'unused', expiresAt: null };
+
+    it('posts the refresh token with the client credentials to the logout endpoint, ending the IdP session', async () => {
+      const client = newClient();
+      const refreshToken = idp.issueRefreshToken();
+      await expect(client.endSession({ ...current, refreshToken })).resolves.toBeUndefined();
+      const reused = await rejection(client.refresh({ ...current, refreshToken }));
+      expect(reused.detail).toBe('invalid_grant');
+    });
+    it('throws AuthError(end_session_failed) when the IdP rejects the call or there is no refresh token', async () => {
+      const client = newClient();
+      const rejected = await rejection(client.endSession({ ...current, refreshToken: 'never-issued' }));
+      expect(rejected.code).toBe('end_session_failed');
+      expect(rejected.detail).toBe('invalid_grant');
+      const wrongSecret = newClient({ clientSecret: 'wrong' });
+      const unauthorized = await rejection(
+        wrongSecret.endSession({ ...current, refreshToken: idp.issueRefreshToken() }),
+      );
+      expect(unauthorized.detail).toBe('invalid_client');
+      const missing = await rejection(client.endSession({ ...current, refreshToken: null }));
+      expect(missing.code).toBe('end_session_failed');
+      expect(missing.detail).toBe('no refresh token');
+    });
+    it('gives up after 5 seconds, failing with AuthError(end_session_failed)', async () => {
+      const timeout = vi.spyOn(AbortSignal, 'timeout');
+      let signal: AbortSignal | null | undefined;
+      const timedOut = new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      const client = newClient({
+        fetch: (url, init) => {
+          if (new URL(url).pathname !== '/logout') return idp.fetch(url, init);
+          signal = init.signal;
+          return Promise.reject(timedOut);
+        },
+      });
+      const failed = await rejection(client.endSession({ ...current, refreshToken: idp.issueRefreshToken() }));
+      expect(failed.code).toBe('end_session_failed');
+      expect(failed.cause).toBe(timedOut);
+      expect(timeout).toHaveBeenCalledWith(5_000);
+      expect(signal).toBe(timeout.mock.results.at(-1)?.value);
+      timeout.mockRestore();
     });
   });
   describe('buildEndSessionUrl', () => {
