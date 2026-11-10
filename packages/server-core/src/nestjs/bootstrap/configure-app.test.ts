@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Controller, Get, Module } from '@nestjs/common';
+import { Controller, Get, Module, VERSION_NEUTRAL } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
@@ -22,6 +22,15 @@ class ThingsController {
   }
 }
 
+/** A route outside the /api prefix (`unprefixed`), like core-api's /internal/*. */
+@Controller({ path: 'internal/things', version: VERSION_NEUTRAL })
+class InternalThingsController {
+  @Get('first')
+  first(): string {
+    return 'internal';
+  }
+}
+
 interface Probe {
   app: NestExpressApplication;
   http: () => supertest.Agent;
@@ -41,7 +50,7 @@ async function createProbe(nodeEnv: 'development' | 'production'): Promise<Probe
       LoggingModule,
       HealthModule.forRootAsync({ useFactory: () => ({ database: () => database() }) }),
     ],
-    controllers: [ThingsController],
+    controllers: [ThingsController, InternalThingsController],
   })
   class ProbeModule {}
 
@@ -54,6 +63,7 @@ async function createProbe(nodeEnv: 'development' | 'production'): Promise<Probe
       version: '1.2.3',
       configure: (builder) => builder.addBearerAuth(),
     },
+    unprefixed: ['internal/{*path}'],
   });
   await app.init();
   return { app, http: () => supertest.agent(app.getHttpServer()), database };
@@ -79,6 +89,13 @@ describe('configureApp (development)', () => {
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(res.headers['x-powered-by']).toBeUndefined();
     expect((await probe.http().get('/v1/things')).status).toBe(404);
+  });
+
+  it('serves the unprefixed routes outside /api only', async () => {
+    const res = await probe.http().get('/internal/things/first');
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('internal');
+    expect((await probe.http().get('/api/internal/things/first')).status).toBe(404);
   });
 
   it('serves /metrics outside /api', async () => {

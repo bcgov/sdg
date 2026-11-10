@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Smoke test for the production images (DEVELOPER.md, Production Images).
-# Builds database, portal-api, portal-web and the edge, then runs them the way OpenShift's restricted SCC
+# Builds database, core-api, portal-api, portal-web and the edge, then runs them the way OpenShift's restricted SCC
 # does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the compose postgis.
 #
 # Usage: scripts/images-smoke.sh [--no-build]
@@ -26,7 +26,7 @@ done
 cd "$(dirname "$0")/.."
 TMP="$(mktemp -d)"
 cleanup() {
-  "$ENGINE" rm -f "$PREFIX-api" "$PREFIX-web" "$PREFIX-edge" >/dev/null 2>&1 || true
+  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-web" "$PREFIX-edge" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -44,6 +44,7 @@ image() { echo "localhost/$PREFIX/$1:latest"; }
 if $BUILD; then
   echo "Building images"
   "$ENGINE" build -q -t "$(image database)" -f packages/database/Dockerfile . >/dev/null
+  "$ENGINE" build -q -t "$(image core-api)" -f apps/core-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-api)" -f apps/portal-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-web)" -f apps/portal-web/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image edge)" apps/portal-web/caddy >/dev/null
@@ -51,15 +52,17 @@ fi
 
 echo "Image contents"
 node_in() { "$ENGINE" run --rm "$(image "$1")" node -e "$2"; }
-check "portal-api ships dist and no sources" node_in portal-api \
-  "const fs = require('fs'); process.exit(fs.existsSync('dist/main.js') && !fs.existsSync('src') ? 0 : 1)"
-check "portal-api ships no devDependencies (pino-pretty, typescript, @nestjs/cli)" node_in portal-api \
-  "const fs = require('fs'); process.exit(['pino-pretty', 'typescript', '@nestjs/cli'].some((d) => fs.existsSync('node_modules/' + d)) ? 1 : 0)"
+for app in core-api portal-api; do
+  check "$app ships dist and no sources" node_in "$app" \
+    "const fs = require('fs'); process.exit(fs.existsSync('dist/main.js') && !fs.existsSync('src') ? 0 : 1)"
+  check "$app ships no devDependencies (pino-pretty, typescript, @nestjs/cli)" node_in "$app" \
+    "const fs = require('fs'); process.exit(['pino-pretty', 'typescript', '@nestjs/cli'].some((d) => fs.existsSync('node_modules/' + d)) ? 1 : 0)"
+done
 check "database ships dist/migrate.js and the migrations" node_in database \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('migrations/meta/_journal.json') ? 0 : 1)"
-check "no .env files in the Node images" bash -c "! { $ENGINE run --rm $(image portal-api) find / -xdev -name '.env*' -not -name '.env.example'; \
-  $ENGINE run --rm $(image database) find / -xdev -name '.env*' -not -name '.env.example'; } | grep -q ."
-check "no package manager in the final images" bash -c "for i in portal-api database portal-web edge; do \
+check "no .env files in the Node images" bash -c "! for i in core-api portal-api database; do \
+  $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" find / -xdev -name '.env*' -not -name '.env.example'; done | grep -q ."
+check "no package manager in the final images" bash -c "for i in core-api portal-api database portal-web edge; do \
   ! $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" sh -c 'command -v apk || command -v npm || command -v pnpm' || exit 1; done"
 
 echo "Waiting for compose postgis"
@@ -104,6 +107,23 @@ check "re-running with nothing pending exits 0" test "$(exit_code again)" = 0
 migrate bad-pw -e "DATABASE_URL=postgres://core:smoke-s3cret@postgis:5432/$SMOKE_DB"
 check "a wrong password exits 1" test "$(exit_code bad-pw)" = 1
 check "the password never reaches the output" bash -c "! grep -q 'smoke-s3cret' '$TMP/bad-pw.log'"
+
+echo "core-api"
+"$ENGINE" run -d --name "$PREFIX-core" --read-only "${OCP[@]}" \
+  -e "DATABASE_URL=$CORE_URL" \
+  -e KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal -e PORTAL_CLIENT_ID=portal \
+  "$(image core-api)" >/dev/null
+# fetch_in <container> <path> <expected status>: an HTTP request from inside the container
+fetch_in() { "$ENGINE" exec "$1" node -e \
+  "fetch('http://localhost:3000$2').then((r) => process.exit(r.status === $3 ? 0 : 1), () => process.exit(1))"; }
+deadline=$((SECONDS + 60))
+until fetch_in "$PREFIX-core" /healthz/live 200 >/dev/null 2>&1 || ((SECONDS > deadline)); do sleep 1; done
+check "/healthz/live is 200 under an arbitrary UID with a read-only root" fetch_in "$PREFIX-core" /healthz/live 200
+check "/healthz/ready is 200 with its database as the core login (Keycloak not checked)" \
+  fetch_in "$PREFIX-core" /healthz/ready 200
+check "a request without a Bearer token is 401" fetch_in "$PREFIX-core" /api/v1/shared/me 401
+check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
+  "$ENGINE logs $PREFIX-core 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
 echo "portal-api"
 "$ENGINE" run -d --name "$PREFIX-api" --read-only "${OCP[@]}" \

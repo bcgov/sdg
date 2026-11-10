@@ -10,7 +10,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../charts"
-LEAF_CHARTS=(portal-web portal-api edge postgres)
+LEAF_CHARTS=(portal-web portal-api core-api edge postgres)
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.31.0}"
 
@@ -30,9 +30,16 @@ lint_values() {
   echo "${LINT_GLOBALS[@]}" \
     --set "${prefix}keycloak.issuerUrl=https://keycloak.example.com/realms/portal" \
     --set "${prefix}keycloak.clientId=portal" \
+    --set "${prefix}keycloak.portalClientId=portal" \
     --set "${prefix}vault.role=example-nonprod" \
     --set "${prefix}vault.secretPath=example-nonprod/portal-api" \
     --set "${prefix}vault.serviceAccountName=example-vault"
+}
+# The umbrella: portal-api's values plus core-api's Keycloak settings.
+umbrella_values() {
+  echo "$(lint_values "portal-api.")" \
+    --set "core-api.keycloak.issuerUrl=https://keycloak.example.com/realms/portal" \
+    --set "core-api.keycloak.portalClientId=portal"
 }
 
 for chart in "${LEAF_CHARTS[@]}" sdg observability; do
@@ -44,7 +51,7 @@ for chart in "${LEAF_CHARTS[@]}"; do
   helm lint --strict "$chart" $(lint_values "")
 done
 # shellcheck disable=SC2046
-helm lint --strict sdg $(lint_values "portal-api.")
+helm lint --strict sdg $(umbrella_values)
 
 # The observability stack is its own release in <plate>-tools and <plate>-prod (doc 20), not part of the umbrella.
 OBSERVABILITY_VALUES=(--set grafana.host=grafana.example.com --set grafana.oidc.issuerUrl=https://keycloak.example.com/realms/standard
@@ -58,7 +65,7 @@ helm unittest --strict "${LEAF_CHARTS[@]}" sdg observability
 
 # helm-unittest can't select a disabled subchart's templates, so the umbrella condition is checked here.
 # shellcheck disable=SC2046
-if helm template sdg sdg $(lint_values "portal-api.") --set portal-web.enabled=false | grep -q 'app.kubernetes.io/name: portal-web'; then
+if helm template sdg sdg $(umbrella_values) --set portal-web.enabled=false | grep -q 'app.kubernetes.io/name: portal-web'; then
   echo "FAIL: sdg with portal-web.enabled=false still renders portal-web resources" >&2
   exit 1
 fi
@@ -72,7 +79,7 @@ validate() {
 }
 
 # shellcheck disable=SC2046
-helm template sdg sdg $(lint_values "portal-api.") | validate
+helm template sdg sdg $(umbrella_values) | validate
 for values in values-tools.yaml values-prod.yaml; do
   helm template observability observability -f "observability/${values}" "${OBSERVABILITY_VALUES[@]}" | validate
 done
@@ -97,6 +104,8 @@ for env in pr test prod; do
   manifests="$(helm template "$release" sdg -f "$values_file" -f <(env "${deploy_env[@]}" ../scripts/deploy-values.sh values))"
   validate <<< "$manifests"
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/portal-api:0123abc" "deploys the tagged GHCR images"
+  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/core-api:0123abc" "deploys core-api"
+  expect_rendered "$env" "$manifests" 'PORTAL_CLIENT_ID: "?portal"?$' "gives core-api the portal client id"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
   expect_rendered "$env" "$manifests" 'vault.hashicorp.com/auth-path: "?auth/k8s-gold' "uses the cluster's Vault auth path"
   stack="example-$([ "$env" = prod ] && echo prod || echo tools)"

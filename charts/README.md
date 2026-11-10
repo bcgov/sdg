@@ -7,6 +7,7 @@ Deploy the portal to Kubernetes/OpenShift. Deploy workflows: DEVELOPER.md, Workf
 | `common`        | Library: names (`<release>-<chart>`), labels, image refs, restricted-SCC security contexts                |
 | `portal-web`    | The SPA on Caddy (:8080)                                                                                  |
 | `portal-api`    | The NestJS BFF (:3000), with the `database` migrator as an initContainer                                  |
+| `core-api`      | The NestJS service owning the business rules (:3000; only the forwarders reach it), with the migrator     |
 | `edge`          | Caddy + Coraza WAF (:3000; metrics :3003 on `<release>-edge-metrics`) and the Ingress                     |
 | `postgres`      | A Crunchy PGO `PostgresCluster` (PostgreSQL 17, PostGIS 3.5)                                              |
 | `sdg`           | Umbrella: all of the above in one release (`<chart>.enabled` toggles each)                                |
@@ -18,12 +19,12 @@ Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster
 
 - The Crunchy Postgres operator (PGO v5) watching the namespace.
 - A Vault KV v2 secret holding `SESSION_SECRET` (≥ 32 chars, e.g. `openssl rand -base64 48`) and `KEYCLOAK_CLIENT_SECRET`, a Vault role that can read it, and the service account that role trusts (BC Gov: `<plate>-vault`). Values must not contain `'` or newlines.
-- Images `portal-web`, `portal-api`, `database` and `edge` pushed as `<registry>/<name>:<tag>`.
+- Images `portal-web`, `portal-api`, `core-api`, `database` and `edge` pushed as `<registry>/<name>:<tag>`.
 
 ## Install
 
 ```sh
-helm dependency build charts/portal-web   # likewise portal-api, edge, postgres, then:
+helm dependency build charts/portal-web   # likewise portal-api, core-api, edge, postgres, then:
 helm dependency build charts/sdg
 helm upgrade --install sdg-12 charts/sdg -n abc123-dev \
   --set global.image.registry=ghcr.io/<owner>/sdg \
@@ -33,16 +34,20 @@ helm upgrade --install sdg-12 charts/sdg -n abc123-dev \
   --set portal-api.keycloak.clientId=<client> \
   --set portal-api.vault.role=abc123-nonprod \
   --set portal-api.vault.secretPath=abc123-nonprod/portal-api \
-  --set portal-api.vault.serviceAccountName=abc123-vault
+  --set portal-api.vault.serviceAccountName=abc123-vault \
+  --set core-api.keycloak.issuerUrl=https://<keycloak>/realms/<realm> \
+  --set core-api.keycloak.portalClientId=<client>
 ```
+
+core-api needs no secret: it only verifies the access tokens the forwarders pass on. `core-api.keycloak.adminClientId` stays empty until admin-api is deployed; while it is, no admin-client token is accepted.
 
 Without Vault, create a Secret with `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` and pass `--set portal-api.vault.enabled=false --set portal-api.existingSecret=<name>`.
 
-Environment sizes live in `charts/sdg/values-{pr,test,prod}.yaml`. PR environments are throwaway: `postgres.backups.enabled: false` (no pgBackRest), smaller requests and `strategy: { type: Recreate }` on portal-web, portal-api and edge, so a PR takes about 70m CPU, 370Mi memory and 256Mi of PVC. `postgres.parameters` go to Patroni; Postgres keeps about `max(max_wal_size, wal_keep_size)` of WAL, so keep both at about a quarter of `postgres.instances.storage` or less (`max_wal_size` 256MB default, 96MB TEST, 64MB PR; `wal_keep_size` Patroni's 128MB, 32MB TEST, 16MB PR).
+Environment sizes live in `charts/sdg/values-{pr,test,prod}.yaml`. PR environments are throwaway: `postgres.backups.enabled: false` (no pgBackRest), smaller requests and `strategy: { type: Recreate }` on portal-web, portal-api, core-api and edge, so a PR takes about 90m CPU, 500Mi memory and 256Mi of PVC. New service charts such as core-api default to PR-level requests (20m / 128Mi), which TEST and PROD inherit. `postgres.parameters` go to Patroni; Postgres keeps about `max(max_wal_size, wal_keep_size)` of WAL, so keep both at about a quarter of `postgres.instances.storage` or less (`max_wal_size` 256MB default, 96MB TEST, 64MB PR; `wal_keep_size` Patroni's 128MB, 32MB TEST, 16MB PR).
 
 On first install portal-api pods wait (`CreateContainerConfigError`) until PGO has created the user Secret; the migrator then retries until the database accepts connections.
 
-The postgres chart creates one database, `portal`, and one login per service (`postgres.users`: `core`, `portal`, `admin`). PGO writes each login's credentials to Secret `<release>-postgres-pguser-<login>`. Its init SQL gives each login a schema of its own name, which Postgres's default `search_path` resolves first, so no login can read another's tables; nothing lives in `public`. The database migrator (`database` image) applies the `core` schema as the `core` login. The chart also preloads pg_cron (`postgres.parameters`); the init SQL installs it, grants the `portal` and `admin` logins its `cron` schema so they can schedule their own jobs, and schedules `purge-cron-run-details` as the superuser (`SELECT jobname, schedule FROM cron.job;`). PGO runs the init SQL only when it creates a cluster, so a change to it reaches an existing environment only by deleting the `PostgresCluster` and its PVCs, which a person does (never the deploy workflow); the next deploy recreates the cluster. compose mirrors the init SQL in `packages/database/dev-postgres/init-roles.sql`; change both together.
+The postgres chart creates one database, `portal`, and one login per service (`postgres.users`: `core`, `portal`, `admin`). PGO writes each login's credentials to Secret `<release>-postgres-pguser-<login>`. Its init SQL gives each login a schema of its own name, which Postgres's default `search_path` resolves first, so no login can read another's tables; nothing lives in `public`. The database migrator (`database` image) applies the `core` schema as the `core` login, as core-api's initContainer. The chart also preloads pg_cron (`postgres.parameters`); the init SQL installs it, grants the `portal` and `admin` logins its `cron` schema so they can schedule their own jobs, and schedules `purge-cron-run-details` as the superuser (`SELECT jobname, schedule FROM cron.job;`). PGO runs the init SQL only when it creates a cluster, so a change to it reaches an existing environment only by deleting the `PostgresCluster` and its PVCs, which a person does (never the deploy workflow); the next deploy recreates the cluster. compose mirrors the init SQL in `packages/database/dev-postgres/init-roles.sql`; change both together.
 
 ## Observability
 

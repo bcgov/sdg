@@ -2,6 +2,7 @@
 prometheus.scrape "apps" {
   targets = [
     {"__address__" = "portal-api:3000", "app" = "portal-api", "environment" = "local"},
+    {"__address__" = "core-api:3000", "app" = "core-api", "environment" = "local"},
     {"__address__" = "caddy:3003", "app" = "edge", "environment" = "local"},
   ]
   scrape_interval = "15s"

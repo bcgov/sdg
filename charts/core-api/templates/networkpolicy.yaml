@@ -1,0 +1,29 @@
+{{- if .Values.networkPolicy.enabled }}
+# core-api is unreachable from the edge (R3): only the forwarders call it; the observability stack's Alloy may scrape
+# it when configured.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "common.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range .Values.networkPolicy.clients }}
+        - podSelector:
+            matchLabels:
+              {{- include "common.peerSelectorLabels" (dict "name" . "context" $) | nindent 14 }}
+        {{- end }}
+      ports:
+        - port: 3000
+          protocol: TCP
+    {{- with include "common.scraperIngressRule" (dict "context" . "port" 3000) }}
+    # The observability stack's Alloy scrapes /metrics (doc 20).
+    {{- . | nindent 4 }}
+    {{- end }}
+{{- end }}
