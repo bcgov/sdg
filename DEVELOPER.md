@@ -34,6 +34,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
   - Administration: `admin-web` (React, the service-account registry) and `admin-api`, a second backend-for-frontend on `@repo/bff-core` that signs administrators in with IDIR (cookie `admin.sid`, `admin` schema) and forwards to `core-api`; a sign-in without the `admin` client role is ended at Keycloak and lands on `/not-authorized`
   - Service accounts: `gateway-api`, a NestJS forwarder on `@repo/server-core` only (no login, session or database). It forwards `GET /api/v1/gateway/…` with the caller's client-credentials Bearer token to core-api, which verifies it and checks the client against the registry (403 when it is not registered and enabled). gateway-api answers 401 itself to a missing or non-Bearer `Authorization`, 405 to any method other than GET, and 404 outside the gateway routes, without calling core-api
   - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `bff-core`, `server-core`, `database`
+  - Diagrams: C4 context, container, component and deployment views in [`docs/architecture.md`](./docs/architecture.md)
 
 # Setup
 
