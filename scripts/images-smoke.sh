@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Smoke test for the production images (DEVELOPER.md, Production Images).
-# Builds database, core-api, portal-api, admin-api, portal-web and the edge, then runs them the way OpenShift's
-# restricted SCC does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the compose postgis.
+# Builds database, core-api, portal-api, admin-api, portal-web, admin-web and the edge, then runs them the way
+# OpenShift's restricted SCC does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the
+# compose postgis.
 #
 # Usage: scripts/images-smoke.sh [--no-build]
 #   --no-build  reuse images built by an earlier run
@@ -29,7 +30,7 @@ done
 cd "$(dirname "$0")/.."
 TMP="$(mktemp -d)"
 cleanup() {
-  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-admin" "$PREFIX-web" "$PREFIX-edge" >/dev/null 2>&1 || true
+  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-admin" "$PREFIX-web" "$PREFIX-admin-web" "$PREFIX-edge" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -51,6 +52,7 @@ if $BUILD; then
   "$ENGINE" build -q -t "$(image portal-api)" -f apps/portal-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image admin-api)" -f apps/admin-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-web)" -f apps/portal-web/Dockerfile . >/dev/null
+  "$ENGINE" build -q -t "$(image admin-web)" -f apps/admin-web/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image edge)" apps/portal-web/caddy >/dev/null
 fi
 
@@ -70,7 +72,7 @@ check "database ships dist/migrate.js and the migrations" node_in database \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('migrations/meta/_journal.json') ? 0 : 1)"
 check "no .env files in the Node images" bash -c "! for i in core-api portal-api admin-api database; do \
   $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" find / -xdev -name '.env*' -not -name '.env.example'; done | grep -q ."
-check "no package manager in the final images" bash -c "for i in core-api portal-api admin-api database portal-web edge; do \
+check "no package manager in the final images" bash -c "for i in core-api portal-api admin-api database portal-web admin-web edge; do \
   ! $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" sh -c 'command -v apk || command -v npm || command -v pnpm' || exit 1; done"
 
 echo "Waiting for compose postgis"
@@ -209,11 +211,13 @@ check "a portal route is 404 on admin-api (R4)" fetch_in "$PREFIX-admin" /api/v1
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-admin 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
-echo "portal-web and edge"
+echo "portal-web, admin-web and edge"
 "$ENGINE" run -d --name "$PREFIX-web" "${OCP[@]}" "$(image portal-web)" >/dev/null
+"$ENGINE" run -d --name "$PREFIX-admin-web" "${OCP[@]}" "$(image admin-web)" >/dev/null
 "$ENGINE" run -d --name "$PREFIX-edge" "${OCP[@]}" -p 127.0.0.1::3000 \
   -e "PORTAL_API_URL=http://$PREFIX-api:3000" -e "PORTAL_WEB_URL=http://$PREFIX-web:8080" \
   -e ADMIN_HOST=admin.smoke.test -e "ADMIN_API_URL=http://$PREFIX-admin:3000" \
+  -e "ADMIN_WEB_URL=http://$PREFIX-admin-web:8080" \
   "$(image edge)" >/dev/null
 EDGE="http://$("$ENGINE" port "$PREFIX-edge" 3000 | head -n 1)"
 deadline=$((SECONDS + 30))
@@ -252,6 +256,14 @@ check "the admin host's /api/auth/me is 401 from admin-api" \
   test "$(status -H 'Host: admin.smoke.test' "$EDGE/api/auth/me")" = 401
 check "the admin host's portal route is 404 from admin-api" \
   test "$(status -H 'Host: admin.smoke.test' "$EDGE/api/v1/portal/anything")" = 404
+"${CURL[@]}" -D "$TMP/admin.headers" -o "$TMP/admin.html" -H 'Host: admin.smoke.test' "$EDGE/"
+check "the admin host's / is 200 from admin-web, under an arbitrary UID" \
+  test "$(status -H 'Host: admin.smoke.test' "$EDGE/")" = 200
+check "the admin host's / is admin-web's SPA shell, not portal-web's" grep -q '<title>SDG Admin</title>' "$TMP/admin.html"
+check "the admin host's client routes fall back to admin-web's SPA" \
+  test "$(status -H 'Host: admin.smoke.test' "$EDGE/service-clients")" = 200
+check "the admin host's production CSP has no unsafe-inline styles" bash -c \
+  "grep -i '^content-security-policy:' '$TMP/admin.headers' | grep -o 'style-src [^;]*' | grep -vq unsafe-inline"
 check "/.env is blocked by the WAF" test "$(status "$EDGE/.env")" = 403
 
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null || true

@@ -117,3 +117,16 @@ tests:
           path: spec.strategy
           value:
             type: Recreate
+
+  - it: runs admin-web at its PR-level default requests and recreates it on rollout
+    template: charts/admin-web/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 64Mi }
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate

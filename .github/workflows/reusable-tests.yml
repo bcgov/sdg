@@ -45,10 +45,8 @@ jobs:
           exit 1
 
       # The edge routes by Host. /telemetry.json is answered by the edge itself, so 200 there shows the admin host's
-      # Route reaches it; admin-api answers /api/auth/me signed out with 401; the gateway host serves only /api, so / is
-      # 404 (portal-web would answer 200).
-      # TODO: admin-web isn't deployed yet, so the edge has no admin-web upstream and answers 503 for /; once it is,
-      # expect 200 like the portal above.
+      # Route reaches it; admin-web serves / and admin-api answers /api/auth/me signed out with 401, like the portal
+      # above; the gateway host serves only /api, so / is 404 (portal-web would answer 200).
       - name: Admin and gateway hosts
         if: inputs.admin_url != '' && inputs.gateway_url != ''
         env:
@@ -62,11 +60,11 @@ jobs:
             admin_api=$(status "${ADMIN_URL}/api/auth/me")
             gateway=$(status "${GATEWAY_URL}/")
             got="admin /telemetry.json ${telemetry}, / ${admin_web}, /api/auth/me ${admin_api}; gateway / ${gateway}"
-            if [ "$telemetry" = 200 ] && [ "$admin_web" = 503 ] && [ "$admin_api" = 401 ] && [ "$gateway" = 404 ]; then
+            if [ "$telemetry" = 200 ] && [ "$admin_web" = 200 ] && [ "$admin_api" = 401 ] && [ "$gateway" = 404 ]; then
               echo "$got"
               exit 0
             fi
-            echo "Waiting (${got}; want 200, 503, 401; 404), retrying in 10s... ($i/30)"
+            echo "Waiting (${got}; want 200, 200, 401; 404), retrying in 10s... ($i/30)"
             sleep 10
           done
           echo "ERROR: the admin and gateway hosts did not answer as expected in time."
@@ -101,4 +99,20 @@ jobs:
         with:
           name: playwright-report-chromium
           path: apps/portal-web/playwright-report
+          retention-days: 7
+
+      # admin-web's signed-out specs against the admin host (the signed-in ones need an admin test account and skip).
+      - name: Run admin-web tests
+        if: (! cancelled()) && inputs.admin_url != ''
+        env:
+          E2E_BASE_URL: ${{ inputs.admin_url }}/
+          CI: 'true'
+        run: pnpm --filter admin-web exec playwright test --project=chromium --reporter=html
+
+      - uses: actions/upload-artifact@v7
+        if: (! cancelled()) && inputs.admin_url != ''
+        name: upload admin-web results
+        with:
+          name: playwright-report-admin-web-chromium
+          path: apps/admin-web/playwright-report
           retention-days: 7

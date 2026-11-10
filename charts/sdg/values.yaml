@@ -40,6 +40,9 @@ portal-api:
     # Required when enabled, e.g. abc123-vault
     serviceAccountName: ''
 
+admin-web:
+  enabled: true
+
 admin-api:
   enabled: true
   keycloak:
@@ -68,9 +71,10 @@ core-api:
 
 edge:
   enabled: true
-  # The admin host's /api goes to admin-api.
+  # The admin host: /api to admin-api, everything else to admin-web.
   upstreams:
     adminApi: 'http://{{ .Release.Name }}-admin-api:3000'
+    adminWeb: 'http://{{ .Release.Name }}-admin-web:8080'
 
 postgres:
   enabled: true

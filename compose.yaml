@@ -1,6 +1,6 @@
 # Local development stack for the portal (`podman compose up -d` or `docker compose up -d`).
-# Caddy fronts everything at https://sdg.localhost (and https://admin.sdg.localhost); portal-api, admin-api, core-api
-# and portal-web publish no host ports.
+# Caddy fronts everything at https://sdg.localhost (and https://admin.sdg.localhost); portal-api, admin-api, core-api,
+# portal-web and admin-web publish no host ports.
 # Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets come
 # from apps/portal-api/.env and apps/admin-api/.env, and core-api's Keycloak issuer and client ids from
 # apps/core-api/.env (all gitignored). apps/admin-api/.env is optional: without the admin client, admin-api doesn't
@@ -26,6 +26,7 @@ x-workspace: &workspace
     - nm-admin-api:/app/apps/admin-api/node_modules
     - nm-core-api:/app/apps/core-api/node_modules
     - nm-portal-web:/app/apps/portal-web/node_modules
+    - nm-admin-web:/app/apps/admin-web/node_modules
     - nm-auth:/app/packages/auth/node_modules
     - nm-bff-core:/app/packages/bff-core/node_modules
     - nm-design-system:/app/packages/design-system/node_modules
@@ -279,6 +280,39 @@ services:
     depends_on:
       deps:
         condition: service_healthy
+    # Healthy once Vite serves, i.e. after turbo has built design-system and sdg-header; admin-web waits for that.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:5173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # admin-web's Vite dev server (port 5174), at https://admin.sdg.localhost through Caddy, whose /api goes to admin-api.
+  # It waits for portal-web, whose turbo run has built the packages they share, so the two never build them at once.
+  admin-web:
+    <<: *workspace
+    environment: *workspace-env
+    command:
+      [
+        'pnpm',
+        'turbo',
+        'run',
+        'dev',
+        '--filter=admin-web',
+        '--ui=stream',
+        '--env-mode=loose',
+        '--',
+        '--host',
+        '0.0.0.0',
+      ]
+    depends_on:
+      portal-web:
+        condition: service_healthy
 
   caddy:
     build: apps/portal-web/caddy
@@ -290,6 +324,7 @@ services:
       # The admin host's /api (Caddyfile.dev's admin.sdg.localhost). Caddy doesn't wait for admin-api: until it
       # listens, or when it can't start without apps/admin-api/.env, that host answers 502.
       ADMIN_API_URL: http://admin-api:3000
+      ADMIN_WEB_URL: http://admin-web:5174
     ports:
       - '443:8443'
     volumes:
@@ -305,6 +340,8 @@ services:
         condition: service_started
       portal-web:
         condition: service_started
+      admin-web:
+        condition: service_started
 
 volumes:
   portal-pgdata:
@@ -316,6 +353,7 @@ volumes:
   nm-admin-api:
   nm-core-api:
   nm-portal-web:
+  nm-admin-web:
   nm-auth:
   nm-bff-core:
   nm-design-system:

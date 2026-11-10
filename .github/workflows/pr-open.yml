@@ -29,6 +29,10 @@ jobs:
             build_context: .
             build_file: apps/portal-api/Dockerfile
             triggers: ('apps/portal-api/' 'packages/auth/' 'packages/bff-core/' 'packages/database/' 'packages/server-core/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: admin-web
+            build_context: .
+            build_file: apps/admin-web/Dockerfile
+            triggers: ('apps/admin-web/' 'packages/design-system/' 'packages/sdg-header/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
           - package: admin-api
             build_context: .
             build_file: apps/admin-api/Dockerfile

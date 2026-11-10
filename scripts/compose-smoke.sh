@@ -63,22 +63,28 @@ if $UP; then
   $COMPOSE up -d --build >/dev/null
 fi
 
-echo "Waiting for $SITE"
 deadline=$((SECONDS + WAIT_SECONDS))
-until curl -ksSf -o /dev/null "$SITE/"; do
-  if ((SECONDS > deadline)); then
-    fail "stack reachable at $SITE within ${WAIT_SECONDS}s"
-    $COMPOSE ps || true
-    echo "Passed: $PASSED  Failed: $FAILED"
-    exit 1
-  fi
-  sleep 5
-done
+# wait_for <site>: until it serves / (admin-web starts only after portal-web is up, so it comes second).
+wait_for() {
+  echo "Waiting for $1"
+  until curl -ksSf -o /dev/null "$1/"; do
+    if ((SECONDS > deadline)); then
+      fail "stack reachable at $1 within ${WAIT_SECONDS}s"
+      $COMPOSE ps || true
+      echo "Passed: $PASSED  Failed: $FAILED"
+      exit 1
+    fi
+    sleep 5
+  done
+}
+wait_for "$SITE"
+wait_for "$ADMIN_SITE"
 
 CADDY="$(container caddy)"
 API="$(container portal-api)"
 CORE="$(container core-api)"
 WEB="$(container portal-web)"
+ADMIN_WEB="$(container admin-web)"
 MIGRATE="$(container migrate)"
 MIGRATE_PORTAL="$(container migrate-portal)"
 MIGRATE_ADMIN="$(container migrate-admin)"
@@ -134,6 +140,10 @@ echo "Admin host"
 # stack must work without it.
 check "the admin host is routed by Caddy (/telemetry.json from the edge)" \
   test "$("${CURL[@]}" "$ADMIN_SITE/telemetry.json")" = '{"enabled":false}'
+"${CURL[@]}" -o "$TMP/admin-index.html" "$ADMIN_SITE/" || true
+check "GET / on the admin host serves admin-web's SPA shell" grep -q '<title>SDG Admin</title>' "$TMP/admin-index.html"
+check "GET /service-clients on the admin host falls through to admin-web" \
+  test "$(status "$ADMIN_SITE/service-clients")" = 200
 if [ -n "$ADMIN_API" ] && [ "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$ADMIN_API")" = healthy ]; then
   check "GET /api/auth/me without a session is 401 from admin-api" test "$(status "$ADMIN_SITE/api/auth/me")" = 401
   check "GET /api/v1/portal/… is 404 on the admin host (R4)" test "$(status "$ADMIN_SITE/api/v1/portal/anything")" = 404
@@ -169,6 +179,7 @@ check "Scanner User-Agent is blocked (rule 1003)" test "$(status -A 'sqlmap/1.8'
 echo "Isolation"
 check "portal-api publishes no host port" test -z "$("$ENGINE" port "$API" 2>/dev/null)"
 check "portal-web publishes no host port" test -z "$("$ENGINE" port "$WEB" 2>/dev/null)"
+check "admin-web publishes no host port" test -z "$("$ENGINE" port "$ADMIN_WEB" 2>/dev/null)"
 
 echo "Migrations"
 # Each init service touches /tmp/ready only after its migrations succeed; its app waits for that (service_healthy).

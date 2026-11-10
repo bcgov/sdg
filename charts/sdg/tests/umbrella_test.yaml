@@ -312,3 +312,41 @@ tests:
                 matchLabels:
                   app.kubernetes.io/name: edge
                   app.kubernetes.io/instance: sdg-12
+
+  - it: global image settings reach admin-web
+    template: charts/admin-web/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/admin-web:pr-12
+
+  - it: the edge sends the rest of the admin host to the release's admin-web Service
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_WEB_URL
+            value: http://sdg-12-admin-web:8080
+
+  - it: admin-web's Service carries the name the edge calls
+    template: charts/admin-web/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-admin-web
+
+  - it: only the edge reaches admin-web
+    template: charts/admin-web/templates/networkpolicy.yaml
+    asserts:
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: edge
+                      app.kubernetes.io/instance: sdg-12
+              ports:
+                - port: 8080
+                  protocol: TCP

@@ -10,7 +10,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../charts"
-LEAF_CHARTS=(portal-web portal-api admin-api core-api edge postgres)
+LEAF_CHARTS=(portal-web portal-api admin-web admin-api core-api edge postgres)
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.31.0}"
 
@@ -113,6 +113,8 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" "CORE_API_URL: \"?http://${release}-core-api:3000\"?$" "points portal-api at the release's core-api"
   expect_rendered "$env" "$manifests" 'command: \[node, dist/migrate.js\]' "migrates portal-api's sessions with its own image"
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/admin-api:0123abc" "deploys admin-api"
+  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/admin-web:0123abc" "deploys admin-web"
+  expect_rendered "$env" "$manifests" "value: \"?http://${release}-admin-web:8080\"?$" "sends the rest of the admin host to admin-web"
   expect_rendered "$env" "$manifests" 'ADMIN_CLIENT_ID: "?admin"?$' "gives core-api the admin client id"
   expect_rendered "$env" "$manifests" 'KEYCLOAK_CLIENT_ID: "?admin"?$' "signs admin-api in with the admin client"
   expect_rendered "$env" "$manifests" "APP_URL: \"?https://${release}-admin\.apps\.gold\.devops\.gov\.bc\.ca\"?$" "serves admin-api on the admin host"
