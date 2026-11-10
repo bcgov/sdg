@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { unreachable } from '@repo/bff-core/testing';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createTestApp, type TestApp } from '../../src/testing/app.js';
 
@@ -11,8 +12,10 @@ describe('Health Integration Test Suite', () => {
 
   afterAll(() => t.close());
 
-  beforeEach(() => {
-    t.oidc.discover.mockReset().mockResolvedValue(undefined);
+  afterEach(() => {
+    vi.restoreAllMocks();
+    t.idp.failDiscovery = false;
+    t.coreApi.reset();
   });
 
   describe('GET /healthz/live', () => {
@@ -20,30 +23,35 @@ describe('Health Integration Test Suite', () => {
       const res = await t.http().get('/healthz/live');
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ status: 'ok', info: {}, error: {}, details: {} });
-      expect(t.oidc.discover).not.toHaveBeenCalled();
+      expect(t.idp.discoveryRequests).toBe(0);
       expect(res.headers['set-cookie']).toBeUndefined();
     });
   });
 
   describe('GET /healthz/ready', () => {
-    it('Should return 200 with database and keycloak up', async () => {
+    it('Should check only its own database', async () => {
       const res = await t.http().get('/healthz/ready');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('ok');
-      expect(res.body.info).toMatchObject({
-        database: { status: 'up' },
-        keycloak: { status: 'up' },
-      });
-      expect(t.oidc.discover).toHaveBeenCalledTimes(1);
+      expect(Object.keys(res.body.info)).toEqual(['database']);
+      expect(res.body.info.database).toMatchObject({ status: 'up' });
+      expect(res.headers['set-cookie']).toBeUndefined();
     });
 
-    it('Should return 503 with the failing check marked down', async () => {
-      t.oidc.discover.mockRejectedValue(new Error('Keycloak unreachable'));
+    it('Should stay ready while Keycloak and core-api are down', async () => {
+      t.idp.failDiscovery = true;
+      t.coreApi.respond = unreachable;
+      const res = await t.http().get('/healthz/ready');
+      expect(res.status).toBe(200);
+      expect(t.coreApi.received).toEqual([]);
+    });
+
+    it('Should return 503 with the database marked down when it fails', async () => {
+      vi.spyOn(t.database.db, 'execute').mockRejectedValue(new Error('connection refused'));
       const res = await t.http().get('/healthz/ready');
       expect(res.status).toBe(503);
       expect(res.body.status).toBe('error');
-      expect(res.body.error).toMatchObject({ keycloak: { status: 'down' } });
-      expect(res.body.info).toMatchObject({ database: { status: 'up' } });
+      expect(res.body.error).toMatchObject({ database: { status: 'down' } });
     });
   });
 });

@@ -1,20 +1,17 @@
-import { getDrizzleToken } from '@nestjs/drizzle';
-import type { OidcClient } from '@repo/auth';
-import { OIDC_CLIENT } from '@repo/auth/nestjs';
+import type { SessionDatabase } from '@repo/bff-core';
+import { SESSION_DATABASE } from '@repo/bff-core/nestjs';
 import type { HealthModuleAsyncOptions } from '@repo/server-core/nestjs';
 import { sql } from 'drizzle-orm';
 
-import { AuthModule } from '../auth/auth.module.js';
-import type { Database } from '../database/database.module.js';
-
-/** GET /healthz/ready: Postgres (which also holds sessions) and Keycloak, everything needed to serve a login. */
+/**
+ * GET /healthz/ready: portal-api's own database (its sessions) only. Keycloak and core-api outages surface per request
+ * as 503 and at the login callback as `authError=unavailable`, so they never pull the pod from its Service (U6).
+ */
 export const readiness: HealthModuleAsyncOptions = {
-  imports: [AuthModule],
-  inject: [getDrizzleToken(), OIDC_CLIENT],
-  useFactory: (db: Database, oidc: OidcClient) => ({
+  inject: [SESSION_DATABASE],
+  useFactory: (db: SessionDatabase) => ({
     database: async () => {
       await db.execute(sql`select 1`);
     },
-    keycloak: () => oidc.discover(),
   }),
 };

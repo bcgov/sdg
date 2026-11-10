@@ -58,6 +58,8 @@ for app in core-api portal-api; do
   check "$app ships no devDependencies (pino-pretty, typescript, @nestjs/cli)" node_in "$app" \
     "const fs = require('fs'); process.exit(['pino-pretty', 'typescript', '@nestjs/cli'].some((d) => fs.existsSync('node_modules/' + d)) ? 1 : 0)"
 done
+check "portal-api ships dist/migrate.js and bff-core's sessions migrations" node_in portal-api \
+  "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('node_modules/@repo/bff-core/migrations/meta/_journal.json') ? 0 : 1)"
 check "database ships dist/migrate.js and the migrations" node_in database \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('migrations/meta/_journal.json') ? 0 : 1)"
 check "no .env files in the Node images" bash -c "! for i in core-api portal-api database; do \
@@ -80,6 +82,10 @@ psql "create database $SMOKE_DB" >/dev/null
 # The compose logins (packages/database/dev-postgres/init-roles.sql), each owning its schema, as in the main database.
 psql_smoke "grant all on database $SMOKE_DB to core, portal, admin; revoke create on schema public from public; \
   create schema core authorization core; create schema portal authorization portal" >/dev/null
+# pg_cron runs only in the main database (cron.database_name), so a stand-in takes the sessions migration's
+# cron.schedule here; compose-smoke.sh checks the real job.
+psql_smoke "create schema cron; grant usage on schema cron to portal; create function cron.schedule(job_name text, \
+  schedule text, command text) returns bigint language sql as 'select 1::bigint'" >/dev/null
 CORE_URL="postgres://core:core@postgis:5432/$SMOKE_DB"
 DATABASE_URL="postgres://portal:portal@postgis:5432/$SMOKE_DB"
 
@@ -125,9 +131,30 @@ check "a request without a Bearer token is 401" fetch_in "$PREFIX-core" /api/v1/
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-core 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
+echo "portal-api sessions migration (initContainer)"
+# Runs `node dist/migrate.js` in the portal-api image once, like migrate above.
+migrate_sessions() {
+  local name="$1"; shift
+  local code=0
+  "$ENGINE" run --rm --read-only "${OCP[@]}" "$@" "$(image portal-api)" node dist/migrate.js >"$TMP/$name.log" 2>&1 \
+    || code=$?
+  echo "$code" >"$TMP/$name.code"
+}
+migrate_sessions sessions-no-url
+check "exits 1 without DATABASE_URL" test "$(exit_code sessions-no-url)" = 1
+migrate_sessions sessions-first -e "DATABASE_URL=$DATABASE_URL"
+check "migrates the sessions as the portal login (exit 0)" test "$(exit_code sessions-first)" = 0
+expected="$(grep -c '"tag"' packages/bff-core/migrations/meta/_journal.json)"
+applied="$(psql_smoke 'select count(*) from portal.__drizzle_migrations' || echo 0)"
+check "all $expected sessions migrations recorded in portal (found $applied)" test "$applied" = "$expected"
+check "portal.sessions exists" test "$(psql_smoke "select count(*) from information_schema.tables \
+  where table_schema = 'portal' and table_name = 'sessions'")" = 1
+migrate_sessions sessions-again -e "DATABASE_URL=$DATABASE_URL"
+check "re-running with nothing pending exits 0" test "$(exit_code sessions-again)" = 0
+
 echo "portal-api"
 "$ENGINE" run -d --name "$PREFIX-api" --read-only "${OCP[@]}" \
-  -e "DATABASE_URL=$DATABASE_URL" \
+  -e "DATABASE_URL=$DATABASE_URL" -e "CORE_API_URL=http://$PREFIX-core:3000" \
   -e APP_URL=https://portal.example.gov.bc.ca -e TRUST_PROXY=true \
   -e "SESSION_SECRET=$(head -c 48 /dev/urandom | base64)" \
   -e KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal \
@@ -138,6 +165,10 @@ live() { "$ENGINE" exec "$PREFIX-api" node -e \
 deadline=$((SECONDS + 60))
 until live >/dev/null 2>&1 || ((SECONDS > deadline)); do sleep 1; done
 check "/healthz/live is 200 under an arbitrary UID with a read-only root" live
+check "/healthz/ready is 200 with its database as the portal login (Keycloak and core-api not checked)" \
+  fetch_in "$PREFIX-api" /healthz/ready 200
+check "a signed-out portal call is 401" fetch_in "$PREFIX-api" /api/v1/portal/anything 401
+check "an admin route is 404 on portal-api (AE2)" fetch_in "$PREFIX-api" /api/v1/admin/anything 404
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-api 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 

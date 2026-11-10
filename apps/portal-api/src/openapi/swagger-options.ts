@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 
+import { addSessionCookieAuth } from '@repo/bff-core/nestjs';
 import type { SwaggerOptions } from '@repo/server-core/nestjs';
 import { z } from 'zod';
 
-import { SESSION_COOKIE } from '../session/session.module.js';
+import { SESSION_COOKIE } from '../bff/portal-session.js';
 
 const { version } = z
   .object({ version: z.string() })
@@ -12,8 +13,8 @@ const { version } = z
 /** portal-api's OpenAPI document (served at /api/docs outside production by configureApp). */
 export const swaggerOptions: SwaggerOptions = {
   title: 'Portal API',
-  description: 'Backend-for-frontend for portal-web. Authenticated routes use the portal.sid session cookie.',
+  description:
+    'Backend-for-frontend for portal-web: sign-in and the portal.sid session, forwarding /api/v1/{portal,shared}/… to core-api.',
   version,
-  configure: (builder) =>
-    builder.addCookieAuth(SESSION_COOKIE, { type: 'apiKey', in: 'cookie', name: SESSION_COOKIE }, SESSION_COOKIE),
+  configure: (builder) => addSessionCookieAuth(builder, SESSION_COOKIE),
 };

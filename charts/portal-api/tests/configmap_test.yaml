@@ -31,6 +31,22 @@ tests:
             SESSION_TTL_SECONDS: '28800'
             KEYCLOAK_ISSUER_URL: https://keycloak.example.com/realms/portal
             KEYCLOAK_CLIENT_ID: portal
+            CORE_API_URL: http://sdg-core-api:3000
+
+  - it: an explicit coreApiUrl wins over the release's core-api Service
+    set:
+      coreApiUrl: http://core-api.other.svc:3000
+    asserts:
+      - equal:
+          path: data.CORE_API_URL
+          value: http://core-api.other.svc:3000
+
+  - it: fails without a core-api URL
+    set:
+      coreApiUrl: ''
+    asserts:
+      - failedTemplate:
+          errorPattern: coreApiUrl is required
 
   - it: an explicit appUrl wins over global.host
     set:

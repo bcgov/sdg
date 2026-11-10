@@ -10,6 +10,7 @@ const valid = {
   KEYCLOAK_ISSUER_URL: 'https://keycloak.example.com/realms/portal/',
   KEYCLOAK_CLIENT_ID: 'portal',
   KEYCLOAK_CLIENT_SECRET: 'client-secret-value',
+  CORE_API_URL: 'http://core-api:3000/',
 };
 
 function errorOf(raw: Record<string, unknown>): EnvValidationError {
@@ -110,6 +111,17 @@ describe('Env Config Unit Test Suite', () => {
       expect(error.message).not.toContain(secret);
       expect(error.message).not.toContain('hunter2');
       expect(error.message).toMatch(/^Invalid environment:/);
+    });
+  });
+
+  describe('CORE_API_URL', () => {
+    it('Should accept core-api over in-cluster http and strip the trailing slash', () => {
+      expect(validateEnv(valid).CORE_API_URL).toBe('http://core-api:3000');
+    });
+
+    it('Should be required and a http(s) URL', () => {
+      expect(errorOf({ ...valid, CORE_API_URL: undefined }).keys).toEqual(['CORE_API_URL']);
+      expect(errorOf({ ...valid, CORE_API_URL: 'postgres://core-api:3000' }).keys).toEqual(['CORE_API_URL']);
     });
   });
 

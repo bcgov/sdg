@@ -10,7 +10,7 @@ import manifest from '../package.json' with { type: 'json' };
 
 const srcDir = dirname(fileURLToPath(import.meta.url));
 const packageDir = join(srcDir, '..');
-const ENTRIES = ['index', 'migrations/index', 'nestjs/index'];
+const ENTRIES = ['index', 'migrations/index', 'nestjs/index', 'testing/index'];
 const NEST_PEERS = ['@nestjs/common', '@nestjs/core', '@nestjs/swagger', 'reflect-metadata', 'rxjs'];
 const NEST_IMPORT = /^(@nestjs\/|reflect-metadata|rxjs)/;
 
@@ -54,8 +54,8 @@ function runBin(name: 'vite' | 'tsc', args: string[]) {
 
 describe('bff-core package', () => {
   describe('package.json', () => {
-    it('exposes the ., ./migrations and ./nestjs subpaths and ships the migrations', () => {
-      expect(Object.keys(manifest.exports).toSorted()).toEqual(['.', './migrations', './nestjs']);
+    it('exposes the ., ./migrations, ./nestjs and ./testing subpaths and ships the migrations', () => {
+      expect(Object.keys(manifest.exports).toSorted()).toEqual(['.', './migrations', './nestjs', './testing']);
       for (const [subpath, entry] of Object.entries(manifest.exports)) {
         const base = subpath === '.' ? 'index' : `${subpath.slice(2)}/index`;
         expect(entry).toEqual({ types: `./dist/${base}.d.ts`, import: `./dist/${base}.js` });
@@ -73,7 +73,7 @@ describe('bff-core package', () => {
   });
 
   describe('sources', () => {
-    it.each(['index.ts', 'migrations/index.ts'])('keeps %s free of Nest', (entry) => {
+    it.each(['index.ts', 'migrations/index.ts', 'testing/index.ts'])('keeps %s free of Nest', (entry) => {
       const graph = staticGraph(join(srcDir, entry));
       expect([...graph].some((file) => relative(srcDir, file).startsWith('nestjs'))).toBe(false);
       expect(bareImports(graph).filter((name) => NEST_IMPORT.test(name))).toEqual([]);
@@ -111,6 +111,10 @@ describe('build output', () => {
     }
   });
 
+  it('keeps the testing entry on Node built-ins', () => {
+    expect(bareImports(builtGraph('testing/index'))).toEqual(['node:http']);
+  });
+
   it('resolves the migrations folder from dist/migrations/ to the package migrations/', () => {
     const built = readFileSync(join(outDir, 'migrations/index.js'), 'utf8');
     expect(built).toMatch(/new URL\("\.\.\/\.\.\/migrations", "" \+ import\.meta\.url\)/);
@@ -122,5 +126,7 @@ describe('build output', () => {
     expect(bareImports(builtGraph('nestjs/index')).filter((name) => name.startsWith('@oxc-project'))).toEqual([]);
     expect(nest).not.toMatch(/^\s*@(Module|Injectable|Inject|Controller)\b/m);
     expect(nest).toMatch(/Inject\(BFF_OPTIONS\)/);
+    // @nestjs/swagger reads the parameter types to document `@Query({ schema })` parameters.
+    expect(nest).toContain('design:paramtypes');
   });
 });

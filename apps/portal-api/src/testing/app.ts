@@ -1,53 +1,43 @@
 import 'reflect-metadata';
 import type { Type } from '@nestjs/common';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { AuthUser, CallbackResult, OidcClient, PendingAuthorization } from '@repo/auth';
+import { createOidcClient, type OidcClient } from '@repo/auth';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
+import { CLIENT_ID, CLIENT_SECRET, startFakeIdp, type FakeIdp } from '@repo/auth/testing';
+import { SESSION_DATABASE } from '@repo/bff-core/nestjs';
+import { startCoreApiStub, type CoreApiStub } from '@repo/bff-core/testing';
 import { configureApp } from '@repo/server-core/nestjs';
 import supertest from 'supertest';
-import { vi, type Mock } from 'vitest';
+import { vi } from 'vitest';
 
 import { swaggerOptions } from '../openapi/swagger-options.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
+export const APP_URL = 'http://localhost:5173';
+
+/** The env portal-api validates at boot; KEYCLOAK_ISSUER_URL and CORE_API_URL come from the stubs started per app. */
 export const TEST_ENV = {
   NODE_ENV: 'test',
   LOG_LEVEL: 'silent',
-  APP_URL: 'http://localhost:5173',
-  DATABASE_URL: 'postgres://portal:portal@localhost:5432/portal_test',
+  APP_URL,
+  // Never connected: SESSION_DATABASE is swapped for PGlite.
+  DATABASE_URL: 'postgres://portal:unused@127.0.0.1:1/portal',
   SESSION_SECRET: 'test-session-secret-at-least-32-characters',
-  KEYCLOAK_ISSUER_URL: 'https://keycloak.example.com/realms/portal',
-  KEYCLOAK_CLIENT_ID: 'portal',
-  KEYCLOAK_CLIENT_SECRET: 'test-client-secret',
+  KEYCLOAK_CLIENT_ID: CLIENT_ID,
+  KEYCLOAK_CLIENT_SECRET: CLIENT_SECRET,
 } as const;
-
-export const TEST_USER: AuthUser = {
-  issuer: TEST_ENV.KEYCLOAK_ISSUER_URL,
-  subject: 'sub-123',
-  name: 'Ada Lovelace',
-  email: 'ada@example.com',
-  emailVerified: true,
-  username: 'ada',
-  claims: {
-    iss: TEST_ENV.KEYCLOAK_ISSUER_URL,
-    sub: 'sub-123',
-    name: 'Ada Lovelace',
-  },
-};
-
-export interface OidcStub {
-  discover: Mock<OidcClient['discover']>;
-  createAuthorizationRequest: Mock<OidcClient['createAuthorizationRequest']>;
-  handleCallback: Mock<OidcClient['handleCallback']>;
-  buildEndSessionUrl: Mock<OidcClient['buildEndSessionUrl']>;
-}
 
 export interface TestApp {
   app: NestExpressApplication;
+  /** A cookie-keeping client whose requests carry the app's own Origin, as portal-web's same-origin fetches do. */
   http: () => supertest.Agent;
-  oidc: OidcStub;
+  /** The in-process Keycloak stand-in (`@repo/auth/testing`). */
+  idp: FakeIdp;
+  /** The OIDC client the app uses, for spying (e.g. on `createAuthorizationRequest`). */
+  oidc: OidcClient;
+  /** The core-api stand-in: records every request and answers like core-api by default. */
+  coreApi: CoreApiStub;
   database: TestDatabase;
   close: () => Promise<void>;
 }
@@ -59,84 +49,83 @@ export interface TestAppOptions {
   env?: Record<string, string>;
 }
 
-export function createOidcStub(): OidcStub {
-  return {
-    discover: vi.fn<OidcClient['discover']>().mockResolvedValue(undefined),
-    createAuthorizationRequest: vi.fn<OidcClient['createAuthorizationRequest']>((returnTo) => {
-      const pending: PendingAuthorization = {
-        state: 'state-1',
-        nonce: 'nonce-1',
-        codeVerifier: 'verifier-1',
-        returnTo,
-      };
-      const url = new URL(`${TEST_ENV.KEYCLOAK_ISSUER_URL}/protocol/openid-connect/auth`);
-      url.searchParams.set('state', pending.state);
-      return Promise.resolve({ url, pending });
-    }),
-    handleCallback: vi.fn<OidcClient['handleCallback']>(() =>
-      Promise.resolve<CallbackResult>({
-        user: TEST_USER,
-        tokens: {
-          idToken: 'id-token',
-          accessToken: 'access-token',
-          refreshToken: 'refresh-token',
-          expiresAt: null,
-        },
-      }),
-    ),
-    buildEndSessionUrl: vi.fn<OidcClient['buildEndSessionUrl']>((idToken) => {
-      const url = new URL(`${TEST_ENV.KEYCLOAK_ISSUER_URL}/protocol/openid-connect/logout`);
-      if (idToken) url.searchParams.set('id_token_hint', idToken);
-      return Promise.resolve(url);
-    }),
-  };
-}
-
-/** Restores the default stub behaviour (and clears calls) between tests. */
-export function resetOidcStub(stub: OidcStub): void {
-  const fresh = createOidcStub();
-  stub.discover.mockReset().mockImplementation(fresh.discover);
-  stub.createAuthorizationRequest.mockReset().mockImplementation(fresh.createAuthorizationRequest);
-  stub.handleCallback.mockReset().mockImplementation(fresh.handleCallback);
-  stub.buildEndSessionUrl.mockReset().mockImplementation(fresh.buildEndSessionUrl);
+function oidcClientFor(idp: FakeIdp): OidcClient {
+  return createOidcClient({
+    issuerUrl: idp.issuer,
+    clientId: CLIENT_ID,
+    clientSecret: CLIENT_SECRET,
+    redirectUri: `${APP_URL}/api/auth/callback`,
+    postLogoutRedirectUri: `${APP_URL}/`,
+    fetch: idp.fetch,
+  });
 }
 
 /**
- * The real AppModule and HTTP conventions, with Postgres swapped for PGlite (real migrations, which also
- * back the session store) and Keycloak for an OIDC client stub.
+ * The real AppModule and HTTP conventions (configureApp, rawBody as in main.ts), with Postgres swapped for PGlite
+ * (the real sessions migrations), Keycloak for the fake IdP and core-api for a loopback stub.
  */
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
-  for (const [key, value] of Object.entries({ ...TEST_ENV, ...options.env })) vi.stubEnv(key, value);
+  const [idp, coreApi, database] = await Promise.all([startFakeIdp(), startCoreApiStub(), createTestDatabase()]);
+  const env = { ...TEST_ENV, KEYCLOAK_ISSUER_URL: idp.issuer, CORE_API_URL: coreApi.url, ...options.env };
+  for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
   // ConfigModule.forRoot reads the environment when the module is defined, so import after stubbing.
   const { AppModule } = await import('../app.module.js');
-  const database = await createTestDatabase();
-  const oidc = createOidcStub();
+  const oidc = oidcClientFor(idp);
 
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-    controllers: options.controllers ?? [],
-  })
-    .overrideProvider(getDrizzleToken())
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers: options.controllers ?? [] })
+    .overrideProvider(SESSION_DATABASE)
     .useValue(database.db)
     .overrideProvider(OIDC_CLIENT)
     .useValue(oidc)
     .compile();
-
-  const app = moduleRef.createNestApplication<NestExpressApplication>({
-    logger: false,
-  });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false, rawBody: true });
   configureApp(app, { swagger: swaggerOptions });
   await app.init();
 
   return {
     app,
-    http: () => supertest.agent(app.getHttpServer()),
+    http: () => supertest.agent(app.getHttpServer()).set('origin', APP_URL),
+    idp,
     oidc,
+    coreApi,
     database,
     close: async () => {
       await app.close();
-      await database.close();
+      await Promise.all([idp.close(), coreApi.close(), database.close()]);
       vi.unstubAllEnvs();
     },
   };
+}
+
+/** The claims the fake IdP puts in the ID token at sign-in; core-api's userinfo profile differs on purpose. */
+export const ID_TOKEN_CLAIMS = { sub: 'resident-1', name: 'Ada Lovelace', email: 'ada@example.com' } as const;
+
+/** Starts a login on `agent` and returns the callback query the fake IdP would send the browser back with. */
+export async function authorize(t: TestApp, agent: supertest.Agent, returnTo = '/'): Promise<Record<string, string>> {
+  const login = await agent.get('/api/auth/login').query({ returnTo });
+  const location = new URL(login.headers['location'] ?? '');
+  const code = t.idp.issueCode({
+    nonce: location.searchParams.get('nonce') ?? '',
+    codeChallenge: location.searchParams.get('code_challenge') ?? '',
+    claims: ID_TOKEN_CLAIMS,
+  });
+  return { code, state: location.searchParams.get('state') ?? '' };
+}
+
+export interface SignedIn {
+  /** Holds the `portal.sid` cookie. */
+  agent: supertest.Agent;
+  /** The callback response. */
+  res: supertest.Response;
+}
+
+/** Signs in through the fake IdP and the core-api stub (F1); throws unless a session cookie was set. */
+export async function signIn(t: TestApp, returnTo = '/'): Promise<SignedIn> {
+  const agent = t.http();
+  const callback = await authorize(t, agent, returnTo);
+  const res = await agent.get('/api/auth/callback').query(callback);
+  if (res.status !== 302 || !res.headers['set-cookie']?.[0]?.startsWith('portal.sid=s%3A')) {
+    throw new Error(`sign-in failed: ${res.status} ${res.headers['location'] ?? ''}`);
+  }
+  return { agent, res };
 }

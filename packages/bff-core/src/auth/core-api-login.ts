@@ -3,8 +3,17 @@ import { z } from 'zod';
 
 /** core-api's answer to a sign-in (KTD5, KTD6). */
 export type LoginOutcome =
-  /** The principal exists (created or refreshed); the BFF creates the session. */
-  | { readonly kind: 'accepted'; readonly principalId: string }
+  /**
+   * The principal exists (created or refreshed); the BFF creates the session. `name` and `email` are the profile
+   * core-api read from Keycloak userinfo (KTD5); the session shows them, falling back to the ID token's claims only
+   * for a field core-api left out.
+   */
+  | {
+      readonly kind: 'accepted';
+      readonly principalId: string;
+      readonly name?: string | undefined;
+      readonly email?: string | null | undefined;
+    }
   /** core-api refused the user (403), e.g. an admin-client token without the admin role. No session is created. */
   | { readonly kind: 'refused' }
   /** core-api was unreachable, timed out or answered 503; the web app offers a retry (`authError=unavailable`). */
@@ -28,7 +37,11 @@ export interface CoreApiLoginOptions {
   readonly fetch?: typeof fetch;
 }
 
-const principalSchema = z.object({ principalId: z.uuid() });
+const principalSchema = z.object({
+  principalId: z.uuid(),
+  name: z.string().optional(),
+  email: z.string().nullable().optional(),
+});
 
 /** A non-2xx core-api answer other than 403 and 503, which fails the login. */
 export class CoreApiLoginError extends Error {
@@ -47,13 +60,14 @@ async function interpret(response: Response): Promise<LoginOutcome> {
     return { kind: 'unavailable', cause: new Error('core-api answered 503 to the principal login') };
   }
   if (!response.ok) throw new CoreApiLoginError(response.status);
-  const { principalId } = principalSchema.parse(await response.json());
-  return { kind: 'accepted', principalId };
+  const { principalId, name, email } = principalSchema.parse(await response.json());
+  return { kind: 'accepted', principalId, name, email };
 }
 
 /**
  * The default `onLogin` hook (R11, KTD5): POSTs the fresh access token to core-api's `/internal/principals/login`,
- * which upserts the principal from the verified token and Keycloak userinfo and answers `{ principalId }`.
+ * which upserts the principal from the verified token and Keycloak userinfo and answers
+ * `{ principalId, name, email }`.
  */
 export function createCoreApiLogin(options: CoreApiLoginOptions): LoginHook {
   const timeoutMs = options.timeoutMs ?? CORE_API_LOGIN_TIMEOUT_MS;

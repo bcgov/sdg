@@ -28,7 +28,7 @@ jobs:
           - package: portal-api
             build_context: .
             build_file: apps/portal-api/Dockerfile
-            triggers: ('apps/portal-api/' 'packages/auth/' 'packages/database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+            triggers: ('apps/portal-api/' 'packages/auth/' 'packages/bff-core/' 'packages/database/' 'packages/server-core/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
           - package: core-api
             build_context: .
             build_file: apps/core-api/Dockerfile

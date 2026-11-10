@@ -103,8 +103,7 @@ services:
     restart: 'no'
     healthcheck: *init-healthcheck
 
-  # Init container: applies the core schema migrations as the core login; core-api and portal-api start only after
-  # they succeed.
+  # Init container: applies the core schema migrations as the core login; core-api starts only after they succeed.
   migrate:
     <<: *workspace
     environment:
@@ -123,6 +122,27 @@ services:
       postgis:
         condition: service_healthy
 
+  # Init container: applies portal-api's sessions migrations (bff-core) to the portal schema as the portal login, with
+  # the same dist/migrate.js the image runs as its initContainer. It builds portal-api first, so it waits for core-api,
+  # whose turbo run has built the packages they share; portal-api starts only after it succeeds.
+  migrate-portal:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      DATABASE_URL: *database-url-portal
+    command:
+      - sh
+      - -c
+      - >-
+        rm -f /tmp/ready && pnpm turbo run build --filter=portal-api --ui=stream && pnpm --filter portal-api db:migrate
+        && touch /tmp/ready && exec sleep infinity
+    init: true
+    restart: 'no'
+    healthcheck: *init-healthcheck
+    depends_on:
+      core-api:
+        condition: service_healthy
+
   # No host ports: reachable only through Caddy at https://sdg.localhost/api.
   # Overrides the localhost URLs in apps/portal-api/.env (process env wins); secrets stay in that file.
   portal-api:
@@ -133,14 +153,17 @@ services:
       APP_URL: https://sdg.localhost
       TRUST_PROXY: 'true'
       DATABASE_URL: *database-url-portal
-    # turbo builds the workspace packages portal-api imports (auth, database) before `nest start --watch`.
-    # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
+      CORE_API_URL: http://core-api:3000
+    # turbo builds the workspace packages portal-api imports (server-core, bff-core and theirs) before
+    # `nest start --watch`. Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
     command: ['pnpm', 'turbo', 'run', 'dev', '--filter=portal-api', '--ui=stream', '--env-mode=loose']
     depends_on:
-      migrate:
+      migrate-portal:
+        condition: service_healthy
+      core-api:
         condition: service_healthy
     healthcheck:
-      # Liveness, not readiness: readiness runs Keycloak discovery.
+      # Liveness, as for core-api: readiness checks only its own database, never Keycloak or core-api.
       test:
         - CMD
         - node

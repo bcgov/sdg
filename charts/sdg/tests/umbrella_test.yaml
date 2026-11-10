@@ -21,9 +21,9 @@ tests:
           value: ghcr.io/acme/sdg/portal-api:pr-12
       - equal:
           path: spec.template.spec.initContainers[0].image
-          value: ghcr.io/acme/sdg/database:pr-12
+          value: ghcr.io/acme/sdg/portal-api:pr-12
 
-  - it: portal-api secret references match the postgres chart names
+  - it: portal-api and its sessions migration connect as the portal login the postgres chart creates
     template: charts/portal-api/templates/deployment.yaml
     asserts:
       - contains:
@@ -34,6 +34,21 @@ tests:
               secretKeyRef:
                 name: sdg-12-postgres-pguser-portal
                 key: uri
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-portal
+                key: uri
+
+  - it: portal-api calls the release's core-api Service
+    template: charts/portal-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.CORE_API_URL
+          value: http://sdg-12-core-api:3000
 
   - it: global image settings reach core-api and its migrator
     template: charts/core-api/templates/deployment.yaml
@@ -92,7 +107,7 @@ tests:
                 app.kubernetes.io/name: edge
                 app.kubernetes.io/instance: sdg-12
 
-  - it: core-api's Service carries the name the forwarders will call
+  - it: core-api's Service carries the name the forwarders call
     template: charts/core-api/templates/service.yaml
     asserts:
       - equal:

@@ -456,7 +456,7 @@ Multi-stage Dockerfiles for OpenShift. The app images build from the repository 
 | Image        | Build                                            | Runs                                                                               |
 | ------------ | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
 | `portal-web` | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                          |
-| `portal-api` | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000` (cluster-internal)                                  |
+| `portal-api` | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer |
 | `database`   | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as an initContainer (needs `DATABASE_URL`, the core login)  |
 | edge         | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL` |
 
@@ -661,12 +661,12 @@ To safely automate dependency updates, runtime health checks are mandatory to ca
 
 This repository provides out-of-the-box support for self-healing and verification through container probes:
 
-- **portal-api (NestJS)**: Implements `/healthz/live` (process up; startup and liveness probes) and `/healthz/ready` (readiness probe) using NestJS Terminus. Readiness checks PostgreSQL (which also holds sessions) and Keycloak and returns `503 Service Unavailable` when any is down. Both sit outside `/api`, so the edge doesn't expose them.
+- **portal-api and core-api (NestJS)**: Implement `/healthz/live` (process up; startup and liveness probes) and `/healthz/ready` (readiness probe) using NestJS Terminus. Readiness checks only the service's own database (portal-api: its sessions, as the `portal` login) and returns `503 Service Unavailable` when it is down. Keycloak and core-api outages surface per request as `503` and at sign-in as `authError=unavailable` instead, so they never pull pods from their Service. Both sit outside `/api`, so the edge doesn't expose them.
 - **portal-web (Caddy)**: readiness/liveness probes check `/` to confirm the web server is responsive and serving assets.
 - **edge (Caddy + Coraza)**: readiness/liveness probes are TCP checks, so the edge's health doesn't depend on its upstreams.
 - **Smoke checks**: after every deploy, `reusable-tests.yml` requests `/` (portal-web, expects 200) and `/api/auth/me` (portal-api through the edge, signed out, so no session lookup; expects 401) before running Playwright E2E.
 
-_Tip: For a fully mature maintenance mode setup, extend the readiness checks to query any further external APIs portal-api comes to depend on. If a dependency goes down, the health check should return `503 Service Unavailable`, blocking the automated merge._
+_Tip: Keep readiness to each service's own database. A shared dependency in a readiness check takes every pod out of its Service at once when that dependency fails, turning each `/api` call into an edge 502 instead of a 503 the web app can handle._
 
 ## Automerge Expectations
 

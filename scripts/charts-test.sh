@@ -106,6 +106,8 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/portal-api:0123abc" "deploys the tagged GHCR images"
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/core-api:0123abc" "deploys core-api"
   expect_rendered "$env" "$manifests" 'PORTAL_CLIENT_ID: "?portal"?$' "gives core-api the portal client id"
+  expect_rendered "$env" "$manifests" "CORE_API_URL: \"?http://${release}-core-api:3000\"?$" "points portal-api at the release's core-api"
+  expect_rendered "$env" "$manifests" 'command: \[node, dist/migrate.js\]' "migrates portal-api's sessions with its own image"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
   expect_rendered "$env" "$manifests" 'vault.hashicorp.com/auth-path: "?auth/k8s-gold' "uses the cluster's Vault auth path"
   stack="example-$([ "$env" = prod ] && echo prod || echo tools)"

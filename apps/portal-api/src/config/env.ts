@@ -10,6 +10,8 @@ export const envSchema = z.object({
   KEYCLOAK_ISSUER_URL: baseUrl(['https:']),
   KEYCLOAK_CLIENT_ID: z.string().min(1),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),
+  // core-api's in-cluster URL: sign-in upserts the principal there and /api/v<N>/{portal,shared}/… is forwarded to it.
+  CORE_API_URL: baseUrl(['http:', 'https:']),
 });
 
 export type Env = z.infer<typeof envSchema>;

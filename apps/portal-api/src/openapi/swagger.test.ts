@@ -79,8 +79,8 @@ describe('OpenAPI (non-production) Unit Test Suite', () => {
     expect(logout?.properties?.redirectUrl?.type).toBe('string');
   });
 
-  it('Should declare the portal.sid cookie as the security scheme', () => {
-    expect(doc.components.securitySchemes?.['portal.sid']).toEqual(
+  it('Should declare the portal.sid cookie as the session security scheme', () => {
+    expect(doc.components.securitySchemes?.['session']).toEqual(
       expect.objectContaining({
         type: 'apiKey',
         in: 'cookie',

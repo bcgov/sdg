@@ -28,6 +28,7 @@ import type { Request, Response } from 'express';
 
 import { BFF_OPTIONS, LOGIN_HOOK, SESSION_SECURITY_SCHEME, type BffModuleOptions } from '../nestjs/bff.options.js';
 import { sessionOp } from '../session/session-op.js';
+import type { SessionUser } from '../session/session.types.js';
 import {
   currentUserSchema,
   logoutResponseSchema,
@@ -46,6 +47,14 @@ function callbackErrorCode(error: unknown): AuthErrorCode {
   if (!(error instanceof AuthError)) return 'login_failed';
   if (error.code === 'invalid_state') return 'invalid_state';
   return error.detail === 'access_denied' ? 'access_denied' : 'login_failed';
+}
+
+/** The user the session shows: core-api's userinfo profile (R12, KTD5), the ID token's claims for what it omits. */
+function sessionUser(login: CallbackResult, outcome: Extract<LoginOutcome, { kind: 'accepted' }>): SessionUser {
+  return {
+    name: outcome.name ?? login.user.name,
+    email: outcome.email === undefined ? login.user.email : outcome.email,
+  };
 }
 
 /**
@@ -159,11 +168,7 @@ export class AuthController {
     if (outcome.kind === 'refused') return this.refuseLogin(req, res, login);
 
     await sessionOp(req, 'regenerate');
-    req.session.auth = {
-      principalId: outcome.principalId,
-      user: { name: login.user.name, email: login.user.email },
-      tokens: login.tokens,
-    };
+    req.session.auth = { principalId: outcome.principalId, user: sessionUser(login, outcome), tokens: login.tokens };
     await sessionOp(req, 'save');
     res.redirect(302, pending.returnTo);
   }

@@ -10,6 +10,8 @@ import { configureApp, type ConfigureAppOptions } from './configure-app.js';
 export interface StartServiceOptions extends ConfigureAppOptions {
   /** Names the service in the startup log lines, e.g. `portal-api`. */
   readonly serviceName: string;
+  /** Keeps each request's raw body (`req.rawBody`), which a forwarder relays byte for byte (bff-core). Default false. */
+  readonly rawBody?: boolean;
 }
 
 const logger = new Logger('Bootstrap');
@@ -22,7 +24,10 @@ function exitOnFatal(kind: string): (error: unknown) => void {
 }
 
 async function listen(appModule: Type, options: StartServiceOptions): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(appModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(appModule, {
+    bufferLogs: true,
+    rawBody: options.rawBody ?? false,
+  });
   // Route Nest's Logger (and the logs buffered during bootstrap) through nestjs-pino.
   app.useLogger(app.get(PinoLogger));
   const config = app.get<ConfigService<ServiceEnv, true>>(ConfigService);

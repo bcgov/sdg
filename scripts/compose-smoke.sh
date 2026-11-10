@@ -79,6 +79,7 @@ API="$(container portal-api)"
 CORE="$(container core-api)"
 WEB="$(container portal-web)"
 MIGRATE="$(container migrate)"
+MIGRATE_PORTAL="$(container migrate-portal)"
 POSTGIS="$(container postgis)"
 
 # Verify TLS against Caddy's own local root, not with -k.
@@ -115,8 +116,11 @@ echo "API proxy"
 check "GET /api/auth/me without a session is 401 from portal-api" \
   test "$("${CURL[@]}" -o "$TMP/me.json" -w '%{http_code} %{content_type}' "$SITE/api/auth/me")" \
   = "401 application/json; charset=utf-8"
-check "portal-api is live inside the network" "$ENGINE" exec "$API" node -e \
-  "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+check "portal-api is ready (its database only) inside the network" "$ENGINE" exec "$API" node -e \
+  "fetch('http://localhost:3000/healthz/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+check "GET /api/v1/portal/… without a session is 401 from portal-api" \
+  test "$(status "$SITE/api/v1/portal/anything")" = 401
+check "GET /api/v1/admin/… is 404 on the portal host (AE2)" test "$(status "$SITE/api/v1/admin/anything")" = 404
 check "core-api is ready (its database) and reachable from portal-api" "$ENGINE" exec "$API" node -e \
   "fetch('http://core-api:3000/healthz/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 check "core-api answers 401 to a request without a token" "$ENGINE" exec "$CORE" node -e \
@@ -151,20 +155,29 @@ check "portal-api publishes no host port" test -z "$("$ENGINE" port "$API" 2>/de
 check "portal-web publishes no host port" test -z "$("$ENGINE" port "$WEB" 2>/dev/null)"
 
 echo "Migrations"
-# migrate touches /tmp/ready only after drizzle-kit succeeds; portal-api waits for that (service_healthy).
+# Each init service touches /tmp/ready only after its migrations succeed; its app waits for that (service_healthy).
+ready_before() { test "$("$ENGINE" exec "$1" stat -c %Y /tmp/ready)" -le "$("$ENGINE" inspect -f '{{.State.StartedAt.Unix}}' "$2")"; }
 check "migrate completed (healthy)" test "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$MIGRATE")" = healthy
-check "migrations completed before portal-api started" test \
-  "$("$ENGINE" exec "$MIGRATE" stat -c %Y /tmp/ready)" -le "$("$ENGINE" inspect -f '{{.State.StartedAt.Unix}}' "$API")"
-expected="$(grep -c '"tag"' packages/database/migrations/meta/_journal.json)"
+check "core migrations completed before core-api started" ready_before "$MIGRATE" "$CORE"
+check "migrate-portal completed (healthy)" test "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$MIGRATE_PORTAL")" = healthy
+check "sessions migrations completed before portal-api started" ready_before "$MIGRATE_PORTAL" "$API"
 # Runs SQL as login $1 over the container's local socket (trusted by the image's pg_hba).
 psql_as() { "$ENGINE" exec "$POSTGIS" sh -c "psql -v ON_ERROR_STOP=1 -U $1 -d \"\$POSTGRES_DB\" -tAc \"$2\""; }
+expected="$(grep -c '"tag"' packages/database/migrations/meta/_journal.json)"
 applied="$(psql_as core 'select count(*) from core.__drizzle_migrations' 2>/dev/null || echo 0)"
-check "all $expected journal migrations applied (found $applied)" test "$applied" = "$expected"
+check "all $expected core journal migrations applied (found $applied)" test "$applied" = "$expected"
+expected="$(grep -c '"tag"' packages/bff-core/migrations/meta/_journal.json)"
+applied="$(psql_as portal 'select count(*) from portal.__drizzle_migrations' 2>/dev/null || echo 0)"
+check "all $expected sessions journal migrations applied in portal (found $applied)" test "$applied" = "$expected"
+check "the portal login scheduled its session prune job" test "$(psql_as portal \
+  "select count(*) from cron.job where jobname = 'portal-prune-expired-sessions'")" = 1
 
 echo "Database logins"
 check "core reads its own schema" psql_as core 'select count(*) from core.principals'
+check "portal reads its own sessions" psql_as portal 'select count(*) from portal.sessions'
 denied() { ! psql_as "$@"; }
 check "portal cannot read the core schema" denied portal 'select count(*) from core.principals'
+check "core cannot read portal's sessions" denied core 'select count(*) from portal.sessions'
 check "admin cannot read the core schema" denied admin 'select count(*) from core.identities'
 check "no login is a superuser" test "$(psql_as core \
   "select count(*) from pg_roles where rolname in ('core', 'portal', 'admin') and not rolsuper")" = 3

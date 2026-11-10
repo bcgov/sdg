@@ -5,8 +5,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { sessions } from '../session/sessions.schema.js';
 import { createBffTestApp, setCookies, signIn, type BffTestApp, type SignedIn } from '../test-support/bff-app.js';
-import { json, startCoreApiStub, unreachable, type CoreApiStub } from '../test-support/core-api-stub.js';
 import { createTestSessionDatabase, type TestSessionDatabase } from '../test-support/database.js';
+import { json, startCoreApiStub, unreachable, type CoreApiStub } from '../testing/core-api-stub.js';
 
 describe('BffForwardController (KTD3)', () => {
   let idp: FakeIdp;

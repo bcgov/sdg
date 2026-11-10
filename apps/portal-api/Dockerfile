@@ -17,7 +17,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm fetch --store-dir /
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
   pnpm install --offline --frozen-lockfile --store-dir /pnpm/store --filter "portal-api..."
-# pnpm builds the workspace packages portal-api imports (auth, database, server-core) first, in topological order.
+# pnpm builds the workspace packages portal-api imports (server-core, bff-core and theirs) first, in topological order.
 RUN pnpm --filter "portal-api..." run build
 # Self-contained /out: dist, production node_modules, and the workspace packages' published files.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
@@ -34,4 +34,5 @@ WORKDIR /app
 COPY --from=build /out .
 EXPOSE 3000
 # The preload is a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set (src/instrumentation.ts).
+# The same image migrates the sessions as an initContainer: node dist/migrate.js (charts/portal-api).
 CMD ["node", "--import=./dist/instrumentation.js", "dist/main.js"]

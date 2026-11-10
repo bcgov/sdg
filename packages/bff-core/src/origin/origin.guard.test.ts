@@ -4,8 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { sessions } from '../session/sessions.schema.js';
 import { APP_URL, createBffTestApp, signIn, type BffTestApp } from '../test-support/bff-app.js';
-import { startCoreApiStub, type CoreApiStub } from '../test-support/core-api-stub.js';
 import { createTestSessionDatabase, type TestSessionDatabase } from '../test-support/database.js';
+import { startCoreApiStub, type CoreApiStub } from '../testing/core-api-stub.js';
 
 const FORWARDED = '/api/v1/portal/things';
 

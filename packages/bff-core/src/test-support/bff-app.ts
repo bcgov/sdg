@@ -13,7 +13,7 @@ import supertest from 'supertest';
 import { BffModule } from '../nestjs/bff.module.js';
 import { SESSION_DATABASE, SESSION_STORE, type BffModuleOptions } from '../nestjs/bff.options.js';
 import type { PostgresSessionStore } from '../session/postgres-session.store.js';
-import type { CoreApiStub } from './core-api-stub.js';
+import type { CoreApiStub } from '../testing/core-api-stub.js';
 import type { TestSessionDatabase } from './database.js';
 
 export const APP_URL = 'http://app.test';

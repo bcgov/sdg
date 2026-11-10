@@ -6,8 +6,15 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { LoginRefusal } from '../nestjs/bff.options.js';
 import { sessions } from '../session/sessions.schema.js';
 import { APP_URL, createBffTestApp, signIn, type BffTestApp } from '../test-support/bff-app.js';
-import { json, PRINCIPAL_ID, startCoreApiStub, unreachable, type CoreApiStub } from '../test-support/core-api-stub.js';
 import { createTestSessionDatabase, type TestSessionDatabase } from '../test-support/database.js';
+import {
+  CORE_API_PROFILE,
+  json,
+  PRINCIPAL_ID,
+  startCoreApiStub,
+  unreachable,
+  type CoreApiStub,
+} from '../testing/core-api-stub.js';
 
 describe('AuthController', () => {
   let idp: FakeIdp;
@@ -76,8 +83,19 @@ describe('AuthController', () => {
       ]);
       const me = await agent.get('/api/auth/me');
       expect(me.status).toBe(200);
-      expect(me.body).toEqual({ id: PRINCIPAL_ID, name: 'Ada Lovelace', email: 'ada@example.com' });
+      // The profile core-api read from Keycloak userinfo, not the ID token's 'Ada Lovelace' (R12, KTD5).
+      expect(me.body).toEqual({ id: PRINCIPAL_ID, ...CORE_API_PROFILE });
       expect(await liveSessions()).toBe(1);
+    });
+
+    it.each([
+      ['no profile', {}, { name: 'Ada Lovelace', email: 'ada@example.com' }],
+      ['only a name', { name: 'Ada K.' }, { name: 'Ada K.', email: 'ada@example.com' }],
+      ['a null email', { email: null }, { name: 'Ada Lovelace', email: null }],
+    ])('falls back to the ID token claims core-api omits (%s)', async (_case, profile, expected) => {
+      coreApi.respond = json(200, { principalId: PRINCIPAL_ID, ...profile });
+      const { agent } = await signIn(t, idp);
+      expect((await agent.get('/api/auth/me')).body).toEqual({ id: PRINCIPAL_ID, ...expected });
     });
 
     it.each([
