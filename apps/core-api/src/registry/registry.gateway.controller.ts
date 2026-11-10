@@ -11,7 +11,7 @@ import {
 import { CurrentServiceClient, GatewayGuard } from './gateway.guard.js';
 import { serviceClientSchema, type ServiceClientView } from './registry.schemas.js';
 
-/** The gateway audience's first route: who the calling service account is in the registry (R22). */
+/** The gateway audience's first route: who the calling service account is in the registry. */
 @ApiTags('gateway')
 @ApiBearerAuth()
 @Controller({ path: 'gateway/me', version: '1' })

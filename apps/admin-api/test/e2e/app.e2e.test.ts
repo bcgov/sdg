@@ -16,18 +16,15 @@ describe('Admin API App Integration Test Suite', () => {
       expect((await t.http().get('/healthz/live')).status).toBe(200);
       expect((await t.http().get('/healthz/ready')).status).toBe(200);
       expect((await t.http().get('/api/healthz/live')).status).toBe(404);
+      expect((await t.http().get('/api/healthz/ready')).status).toBe(404);
+      expect((await t.http().get('/api/v1/healthz/live')).status).toBe(404);
     });
 
     it('Should serve auth under /api without a version segment', async () => {
       expect((await t.http().get('/api/auth/me')).status).toBe(401);
       expect((await t.http().get('/api/auth/login')).status).toBe(302);
       expect((await t.http().get('/auth/me')).status).toBe(404);
-    });
-
-    it('Should return 404 for /api/v1/auth/me and /healthz under /api', async () => {
       expect((await t.http().get('/api/v1/auth/me')).status).toBe(404);
-      expect((await t.http().get('/api/v1/healthz/live')).status).toBe(404);
-      expect((await t.http().get('/api/healthz/ready')).status).toBe(404);
       expect((await t.http().get('/api/unknown')).headers['x-powered-by']).toBeUndefined();
     });
   });

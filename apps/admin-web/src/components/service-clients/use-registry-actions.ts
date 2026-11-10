@@ -18,7 +18,7 @@ function useFeedback(onListChanged: () => void) {
         setStatus('');
         setNotice(null);
       },
-      /** core-api confirmed the change (R32). */
+      /** core-api confirmed the change. */
       confirm: setStatus,
       fail: (error: unknown, clientId: string, retry: () => void) => {
         setNotice(failureNotice(error, clientId, retry));
@@ -83,7 +83,7 @@ function useRemoval({ reset, confirm, fail }: Feedback, onListChanged: () => voi
 }
 
 /**
- * Disable, enable and remove, with a success message only once core-api confirmed the change (R32), a notice for a
+ * Disable, enable and remove, with a success message only once core-api confirmed the change, a notice for a
  * refusal, and a refetch when another administrator got there first (404). `onListChanged` runs when a row
  * disappeared, so focus can move somewhere that still exists.
  */

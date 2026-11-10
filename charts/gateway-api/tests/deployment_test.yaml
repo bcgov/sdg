@@ -77,7 +77,6 @@ tests:
           value:
             type: Recreate
 
-  # MDD 20-observability-lgtm
   - it: carries scrape annotations only when a scraper namespace is set
     template: templates/deployment.yaml
     set:

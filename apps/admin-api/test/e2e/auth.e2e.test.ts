@@ -9,7 +9,7 @@ import { APP_URL, authorize, createTestApp, signIn, TEST_ENV, type TestApp } fro
 
 const EXPIRED_COOKIE = /^admin\.sid=;.*Expires=Thu, 01 Jan 1970/;
 const NOT_AUTHORIZED = `${APP_URL}/not-authorized`;
-/** core-api's refusal of an admin-client token without the admin client role (KTD6). */
+/** core-api's refusal of an admin-client token without the admin client role. */
 const refused = json(403, { statusCode: 403, message: 'Forbidden' });
 
 describe('admin-api sign-in (F2, R7, R14)', () => {

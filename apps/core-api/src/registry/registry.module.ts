@@ -6,7 +6,7 @@ import { RegistryAdminController } from './registry.admin.controller.js';
 import { RegistryGatewayController } from './registry.gateway.controller.js';
 import { RegistryService } from './registry.service.js';
 
-/** The service-account registry: its admin routes, and the gateway audience it authorizes (KTD11). */
+/** The service-account registry: its admin routes, and the gateway audience it authorizes. */
 @Module({
   imports: [PrincipalsModule],
   controllers: [RegistryAdminController, RegistryGatewayController],

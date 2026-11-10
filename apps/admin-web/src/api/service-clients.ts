@@ -1,6 +1,5 @@
 import { ApiError, apiRequest } from './http';
 
-/** A registry entry as core-api returns it (`/api/v1/admin/service-clients`). */
 export interface ServiceClient {
   readonly clientId: string;
   readonly displayName: string;

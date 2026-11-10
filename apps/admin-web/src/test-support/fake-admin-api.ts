@@ -20,7 +20,6 @@ export interface RecordedCall {
 
 type Refusal = { method: string; path: string | RegExp; respond: () => Response };
 
-/** Nest's error body shape, as admin-api forwards it from core-api. */
 export const nestError = (statusCode: number, message: string | string[], error?: string) =>
   Response.json({ statusCode, message, ...(error ? { error } : {}) }, { status: statusCode });
 
@@ -53,7 +52,6 @@ export class FakeAdminApi {
     this.refusals.push({ method, path, respond });
   }
 
-  /** Requests to `path` (exact, without the query) so far. */
   callsTo(method: string, path: string): RecordedCall[] {
     return this.calls.filter((call) => call.method === method && call.path.split('?')[0] === path);
   }
@@ -138,7 +136,6 @@ export class FakeAdminApi {
   }
 }
 
-/** Installs a fake admin-api as `fetch` for the current test. */
 export function fakeAdminApi(init: ConstructorParameters<typeof FakeAdminApi>[0] = {}): FakeAdminApi {
   return new FakeAdminApi(init);
 }

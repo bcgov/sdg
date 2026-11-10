@@ -3,11 +3,9 @@ import type { OidcClient } from '@repo/auth';
 import type { LoginRefusal } from '@repo/bff-core/nestjs';
 import { describeError } from '@repo/server-core';
 
-/** admin-web's page for a sign-in core-api refused: it says the admin client role is required and offers sign-out. */
 export const NOT_AUTHORIZED_PATH = '/not-authorized';
 
 export interface NotAuthorizedOptions {
-  /** admin-web's origin (APP_URL). */
   readonly appUrl: string;
   /**
    * The OIDC client bff-core signed the user in with. A getter, because bff-core builds that client from the very
@@ -17,7 +15,7 @@ export interface NotAuthorizedOptions {
 }
 
 /**
- * KTD6: core-api answers 403 at the principal upsert to an admin-client token without the admin role, and bff-core
+ * core-api answers 403 at the principal upsert to an admin-client token without the admin role, and bff-core
  * keeps no session. This hook then ends the user's Keycloak session over the back channel, so the next sign-in asks
  * for credentials again instead of silently reusing the refused one, and sends the browser to the not-authorized page.
  * A failed back-channel logout is logged and the browser still goes there; the page's sign-out finishes the job.

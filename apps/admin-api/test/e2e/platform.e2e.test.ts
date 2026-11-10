@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { TestApp } from '../../src/testing/app.js';
 
-// doc 21: as in production (the --import preload), the OpenTelemetry SDK starts before Nest and Express are first
+// As in production (the --import preload), the OpenTelemetry SDK starts before Nest and Express are first
 // loaded, so the test app is imported afterwards. server-core's own tests cover the metrics in depth.
 describe('admin-api platform middleware', () => {
   let otel: OtelHandle;

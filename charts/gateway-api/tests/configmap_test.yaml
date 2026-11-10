@@ -46,7 +46,6 @@ tests:
       - notExists:
           path: data.SESSION_SECRET
 
-  # MDD 20-observability-lgtm
   - it: sends OTLP to Alloy only when a collector is configured
     set:
       global.observability.collectorHost: observability-alloy.abc123-tools.svc

@@ -56,7 +56,6 @@ describe('add a service account (R16)', () => {
     expect(await screen.findByText('Must be a Keycloak client id')).toBeInTheDocument();
     expect(id).toHaveAttribute('aria-invalid', 'true');
     expect(id).toHaveValue('bad/id');
-    // Editing the field clears its error.
     await userEvent.type(id, 'x');
     await waitFor(() => expect(screen.queryByText('Must be a Keycloak client id')).toBeNull());
   });

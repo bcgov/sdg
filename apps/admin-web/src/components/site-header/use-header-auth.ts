@@ -6,7 +6,6 @@ import { useCallback, useEffect } from 'react';
 import { loginHref, logout } from '../../auth/api';
 import { currentUserQueryKey, useCurrentUser } from '../../auth/use-current-user';
 
-/** The `<sdg-header>` account inputs. */
 export interface HeaderAuth {
   user?: HeaderUser;
   signInHref?: string;
@@ -26,7 +25,7 @@ export function useSignOut(): () => void {
 
 /**
  * Header account state: empty while loading (so the header doesn't flash), a Sign in link when signed out or when
- * the API is unreachable, and the administrator's name with a sign-out function otherwise (R15).
+ * the API is unreachable, and the administrator's name with a sign-out function otherwise.
  */
 export function useHeaderAuth(): HeaderAuth {
   const location = useLocation();

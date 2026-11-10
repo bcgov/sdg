@@ -47,7 +47,7 @@ function HistoryTable({ events }: { events: readonly ServiceClientEvent[] }) {
   );
 }
 
-/** The registry's history (R17): who changed what and when, a page at a time. */
+/** The registry's history: who changed what and when, a page at a time. */
 export function HistoryPanel() {
   const { data, error, isPending, isError, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useRegistryHistory();

@@ -94,7 +94,6 @@ tests:
       - notExists:
           path: data.DATABASE_URL
 
-  # MDD 20-observability-lgtm
   - it: sets the OTLP endpoint and resource attributes when a collector is configured
     set:
       global.observability.collectorHost: observability-alloy.abc123-tools.svc

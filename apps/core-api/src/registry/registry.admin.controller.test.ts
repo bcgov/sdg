@@ -30,7 +30,7 @@ describe('Admin registry routes /api/v1/admin/service-clients (R16, R17, F3)', (
       t.database.db.delete(serviceClientEvents),
     ]);
     token = await t.idp.adminToken(['admin']);
-    // The administrator signs in through admin-api first, which creates their principal (KTD5).
+    // The administrator signs in through admin-api first, which creates their principal.
     const login = await t.http().post('/internal/principals/login').set('Authorization', `Bearer ${token}`);
     if (login.status !== 200) throw new Error(`Admin sign-in failed with HTTP ${login.status}`);
     adminPrincipalId = login.body.principalId;

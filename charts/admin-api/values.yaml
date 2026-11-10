@@ -9,7 +9,7 @@ global:
     tag: ''
   # Admin hostname (admin-web and /api); APP_URL defaults to https://<adminHost>.
   adminHost: ''
-  # Observability (doc 20): empty = off. See common.observability in charts/common.
+  # Observability: empty = off. See common.observability in charts/common.
   observability:
     collectorHost: ''
     scraperNamespace: ''
@@ -90,7 +90,7 @@ vault:
 # Used when vault.enabled is false: a Secret holding the same keys, loaded with envFrom.
 existingSecret: ''
 
-# PR-level requests by default (KTD14), which TEST and PROD inherit.
+# PR-level requests by default, which TEST and PROD inherit.
 resources:
   requests:
     cpu: 20m

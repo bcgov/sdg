@@ -53,7 +53,7 @@ const missing = (clientId: string): NotFoundException =>
 /**
  * The service-account registry. Every change commits together with its history event; enabling or disabling a client
  * already in that state changes nothing and records nothing. Reads are uncached, so a change applies to the next
- * gateway request (R21).
+ * gateway request.
  */
 @Injectable()
 export class RegistryService {

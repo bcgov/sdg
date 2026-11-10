@@ -19,9 +19,9 @@ export interface GatewayRequest extends CallerRequest {
 }
 
 /**
- * `/api/v<N>/gateway/*`: client-credentials tokens from registered, enabled clients (R9). The resolver answers 401/503
+ * `/api/v<N>/gateway/*`: client-credentials tokens from registered, enabled clients. The resolver answers 401/503
  * to a token it cannot verify; this guard then looks the client up, uncached, on every request, so a disabled or
- * removed client is refused on its next call even with an unexpired token (R20, R21). A registry miss is a 403.
+ * removed client is refused on its next call even with an unexpired token. A registry miss is a 403.
  */
 @Injectable()
 export class GatewayGuard implements CanActivate {

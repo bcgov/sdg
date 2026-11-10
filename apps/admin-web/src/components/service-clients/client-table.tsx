@@ -7,7 +7,6 @@ import styles from './registry.module.css';
 
 interface RowProps {
   client: ServiceClient;
-  /** True while a change to this client is waiting for core-api. */
   isBusy: boolean;
   onToggle: (client: ServiceClient) => void;
   onRemove: (client: ServiceClient) => void;

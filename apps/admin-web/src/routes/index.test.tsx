@@ -73,7 +73,7 @@ describe('landing page', () => {
       expect(screen.getByRole('link', { name: 'Try again' })).toBeInTheDocument();
     });
 
-    it('omits the retry for access_denied and ignores unknown codes', async () => {
+    it('omits the retry for access_denied', async () => {
       renderAt('/?authError=access_denied');
       expect(await screen.findByRole('alert')).toHaveTextContent("Sign-in didn't complete");
       expect(screen.queryByRole('link', { name: 'Try again' })).toBeNull();

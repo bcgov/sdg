@@ -257,7 +257,6 @@ tests:
           value:
             type: Recreate
 
-  # MDD 20-observability-lgtm
   - it: preloads the OpenTelemetry instrumentation (a no-op without an OTLP endpoint)
     template: templates/deployment.yaml
     asserts:

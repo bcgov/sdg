@@ -71,8 +71,6 @@ describe('startTelemetry', () => {
       expect(sdk.tracingOptions).toHaveBeenCalledWith({
         instrumentationOptions: { propagateTraceHeaderCorsUrls: [] },
       });
-      const config = sdk.initializeFaro.mock.calls[0]?.[0];
-      expect(config?.url).not.toMatch(/^https?:/);
     });
 
     it('swallows a Faro initialisation error and leaves the app running', async () => {

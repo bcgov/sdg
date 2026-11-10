@@ -13,6 +13,8 @@ import styles from './registry.module.css';
 type Field = keyof NewServiceClient;
 type FieldErrors = Partial<Record<Field, string>>;
 
+const EMPTY_CLIENT: NewServiceClient = { clientId: '', displayName: '' };
+
 const FIELDS: readonly Field[] = ['clientId', 'displayName'];
 
 function missingFields({ clientId, displayName }: NewServiceClient): FieldErrors {
@@ -53,14 +55,9 @@ function addFailure(error: unknown, input: NewServiceClient, retry: () => void):
   return { fields, notice };
 }
 
-interface AddClientFormProps {
-  /** Called once core-api has registered the client. */
-  onAdded: (client: ServiceClient) => void;
-}
-
 /** Form state for adding a client: what was typed stays until core-api confirms the add. */
 function useAddClientForm(onAdded: (client: ServiceClient) => void) {
-  const [values, setValues] = useState<NewServiceClient>({ clientId: '', displayName: '' });
+  const [values, setValues] = useState<NewServiceClient>(EMPTY_CLIENT);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<Notice | null>(null);
   const { mutate, isPending } = useAddServiceClient();
@@ -70,7 +67,7 @@ function useAddClientForm(onAdded: (client: ServiceClient) => void) {
       const attempt = () =>
         mutate(input, {
           onSuccess: (client) => {
-            setValues({ clientId: '', displayName: '' });
+            setValues(EMPTY_CLIENT);
             onAdded(client);
           },
           onError: (error) => {
@@ -96,7 +93,6 @@ function useAddClientForm(onAdded: (client: ServiceClient) => void) {
     [values, run],
   );
 
-  /** Editing a field clears its error. */
   const change = useCallback((field: Field, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors(({ [field]: _cleared, ...kept }) => kept);
@@ -107,7 +103,6 @@ function useAddClientForm(onAdded: (client: ServiceClient) => void) {
 }
 
 interface AddClientFormProps {
-  /** Called once core-api has registered the client. */
   onAdded: (client: ServiceClient) => void;
 }
 

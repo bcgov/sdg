@@ -9,9 +9,7 @@ export interface Notice {
   readonly variant: 'danger' | 'warning';
   readonly title: string;
   readonly description: string;
-  /** Repeats the call (a 503 or no answer). */
   readonly retry?: () => void;
-  /** Offers a page reload (a request blocked before admin-api handled it). */
   readonly reload?: boolean;
 }
 

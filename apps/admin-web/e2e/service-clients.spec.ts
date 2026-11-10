@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
-// Covers F3 against a deployed admin host with a real administrator (playwright.config.ts signs in first). Runs only
-// when E2E_ADMIN_USERNAME and E2E_ADMIN_PASSWORD are set; skipped otherwise.
+// Runs the service-account registry flow against a deployed admin host with a real administrator
+// (playwright.config.ts signs in first). Runs only when E2E_ADMIN_USERNAME and E2E_ADMIN_PASSWORD are set; skipped otherwise.
 test.skip(!process.env['E2E_ADMIN_USERNAME'] || !process.env['E2E_ADMIN_PASSWORD'], 'needs an admin test account');
 
 function row(page: Page, clientId: string) {
@@ -39,7 +39,7 @@ test('adds, disables, re-enables and removes a service account, and records each
   await expectUpdate(page, `Removed ${clientId}.`);
   await expect(row(page, clientId)).toHaveCount(0);
 
-  // History outlives the entry (R17): newest first, all four changes by this administrator.
+  // History outlives the entry: newest first, all four changes by this administrator.
   const history = page
     .getByRole('table', { name: /Every change to the registry/ })
     .getByRole('row', { name: clientId });

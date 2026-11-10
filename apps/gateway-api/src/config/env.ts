@@ -9,5 +9,4 @@ export const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-/** `@nestjs/config` validate hook: parses `process.env` (plus any .env file) into a typed `Env`. */
 export const validateEnv: (raw: Record<string, unknown>) => Env = createEnvValidator(envSchema);

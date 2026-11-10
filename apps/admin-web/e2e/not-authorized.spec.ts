@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { mockSession } from './support/mock-admin-api';
 
-// Where admin-api sends a sign-in core-api refused (AE1): no session exists, so /api/auth/me answers 401.
+// Where admin-api sends a sign-in core-api refused: no session exists, so /api/auth/me answers 401.
 test.describe('admin-web not-authorized page', () => {
   test('explains the admin client role and offers sign-out and a different account', async ({ page }) => {
     await mockSession(page, () => false);

@@ -10,7 +10,6 @@ setup('sign in as an administrator', async ({ page, clientURL, clientUsername, c
   await page.goto(clientURL);
   await page.getByRole('banner').getByRole('link', { name: 'Sign in' }).click();
 
-  // The DEV realm's username/password IdP, as portal-web's setup uses (plan Assumptions).
   await page.getByRole('button', { name: 'Test with username and password' }).click();
   await page.getByRole('textbox', { name: 'Email or username' }).fill(clientUsername);
   await page.getByRole('textbox', { name: 'Password' }).fill(clientPassword);

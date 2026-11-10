@@ -37,7 +37,7 @@ const byClientId = (a: ServiceClient, b: ServiceClient) => (a.clientId < b.clien
 
 /**
  * Shows a change core-api confirmed at once, then refetches the list and the history (which now records it). Nothing
- * changes in the cache before core-api answers, so a refused change never looks applied (R32).
+ * changes in the cache before core-api answers, so a refused change never looks applied.
  */
 function applyConfirmed(queryClient: QueryClient, change: (clients: ServiceClient[]) => ServiceClient[]): void {
   queryClient.setQueryData<ServiceClient[]>(registryKeys.list, (clients) => clients && change(clients));

@@ -6,7 +6,7 @@ import { currentUserQueryKey } from '../auth/use-current-user';
 import { ApiError } from './http';
 
 /**
- * The app-wide half of R32, for every query and mutation: a 401 sends the administrator back to sign-in with a
+ * The app-wide refusal handling, for every query and mutation: a 401 sends the administrator back to sign-in with a
  * "session ended" message, and core-api's 403 to the not-authorized page. Every other refusal stays with the screen
  * that made the call.
  */

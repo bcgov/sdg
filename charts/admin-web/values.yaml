@@ -1,5 +1,5 @@
 # admin-web: the built SPA served by Caddy on :8080 (apps/admin-web/Dockerfile). Reached only through the edge, on
-# the admin host. Requests stay at PR level (10m / 32Mi) everywhere: a static server needs no more (R28).
+# the admin host. Requests stay at PR level (10m / 32Mi) everywhere: a static server needs no more.
 global:
   image:
     # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.

@@ -7,9 +7,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { ServiceClient } from '../../api/service-clients';
 
 interface RemoveDialogProps {
-  /** The client to confirm removing; null keeps the dialog closed. */
   client: ServiceClient | null;
-  /** True while core-api has not answered the removal yet. */
   isPending: boolean;
   onConfirm: () => void;
   onCancel: () => void;

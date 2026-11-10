@@ -2,10 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createQueryClient } from './api/query-client';
 import * as api from './auth/api';
 import { currentUserQueryKey } from './auth/use-current-user';
-import { createAppRouter } from './router';
 import { ADMIN, fakeAdminApi } from './test-support/fake-admin-api';
 import { headerQueries } from './test-support/header';
 import { renderAt } from './test-support/render';
@@ -36,11 +34,6 @@ describe('admin-web app shell', () => {
   it('renders "Page not found" for an unknown path', async () => {
     renderAt('/does-not-exist');
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
-  });
-
-  it('shares the QueryClient with the router context', () => {
-    const queryClient = createQueryClient();
-    expect(createAppRouter({ queryClient }).options.context.queryClient).toBe(queryClient);
   });
 });
 

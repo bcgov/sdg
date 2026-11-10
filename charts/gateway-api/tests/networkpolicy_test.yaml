@@ -35,7 +35,6 @@ tests:
       - hasDocuments:
           count: 0
 
-  # MDD 20-observability-lgtm
   - it: admits the observability stack's Alloy on 3000 when a scraper namespace is set
     set:
       global.observability.scraperNamespace: abc123-tools

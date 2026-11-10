@@ -1,5 +1,5 @@
 /**
- * How admin-web reads an admin-api answer other than success (R32). The app acts on the kind, never on a status:
+ * How admin-web reads an admin-api answer other than success. The app acts on the kind, never on a status:
  * - `session-ended`: 401, the BFF has no session (or core-api refused its token and the BFF ended it): back to sign-in.
  * - `unavailable`: 503 (core-api or Keycloak down), 502/504 from the edge, or no answer at all: retry, stay put.
  * - `not-authorized`: core-api's 403, the caller is not an administrator: the not-authorized page.

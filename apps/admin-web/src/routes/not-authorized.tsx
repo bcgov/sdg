@@ -13,8 +13,8 @@ export const Route = createFileRoute('/not-authorized')({
 });
 
 /**
- * Where admin-api sends a sign-in core-api refused (KTD6, AE1), and where admin-web goes when core-api refuses a call
- * (R32). admin-api has already ended the refused Keycloak session over the back channel and kept no session, so
+ * Where admin-api sends a sign-in core-api refused, and where admin-web goes when core-api refuses a call.
+ * admin-api has already ended the refused Keycloak session over the back channel and kept no session, so
  * Sign out goes through admin-api's logout: with a session it returns Keycloak's end-session URL, without one the
  * landing page.
  */

@@ -31,7 +31,6 @@ export interface TestApp {
   app: NestExpressApplication;
   /** A cookie-keeping client whose requests carry the app's own Origin, as admin-web's same-origin fetches do. */
   http: () => supertest.Agent;
-  /** The in-process Keycloak stand-in (`@repo/auth/testing`). */
   idp: FakeIdp;
   /** The OIDC client the app uses, for spying (e.g. on `createAuthorizationRequest`). */
   oidc: OidcClient;
@@ -112,9 +111,7 @@ export async function authorize(t: TestApp, agent: supertest.Agent, returnTo = '
 }
 
 export interface SignedIn {
-  /** Holds the `admin.sid` cookie. */
   agent: supertest.Agent;
-  /** The callback response. */
   res: supertest.Response;
 }
 

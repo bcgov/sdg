@@ -21,7 +21,7 @@ spec:
         - port: 3000
           protocol: TCP
     {{- with include "common.scraperIngressRule" (dict "context" . "port" 3000) }}
-    # The observability stack's Alloy scrapes /metrics (doc 20).
+    # The observability stack's Alloy scrapes /metrics.
     {{- . | nindent 4 }}
     {{- end }}
 {{- end }}

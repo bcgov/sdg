@@ -45,7 +45,7 @@ import { RegistryService, type Actor } from './registry.service.js';
 const clientIdParam = { schema: clientIdSchema };
 
 /**
- * The service-account registry for administrators (R16, R17): admin-client tokens with the admin client role. Every
+ * The service-account registry for administrators: admin-client tokens with the admin client role. Every
  * change records the administrator's principal and display name, so they must have signed in through admin-api.
  */
 @ApiTags('admin')

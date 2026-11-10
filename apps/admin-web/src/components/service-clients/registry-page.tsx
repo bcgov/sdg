@@ -51,7 +51,7 @@ function useFocusAfterChange() {
   return { listRef, focusList };
 }
 
-/** The service-account registry (R16, R17): list, add, disable, re-enable, remove, and the history of changes. */
+/** The service-account registry: list, add, disable, re-enable, remove, and the history of changes. */
 export function RegistryPage() {
   const { listRef, focusList } = useFocusAfterChange();
   const actions = useRegistryActions(focusList);

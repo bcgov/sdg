@@ -1,5 +1,5 @@
 /**
- * Browser telemetry (doc 20). The edge serves /telemetry.json from its environment: anything other than
+ * Browser telemetry. The edge serves /telemetry.json from its environment: anything other than
  * `{"enabled":true}` (telemetry off, a 404, a network error, bad JSON) leaves Faro unloaded. Faro is a separate chunk,
  * so the main bundle doesn't grow and a deployment without telemetry never downloads it.
  */

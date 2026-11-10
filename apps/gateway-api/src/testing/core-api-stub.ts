@@ -41,7 +41,6 @@ const defaultRespond: StubResponder = json(
   { 'set-cookie': 'core=1' },
 );
 
-/** Starts a {@link CoreApiStub} on a free loopback port. */
 export async function startCoreApiStub(): Promise<CoreApiStub> {
   const server: Server = createServer((req, res) => {
     stub.received.push({ method: req.method ?? '', url: req.url ?? '', headers: req.headers });

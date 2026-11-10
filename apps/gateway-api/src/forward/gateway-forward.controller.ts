@@ -25,7 +25,7 @@ const REFUSAL_HEADERS: Readonly<Record<number, Readonly<Record<string, string>>>
 
 /**
  * Forwards service accounts' GET `/api/v<N>/gateway/…` calls to core-api with the caller's own Bearer token, which
- * core-api verifies and checks against the registry (KTD12). Any other path is 404 and any other method 405 (R19),
+ * core-api verifies and checks against the registry. Any other path is 404 and any other method 405,
  * a missing or non-Bearer Authorization 401, all without contacting core-api; core-api unreachable is 503. core-api's
  * answers, its 401 and 403 included, are relayed unchanged.
  */
