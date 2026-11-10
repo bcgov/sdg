@@ -142,4 +142,13 @@ test.describe('portal-web auth', () => {
     await expect(page.getByRole('button', { name: /Account menu/ })).toHaveCount(0);
     expect(new URL(page.url()).pathname).toBe('/');
   });
+
+  test('shows a retry when sign-in failed because the service is unavailable', async ({ page }) => {
+    await mockCurrentUser(page, () => false);
+    await page.goto('/?authError=unavailable');
+
+    await expect(page.getByRole('alert')).toContainText('temporarily unavailable');
+    const retry = page.getByRole('link', { name: 'Try again' });
+    await expect(retry).toHaveAttribute('href', /^\/api\/auth\/login\?returnTo=/);
+  });
 });
