@@ -15,8 +15,14 @@ export interface BffSessionOptions {
 }
 
 /**
- * Where to send the browser when core-api refuses a sign-in (403). It runs after the pending session is ended and
- * before the redirect, so it can also end the Keycloak session (admin-api's not-authorized path).
+ * The Nest application options every BFF app is created with, in its main.ts (`startService`) and in its tests:
+ * `rawBody` keeps `req.rawBody`, so JSON and form bodies are forwarded byte for byte.
+ */
+export const BFF_APP_OPTIONS = { rawBody: true } as const;
+
+/**
+ * Where to send the browser when core-api refuses a sign-in (403). It runs after the pending session is ended (a
+ * session that was already signed in is kept) and before the redirect, so it can also end the Keycloak session (admin-api's not-authorized path).
  */
 export type LoginRefusal = (login: CallbackResult) => Promise<string>;
 

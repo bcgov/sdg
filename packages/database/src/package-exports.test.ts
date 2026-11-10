@@ -3,11 +3,15 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Pool } from 'pg';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import manifest from '../package.json' with { type: 'json' };
 import { createDatabase, identities, migrationsFolder, migrationsSchema, principals } from './index.js';
 import * as schemaEntry from './schema/index.js';
+
+const DATABASE_URL = 'postgres://portal:portal@localhost:5432/portal';
+/** createDatabase options for tests that never see an idle client fail. */
+const options = { onIdleClientError: vi.fn<(error: Error) => void>() };
 
 const srcDir = dirname(fileURLToPath(import.meta.url));
 
@@ -82,10 +86,10 @@ describe('database package', () => {
   describe('createDatabase', () => {
     it('returns a drizzle database whose $client is a pg Pool', async () => {
       // pg.Pool connects lazily, so no database is needed.
-      const db = createDatabase('postgres://portal:portal@localhost:5432/portal');
+      const db = createDatabase(DATABASE_URL, options);
       try {
         expect(db.$client).toBeInstanceOf(Pool);
-        expect(db.$client.options.connectionString).toBe('postgres://portal:portal@localhost:5432/portal');
+        expect(db.$client.options.connectionString).toBe(DATABASE_URL);
         expect(db.$client.totalCount).toBe(0);
       } finally {
         await db.$client.end();
@@ -93,7 +97,7 @@ describe('database package', () => {
     });
 
     it('accepts a PoolConfig object', async () => {
-      const db = createDatabase({ host: 'localhost', database: 'portal', max: 3 });
+      const db = createDatabase({ host: 'localhost', database: 'portal', max: 3 }, options);
       try {
         expect(db.$client).toBeInstanceOf(Pool);
         expect(db.$client.options).toMatchObject({ host: 'localhost', database: 'portal', max: 3 });
@@ -102,8 +106,21 @@ describe('database package', () => {
       }
     });
 
+    it("hands an idle client's error to onIdleClientError instead of crashing the process", async () => {
+      const onIdleClientError = vi.fn<(error: Error) => void>();
+      const db = createDatabase(DATABASE_URL, { onIdleClientError });
+      const dropped = new Error('terminating connection due to administrator command');
+      try {
+        // pg emits this when Postgres closes an idle pooled connection (restart, Patroni switchover).
+        expect(() => db.$client.emit('error', dropped)).not.toThrow();
+        expect(onIdleClientError).toHaveBeenCalledExactlyOnceWith(dropped);
+      } finally {
+        await db.$client.end();
+      }
+    });
+
     it('exposes the principals and identities tables on db.query', async () => {
-      const db = createDatabase('postgres://portal:portal@localhost:5432/portal');
+      const db = createDatabase(DATABASE_URL, options);
       try {
         expect(Object.keys(db.query).toSorted()).toEqual(['identities', 'principals']);
         // Builds SQL without connecting: the relational API knows both tables and the snake_case casing.

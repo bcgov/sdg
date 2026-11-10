@@ -2,7 +2,10 @@
 
 /** portal-api's session cookie; admin-api has its own. */
 export const SESSION_COOKIE = 'portal.sid';
-/** The HKDF info string keying the stored sessions' encryption; unchanged from the pre-bff-core sessions. */
+/**
+ * The HKDF info string keying the stored sessions' encryption. Changing it makes every stored session unreadable,
+ * which signs everyone out.
+ */
 export const SESSION_KEY_INFO = 'portal-session-store';
 /** portal-api's own schema and migrations journal: the `portal` login owns both. */
 export const SESSION_SCHEMA = 'portal';

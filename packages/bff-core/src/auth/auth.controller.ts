@@ -59,7 +59,8 @@ function sessionUser(login: CallbackResult, outcome: Extract<LoginOutcome, { kin
 
 /**
  * BFF login: the browser only ever sees redirects and an httpOnly session cookie. Unversioned by design.
- * The callback asks core-api for the principal before any session exists, so a refused or failed sign-in leaves none.
+ * The callback asks core-api for the principal before any session exists, so a refused or failed sign-in leaves none
+ * (a session that was already signed in stays as it was).
  */
 @ApiTags('auth')
 @Controller({ path: 'auth', version: VERSION_NEUTRAL })
@@ -173,7 +174,7 @@ export class AuthController {
 
   private async refuseLogin(req: Request, res: Response, login: CallbackResult): Promise<void> {
     this.logger.warn({ msg: 'core-api refused the login' });
-    await this.endSession(req, res);
+    await this.abandonLogin(req, res);
     let location = `${this.options.appUrl}/?authError=access_denied`;
     if (this.options.onLoginRefused) {
       try {
@@ -193,8 +194,20 @@ export class AuthController {
   }
 
   private async failLogin(req: Request, res: Response, code: AuthErrorCode): Promise<void> {
-    await this.endSession(req, res);
+    await this.abandonLogin(req, res);
     res.redirect(302, `${this.options.appUrl}/?authError=${code}`);
+  }
+
+  /**
+   * After a callback that signs no one in (its pending authorization already removed): a signed-in session is kept,
+   * so a stray callback (a cross-site navigation, Back into Keycloak) never signs anyone out; any other session ends.
+   */
+  private async abandonLogin(req: Request, res: Response): Promise<void> {
+    if (req.session.auth) {
+      await sessionOp(req, 'save');
+      return;
+    }
+    await this.endSession(req, res);
   }
 
   /** Destroys the session and clears its cookie, leaving no session row (a pre-login session's pending authorization goes with it). */

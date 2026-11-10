@@ -17,6 +17,13 @@ describe('normalizeRequestTarget', () => {
     });
   });
 
+  it('accepts a backslash in the query, which the URL parser never reads as path', () => {
+    expect(normalizeRequestTarget('/api/v1/portal/search?q=C:\\temp%5cx')).toEqual({
+      path: '/api/v1/portal/search',
+      target: '/api/v1/portal/search?q=C:\\temp%5cx',
+    });
+  });
+
   it('accepts a single trailing slash', () => {
     expect(normalizeRequestTarget('/api/v1/portal/x/')?.path).toBe('/api/v1/portal/x/');
   });
@@ -37,6 +44,10 @@ describe('normalizeRequestTarget', () => {
     ['an absolute-form target', 'http://core-api/api/v1/portal/x'],
     ['a relative target', 'api/v1/portal/x'],
     ['an empty target', ''],
+    ['backslash dot-dot segments', '/api/v1/portal/..\\..\\..\\internal/x'],
+    ['a backslash inside a segment', '/api/v1/portal/a\\b'],
+    ['an encoded backslash', '/api/v1/portal/..%5c..%5c..%5cinternal/x'],
+    ['an upper-case encoded backslash', '/api/v1/portal/a%5Cb'],
   ])('rejects %s', (_case, url) => {
     expect(normalizeRequestTarget(url)).toBeUndefined();
   });

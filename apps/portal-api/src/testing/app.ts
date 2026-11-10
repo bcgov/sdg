@@ -5,7 +5,7 @@ import { Test } from '@nestjs/testing';
 import { createOidcClient, type OidcClient } from '@repo/auth';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
 import { CLIENT_ID, CLIENT_SECRET, startFakeIdp, type FakeIdp } from '@repo/auth/testing';
-import { SESSION_DATABASE } from '@repo/bff-core/nestjs';
+import { BFF_APP_OPTIONS, SESSION_DATABASE } from '@repo/bff-core/nestjs';
 import { startCoreApiStub, type CoreApiStub } from '@repo/bff-core/testing';
 import { configureApp } from '@repo/server-core/nestjs';
 import supertest from 'supertest';
@@ -60,7 +60,7 @@ function oidcClientFor(idp: FakeIdp): OidcClient {
 }
 
 /**
- * The real AppModule and HTTP conventions (configureApp, rawBody as in main.ts), with Postgres swapped for PGlite
+ * The real AppModule and HTTP conventions (configureApp, BFF_APP_OPTIONS as in main.ts), with Postgres swapped for PGlite
  * (the real sessions migrations), Keycloak for the fake IdP and core-api for a loopback stub.
  */
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
@@ -77,7 +77,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .overrideProvider(OIDC_CLIENT)
     .useValue(oidc)
     .compile();
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false, rawBody: true });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false, ...BFF_APP_OPTIONS });
   configureApp(app, { swagger: swaggerOptions });
   await app.init();
 

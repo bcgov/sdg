@@ -844,6 +844,9 @@ importers:
       '@repo/auth':
         specifier: workspace:*
         version: link:../auth
+      '@repo/database':
+        specifier: workspace:*
+        version: link:../database
       '@repo/server-core':
         specifier: workspace:*
         version: link:../server-core
@@ -881,9 +884,6 @@ importers:
       '@nestjs/testing':
         specifier: 'catalog:'
         version: 12.3.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.3.2)(@nestjs/platform-express@12.3.2)
-      '@repo/database':
-        specifier: workspace:*
-        version: link:../database
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../tooling/typescript-config

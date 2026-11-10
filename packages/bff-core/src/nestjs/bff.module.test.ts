@@ -86,6 +86,22 @@ describe('BffModule', () => {
     expect(paths['/api/auth/me']?.['get']?.security).toEqual([{ session: [] }]);
   });
 
+  it("logs an idle client's error on its pool instead of crashing the process", () => {
+    const pool = portal.app.get<Pool>(SESSION_POOL);
+    const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const dropped = new Error('terminating connection due to administrator command');
+    try {
+      // pg emits this when Postgres closes an idle pooled connection (restart, Patroni switchover).
+      expect(() => pool.emit('error', dropped)).not.toThrow();
+      expect(error).toHaveBeenCalledWith({
+        msg: 'Idle Postgres client error',
+        error: expect.objectContaining({ type: 'Error', message: dropped.message }),
+      });
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it('ends its pool on shutdown', async () => {
     const extra = await createBffTestApp({ idp, coreApi, database });
     const pool = extra.app.get<Pool>(SESSION_POOL);

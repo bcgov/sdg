@@ -1,3 +1,4 @@
+import { parseDatabaseUrl, redactDatabaseError } from '@repo/database';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
@@ -20,29 +21,6 @@ export interface SessionMigrationOptions {
   readonly migrationsSchema: string;
 }
 
-function parseDatabaseUrl(raw: string | undefined): URL {
-  if (!raw) throw new SessionMigrationError('DATABASE_URL is not set.');
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    throw new SessionMigrationError('DATABASE_URL is not a valid URL.');
-  }
-  if (url.protocol !== 'postgres:' && url.protocol !== 'postgresql:') {
-    throw new SessionMigrationError('DATABASE_URL must use postgres:// or postgresql://.');
-  }
-  return url;
-}
-
-/** The messages along the `cause` chain (drizzle wraps the pg error), with the URL and password masked. */
-function redact(error: unknown, url: URL): string {
-  const messages: string[] = [];
-  for (let current: unknown = error; current instanceof Error; current = current.cause) messages.push(current.message);
-  const message = messages.length > 0 ? messages.join(': ') : 'unknown error';
-  const secrets = [url.href, url.password, decodeURIComponent(url.password)].filter(Boolean);
-  return secrets.reduce((text, secret) => text.replaceAll(secret, '***'), message);
-}
-
 /**
  * Applies the sessions migrations as the BFF's own login: the `sessions` table lands in that login's schema and the
  * login schedules its own `<login>-prune-expired-sessions` job. Run from each BFF image's session-migrate
@@ -52,7 +30,7 @@ export async function runSessionMigrations(
   databaseUrl: string | undefined,
   options: SessionMigrationOptions,
 ): Promise<void> {
-  const url = parseDatabaseUrl(databaseUrl);
+  const url = parseDatabaseUrl(databaseUrl, (message) => new SessionMigrationError(message));
   const target = `${url.host}${url.pathname}`;
   const pool = new Pool({ connectionString: url.href, max: 1, connectionTimeoutMillis: 10_000 });
   try {
@@ -62,7 +40,7 @@ export async function runSessionMigrations(
     });
   } catch (error) {
     // The original error is not attached as `cause`: pg errors can carry the connection string.
-    throw new SessionMigrationError(`Migrating sessions on ${target} failed: ${redact(error, url)}`);
+    throw new SessionMigrationError(`Migrating sessions on ${target} failed: ${redactDatabaseError(error, url)}`);
   } finally {
     await pool.end();
   }

@@ -150,6 +150,37 @@ describe('AuthController', () => {
       expect(replay.headers['location']).toBe(`${APP_URL}/?authError=invalid_state`);
       expect(coreApi.received).toEqual([]);
     });
+
+    it('keeps a signed-in session when a callback arrives without a pending authorization', async () => {
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const { agent } = await signIn(t, idp);
+      coreApi.reset();
+      // A cross-site navigation, or Back into Keycloak replaying a consumed state.
+      const stray = await agent.get('/api/auth/callback').query({ state: 'x' });
+      expect(stray.status).toBe(302);
+      expect(stray.headers['location']).toBe(`${APP_URL}/?authError=invalid_state`);
+      expect(stray.headers['set-cookie']?.[0] ?? '').not.toMatch(/Expires=Thu, 01 Jan 1970/);
+      expect(warn).toHaveBeenCalledWith({ msg: 'Login callback without a pending authorization' });
+      expect((await agent.get('/api/auth/me')).status).toBe(200);
+      expect(await liveSessions()).toBe(1);
+      expect(coreApi.received).toEqual([]);
+    });
+
+    it('keeps the signed-in session when a second sign-in fails or is refused', async () => {
+      vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const { agent } = await signIn(t, idp);
+      coreApi.respond = json(503, { message: 'unavailable' });
+      expect((await completeCallback(agent)).headers['location']).toBe(`${APP_URL}/?authError=unavailable`);
+      coreApi.respond = json(403, { message: 'Forbidden' });
+      expect((await completeCallback(agent)).headers['location']).toBe(`${APP_URL}/not-authorized`);
+      const me = await agent.get('/api/auth/me');
+      expect(me.status).toBe(200);
+      expect(me.body).toEqual({ id: PRINCIPAL_ID, ...CORE_API_PROFILE });
+      expect(await liveSessions()).toBe(1);
+      // The pending authorization went with the failed callback.
+      const replay = await agent.get('/api/auth/callback').query({ code: 'c', state: 'wrong' });
+      expect(replay.headers['location']).toBe(`${APP_URL}/?authError=invalid_state`);
+    });
   });
 
   describe('GET /api/auth/me', () => {

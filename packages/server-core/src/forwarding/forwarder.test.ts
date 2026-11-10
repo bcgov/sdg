@@ -109,6 +109,21 @@ describe('Forwarder routing', () => {
     },
   );
 
+  it('would reach /internal through backslash dot segments, since fetch reads a backslash as a slash', () => {
+    expect(new URL(`${upstream}/api/v1/portal/..\\..\\..\\internal/x`).pathname).toBe('/internal/x');
+  });
+
+  it.each([
+    '/api/v1/portal/..\\..\\..\\internal/principals/login',
+    '/api/v1/portal/..%5C..%5C..%5Cinternal/principals/login',
+    '/api/v1/portal/..%5c..%5c..%5cinternal/principals/login',
+  ])('answers 404 to the backslash traversal %s without calling core-api', async (url) => {
+    const { forwarder, token } = portalForwarder();
+    expect(await forwarder.forward(request(url), signedIn)).toEqual({ kind: 'rejected', status: 404 });
+    expect(token).not.toHaveBeenCalled();
+    expect(received).toEqual([]);
+  });
+
   it('answers 405 to a method outside the filter, before asking for a token', async () => {
     const { forwarder, token } = portalForwarder({ audiences: ['gateway'], methods: ['GET'] });
     const result = await forwarder.forward(request('/api/v1/gateway/x', { method: 'POST' }), signedIn);

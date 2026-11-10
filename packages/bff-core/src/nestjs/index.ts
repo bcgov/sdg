@@ -6,6 +6,7 @@ export { OriginGuard } from '../origin/origin.guard.js';
 export { REFRESH_WINDOW_MS, TokenRefreshService, type SessionToken } from '../refresh/token-refresh.service.js';
 export { BffModule, type BffModuleAsyncOptions } from './bff.module.js';
 export {
+  BFF_APP_OPTIONS,
   BFF_OPTIONS,
   LOGIN_HOOK,
   SESSION_DATABASE,

@@ -12,6 +12,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { createOidcClient, type OidcClient } from '@repo/auth';
 import type { AsyncModuleOptions } from '@repo/auth/nestjs';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
+import { describeError } from '@repo/server-core';
 import session from 'express-session';
 import { Pool } from 'pg';
 
@@ -35,13 +36,19 @@ import {
 
 export type BffModuleAsyncOptions = AsyncModuleOptions<BffModuleOptions>;
 
+/**
+ * The sessions pool. pg connects lazily, on the first query. When Postgres drops an idle client (a restart, a Patroni
+ * switchover) the pool discards it and emits 'error', which would crash the process without a listener.
+ */
+function createSessionPool(options: BffModuleOptions): Pool {
+  const pool = new Pool({ connectionString: options.databaseUrl });
+  const logger = new Logger('SessionPool');
+  pool.on('error', (error) => logger.error({ msg: 'Idle Postgres client error', error: describeError(error) }));
+  return pool;
+}
+
 const sessionProviders = [
-  {
-    provide: SESSION_POOL,
-    inject: [BFF_OPTIONS],
-    // pg connects lazily, on the first query.
-    useFactory: (options: BffModuleOptions): Pool => new Pool({ connectionString: options.databaseUrl }),
-  },
+  { provide: SESSION_POOL, inject: [BFF_OPTIONS], useFactory: createSessionPool },
   { provide: SESSION_DATABASE, inject: [SESSION_POOL], useFactory: createSessionDatabase },
   {
     provide: SESSION_STORE,
@@ -81,7 +88,7 @@ const authProviders = [
  * A browser BFF's sessions, OIDC login (`/api/auth/*`), token refresh, origin check and forwarding to core-api
  * (`/api/v<N>/<audience>/…`), configured per BFF. Import it once, in the app module, which also needs
  * server-core's LoggingModule and `configureApp`. The app must be created
- * with `rawBody: true` so JSON and form bodies are forwarded byte for byte.
+ * with `BFF_APP_OPTIONS` (`rawBody: true`) so JSON and form bodies are forwarded byte for byte.
  */
 @Module({})
 export class BffModule implements NestModule, OnApplicationShutdown {

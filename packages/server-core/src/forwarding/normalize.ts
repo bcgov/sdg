@@ -8,6 +8,11 @@ export interface RequestTarget {
 
 /** `%2f` and `%2e` in any case: an encoded slash or dot could change the path's meaning after one more decode. */
 const ENCODED_SLASH_OR_DOT = /%2[ef]/i;
+/**
+ * A backslash, raw or as `%5c` in any case: fetch's URL parser reads a raw one as `/`, so `..\` would climb out of the
+ * classified path (`/api/v1/portal/..\..\..\internal`), and an encoded one is a raw one after one more decode.
+ */
+const BACKSLASH = /\\|%5c/i;
 
 function hasTrailingSlash(rawPath: string): boolean {
   return rawPath.length > 1 && rawPath.endsWith('/');
@@ -39,13 +44,14 @@ function decodeSegments(rawPath: string): string[] | undefined {
 /**
  * Checks an origin-form request target (Express `req.originalUrl`) for forwarding. Returns undefined, which the
  * caller answers with 404, for anything whose decoded path could differ from what core-api sees: an encoded slash or
- * dot, a dot segment, an empty segment (a single trailing slash aside) or a malformed escape.
+ * dot, a backslash (raw or encoded), a dot segment, an empty segment (a single trailing slash aside) or a malformed
+ * escape. The query string is forwarded as is: the URL parser never reads it as path.
  */
 export function normalizeRequestTarget(url: string): RequestTarget | undefined {
   if (!url.startsWith('/')) return undefined;
   const queryStart = url.indexOf('?');
   const rawPath = queryStart === -1 ? url : url.slice(0, queryStart);
-  if (ENCODED_SLASH_OR_DOT.test(rawPath)) return undefined;
+  if (ENCODED_SLASH_OR_DOT.test(rawPath) || BACKSLASH.test(rawPath)) return undefined;
   const segments = decodeSegments(rawPath);
   if (segments === undefined) return undefined;
   const trailingSlash = hasTrailingSlash(rawPath) ? '/' : '';

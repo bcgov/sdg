@@ -11,7 +11,7 @@ import type { SessionData } from 'express-session';
 import supertest from 'supertest';
 
 import { BffModule } from '../nestjs/bff.module.js';
-import { SESSION_DATABASE, SESSION_STORE, type BffModuleOptions } from '../nestjs/bff.options.js';
+import { BFF_APP_OPTIONS, SESSION_DATABASE, SESSION_STORE, type BffModuleOptions } from '../nestjs/bff.options.js';
 import type { PostgresSessionStore } from '../session/postgres-session.store.js';
 import type { CoreApiStub } from '../testing/core-api-stub.js';
 import type { TestSessionDatabase } from './database.js';
@@ -48,7 +48,7 @@ function moduleOptions({ idp, coreApi, overrides }: BffTestAppOptions): BffModul
   };
 }
 
-/** A BFF app on BffModule as a service would wire it: configureApp, rawBody, PGlite sessions, the fake IdP. */
+/** A BFF app on BffModule as a service would wire it: configureApp, BFF_APP_OPTIONS, PGlite sessions, the fake IdP. */
 export async function createBffTestApp(setup: BffTestAppOptions): Promise<BffTestApp> {
   const options = moduleOptions(setup);
   @Module({
@@ -70,7 +70,7 @@ export async function createBffTestApp(setup: BffTestAppOptions): Promise<BffTes
     .overrideProvider(OIDC_CLIENT)
     .useValue(oidc)
     .compile();
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false, rawBody: true });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false, ...BFF_APP_OPTIONS });
   configureApp(app, { swagger: { title: 'BFF test', description: 'bff-core tests', version: '0.0.0' } });
   await app.init();
   return {
