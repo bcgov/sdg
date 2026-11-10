@@ -21,7 +21,7 @@ export const TEST_ENV = {
   NODE_ENV: 'test',
   LOG_LEVEL: 'silent',
   APP_URL,
-  DATABASE_URL: 'postgres://portal:unused@127.0.0.1:1/portal',
+  DATABASE_URL: 'postgres://portal@127.0.0.1:1/portal',
   SESSION_SECRET: 'test-session-secret-at-least-32-characters',
   KEYCLOAK_CLIENT_ID: CLIENT_ID,
   KEYCLOAK_CLIENT_SECRET: CLIENT_SECRET,

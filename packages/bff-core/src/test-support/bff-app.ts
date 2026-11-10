@@ -39,7 +39,7 @@ export interface BffTestAppOptions {
 function moduleOptions({ idp, coreApi, overrides }: BffTestAppOptions): BffModuleOptions {
   return {
     appUrl: APP_URL,
-    databaseUrl: 'postgres://portal:unused@127.0.0.1:1/portal',
+    databaseUrl: 'postgres://portal@127.0.0.1:1/portal',
     session: { cookieName: 'portal.sid', secret: SECRET, keyInfo: 'portal-session-store', ttlSeconds: 3600 },
     oidc: { issuerUrl: idp.issuer, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, fetch: idp.fetch },
     coreApiUrl: coreApi.url,
