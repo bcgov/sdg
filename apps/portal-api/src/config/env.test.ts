@@ -1,7 +1,7 @@
+import { EnvValidationError } from '@repo/server-core';
 import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
 
-import { EnvValidationError, validateEnv } from './env.js';
+import { validateEnv } from './env.js';
 
 const valid = {
   APP_URL: 'http://localhost:5173/',
@@ -72,28 +72,9 @@ describe('Env Config Unit Test Suite', () => {
       expect(env.DATABASE_URL).toBe('postgresql://portal:portal@localhost:5432/portal');
       expect(env.TRUST_PROXY).toBe(false);
     });
-
-    it('Should support test NODE_ENV', () => {
-      const env = validateEnv({
-        ...valid,
-        NODE_ENV: 'test',
-      });
-      expect(env.NODE_ENV).toBe('test');
-    });
   });
 
   describe('Invalid env', () => {
-    it('Should accept pino log levels and rejects Nest-only names', () => {
-      expect(validateEnv({ ...valid, LOG_LEVEL: 'trace' }).LOG_LEVEL).toBe('trace');
-      expect(validateEnv({ ...valid, LOG_LEVEL: 'silent' }).LOG_LEVEL).toBe('silent');
-      expect(errorOf({ ...valid, LOG_LEVEL: 'log' }).keys).toEqual(['LOG_LEVEL']);
-      expect(errorOf({ ...valid, LOG_LEVEL: 'verbose' }).keys).toEqual(['LOG_LEVEL']);
-    });
-
-    it('Should reject an invalid NODE_ENV', () => {
-      expect(errorOf({ ...valid, NODE_ENV: 'staging' }).keys).toEqual(['NODE_ENV']);
-    });
-
     it('Should reject invalid PORT and SESSION_TTL_SECONDS ranges', () => {
       expect(errorOf({ ...valid, PORT: '0' }).keys).toEqual(['PORT']);
       expect(errorOf({ ...valid, SESSION_TTL_SECONDS: '299' }).keys).toEqual(['SESSION_TTL_SECONDS']);
@@ -130,43 +111,14 @@ describe('Env Config Unit Test Suite', () => {
       expect(error.message).not.toContain('hunter2');
       expect(error.message).toMatch(/^Invalid environment:/);
     });
-
-    it('Should format issue with empty path as (root)', () => {
-      const error = new EnvValidationError([
-        {
-          code: z.ZodIssueCode.custom,
-          message: 'Expected object',
-          path: [],
-        },
-      ]);
-      expect(error.message).toMatch(/^Invalid environment:\n\s+\(root\):/);
-      expect(error.keys).toEqual(['']);
-    });
   });
 
   describe('OpenTelemetry vars', () => {
-    it('Should leave OTEL_EXPORTER_OTLP_ENDPOINT undefined when unset', () => {
-      const env = validateEnv(valid);
-      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
-      expect(validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: '' }).OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
-      expect(env.OTEL_TRACES_SAMPLER_ARG).toBe(1);
-    });
-
-    it('Should accept an http(s) OTEL_EXPORTER_OTLP_ENDPOINT and defaults OTEL_SERVICE_NAME to portal-api', () => {
-      const env = validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'http://alloy:4318/' });
-      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://alloy:4318');
-      expect(env.OTEL_SERVICE_NAME).toBe('portal-api');
-      expect(
-        validateEnv({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'https://c.example.com' }).OTEL_EXPORTER_OTLP_ENDPOINT,
-      ).toBe('https://c.example.com');
-    });
-
-    it('Should reject a non-http OTEL_EXPORTER_OTLP_ENDPOINT and a sampler ratio outside 0–1', () => {
-      expect(errorOf({ ...valid, OTEL_EXPORTER_OTLP_ENDPOINT: 'grpc://alloy:4317' }).keys).toEqual([
-        'OTEL_EXPORTER_OTLP_ENDPOINT',
-      ]);
-      expect(errorOf({ ...valid, OTEL_TRACES_SAMPLER_ARG: '2' }).keys).toEqual(['OTEL_TRACES_SAMPLER_ARG']);
-      expect(errorOf({ ...valid, OTEL_TRACES_SAMPLER_ARG: '-0.1' }).keys).toEqual(['OTEL_TRACES_SAMPLER_ARG']);
+    it('Should default OTEL_SERVICE_NAME to portal-api', () => {
+      expect(validateEnv(valid).OTEL_SERVICE_NAME).toBe('portal-api');
+      expect(validateEnv({ ...valid, OTEL_SERVICE_NAME: 'portal-api-canary' }).OTEL_SERVICE_NAME).toBe(
+        'portal-api-canary',
+      );
     });
   });
 });

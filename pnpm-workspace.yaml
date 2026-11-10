@@ -121,3 +121,5 @@ engineStrict: true
 peerDependencyRules:
   allowedVersions:
     '@opentelemetry/api': '1'
+    # Optional peer, for its CLI plugin only (unused): @repo/server-core builds with TypeScript 7.
+    '@nestjs/swagger>typescript': '7'

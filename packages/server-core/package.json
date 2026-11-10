@@ -1,0 +1,125 @@
+{
+  "name": "@repo/server-core",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./forwarding": {
+      "types": "./dist/forwarding/index.d.ts",
+      "import": "./dist/forwarding/index.js"
+    },
+    "./nestjs": {
+      "types": "./dist/nestjs/index.d.ts",
+      "import": "./dist/nestjs/index.js"
+    },
+    "./telemetry": {
+      "types": "./dist/telemetry/index.d.ts",
+      "import": "./dist/telemetry/index.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "catalog:",
+    "@opentelemetry/context-async-hooks": "catalog:",
+    "@opentelemetry/core": "catalog:",
+    "@opentelemetry/exporter-logs-otlp-proto": "catalog:",
+    "@opentelemetry/exporter-prometheus": "catalog:",
+    "@opentelemetry/exporter-trace-otlp-proto": "catalog:",
+    "@opentelemetry/instrumentation": "catalog:",
+    "@opentelemetry/instrumentation-express": "catalog:",
+    "@opentelemetry/instrumentation-http": "catalog:",
+    "@opentelemetry/instrumentation-nestjs-core": "catalog:",
+    "@opentelemetry/instrumentation-pg": "catalog:",
+    "@opentelemetry/instrumentation-pino": "catalog:",
+    "@opentelemetry/instrumentation-runtime-node": "catalog:",
+    "@opentelemetry/resources": "catalog:",
+    "@opentelemetry/sdk-logs": "catalog:",
+    "@opentelemetry/sdk-metrics": "catalog:",
+    "@opentelemetry/sdk-node": "catalog:",
+    "@opentelemetry/sdk-trace": "catalog:",
+    "@opentelemetry/semantic-conventions": "catalog:",
+    "helmet": "catalog:",
+    "import-in-the-middle": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@nestjs/common": "catalog:",
+    "@nestjs/config": "catalog:",
+    "@nestjs/core": "catalog:",
+    "@nestjs/platform-express": "catalog:",
+    "@nestjs/swagger": "catalog:",
+    "@nestjs/terminus": "catalog:",
+    "@nestjs/testing": "catalog:",
+    "@repo/typescript-config": "workspace:*",
+    "@repo/vite-config": "workspace:*",
+    "@repo/vitest-config": "workspace:*",
+    "@types/express": "catalog:",
+    "@types/node": "catalog:",
+    "@types/supertest": "catalog:",
+    "nestjs-pino": "catalog:",
+    "pino": "catalog:",
+    "pino-http": "catalog:",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:",
+    "supertest": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "catalog:",
+    "@nestjs/config": "catalog:",
+    "@nestjs/core": "catalog:",
+    "@nestjs/platform-express": "catalog:",
+    "@nestjs/swagger": "catalog:",
+    "@nestjs/terminus": "catalog:",
+    "nestjs-pino": "catalog:",
+    "pino-http": "catalog:",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@nestjs/common": {
+      "optional": true
+    },
+    "@nestjs/config": {
+      "optional": true
+    },
+    "@nestjs/core": {
+      "optional": true
+    },
+    "@nestjs/platform-express": {
+      "optional": true
+    },
+    "@nestjs/swagger": {
+      "optional": true
+    },
+    "@nestjs/terminus": {
+      "optional": true
+    },
+    "nestjs-pino": {
+      "optional": true
+    },
+    "pino-http": {
+      "optional": true
+    },
+    "reflect-metadata": {
+      "optional": true
+    },
+    "rxjs": {
+      "optional": true
+    }
+  }
+}

@@ -5,10 +5,11 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import type { AuthUser, CallbackResult, OidcClient, PendingAuthorization } from '@repo/auth';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
+import { configureApp } from '@repo/server-core/nestjs';
 import supertest from 'supertest';
 import { vi, type Mock } from 'vitest';
 
-import { configureApp } from '../bootstrap.js';
+import { swaggerOptions } from '../openapi/swagger-options.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 export const TEST_ENV = {
@@ -124,7 +125,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     logger: false,
   });
-  configureApp(app);
+  configureApp(app, { swagger: swaggerOptions });
   await app.init();
 
   return {

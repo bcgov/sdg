@@ -1,9 +1,9 @@
 import { Logger } from '@nestjs/common';
+import { describeError } from '@repo/server-core';
 import { and, eq, gt, lt } from 'drizzle-orm';
 import { Store, type SessionData } from 'express-session';
 
 import type { Database } from '../database/database.module.js';
-import { describeError } from '../logging/describe-error.js';
 import { decryptSession, encryptSession } from './session-cipher.js';
 import { sessions } from './sessions.schema.js';
 

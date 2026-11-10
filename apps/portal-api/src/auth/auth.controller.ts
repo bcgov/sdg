@@ -23,10 +23,10 @@ import {
 } from '@nestjs/swagger';
 import { AuthError, safeReturnTo, type OidcClient } from '@repo/auth';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
+import { describeError } from '@repo/server-core';
 import type { Request, Response } from 'express';
 
 import type { Env } from '../config/env.js';
-import { describeError } from '../logging/describe-error.js';
 import { PrincipalsService } from '../principals/principals.service.js';
 import { SESSION_COOKIE, sessionOp } from '../session/session.module.js';
 import {
