@@ -10,7 +10,7 @@ import manifest from '../package.json' with { type: 'json' };
 
 const srcDir = dirname(fileURLToPath(import.meta.url));
 const packageDir = join(srcDir, '..');
-const ENTRIES = ['index', 'forwarding/index', 'nestjs/index', 'telemetry/index'];
+const ENTRIES = ['index', 'forwarding/index', 'nestjs/index', 'telemetry/index', 'testing/index'];
 const PEERS = [
   '@nestjs/common',
   '@nestjs/config',
@@ -64,8 +64,14 @@ function runBin(name: 'vite' | 'tsc', args: string[]) {
 
 describe('server-core package', () => {
   describe('package.json', () => {
-    it('exposes the ., ./forwarding, ./nestjs and ./telemetry subpaths', () => {
-      expect(Object.keys(manifest.exports).toSorted()).toEqual(['.', './forwarding', './nestjs', './telemetry']);
+    it('exposes the ., ./forwarding, ./nestjs, ./telemetry and ./testing subpaths', () => {
+      expect(Object.keys(manifest.exports).toSorted()).toEqual([
+        '.',
+        './forwarding',
+        './nestjs',
+        './telemetry',
+        './testing',
+      ]);
       for (const [subpath, entry] of Object.entries(manifest.exports)) {
         const base = subpath === '.' ? 'index' : `${subpath.slice(2)}/index`;
         expect(entry).toEqual({ types: `./dist/${base}.d.ts`, import: `./dist/${base}.js` });
@@ -81,13 +87,16 @@ describe('server-core package', () => {
   });
 
   describe('sources', () => {
-    it.each(['index.ts', 'forwarding/index.ts', 'telemetry/index.ts'])('keeps %s free of Nest', (entry) => {
-      const graph = staticGraph(join(srcDir, entry));
-      expect([...graph].some((file) => relative(srcDir, file).startsWith('nestjs'))).toBe(false);
-      expect(bareImports(graph).filter((name) => /^(@nestjs\/|nestjs-pino|reflect-metadata|rxjs)/.test(name))).toEqual(
-        [],
-      );
-    });
+    it.each(['index.ts', 'forwarding/index.ts', 'telemetry/index.ts', 'testing/index.ts'])(
+      'keeps %s free of Nest',
+      (entry) => {
+        const graph = staticGraph(join(srcDir, entry));
+        expect([...graph].some((file) => relative(srcDir, file).startsWith('nestjs'))).toBe(false);
+        expect(
+          bareImports(graph).filter((name) => /^(@nestjs\/|nestjs-pino|reflect-metadata|rxjs)/.test(name)),
+        ).toEqual([]);
+      },
+    );
 
     it('keeps the forwarding entry on fetch alone', () => {
       expect(bareImports(staticGraph(join(srcDir, 'forwarding/index.ts')))).toEqual([]);
@@ -136,6 +145,10 @@ describe('build output', () => {
   it('keeps the core and forwarding entries free of Nest', () => {
     expect(bareImports(builtGraph('index'))).toEqual(['zod']);
     expect(bareImports(builtGraph('forwarding/index'))).toEqual([]);
+  });
+
+  it('keeps the testing entry on Node built-ins', () => {
+    expect(bareImports(builtGraph('testing/index'))).toEqual(['node:http']);
   });
 
   it('transforms the legacy decorators and bundles the Oxc helpers', () => {

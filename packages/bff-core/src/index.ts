@@ -7,6 +7,7 @@ export {
   type LoginHook,
   type LoginOutcome,
 } from './auth/core-api-login.js';
+export { bffEnvShape, type BffEnv, type BffEnvShape } from './env.js';
 export {
   PostgresSessionStore,
   type PostgresSessionStoreOptions,

@@ -4,6 +4,7 @@ export { BffForwardController } from '../forward/bff-forward.controller.js';
 export { RawBodyUnavailableError } from '../forward/request-body.js';
 export { OriginGuard } from '../origin/origin.guard.js';
 export { REFRESH_WINDOW_MS, TokenRefreshService, type SessionToken } from '../refresh/token-refresh.service.js';
+export { bffOptionsFromEnv, type BffIdentity } from './bff-env-options.js';
 export { BffModule, type BffModuleAsyncOptions } from './bff.module.js';
 export {
   BFF_APP_OPTIONS,

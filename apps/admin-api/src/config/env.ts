@@ -1,18 +1,10 @@
-import { baseUrl, createEnvValidator, serviceEnvShape, urlWithProtocol } from '@repo/server-core';
+import { bffEnvShape } from '@repo/bff-core';
+import { createEnvValidator } from '@repo/server-core';
 import { z } from 'zod';
 
 export const envSchema = z.object({
-  ...serviceEnvShape('admin-api'),
-  APP_URL: baseUrl(['http:', 'https:']),
-  DATABASE_URL: urlWithProtocol(['postgres:', 'postgresql:']),
-  SESSION_SECRET: z.string().min(32),
-  SESSION_TTL_SECONDS: z.coerce.number().int().min(300).default(28_800),
-  KEYCLOAK_ISSUER_URL: baseUrl(['https:']),
-  // The admin (IDIR) client, not the portal's: core-api refuses its tokens without the admin client role.
-  KEYCLOAK_CLIENT_ID: z.string().min(1),
-  KEYCLOAK_CLIENT_SECRET: z.string().min(1),
-  // core-api's in-cluster URL: sign-in upserts the principal there and /api/v<N>/{admin,shared}/… is forwarded to it.
-  CORE_API_URL: baseUrl(['http:', 'https:']),
+  // The admin (IDIR) client's settings come from bffEnvShape; core-api refuses its tokens without the admin client role.
+  ...bffEnvShape('admin-api'),
 });
 
 export type Env = z.infer<typeof envSchema>;

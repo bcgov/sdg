@@ -10,8 +10,9 @@ export default defineLibraryConfig({
     index: `${src}index.ts`,
     'migrations/index': `${src}migrations/index.ts`,
     'nestjs/index': `${src}nestjs/index.ts`,
-    // The core-api stub, for the BFFs' own tests.
+    // The core-api stub, and the AppModule test harness on Nest, for the BFFs' own tests.
     'testing/index': `${src}testing/index.ts`,
+    'testing/nestjs/index': `${src}testing/nestjs/index.ts`,
   },
   overrides: {
     // Nest decorators are legacy (experimentalDecorators) decorators. Their parameter-type metadata lets

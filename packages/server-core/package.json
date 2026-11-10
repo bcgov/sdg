@@ -23,6 +23,10 @@
     "./telemetry": {
       "types": "./dist/telemetry/index.d.ts",
       "import": "./dist/telemetry/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "scripts": {

@@ -24,6 +24,10 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js"
+    },
+    "./testing/nestjs": {
+      "types": "./dist/testing/nestjs/index.d.ts",
+      "import": "./dist/testing/nestjs/index.js"
     }
   },
   "scripts": {

@@ -10,7 +10,7 @@ import manifest from '../package.json' with { type: 'json' };
 
 const srcDir = dirname(fileURLToPath(import.meta.url));
 const packageDir = join(srcDir, '..');
-const ENTRIES = ['index', 'migrations/index', 'nestjs/index', 'testing/index'];
+const ENTRIES = ['index', 'migrations/index', 'nestjs/index', 'testing/index', 'testing/nestjs/index'];
 const NEST_PEERS = ['@nestjs/common', '@nestjs/core', '@nestjs/swagger', 'reflect-metadata', 'rxjs'];
 const NEST_IMPORT = /^(@nestjs\/|reflect-metadata|rxjs)/;
 
@@ -54,8 +54,14 @@ function runBin(name: 'vite' | 'tsc', args: string[]) {
 
 describe('bff-core package', () => {
   describe('package.json', () => {
-    it('exposes the ., ./migrations, ./nestjs and ./testing subpaths and ships the migrations', () => {
-      expect(Object.keys(manifest.exports).toSorted()).toEqual(['.', './migrations', './nestjs', './testing']);
+    it('exposes the ., ./migrations, ./nestjs, ./testing and ./testing/nestjs subpaths and ships the migrations', () => {
+      expect(Object.keys(manifest.exports).toSorted()).toEqual([
+        '.',
+        './migrations',
+        './nestjs',
+        './testing',
+        './testing/nestjs',
+      ]);
       for (const [subpath, entry] of Object.entries(manifest.exports)) {
         const base = subpath === '.' ? 'index' : `${subpath.slice(2)}/index`;
         expect(entry).toEqual({ types: `./dist/${base}.d.ts`, import: `./dist/${base}.js` });
@@ -111,8 +117,14 @@ describe('build output', () => {
     }
   });
 
-  it('keeps the testing entry on Node built-ins', () => {
-    expect(bareImports(builtGraph('testing/index'))).toEqual(['node:http']);
+  it('builds the testing entry on the server-core loopback stub alone', () => {
+    expect(bareImports(builtGraph('testing/index'))).toEqual(['@repo/server-core/testing']);
+  });
+
+  it('keeps the migrations folder out of the testing entries', () => {
+    for (const entry of ['testing/index', 'testing/nestjs/index']) {
+      expect([...builtGraph(entry)].some((file) => file.includes('migrations'))).toBe(false);
+    }
   });
 
   it('resolves the migrations folder from dist/migrations/ to the package migrations/', () => {

@@ -12,6 +12,8 @@ export default defineLibraryConfig({
     'nestjs/index': `${src}nestjs/index.ts`,
     // Preloaded with `node --import` before the instrumented libraries load; the SDK itself is a lazy chunk.
     'telemetry/index': `${src}telemetry/index.ts`,
+    // The loopback upstream stub, for services' own tests.
+    'testing/index': `${src}testing/index.ts`,
   },
   overrides: {
     oxc: { decorator: { legacy: true } },
