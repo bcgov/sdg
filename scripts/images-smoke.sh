@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Smoke test for the production images (DEVELOPER.md, Production Images).
-# Builds database, core-api, portal-api, admin-api, portal-web, admin-web and the edge, then runs them the way
-# OpenShift's restricted SCC does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the
-# compose postgis.
+# Builds database, core-api, portal-api, admin-api, gateway-api, portal-web, admin-web and the edge, then runs them
+# the way OpenShift's restricted SCC does (arbitrary UID in group 0, no capabilities, no privilege escalation) against
+# the compose postgis.
 #
 # Usage: scripts/images-smoke.sh [--no-build]
 #   --no-build  reuse images built by an earlier run
@@ -30,7 +30,7 @@ done
 cd "$(dirname "$0")/.."
 TMP="$(mktemp -d)"
 cleanup() {
-  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-admin" "$PREFIX-web" "$PREFIX-admin-web" "$PREFIX-edge" >/dev/null 2>&1 || true
+  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-admin" "$PREFIX-gateway" "$PREFIX-web" "$PREFIX-admin-web" "$PREFIX-edge" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -51,6 +51,7 @@ if $BUILD; then
   "$ENGINE" build -q -t "$(image core-api)" -f apps/core-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-api)" -f apps/portal-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image admin-api)" -f apps/admin-api/Dockerfile . >/dev/null
+  "$ENGINE" build -q -t "$(image gateway-api)" -f apps/gateway-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-web)" -f apps/portal-web/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image admin-web)" -f apps/admin-web/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image edge)" apps/portal-web/caddy >/dev/null
@@ -58,7 +59,7 @@ fi
 
 echo "Image contents"
 node_in() { "$ENGINE" run --rm "$(image "$1")" node -e "$2"; }
-for app in core-api portal-api admin-api; do
+for app in core-api portal-api admin-api gateway-api; do
   check "$app ships dist and no sources" node_in "$app" \
     "const fs = require('fs'); process.exit(fs.existsSync('dist/main.js') && !fs.existsSync('src') ? 0 : 1)"
   check "$app ships no devDependencies (pino-pretty, typescript, @nestjs/cli)" node_in "$app" \
@@ -70,9 +71,9 @@ for app in portal-api admin-api; do
 done
 check "database ships dist/migrate.js and the migrations" node_in database \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('migrations/meta/_journal.json') ? 0 : 1)"
-check "no .env files in the Node images" bash -c "! for i in core-api portal-api admin-api database; do \
+check "no .env files in the Node images" bash -c "! for i in core-api portal-api admin-api gateway-api database; do \
   $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" find / -xdev -name '.env*' -not -name '.env.example'; done | grep -q ."
-check "no package manager in the final images" bash -c "for i in core-api portal-api admin-api database portal-web admin-web edge; do \
+check "no package manager in the final images" bash -c "for i in core-api portal-api admin-api gateway-api database portal-web admin-web edge; do \
   ! $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" sh -c 'command -v apk || command -v npm || command -v pnpm' || exit 1; done"
 
 echo "Waiting for compose postgis"
@@ -211,6 +212,28 @@ check "a portal route is 404 on admin-api (R4)" fetch_in "$PREFIX-admin" /api/v1
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-admin 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
+echo "gateway-api"
+"$ENGINE" run -d --name "$PREFIX-gateway" --read-only "${OCP[@]}" \
+  -e "CORE_API_URL=http://$PREFIX-core:3000" -e TRUST_PROXY=true \
+  "$(image gateway-api)" >/dev/null
+# fetch_as <container> <method> <path> <Authorization or ''> <expected status>
+fetch_as() { "$ENGINE" exec "$1" node -e "const a = '$4'; fetch('http://localhost:3000$3', { method: '$2', \
+  headers: a ? { authorization: a } : {} }).then((r) => process.exit(r.status === $5 ? 0 : 1), () => process.exit(1))"; }
+deadline=$((SECONDS + 60))
+until fetch_in "$PREFIX-gateway" /healthz/live 200 >/dev/null 2>&1 || ((SECONDS > deadline)); do sleep 1; done
+check "/healthz/live is 200 under an arbitrary UID with a read-only root" fetch_in "$PREFIX-gateway" /healthz/live 200
+check "/healthz/ready is 200 (no database; core-api not checked)" fetch_in "$PREFIX-gateway" /healthz/ready 200
+check "a gateway call without a token is 401 (KTD12)" fetch_in "$PREFIX-gateway" /api/v1/gateway/me 401
+check "a POST is 405 (R19, AE5)" fetch_as "$PREFIX-gateway" POST /api/v1/gateway/me 'Bearer smoke' 405
+check "a portal route is 404 on gateway-api (R4)" fetch_as "$PREFIX-gateway" GET /api/v1/portal/anything 'Bearer smoke' 404
+# A Bearer token that is not a JWT reaches core-api, which refuses it with 401 before fetching any keys.
+check "a Bearer call is forwarded to core-api, whose 401 is relayed" \
+  fetch_as "$PREFIX-gateway" GET /api/v1/gateway/me 'Bearer not-a-jwt' 401
+check "core-api logged the forwarded gateway call" bash -c \
+  "$ENGINE logs $PREFIX-core 2>&1 | grep -q '\"url\":\"/api/v1/gateway/me\"'"
+check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
+  "$ENGINE logs $PREFIX-gateway 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
+
 echo "portal-web, admin-web and edge"
 "$ENGINE" run -d --name "$PREFIX-web" "${OCP[@]}" "$(image portal-web)" >/dev/null
 "$ENGINE" run -d --name "$PREFIX-admin-web" "${OCP[@]}" "$(image admin-web)" >/dev/null
@@ -218,6 +241,7 @@ echo "portal-web, admin-web and edge"
   -e "PORTAL_API_URL=http://$PREFIX-api:3000" -e "PORTAL_WEB_URL=http://$PREFIX-web:8080" \
   -e ADMIN_HOST=admin.smoke.test -e "ADMIN_API_URL=http://$PREFIX-admin:3000" \
   -e "ADMIN_WEB_URL=http://$PREFIX-admin-web:8080" \
+  -e GATEWAY_HOST=gateway.smoke.test -e "GATEWAY_API_URL=http://$PREFIX-gateway:3000" \
   "$(image edge)" >/dev/null
 EDGE="http://$("$ENGINE" port "$PREFIX-edge" 3000 | head -n 1)"
 deadline=$((SECONDS + 30))
@@ -264,6 +288,10 @@ check "the admin host's client routes fall back to admin-web's SPA" \
   test "$(status -H 'Host: admin.smoke.test' "$EDGE/service-clients")" = 200
 check "the admin host's production CSP has no unsafe-inline styles" bash -c \
   "grep -i '^content-security-policy:' '$TMP/admin.headers' | grep -o 'style-src [^;]*' | grep -vq unsafe-inline"
+check "the gateway host's / is 404 (gateway-api serves /api only)" \
+  test "$(status -H 'Host: gateway.smoke.test' "$EDGE/")" = 404
+check "the gateway host's /api/v1/gateway/me without a token is 401 from gateway-api" \
+  test "$(status -H 'Host: gateway.smoke.test' "$EDGE/api/v1/gateway/me")" = 401
 check "/.env is blocked by the WAF" test "$(status "$EDGE/.env")" = 403
 
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null || true

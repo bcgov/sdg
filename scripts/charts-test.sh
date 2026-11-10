@@ -10,7 +10,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../charts"
-LEAF_CHARTS=(portal-web portal-api admin-web admin-api core-api edge postgres)
+LEAF_CHARTS=(portal-web portal-api admin-web admin-api gateway-api core-api edge postgres)
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.31.0}"
 
@@ -121,6 +121,8 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" "name: ${release}-postgres-pguser-admin" "connects admin-api as the admin login"
   expect_rendered "$env" "$manifests" "agent-inject-secret-admin-api.env: \"?example-(non)?prod/admin-api\"?$" "reads admin-api's secrets from <role>/admin-api"
   expect_rendered "$env" "$manifests" "value: \"?http://${release}-admin-api:3000\"?$" "sends the admin host's /api to admin-api"
+  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/gateway-api:0123abc" "deploys gateway-api"
+  expect_rendered "$env" "$manifests" "value: \"?http://${release}-gateway-api:3000\"?$" "sends the gateway host's /api to gateway-api"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
   expect_rendered "$env" "$manifests" "host: \"?${release}-admin\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-admin.<apps domain>"
   expect_rendered "$env" "$manifests" "host: \"?${release}-gateway\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-gateway.<apps domain>"

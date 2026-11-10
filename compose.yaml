@@ -1,6 +1,6 @@
 # Local development stack for the portal (`podman compose up -d` or `docker compose up -d`).
-# Caddy fronts everything at https://sdg.localhost (and https://admin.sdg.localhost); portal-api, admin-api, core-api,
-# portal-web and admin-web publish no host ports.
+# Caddy fronts everything at https://sdg.localhost (and https://admin.sdg.localhost, https://gateway.sdg.localhost);
+# portal-api, admin-api, gateway-api, core-api, portal-web and admin-web publish no host ports.
 # Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets come
 # from apps/portal-api/.env and apps/admin-api/.env, and core-api's Keycloak issuer and client ids from
 # apps/core-api/.env (all gitignored). apps/admin-api/.env is optional: without the admin client, admin-api doesn't
@@ -24,6 +24,7 @@ x-workspace: &workspace
     - nm-root:/app/node_modules
     - nm-portal-api:/app/apps/portal-api/node_modules
     - nm-admin-api:/app/apps/admin-api/node_modules
+    - nm-gateway-api:/app/apps/gateway-api/node_modules
     - nm-core-api:/app/apps/core-api/node_modules
     - nm-portal-web:/app/apps/portal-web/node_modules
     - nm-admin-web:/app/apps/admin-web/node_modules
@@ -233,7 +234,35 @@ services:
       retries: 5
       start_period: 300s
 
-  # No host ports and no Caddy route: only portal-api and admin-api call it.
+  # No host ports: reachable only through Caddy at https://gateway.sdg.localhost/api. It needs no .env: it holds no
+  # secrets, and CORE_API_URL is set here. It waits for migrate-admin, the last build of the packages the services
+  # share, so no two turbo runs build them at once.
+  gateway-api:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      PORT: '3000'
+      TRUST_PROXY: 'true'
+      CORE_API_URL: http://core-api:3000
+    command: ['pnpm', 'turbo', 'run', 'dev', '--filter=gateway-api', '--ui=stream', '--env-mode=loose']
+    depends_on:
+      migrate-admin:
+        condition: service_healthy
+      core-api:
+        condition: service_healthy
+    healthcheck:
+      # Liveness; readiness checks nothing more (core-api being down is a 503 per request).
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # No host ports and no Caddy route: only portal-api, admin-api and gateway-api call it.
   # Overrides apps/core-api/.env's localhost DATABASE_URL (process env wins); Keycloak settings stay in that file.
   core-api:
     <<: *workspace
@@ -325,6 +354,8 @@ services:
       # listens, or when it can't start without apps/admin-api/.env, that host answers 502.
       ADMIN_API_URL: http://admin-api:3000
       ADMIN_WEB_URL: http://admin-web:5174
+      # The gateway host's /api (Caddyfile.dev's gateway.sdg.localhost); 502 until gateway-api listens.
+      GATEWAY_API_URL: http://gateway-api:3000
     ports:
       - '443:8443'
     volumes:
@@ -351,6 +382,7 @@ volumes:
   nm-root:
   nm-portal-api:
   nm-admin-api:
+  nm-gateway-api:
   nm-core-api:
   nm-portal-web:
   nm-admin-web:

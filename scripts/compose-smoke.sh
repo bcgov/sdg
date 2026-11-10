@@ -13,6 +13,7 @@ COMPOSE="${COMPOSE:-$ENGINE compose}"
 PROJECT=portal
 SITE=https://sdg.localhost
 ADMIN_SITE=https://admin.sdg.localhost
+GATEWAY_SITE=https://gateway.sdg.localhost
 WAIT_SECONDS="${WAIT_SECONDS:-420}"
 
 UP=true
@@ -89,6 +90,7 @@ MIGRATE="$(container migrate)"
 MIGRATE_PORTAL="$(container migrate-portal)"
 MIGRATE_ADMIN="$(container migrate-admin)"
 ADMIN_API="$(container admin-api)"
+GATEWAY_API="$(container gateway-api)"
 POSTGIS="$(container postgis)"
 
 # Verify TLS against Caddy's own local root, not with -k.
@@ -151,6 +153,18 @@ if [ -n "$ADMIN_API" ] && [ "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "
 else
   echo "  - admin-api is not healthy (no apps/admin-api/.env?): skipping its API checks"
 fi
+
+echo "Gateway host"
+# gateway-api needs no .env, but starts after the admin build; wait for it rather than for a web app.
+until [ "$(status "$GATEWAY_SITE/api/v1/gateway/me")" = 401 ] || ((SECONDS > deadline)); do sleep 5; done
+check "GET / on the gateway host is 404 (gateway-api serves /api only)" test "$(status "$GATEWAY_SITE/")" = 404
+check "GET /api/v1/gateway/me without a token is 401 from gateway-api" \
+  test "$(status "$GATEWAY_SITE/api/v1/gateway/me")" = 401
+check "POST /api/v1/gateway/me is 405 from gateway-api (R19)" \
+  test "$(status -X POST -H 'Authorization: Bearer smoke' "$GATEWAY_SITE/api/v1/gateway/me")" = 405
+check "GET /api/v1/portal/… is 404 on the gateway host (R4)" \
+  test "$(status -H 'Authorization: Bearer smoke' "$GATEWAY_SITE/api/v1/portal/anything")" = 404
+check "gateway-api publishes no host port" test -z "$("$ENGINE" port "$GATEWAY_API" 2>/dev/null)"
 
 echo "Telemetry (off without compose.observability.yaml)"
 check "GET /telemetry.json reports telemetry off" test "$("${CURL[@]}" "$SITE/telemetry.json")" = '{"enabled":false}'

@@ -11,6 +11,9 @@ dependencies:
 - name: admin-api
   repository: file://../admin-api
   version: 0.1.0
+- name: gateway-api
+  repository: file://../gateway-api
+  version: 0.1.0
 - name: core-api
   repository: file://../core-api
   version: 0.1.0
@@ -20,5 +23,5 @@ dependencies:
 - name: postgres
   repository: file://../postgres
   version: 0.1.0
-digest: sha256:0786a2f9afe7784d66e92041314ccb5a52ee919b33d196c11b327453449edd64
-generated: "2026-11-10T14:49:56.481239-07:00"
+digest: sha256:c64bc2c209a943f38fe3dcf3ee104e711cfbb5049359bd4e660ed0195b77741f
+generated: "2026-11-10T15:07:10.590267-07:00"

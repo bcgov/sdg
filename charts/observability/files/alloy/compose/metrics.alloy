@@ -3,6 +3,7 @@ prometheus.scrape "apps" {
   targets = [
     {"__address__" = "portal-api:3000", "app" = "portal-api", "environment" = "local"},
     {"__address__" = "admin-api:3000", "app" = "admin-api", "environment" = "local"},
+    {"__address__" = "gateway-api:3000", "app" = "gateway-api", "environment" = "local"},
     {"__address__" = "core-api:3000", "app" = "core-api", "environment" = "local"},
     {"__address__" = "caddy:3003", "app" = "edge", "environment" = "local"},
   ]

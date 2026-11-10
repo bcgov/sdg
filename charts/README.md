@@ -9,6 +9,7 @@ Deploy the portal to Kubernetes/OpenShift. Deploy workflows: DEVELOPER.md, Workf
 | `portal-api`    | The resident BFF on bff-core (:3000), forwarding to core-api; its sessions migration as initContainer     |
 | `admin-web`     | The administrators' SPA on Caddy (:8080): everything on the admin host but `/api`                         |
 | `admin-api`     | The administrators' BFF on bff-core (:3000, the admin host's `/api`); its sessions migration likewise     |
+| `gateway-api`   | The service accounts' forwarder on server-core (:3000, the gateway host's `/api`); no database or secret  |
 | `core-api`      | The NestJS service owning the business rules (:3000; only the forwarders reach it), with the migrator     |
 | `edge`          | Caddy + Coraza WAF (:3000; metrics :3003 on `<release>-edge-metrics`) and the Ingress                     |
 | `postgres`      | A Crunchy PGO `PostgresCluster` (PostgreSQL 17, PostGIS 3.5)                                              |
@@ -21,18 +22,19 @@ Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster
 
 - The Crunchy Postgres operator (PGO v5) watching the namespace.
 - A Vault KV v2 secret for each BFF (`<role>/portal-api`, `<role>/admin-api`) holding `SESSION_SECRET` (≥ 32 chars, e.g. `openssl rand -base64 48`) and its client's `KEYCLOAK_CLIENT_SECRET`, a Vault role that can read them, and the service account that role trusts (BC Gov: `<plate>-vault`). Values must not contain `'` or newlines.
-- Images `portal-web`, `portal-api`, `admin-web`, `admin-api`, `core-api`, `database` and `edge` pushed as `<registry>/<name>:<tag>`.
+- Images `portal-web`, `portal-api`, `admin-web`, `admin-api`, `gateway-api`, `core-api`, `database` and `edge` pushed as `<registry>/<name>:<tag>`.
 
 ## Install
 
 ```sh
-helm dependency build charts/portal-web   # likewise portal-api, admin-web, admin-api, core-api, edge, postgres, then:
+helm dependency build charts/portal-web   # likewise portal-api, admin-web, admin-api, gateway-api, core-api, edge, postgres, then:
 helm dependency build charts/sdg
 helm upgrade --install sdg-12 charts/sdg -n abc123-dev \
   --set global.image.registry=ghcr.io/<owner>/sdg \
   --set global.image.tag=12 \
   --set global.host=sdg-12.apps.silver.devops.gov.bc.ca \
   --set global.adminHost=sdg-12-admin.apps.silver.devops.gov.bc.ca \
+  --set global.gatewayHost=sdg-12-gateway.apps.silver.devops.gov.bc.ca \
   --set portal-api.keycloak.issuerUrl=https://<keycloak>/realms/<realm> \
   --set portal-api.keycloak.clientId=<client> \
   --set portal-api.vault.role=abc123-nonprod \
@@ -48,11 +50,11 @@ helm upgrade --install sdg-12 charts/sdg -n abc123-dev \
   --set core-api.keycloak.adminClientId=<admin client>
 ```
 
-core-api needs no secret: it only verifies the access tokens the forwarders pass on. `core-api.keycloak.adminClientId` names admin-api's client; left empty, no admin-client token is accepted. The umbrella points the edge's `upstreams.adminApi` at `<release>-admin-api` and `upstreams.adminWeb` at `<release>-admin-web`, so the admin host's `/api` reaches admin-api and everything else admin-web.
+core-api needs no secret: it only verifies the access tokens the forwarders pass on. `core-api.keycloak.adminClientId` names admin-api's client; left empty, no admin-client token is accepted. The umbrella points the edge's `upstreams.adminApi` at `<release>-admin-api` and `upstreams.adminWeb` at `<release>-admin-web`, so the admin host's `/api` reaches admin-api and everything else admin-web, and `upstreams.gatewayApi` at `<release>-gateway-api`, so the gateway host's `/api` reaches gateway-api (everything else there is 404). gateway-api needs no values: it forwards GET `/api/v<N>/gateway/…` to `gateway-api.coreApiUrl` (default `http://<release>-core-api:3000`) with the caller's Bearer token and holds no secret; core-api's NetworkPolicy admits it (`core-api.networkPolicy.clients`), and its own admits only the edge.
 
 Without Vault, create a Secret with `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` and pass `--set portal-api.vault.enabled=false --set portal-api.existingSecret=<name>` (likewise for `admin-api`).
 
-Environment sizes live in `charts/sdg/values-{pr,test,prod}.yaml`. PR environments are throwaway: `postgres.backups.enabled: false` (no pgBackRest), smaller requests and `strategy: { type: Recreate }` on portal-web, portal-api, admin-web, admin-api, core-api and edge, so a PR takes about 120m CPU, 660Mi memory and 256Mi of PVC. New service charts default to PR-level requests (core-api and admin-api 20m / 128Mi, admin-web 10m / 32Mi), which TEST and PROD inherit. `postgres.parameters` go to Patroni; Postgres keeps about `max(max_wal_size, wal_keep_size)` of WAL, so keep both at about a quarter of `postgres.instances.storage` or less (`max_wal_size` 256MB default, 96MB TEST, 64MB PR; `wal_keep_size` Patroni's 128MB, 32MB TEST, 16MB PR).
+Environment sizes live in `charts/sdg/values-{pr,test,prod}.yaml`. PR environments are throwaway: `postgres.backups.enabled: false` (no pgBackRest), smaller requests and `strategy: { type: Recreate }` on portal-web, portal-api, admin-web, admin-api, gateway-api, core-api and edge, so a PR takes about 140m CPU, 790Mi memory and 256Mi of PVC. New service charts default to PR-level requests (core-api, admin-api and gateway-api 20m / 128Mi, admin-web 10m / 32Mi), which TEST and PROD inherit. `postgres.parameters` go to Patroni; Postgres keeps about `max(max_wal_size, wal_keep_size)` of WAL, so keep both at about a quarter of `postgres.instances.storage` or less (`max_wal_size` 256MB default, 96MB TEST, 64MB PR; `wal_keep_size` Patroni's 128MB, 32MB TEST, 16MB PR).
 
 On first install portal-api, admin-api and core-api pods wait (`CreateContainerConfigError`) until PGO has created the user Secrets; their migrate initContainers then retry until the database accepts connections.
 

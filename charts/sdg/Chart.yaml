@@ -1,6 +1,6 @@
 apiVersion: v2
 name: sdg
-description: 'Umbrella chart installing portal-web, portal-api, admin-web, admin-api, core-api, edge and postgres as one release.'
+description: 'Umbrella chart installing portal-web, portal-api, admin-web, admin-api, gateway-api, core-api, edge and postgres as one release.'
 type: application
 version: 0.1.0
 appVersion: '0.1.0'
@@ -21,6 +21,10 @@ dependencies:
     version: 0.1.0
     repository: file://../admin-api
     condition: admin-api.enabled
+  - name: gateway-api
+    version: 0.1.0
+    repository: file://../gateway-api
+    condition: gateway-api.enabled
   - name: core-api
     version: 0.1.0
     repository: file://../core-api

@@ -9,7 +9,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Pull Request-based pipeline
 - Sandboxed development environments: a full, throwaway stack per pull request
 - Gated/controlled production deployments (optional)
-- Container publishing (ghcr.io) of seven images: `portal-web`, `portal-api`, `admin-web`, `admin-api`, `core-api`, `database` (the migrator) and `edge`
+- Container publishing (ghcr.io) of eight images: `portal-web`, `portal-api`, `admin-web`, `admin-api`, `gateway-api`, `core-api`, `database` (the migrator) and `edge`
 - Helm charts (`charts/`) with an `sdg` umbrella chart, deployed with Helm from GitHub Actions
 - Secrets from Vault, injected by the Vault Agent sidecar; database and cache credentials generated in-cluster
 - Security, vulnerability, infrastructure, and container scan tools
@@ -29,9 +29,10 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - **Sample application stack** (pnpm + Turborepo monorepo):
   - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; each service has its own login and schema (`core`, `portal`, `admin`); portal-api keeps the express-session store (encrypted at rest; pg_cron deletes expired sessions every 15 minutes)
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
-  - Edge: Caddy with Coraza WAF, routing by host: the portal host sends `/api*` to portal-api and everything else to portal-web; the admin host (`<release>-admin`) sends `/api*` to admin-api and everything else to admin-web; a gateway host (`<release>-gateway`) is reserved for the service-account API (not deployed yet, so it answers 503)
+  - Edge: Caddy with Coraza WAF, routing by host: the portal host sends `/api*` to portal-api and everything else to portal-web; the admin host (`<release>-admin`) sends `/api*` to admin-api and everything else to admin-web; the gateway host (`<release>-gateway`) sends `/api*` to gateway-api and answers everything else with 404
   - Backend: `portal-api`, a thin NestJS backend-for-frontend on `@repo/bff-core` (Keycloak OIDC sign-in, sessions) that forwards `/api` calls to `core-api`, which owns the principals and the `core` schema
   - Administration: `admin-web` (React, the service-account registry) and `admin-api`, a second backend-for-frontend on `@repo/bff-core` that signs administrators in with IDIR (cookie `admin.sid`, `admin` schema) and forwards to `core-api`; a sign-in without the `admin` client role is ended at Keycloak and lands on `/not-authorized`
+  - Service accounts: `gateway-api`, a NestJS forwarder on `@repo/server-core` only (no login, session or database). It forwards `GET /api/v1/gateway/…` with the caller's client-credentials Bearer token to core-api, which verifies it and checks the client against the registry (403 when it is not registered and enabled). gateway-api answers 401 itself to a missing or non-Bearer `Authorization`, 405 to any method other than GET, and 404 outside the gateway routes, without calling core-api
   - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `bff-core`, `server-core`, `database`
 
 # Setup
@@ -65,7 +66,7 @@ Setup takes an hour or less, plus waiting for the platform team to issue the Key
    ```
 8. **Vault secrets** (by hand): write `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` to Vault at `<plate>-nonprod/portal-api` and `<plate>-nonprod/admin-api` (pull requests and TEST), and at `<plate>-prod/portal-api` and `<plate>-prod/admin-api` (PROD). The two apps use different clients, so their secrets differ. See [Vault](#vault).
 9. **Keycloak clients** (by hand): add `https://<release>.apps.<cluster>.devops.gov.bc.ca/api/auth/callback` and `https://<release>.apps.<cluster>.devops.gov.bc.ca/` as valid redirect URIs. Wildcards are allowed on the pull request and TEST clients, so `https://<repo>-*.apps.<cluster>.devops.gov.bc.ca/*` covers every pull request. They are not allowed in PROD: list the exact `https://<repo>-prod.apps.<cluster>.devops.gov.bc.ca` URIs (and the vanity URL's, if you set [`ROUTE_HOST`](#optional-values)).
-   Request a second client for administrators: IDIR, confidential, with an `admin` client role (core-api refuses an administrator token without it). Its redirect URIs are `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca/api/auth/callback`, and its post-logout redirect URIs are `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca/` and `.../not-authorized`. DEV allows a wildcard for every pull request's admin host (`https://<repo>-*-admin.apps.<cluster>.devops.gov.bc.ca/*`); TEST uses its exact `<repo>-test-admin` host or a wildcard if the client allows it; PROD lists the exact `<repo>-prod-admin` URIs. Set `KEYCLOAK_ADMIN_CLIENT_ID` (repository, `test` and `prod` scopes) to that client's id; it also tells core-api which client's tokens are administrators'. The gateway host needs nothing yet.
+   Request a second client for administrators: IDIR, confidential, with an `admin` client role (core-api refuses an administrator token without it). Its redirect URIs are `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca/api/auth/callback`, and its post-logout redirect URIs are `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca/` and `.../not-authorized`. DEV allows a wildcard for every pull request's admin host (`https://<repo>-*-admin.apps.<cluster>.devops.gov.bc.ca/*`); TEST uses its exact `<repo>-test-admin` host or a wildcard if the client allows it; PROD lists the exact `<repo>-prod-admin` URIs. Set `KEYCLOAK_ADMIN_CLIENT_ID` (repository, `test` and `prod` scopes) to that client's id; it also tells core-api which client's tokens are administrators'. The gateway host needs no client of its own: each service account is a client-credentials client in the same realm, registered by an administrator in admin-web.
 10. **First pull request**: open one to run the pipeline, then make the packages public (see [Packages](#packages)).
 11. **Optional** (by hand): [SonarCloud](#code-quality-with-sonarcloud), [Renovate](#renovate), Sysdig, a vanity URL with TLS, PROD deployment rules and team members, all described below.
 
@@ -110,7 +111,7 @@ Configuration lives in three places:
 | none (opt)  | `secrets.SONAR_TOKEN`                                 | See [SonarCloud](#code-quality-with-sonarcloud)                                        |
 | none (opt)  | `secrets.SYSDIG_API_TOKEN`                            | PROD alert sync                                                                        |
 
-Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-12`, `sdg-test`, `sdg-prod`) at `https://<release>.apps.<cluster>.devops.gov.bc.ca`, with the admin app at `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca` and a reserved `<release>-gateway` host. [`scripts/deploy-values.sh`](./scripts/deploy-values.sh) derives the host, images and Vault settings (role `<plate>-nonprod`/`<plate>-prod`, service account `<plate>-vault`, auth path `auth/k8s-<cluster>`) from these values; sizes per environment live in `charts/sdg/values-{pr,test,prod}.yaml`. The Keycloak issuer URL and client ids reach portal-api, admin-api and core-api through ConfigMaps; they are not secrets.
+Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-12`, `sdg-test`, `sdg-prod`) at `https://<release>.apps.<cluster>.devops.gov.bc.ca`, with the admin app at `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca` and the service-account gateway at `https://<release>-gateway.apps.<cluster>.devops.gov.bc.ca`. [`scripts/deploy-values.sh`](./scripts/deploy-values.sh) derives the host, images and Vault settings (role `<plate>-nonprod`/`<plate>-prod`, service account `<plate>-vault`, auth path `auth/k8s-<cluster>`) from these values; sizes per environment live in `charts/sdg/values-{pr,test,prod}.yaml`. The Keycloak issuer URL and client ids reach portal-api, admin-api and core-api through ConfigMaps; they are not secrets.
 
 **Copied the template before `OC_NAMESPACE` became a variable?** Move it: `gh variable set OC_NAMESPACE --body <plate>-dev`, and the same with `--env test` / `--env prod` (or run `scripts/setup-environments.sh --apply`). The old secret is unused and can be deleted. `DB_PASSWORD` is no longer used either (see [OpenShift](#openshift)).
 
@@ -361,7 +362,7 @@ If `@testing-library/user-event` is flagged but exported from `test-utils.tsx`:
 
 ### Packages
 
-Packages are available from your repository (link on right). New packages are private until a person makes them public, so do it after the first pull request's build. All seven (`portal-web`, `portal-api`, `admin-web`, `admin-api`, `core-api`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
+Packages are available from your repository (link on right). New packages are private until a person makes them public, so do it after the first pull request's build. All eight (`portal-web`, `portal-api`, `admin-web`, `admin-api`, `gateway-api`, `core-api`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
 
 E.g. `https://github.com/<owner>/<repo>/packages`
 
@@ -380,7 +381,7 @@ Don't forget to add your team members!
 This repository is architected and hardened out-of-the-box to align with Levels 1 and 2 of the **OWASP Application Security Verification Standard (ASVS) v4.0.3**. A detailed security mapping matrix is documented in [SECURITY.md](./SECURITY.md#owasp-asvs-alignment), detailing our implementation of:
 
 - **Active WAF Defense:** Inline Coraza WAF running inside the Caddy reverse proxy (the edge).
-- **Tiered Isolation:** NetworkPolicies enforcing network boundaries between the edge, portal-web, portal-api, core-api and database tiers.
+- **Tiered Isolation:** NetworkPolicies enforcing network boundaries between the edge, the web apps, the forwarders (portal-api, admin-api, gateway-api), core-api and database tiers.
 - **Platform/Container Hardening:** Read-only root filesystems, non-root execution, privilege escalation blocks, default seccomp profiles, and drop capabilities.
 - **Secret Management:** Application secrets from Vault; database and cache credentials generated in-cluster and never stored in GitHub.
 - **Build-Time & Dynamic Testing:** Automated static analysis (Trivy, CodeQL), dependency auditing (Renovate, Knip), and weekly dynamic vulnerability scans (**OWASP ZAP**).
@@ -418,19 +419,20 @@ Run `pnpm test:charts` after changing a chart.
 
 `compose.yaml` runs the whole portal with its dev commands behind Caddy and the Coraza WAF at **https://sdg.localhost**:
 
-| Service          | Runs                                                                                     | Reachable from the host            |
-| ---------------- | ---------------------------------------------------------------------------------------- | ---------------------------------- |
-| `caddy`          | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443) |
-| `portal-web`     | `vite` with HMR                                                                          | only through Caddy                 |
-| `portal-api`     | `nest start --watch`                                                                     | only through Caddy (`/api`)        |
-| `core-api`       | `nest start --watch`                                                                     | only through portal-api/admin-api  |
-| `admin-web`      | `vite` with HMR                                                                          | `https://admin.sdg.localhost`      |
-| `admin-api`      | `nest start --watch`                                                                     | only through Caddy (admin `/api`)  |
-| `migrate-admin`  | admin-api's sessions migration; admin-api starts only after it succeeds                  | —                                  |
-| `migrate`        | `drizzle-kit migrate` (core schema); core-api starts only after it succeeds              | —                                  |
-| `migrate-portal` | portal-api's sessions migration; portal-api starts only after it succeeds                | —                                  |
-| `deps`           | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
-| `postgis`        | database                                                                                 | `localhost:5432`                   |
+| Service          | Runs                                                                                     | Reachable from the host             |
+| ---------------- | ---------------------------------------------------------------------------------------- | ----------------------------------- |
+| `caddy`          | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443)  |
+| `portal-web`     | `vite` with HMR                                                                          | only through Caddy                  |
+| `portal-api`     | `nest start --watch`                                                                     | only through Caddy (`/api`)         |
+| `core-api`       | `nest start --watch`                                                                     | only through the forwarders         |
+| `admin-web`      | `vite` with HMR                                                                          | `https://admin.sdg.localhost`       |
+| `admin-api`      | `nest start --watch`                                                                     | only through Caddy (admin `/api`)   |
+| `gateway-api`    | `nest start --watch` (no `.env` needed)                                                  | `https://gateway.sdg.localhost/api` |
+| `migrate-admin`  | admin-api's sessions migration; admin-api starts only after it succeeds                  | —                                   |
+| `migrate`        | `drizzle-kit migrate` (core schema); core-api starts only after it succeeds              | —                                   |
+| `migrate-portal` | portal-api's sessions migration; portal-api starts only after it succeeds                | —                                   |
+| `deps`           | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                   |
+| `postgis`        | database                                                                                 | `localhost:5432`                    |
 
 ## First run
 
@@ -472,15 +474,16 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 
 Multi-stage Dockerfiles for OpenShift. The app images build from the repository root:
 
-| Image        | Build                                            | Runs                                                                                                                 |
-| ------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `portal-web` | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                                                            |
-| `portal-api` | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                   |
-| `admin-web`  | `podman build -f apps/admin-web/Dockerfile .`    | Caddy serving the built admin SPA on `:8080` (cluster-internal)                                                      |
-| `admin-api`  | `podman build -f apps/admin-api/Dockerfile .`    | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                   |
-| `core-api`   | `podman build -f apps/core-api/Dockerfile .`     | `node dist/main.js` on `:3000` (internal; the BFFs call it)                                                          |
-| `database`   | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as core-api's initContainer (needs `DATABASE_URL`, core login)                                |
-| edge         | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL`; admin and gateway hosts likewise |
+| Image         | Build                                            | Runs                                                                                                                 |
+| ------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `portal-web`  | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                                                            |
+| `portal-api`  | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                   |
+| `admin-web`   | `podman build -f apps/admin-web/Dockerfile .`    | Caddy serving the built admin SPA on `:8080` (cluster-internal)                                                      |
+| `admin-api`   | `podman build -f apps/admin-api/Dockerfile .`    | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                   |
+| `gateway-api` | `podman build -f apps/gateway-api/Dockerfile .`  | `node dist/main.js` on `:3000`: GET `/api/v1/gateway/*` forwarded to core-api; no database or secrets                |
+| `core-api`    | `podman build -f apps/core-api/Dockerfile .`     | `node dist/main.js` on `:3000` (internal; the forwarders call it)                                                    |
+| `database`    | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as core-api's initContainer (needs `DATABASE_URL`, core login)                                |
+| edge          | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL`; admin and gateway hosts likewise |
 
 All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, health, SPA routing and caching, edge headers, WAF).
 
@@ -571,7 +574,7 @@ Runs on pull request submission.
 - Build action pushes to GitHub Container Registry (ghcr.io)
 - Build triggers select new builds vs reusing builds
 - Deploy only when changes are made
-- Builds `portal-web`, `portal-api`, `admin-web`, `admin-api`, `core-api`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
+- Builds `portal-web`, `portal-api`, `admin-web`, `admin-api`, `gateway-api`, `core-api`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
 - Smoke checks through the edge and Playwright E2E (chromium) when changes are made
 - Posts sticky comment with deployment links when deployments occur
 - Other checks and updates as required
@@ -683,7 +686,7 @@ To safely automate dependency updates, runtime health checks are mandatory to ca
 
 This repository provides out-of-the-box support for self-healing and verification through container probes:
 
-- **portal-api and core-api (NestJS)**: Implement `/healthz/live` (process up; startup and liveness probes) and `/healthz/ready` (readiness probe) using NestJS Terminus. Readiness checks only the service's own database (portal-api: its sessions, as the `portal` login) and returns `503 Service Unavailable` when it is down. Keycloak and core-api outages surface per request as `503` and at sign-in as `authError=unavailable` instead, so they never pull pods from their Service. Both sit outside `/api`, so the edge doesn't expose them.
+- **portal-api and core-api (NestJS)**: Implement `/healthz/live` (process up; startup and liveness probes) and `/healthz/ready` (readiness probe) using NestJS Terminus. Readiness checks only the service's own database (portal-api: its sessions, as the `portal` login) and returns `503 Service Unavailable` when it is down. Keycloak and core-api outages surface per request as `503` and at sign-in as `authError=unavailable` instead, so they never pull pods from their Service. Both sit outside `/api`, so the edge doesn't expose them. gateway-api has no database, so its readiness equals liveness: a core-api outage is a `503` per request.
 - **portal-web (Caddy)**: readiness/liveness probes check `/` to confirm the web server is responsive and serving assets.
 - **edge (Caddy + Coraza)**: readiness/liveness probes are TCP checks, so the edge's health doesn't depend on its upstreams.
 - **Smoke checks**: after every deploy, `reusable-tests.yml` requests `/` (portal-web, expects 200) and `/api/auth/me` (portal-api through the edge, signed out, so no session lookup; expects 401) before running Playwright E2E.
