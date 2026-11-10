@@ -64,7 +64,7 @@ Setup takes an hour or less, plus waiting for the platform team to issue the Key
    ```bash
    scripts/setup-github.sh                              # preview, then add --apply
    ```
-8. **Vault secrets** (by hand): write `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` to Vault at `<plate>-nonprod/portal-api` and `<plate>-nonprod/admin-api` (pull requests and TEST), and at `<plate>-prod/portal-api` and `<plate>-prod/admin-api` (PROD). The two apps use different clients, so their secrets differ. See [Vault](#vault).
+8. **Vault secrets** (by hand): write `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` to Vault at `<plate>-nonprod/portal-api` and `<plate>-nonprod/admin-api` (pull requests and TEST), and at `<plate>-prod/portal-api` and `<plate>-prod/admin-api` (PROD). The two apps use different clients, so their secrets differ. DEV and TEST loginproxy issue different secrets for the same client, so give TEST its own paths (for example `<plate>-nonprod/test/portal-api` and `<plate>-nonprod/test/admin-api`) and set `VAULT_SECRET_PATH` and `ADMIN_VAULT_SECRET_PATH` on the `test` environment. See [Vault](#vault).
 9. **Keycloak clients** (by hand): add `https://<release>.apps.<cluster>.devops.gov.bc.ca/api/auth/callback` and `https://<release>.apps.<cluster>.devops.gov.bc.ca/` as valid redirect URIs. Wildcards are allowed on the pull request and TEST clients, so `https://<repo>-*.apps.<cluster>.devops.gov.bc.ca/*` covers every pull request. They are not allowed in PROD: list the exact `https://<repo>-prod.apps.<cluster>.devops.gov.bc.ca` URIs (and the vanity URL's, if you set [`ROUTE_HOST`](#optional-values)).
    Request a second client for administrators: IDIR, confidential, with an `admin` client role (core-api refuses an administrator token without it). Its redirect URIs are `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca/api/auth/callback`, and its post-logout redirect URIs are `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca/` and `.../not-authorized`. DEV allows a wildcard for every pull request's admin host (`https://<repo>-*-admin.apps.<cluster>.devops.gov.bc.ca/*`); TEST uses its exact `<repo>-test-admin` host or a wildcard if the client allows it; PROD lists the exact `<repo>-prod-admin` URIs. Set `KEYCLOAK_ADMIN_CLIENT_ID` (repository, `test` and `prod` scopes) to that client's id; it also tells core-api which client's tokens are administrators'. The gateway host needs no client of its own: each service account is a client-credentials client in the same realm, registered by an administrator in admin-web.
 10. **First pull request**: open one to run the pipeline, then make the packages public (see [Packages](#packages)).
@@ -88,28 +88,29 @@ Configuration lives in three places:
 
 ### GitHub
 
-| Environment | Name                                                  | Description                                                                            |
-| ----------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| none        | `vars.OC_SERVER`                                      | OpenShift API server, `https://api.<cluster>.devops.gov.bc.ca:6443` (repository-level) |
-| none        | `vars.OC_NAMESPACE`                                   | PR namespace, `<plate>-dev`                                                            |
-| none        | `secrets.OC_TOKEN`                                    | PR service token (from the `github-actions-token` Secret in `<plate>-dev`)             |
-| none        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PR portal-api Keycloak client                                                          |
-| none        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | PR admin (IDIR) Keycloak client: admin-api's, and the admin client core-api accepts    |
-| test        | `vars.OC_NAMESPACE`                                   | TEST namespace, `<plate>-test`                                                         |
-| test        | `secrets.OC_TOKEN`                                    | TEST service token (from `<plate>-test`)                                               |
-| test        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | TEST portal-api Keycloak client                                                        |
-| test        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | TEST admin Keycloak client                                                             |
-| prod        | `vars.OC_NAMESPACE`                                   | PROD namespace, `<plate>-prod`                                                         |
-| prod        | `secrets.OC_TOKEN`                                    | PROD service token (from `<plate>-prod`)                                               |
-| prod        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PROD portal-api Keycloak client                                                        |
-| prod        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | PROD admin Keycloak client                                                             |
-| any (opt)   | `vars.VAULT_SECRET_PATH`                              | Vault KV path; default `<plate>-nonprod/portal-api` (PROD: `<plate>-prod/portal-api`)  |
-| prod (opt)  | `vars.ROUTE_HOST`                                     | Vanity URL hostname (repository or environment)                                        |
-| prod (opt)  | `secrets.TLS_CERTIFICATE`                             | Leaf certificate PEM for vanity URL                                                    |
-| prod (opt)  | `secrets.TLS_PRIVATE_KEY`                             | Private key PEM for vanity URL                                                         |
-| prod (opt)  | `secrets.TLS_CA_CERTIFICATE`                          | Issuing CA PEM for vanity URL                                                          |
-| none (opt)  | `secrets.SONAR_TOKEN`                                 | See [SonarCloud](#code-quality-with-sonarcloud)                                        |
-| none (opt)  | `secrets.SYSDIG_API_TOKEN`                            | PROD alert sync                                                                        |
+| Environment | Name                                                  | Description                                                                                     |
+| ----------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| none        | `vars.OC_SERVER`                                      | OpenShift API server, `https://api.<cluster>.devops.gov.bc.ca:6443` (repository-level)          |
+| none        | `vars.OC_NAMESPACE`                                   | PR namespace, `<plate>-dev`                                                                     |
+| none        | `secrets.OC_TOKEN`                                    | PR service token (from the `github-actions-token` Secret in `<plate>-dev`)                      |
+| none        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PR portal-api Keycloak client                                                                   |
+| none        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | PR admin (IDIR) Keycloak client: admin-api's, and the admin client core-api accepts             |
+| test        | `vars.OC_NAMESPACE`                                   | TEST namespace, `<plate>-test`                                                                  |
+| test        | `secrets.OC_TOKEN`                                    | TEST service token (from `<plate>-test`)                                                        |
+| test        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | TEST portal-api Keycloak client                                                                 |
+| test        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | TEST admin Keycloak client                                                                      |
+| prod        | `vars.OC_NAMESPACE`                                   | PROD namespace, `<plate>-prod`                                                                  |
+| prod        | `secrets.OC_TOKEN`                                    | PROD service token (from `<plate>-prod`)                                                        |
+| prod        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PROD portal-api Keycloak client                                                                 |
+| prod        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | PROD admin Keycloak client                                                                      |
+| any (opt)   | `vars.VAULT_SECRET_PATH`                              | Vault KV path; default `<plate>-nonprod/portal-api` (PROD: `<plate>-prod/portal-api`)           |
+| any (opt)   | `vars.ADMIN_VAULT_SECRET_PATH`                        | admin-api's Vault KV path; default `<plate>-nonprod/admin-api` (PROD: `<plate>-prod/admin-api`) |
+| prod (opt)  | `vars.ROUTE_HOST`                                     | Vanity URL hostname (repository or environment)                                                 |
+| prod (opt)  | `secrets.TLS_CERTIFICATE`                             | Leaf certificate PEM for vanity URL                                                             |
+| prod (opt)  | `secrets.TLS_PRIVATE_KEY`                             | Private key PEM for vanity URL                                                                  |
+| prod (opt)  | `secrets.TLS_CA_CERTIFICATE`                          | Issuing CA PEM for vanity URL                                                                   |
+| none (opt)  | `secrets.SONAR_TOKEN`                                 | See [SonarCloud](#code-quality-with-sonarcloud)                                                 |
+| none (opt)  | `secrets.SYSDIG_API_TOKEN`                            | PROD alert sync                                                                                 |
 
 Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-12`, `sdg-test`, `sdg-prod`) at `https://<release>.apps.<cluster>.devops.gov.bc.ca`, with the admin app at `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca` and the service-account gateway at `https://<release>-gateway.apps.<cluster>.devops.gov.bc.ca`. [`scripts/deploy-values.sh`](./scripts/deploy-values.sh) derives the host, images and Vault settings (role `<plate>-nonprod`/`<plate>-prod`, service account `<plate>-vault`, auth path `auth/k8s-<cluster>`) from these values; sizes per environment live in `charts/sdg/values-{pr,test,prod}.yaml`. The Keycloak issuer URL and client ids reach portal-api, admin-api and core-api through ConfigMaps; they are not secrets.
 
@@ -129,7 +130,7 @@ On first install the core-api, portal-api and admin-api pods wait (`CreateContai
 
 ### Vault
 
-portal-api and admin-api each read two secrets from a Vault KV v2 secret. Deploys use the role `<plate>-nonprod` (pull requests and TEST) or `<plate>-prod` (PROD) with the `<plate>-vault` service account; portal-api's path defaults to `<role>/portal-api` and can be changed with `VAULT_SECRET_PATH`; admin-api's is always `<role>/admin-api`.
+portal-api and admin-api each read two secrets from a Vault KV v2 secret. Deploys use the role `<plate>-nonprod` (pull requests and TEST) or `<plate>-prod` (PROD) with the `<plate>-vault` service account; portal-api's path defaults to `<role>/portal-api` and admin-api's to `<role>/admin-api`; `VAULT_SECRET_PATH` and `ADMIN_VAULT_SECRET_PATH` change them. Pull requests and TEST share the `<plate>-nonprod` role, so TEST needs its own paths when its client secrets differ from DEV's.
 
 | Key                      | Description                                                                                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |

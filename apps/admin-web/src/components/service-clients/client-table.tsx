@@ -8,12 +8,14 @@ import styles from './registry.module.css';
 interface RowProps {
   client: ServiceClient;
   isBusy: boolean;
+  /** Another row's change is in flight: this row waits for it. */
+  isLocked: boolean;
   onToggle: (client: ServiceClient) => void;
   onRemove: (client: ServiceClient) => void;
 }
 
 /** Buttons are named with the client id, so each is distinguishable out of context (screen reader lists, voice). */
-function ClientRow({ client, isBusy, onToggle, onRemove }: RowProps) {
+function ClientRow({ client, isBusy, isLocked, onToggle, onRemove }: RowProps) {
   const toggle = useCallback(() => onToggle(client), [client, onToggle]);
   const remove = useCallback(() => onRemove(client), [client, onRemove]);
   const toggleLabel = client.enabled ? 'Disable' : 'Enable';
@@ -29,6 +31,7 @@ function ClientRow({ client, isBusy, onToggle, onRemove }: RowProps) {
             variant="secondary"
             aria-label={`${toggleLabel} ${client.clientId}`}
             isPending={isBusy}
+            isDisabled={isLocked}
             onPress={toggle}
           >
             {toggleLabel}
@@ -39,6 +42,7 @@ function ClientRow({ client, isBusy, onToggle, onRemove }: RowProps) {
             danger
             aria-label={`Remove ${client.clientId}`}
             isPending={isBusy}
+            isDisabled={isLocked}
             onPress={remove}
           >
             Remove
@@ -75,6 +79,7 @@ export function ClientTable({ clients, busyClientId, onToggle, onRemove }: Clien
               key={client.clientId}
               client={client}
               isBusy={busyClientId === client.clientId}
+              isLocked={busyClientId !== undefined && busyClientId !== client.clientId}
               onToggle={onToggle}
               onRemove={onRemove}
             />

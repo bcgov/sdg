@@ -9,7 +9,7 @@ FAILED=0
 
 # PR defaults; each case overrides what it tests
 base_env() {
-  export TARGET=12 TAG=0123abc REPOSITORY=Acme/sdg ENVIRONMENT='' VAULT_SECRET_PATH='' OBSERVABILITY=''
+  export TARGET=12 TAG=0123abc REPOSITORY=Acme/sdg ENVIRONMENT='' VAULT_SECRET_PATH='' ADMIN_VAULT_SECRET_PATH='' OBSERVABILITY=''
   export OC_NAMESPACE=d62e77-dev OC_SERVER=https://api.gold.devops.gov.bc.ca:6443
   export KEYCLOAK_ISSUER_URL=https://dev.loginproxy.gov.bc.ca/auth/realms/standard KEYCLOAK_CLIENT_ID=sdg-1234
   export KEYCLOAK_ADMIN_CLIENT_ID=sdg-admin-5678
@@ -90,6 +90,14 @@ expect "VAULT_SECRET_PATH leaves admin-api's path alone" "$(sed -n '/^admin-api:
   "    secretPath: \"d62e77-nonprod/admin-api\""
 
 base_env
+export ENVIRONMENT=test TARGET=test OC_NAMESPACE=d62e77-test ADMIN_VAULT_SECRET_PATH=d62e77-nonprod/test/admin-api
+values="$("$SCRIPT" values)"
+expect "ADMIN_VAULT_SECRET_PATH overrides admin-api's path" "$(sed -n '/^admin-api:/,/^[a-z]/p' <<< "$values")" \
+  "    secretPath: \"d62e77-nonprod/test/admin-api\""
+expect "ADMIN_VAULT_SECRET_PATH leaves portal-api's path alone" "$(sed -n '/^portal-api:/,/^[a-z]/p' <<< "$values")" \
+  "    secretPath: \"d62e77-nonprod/portal-api\""
+
+base_env
 unset TAG KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID KEYCLOAK_ADMIN_CLIENT_ID OC_NAMESPACE
 expect "outputs need no image, Keycloak or namespace settings" "$("$SCRIPT" outputs 2>&1)" "url=https://sdg-12.apps.gold.devops.gov.bc.ca"
 
@@ -145,6 +153,7 @@ rejects "namespace without a plate suffix" OC_NAMESPACE 'default'
 rejects "server not shaped like https://api.<cluster>.<domain>:6443" OC_SERVER 'https://openshift.example.com'
 rejects "tag with YAML metacharacters" TAG 'x: y'
 rejects "Vault path with a quote" VAULT_SECRET_PATH "a'b"
+rejects "admin Vault path with a quote" ADMIN_VAULT_SECRET_PATH "a'b"
 
 if "$SCRIPT" bogus >/dev/null 2>&1; then echo "FAIL: unknown command accepted"; FAILED=1
 else echo "PASS: unknown command rejected"; fi

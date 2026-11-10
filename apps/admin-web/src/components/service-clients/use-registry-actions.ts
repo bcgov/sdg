@@ -41,6 +41,8 @@ function useToggle({ reset, confirm, fail }: Feedback) {
   const { mutate, isPending, variables } = useSetServiceClientEnabled();
   const toggle = useCallback(
     (client: ServiceClient) => {
+      // One toggle at a time: a second mutate() would drop the first one's confirmation or refusal.
+      if (isPending) return;
       const change = { clientId: client.clientId, enabled: !client.enabled };
       const attempt = () => {
         reset();
@@ -51,7 +53,7 @@ function useToggle({ reset, confirm, fail }: Feedback) {
       };
       attempt();
     },
-    [mutate, reset, confirm, fail],
+    [isPending, mutate, reset, confirm, fail],
   );
   return { toggle, busyClientId: isPending ? variables?.clientId : undefined };
 }

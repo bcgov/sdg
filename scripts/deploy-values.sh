@@ -12,7 +12,8 @@
 #   KEYCLOAK_ISSUER_URL  https:// URL                            KEYCLOAK_CLIENT_ID  the portal client
 #   KEYCLOAK_ADMIN_CLIENT_ID  the admin (IDIR) client: admin-api signs in with it and core-api accepts its tokens
 #   VAULT_SECRET_PATH    optional, portal-api's; default <plate>-nonprod/portal-api (<plate>-prod/portal-api for prod).
-#                        admin-api's is always <role>/admin-api.
+#   ADMIN_VAULT_SECRET_PATH  optional, admin-api's; default <plate>-nonprod/admin-api (<plate>-prod/admin-api for
+#                        prod). PRs and test share the nonprod role, so test sets both when its secrets differ.
 #   OBSERVABILITY        optional; "true" reports to the observability stack (doc 20): <plate>-tools for PRs and test,
 #                        <plate>-prod for prod. Unset or "false" leaves telemetry off.
 # `outputs` needs only TARGET, ENVIRONMENT, REPOSITORY and OC_SERVER.
@@ -53,6 +54,7 @@ case "${1:-}" in
     check KEYCLOAK_CLIENT_ID '^[A-Za-z0-9._-]+$'
     check KEYCLOAK_ADMIN_CLIENT_ID '^[A-Za-z0-9._-]+$'
     check VAULT_SECRET_PATH '^([A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+)?$'
+    check ADMIN_VAULT_SECRET_PATH '^([A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+)?$'
     check OBSERVABILITY '^(true|false)?$'
     plate="${OC_NAMESPACE%-*}"
     vault_role="${plate}-$([ "$ENVIRONMENT" = prod ] && echo prod || echo nonprod)"
@@ -91,7 +93,7 @@ admin-api:
   vault:
     authPath: "auth/k8s-${cluster}"
     role: "${vault_role}"
-    secretPath: "${vault_role}/admin-api"
+    secretPath: "${ADMIN_VAULT_SECRET_PATH:-${vault_role}/admin-api}"
     serviceAccountName: "${plate}-vault"
 core-api:
   keycloak:

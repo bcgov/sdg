@@ -18,7 +18,7 @@ export interface RecordedCall {
   readonly body: unknown;
 }
 
-type Refusal = { method: string; path: string | RegExp; respond: () => Response };
+type Refusal = { method: string; path: string | RegExp; respond: () => Response | Promise<Response> };
 
 export const nestError = (statusCode: number, message: string | string[], error?: string) =>
   Response.json({ statusCode, message, ...(error ? { error } : {}) }, { status: statusCode });
@@ -48,7 +48,7 @@ export class FakeAdminApi {
     vi.stubGlobal('fetch', this.fetch);
   }
 
-  refuseNext(method: string, path: string | RegExp, respond: () => Response): void {
+  refuseNext(method: string, path: string | RegExp, respond: Refusal['respond']): void {
     this.refusals.push({ method, path, respond });
   }
 

@@ -88,4 +88,29 @@ describe('registry history (R17)', () => {
     await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText('No changes have been made to the registry yet.')).toBeInTheDocument();
   });
+
+  it('reloads the newest page when the refetch after a change fails and the administrator tries again', async () => {
+    const api = fakeAdminApi({ clients: [serviceClient('billing-1')], events: [event(1, 'billing-1', 'added')] });
+    renderAt('/service-clients');
+    await findHistory();
+    api.refuseNext('GET', HISTORY, () => nestError(503, 'Service Unavailable'));
+    await userEvent.click(screen.getByRole('button', { name: 'Disable billing-1' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("The history couldn't be loaded");
+    const loads = api.callsTo('GET', HISTORY).length;
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    await waitFor(() =>
+      expect(within(screen.getByRole('table', { name: /Every change/ })).getAllByRole('row')[1]).toHaveTextContent(
+        'billing-1DisabledAda Lovelace',
+      ),
+    );
+    expect(
+      api
+        .callsTo('GET', HISTORY)
+        .slice(loads)
+        .map((call) => call.path),
+    ).toEqual([`${HISTORY}?limit=20`]);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

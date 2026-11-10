@@ -49,12 +49,23 @@ function HistoryTable({ events }: { events: readonly ServiceClientEvent[] }) {
 
 /** The registry's history: who changed what and when, a page at a time. */
 export function HistoryPanel() {
-  const { data, error, isPending, isError, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } =
-    useRegistryHistory();
+  const {
+    data,
+    error,
+    isPending,
+    isError,
+    isFetchNextPageError,
+    refetch,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useRegistryHistory();
   const retry = useCallback(() => void refetch(), [refetch]);
   const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
   const events = useMemo(() => data?.pages.flatMap((page) => page.events) ?? [], [data]);
-  const notice = isError ? loadFailureNotice(error, 'The history', data ? loadMore : retry) : null;
+  // Only a failed "Load more" retries the next page; a failed first load or refetch (after a change) reloads from the
+  // newest event.
+  const notice = isError ? loadFailureNotice(error, 'The history', isFetchNextPageError ? loadMore : retry) : null;
 
   if (isPending) return <Text elementType="p">Loading the history…</Text>;
   return (

@@ -160,6 +160,8 @@ until [ "$(status "$GATEWAY_SITE/api/v1/gateway/me")" = 401 ] || ((SECONDS > dea
 check "GET / on the gateway host is 404 (gateway-api serves /api only)" test "$(status "$GATEWAY_SITE/")" = 404
 check "GET /api/v1/gateway/me without a token is 401 from gateway-api" \
   test "$(status "$GATEWAY_SITE/api/v1/gateway/me")" = 401
+check "GET /api/v1/gateway/me with an invalid token is core-api's 401 (gateway-api reaches core-api)" \
+  test "$(status -H 'Authorization: Bearer smoke' "$GATEWAY_SITE/api/v1/gateway/me")" = 401
 check "POST /api/v1/gateway/me is 405 from gateway-api (R19)" \
   test "$(status -X POST -H 'Authorization: Bearer smoke' "$GATEWAY_SITE/api/v1/gateway/me")" = 405
 check "GET /api/v1/portal/… is 404 on the gateway host (R4)" \

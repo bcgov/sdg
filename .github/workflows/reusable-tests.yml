@@ -45,30 +45,32 @@ jobs:
           exit 1
 
       # The edge routes by Host. /telemetry.json is answered by the edge itself, so 200 there shows the admin host's
-      # Route reaches it; admin-web serves / and admin-api answers /api/auth/me signed out with 401, like the portal
-      # above; the gateway host serves only /api, so / is 404 (portal-web would answer 200), and gateway-api answers
-      # /api/v1/gateway/me without a token with 401 itself (an edge without gateway-api would answer 503).
+      # Route reaches it; admin-web serves / (its title tells it from portal-web) and admin-api answers /api/auth/me
+      # signed out with 401, like the portal above; the gateway host serves only /api, so / is 404 (portal-web would
+      # answer 200). gateway-api forwards a Bearer token to core-api, which refuses this one with 401; without
+      # gateway-api or core-api the answer is 502 or 503.
       - name: Admin and gateway hosts
         if: inputs.admin_url != '' && inputs.gateway_url != ''
         env:
           ADMIN_URL: ${{ inputs.admin_url }}
           GATEWAY_URL: ${{ inputs.gateway_url }}
         run: |
-          status() { curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" "$1" || true; }
+          status() { curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" "$@" || true; }
           for i in {1..30}; do
             telemetry=$(status "${ADMIN_URL}/telemetry.json")
-            admin_web=$(status "${ADMIN_URL}/")
+            admin_web=$(curl --connect-timeout 5 --max-time 10 -s "${ADMIN_URL}/" | grep -q '<title>SDG Admin</title>' \
+              && echo admin-web || echo other)
             admin_api=$(status "${ADMIN_URL}/api/auth/me")
             gateway=$(status "${GATEWAY_URL}/")
-            gateway_api=$(status "${GATEWAY_URL}/api/v1/gateway/me")
+            gateway_api=$(status -H 'Authorization: Bearer smoke' "${GATEWAY_URL}/api/v1/gateway/me")
             got="admin /telemetry.json ${telemetry}, / ${admin_web}, /api/auth/me ${admin_api}"
             got="${got}; gateway / ${gateway}, /api/v1/gateway/me ${gateway_api}"
-            if [ "$telemetry" = 200 ] && [ "$admin_web" = 200 ] && [ "$admin_api" = 401 ] && [ "$gateway" = 404 ] \
+            if [ "$telemetry" = 200 ] && [ "$admin_web" = admin-web ] && [ "$admin_api" = 401 ] && [ "$gateway" = 404 ] \
               && [ "$gateway_api" = 401 ]; then
               echo "$got"
               exit 0
             fi
-            echo "Waiting (${got}; want 200, 200, 401; 404, 401), retrying in 10s... ($i/30)"
+            echo "Waiting (${got}; want 200, admin-web, 401; 404, 401), retrying in 10s... ($i/30)"
             sleep 10
           done
           echo "ERROR: the admin and gateway hosts did not answer as expected in time."

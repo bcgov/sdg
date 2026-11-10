@@ -57,6 +57,23 @@ describe('disable and re-enable (R16, R32)', () => {
     expect(api.callsTo('POST', DISABLE)).toHaveLength(2);
   });
 
+  it('waits for one change before allowing another, so a refused change still shows its notice', async () => {
+    const api = fakeAdminApi({ clients: [serviceClient('billing-1'), serviceClient('reports-2')] });
+    const pending = Promise.withResolvers<Response>();
+    api.refuseNext('POST', DISABLE, () => pending.promise);
+    renderAt('/service-clients');
+    await userEvent.click(await screen.findByRole('button', { name: 'Disable billing-1' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Disable reports-2' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Remove reports-2' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Disable reports-2' }));
+    expect(api.callsTo('POST', '/api/v1/admin/service-clients/reports-2/disable')).toHaveLength(0);
+
+    pending.resolve(nestError(503, 'Service Unavailable'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nothing was changed for billing-1');
+    expect(screen.getByRole('button', { name: 'Disable reports-2' })).toBeEnabled();
+  });
+
   it("shows a blocked request, not the not-authorized page, for the origin guard's 403", async () => {
     const api = fakeAdminApi({ clients: [serviceClient('billing-1')] });
     api.refuseNext('POST', DISABLE, () => nestError(403, ORIGIN_REFUSAL_MESSAGE, 'Forbidden'));
