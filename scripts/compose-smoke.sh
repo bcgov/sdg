@@ -150,10 +150,19 @@ echo "Migrations"
 check "migrate completed (healthy)" test "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$MIGRATE")" = healthy
 check "migrations completed before portal-api started" test \
   "$("$ENGINE" exec "$MIGRATE" stat -c %Y /tmp/ready)" -le "$("$ENGINE" inspect -f '{{.State.StartedAt.Unix}}' "$API")"
-expected="$(grep -c '"tag"' packages/portal-database/migrations/meta/_journal.json)"
-applied="$("$ENGINE" exec "$POSTGIS" sh -c \
-  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select count(*) from drizzle.__drizzle_migrations"' 2>/dev/null || echo 0)"
+expected="$(grep -c '"tag"' packages/database/migrations/meta/_journal.json)"
+# Runs SQL as login $1 over the container's local socket (trusted by the image's pg_hba).
+psql_as() { "$ENGINE" exec "$POSTGIS" sh -c "psql -v ON_ERROR_STOP=1 -U $1 -d \"\$POSTGRES_DB\" -tAc \"$2\""; }
+applied="$(psql_as core 'select count(*) from core.__drizzle_migrations' 2>/dev/null || echo 0)"
 check "all $expected journal migrations applied (found $applied)" test "$applied" = "$expected"
+
+echo "Database logins"
+check "core reads its own schema" psql_as core 'select count(*) from core.principals'
+denied() { ! psql_as "$@"; }
+check "portal cannot read the core schema" denied portal 'select count(*) from core.principals'
+check "admin cannot read the core schema" denied admin 'select count(*) from core.identities'
+check "no login is a superuser" test "$(psql_as core \
+  "select count(*) from pg_roles where rolname in ('core', 'portal', 'admin') and not rolsuper")" = 3
 
 echo
 echo "Passed: $PASSED  Failed: $FAILED"

@@ -68,7 +68,7 @@ tests:
           value: migrate
       - equal:
           path: spec.template.spec.initContainers[0].image
-          value: ghcr.io/acme/sdg/portal-database:pr-1
+          value: ghcr.io/acme/sdg/database:pr-1
       - contains:
           path: spec.template.spec.initContainers[0].env
           content:

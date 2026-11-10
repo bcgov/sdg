@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { AuthError } from '@repo/auth';
-import { identities, principals } from '@repo/portal-database';
+import { identities, principals } from '@repo/database';
 import type supertest from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 

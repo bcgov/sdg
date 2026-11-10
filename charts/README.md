@@ -6,7 +6,7 @@ Deploy the portal to Kubernetes/OpenShift. Deploy workflows: DEVELOPER.md, Workf
 | --------------- | --------------------------------------------------------------------------------------------------------- |
 | `common`        | Library: names (`<release>-<chart>`), labels, image refs, restricted-SCC security contexts                |
 | `portal-web`    | The SPA on Caddy (:8080)                                                                                  |
-| `portal-api`    | The NestJS BFF (:3000), with the `portal-database` migrator as an initContainer                           |
+| `portal-api`    | The NestJS BFF (:3000), with the `database` migrator as an initContainer                                  |
 | `edge`          | Caddy + Coraza WAF (:3000; metrics :3003 on `<release>-edge-metrics`) and the Ingress                     |
 | `postgres`      | A Crunchy PGO `PostgresCluster` (PostgreSQL 17, PostGIS 3.5)                                              |
 | `sdg`           | Umbrella: all of the above in one release (`<chart>.enabled` toggles each)                                |
@@ -18,7 +18,7 @@ Only standard Kubernetes objects are used, apart from Crunchy's `PostgresCluster
 
 - The Crunchy Postgres operator (PGO v5) watching the namespace.
 - A Vault KV v2 secret holding `SESSION_SECRET` (≥ 32 chars, e.g. `openssl rand -base64 48`) and `KEYCLOAK_CLIENT_SECRET`, a Vault role that can read it, and the service account that role trusts (BC Gov: `<plate>-vault`). Values must not contain `'` or newlines.
-- Images `portal-web`, `portal-api`, `portal-database` and `edge` pushed as `<registry>/<name>:<tag>`.
+- Images `portal-web`, `portal-api`, `database` and `edge` pushed as `<registry>/<name>:<tag>`.
 
 ## Install
 
@@ -42,7 +42,7 @@ Environment sizes live in `charts/sdg/values-{pr,test,prod}.yaml`. PR environmen
 
 On first install portal-api pods wait (`CreateContainerConfigError`) until PGO has created the user Secret; the migrator then retries until the database accepts connections.
 
-The postgres chart preloads pg_cron (`postgres.parameters`), and its init SQL installs the extension and grants the app user the `cron` schema. portal-database's migrations then schedule the jobs as that user, for example deleting expired sessions every 15 minutes (`SELECT jobname, schedule FROM cron.job;`). PGO runs the init SQL only when it creates a cluster. A cluster created before this was added needs two steps by hand, and its migrations fail until both are done. First, after the parameter change rolls out, check `SHOW shared_preload_libraries;` and restart the cluster if pg_cron isn't listed yet (`patronictl restart`). Second, as superuser on the primary, run `psql -d portal -c 'CREATE EXTENSION IF NOT EXISTS pg_cron; GRANT USAGE ON SCHEMA cron TO portal;'`.
+The postgres chart creates one database, `portal`, and one login per service (`postgres.users`: `core`, `portal`, `admin`). PGO writes each login's credentials to Secret `<release>-postgres-pguser-<login>`. Its init SQL gives each login a schema of its own name, which Postgres's default `search_path` resolves first, so no login can read another's tables; nothing lives in `public`. The database migrator (`database` image) applies the `core` schema as the `core` login. The chart also preloads pg_cron (`postgres.parameters`); the init SQL installs it, grants the `portal` and `admin` logins its `cron` schema so they can schedule their own jobs, and schedules `purge-cron-run-details` as the superuser (`SELECT jobname, schedule FROM cron.job;`). PGO runs the init SQL only when it creates a cluster, so a change to it reaches an existing environment only by deleting the `PostgresCluster` and its PVCs, which a person does (never the deploy workflow); the next deploy recreates the cluster. compose mirrors the init SQL in `packages/database/dev-postgres/init-roles.sql`; change both together.
 
 ## Observability
 
@@ -55,7 +55,7 @@ The app charts report to it through `global.observability` (`collectorHost`, `sc
 | Kind                                                              | Where                                                       |
 | ----------------------------------------------------------------- | ----------------------------------------------------------- |
 | Plain config (`APP_URL`, Keycloak issuer/client id, log level, …) | values → ConfigMap                                          |
-| `DATABASE_URL`                                                    | Secret `<release>-postgres-pguser-portal` (created by PGO)  |
+| `DATABASE_URL`                                                    | Secret `<release>-postgres-pguser-<login>` (created by PGO) |
 | `SESSION_SECRET`, `KEYCLOAK_CLIENT_SECRET`                        | Vault → `/vault/secrets/portal-api.env` → `node --env-file` |
 
 ## Test

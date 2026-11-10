@@ -1,4 +1,4 @@
-# portal-api: the NestJS BFF (apps/portal-api), with the portal-database migrator as its initContainer.
+# portal-api: the NestJS BFF (apps/portal-api), with the database migrator as its initContainer.
 # Env contract: apps/portal-api/src/config/env.ts. Reached only through the edge.
 global:
   image:
@@ -28,7 +28,7 @@ image:
 migrator:
   image:
     registry: ''
-    name: portal-database
+    name: database
     tag: ''
     pullPolicy: IfNotPresent
   resources:

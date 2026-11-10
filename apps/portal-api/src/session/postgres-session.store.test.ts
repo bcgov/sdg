@@ -1,5 +1,4 @@
 import { Logger } from '@nestjs/common';
-import { sessions } from '@repo/portal-database';
 import { eq } from 'drizzle-orm';
 import type { SessionData } from 'express-session';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createTestDatabase, type TestDatabase } from '../testing/database.js';
 import { PostgresSessionStore } from './postgres-session.store.js';
 import { deriveSessionKey } from './session-cipher.js';
+import { sessions } from './sessions.schema.js';
 
 const key = deriveSessionKey('test-session-secret-at-least-32-characters');
 const HOUR_MS = 3_600_000;

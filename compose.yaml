@@ -22,7 +22,7 @@ x-workspace: &workspace
     - nm-portal-web:/app/apps/portal-web/node_modules
     - nm-auth:/app/packages/auth/node_modules
     - nm-design-system:/app/packages/design-system/node_modules
-    - nm-portal-database:/app/packages/portal-database/node_modules
+    - nm-database:/app/packages/database/node_modules
     - nm-sdg-header:/app/packages/sdg-header/node_modules
     - nm-playwright-config:/app/tooling/playwright-config/node_modules
     - nm-typescript-config:/app/tooling/typescript-config/node_modules
@@ -50,12 +50,15 @@ x-init-healthcheck: &init-healthcheck
   retries: 3
   start_period: 600s
 
-x-database-url: &database-url postgres://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgis:5432/${POSTGRES_DB:-portal}
+# One login per service, each reaching only its own schema (packages/database/dev-postgres/init-roles.sql, which sets
+# these local-dev passwords). POSTGRES_USER is the superuser that runs that init script; no service connects as it.
+x-database-url-core: &database-url-core postgres://core:core@postgis:5432/${POSTGRES_DB:-portal}
+x-database-url-portal: &database-url-portal postgres://portal:portal@postgis:5432/${POSTGRES_DB:-portal}
 
 services:
   postgis:
-    # PostGIS 17-3.5 plus pg_cron, which runs the scheduled jobs portal-database's migrations create.
-    build: packages/portal-database/dev-postgres
+    # PostGIS 17-3.5 plus pg_cron, and the core, portal and admin logins with their schemas (init-roles.sql).
+    build: packages/database/dev-postgres
     # The official PostGIS images are published for amd64 only; Apple Silicon runs them under emulation.
     platform: linux/amd64
     command:
@@ -69,8 +72,8 @@ services:
         'cron.use_background_workers=on',
       ]
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-portal}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-portal}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
@@ -97,16 +100,16 @@ services:
     restart: 'no'
     healthcheck: *init-healthcheck
 
-  # Init container: portal-api starts only after the migrations complete successfully.
+  # Init container: applies the core schema migrations as the core login; portal-api starts only after they succeed.
   migrate:
     <<: *workspace
     environment:
       <<: *workspace-env
-      DATABASE_URL: *database-url
+      DATABASE_URL: *database-url-core
     command:
       - sh
       - -c
-      - rm -f /tmp/ready && pnpm --filter @repo/portal-database db:migrate && touch /tmp/ready && exec sleep infinity
+      - rm -f /tmp/ready && pnpm --filter @repo/database db:migrate && touch /tmp/ready && exec sleep infinity
     init: true
     restart: 'no'
     healthcheck: *init-healthcheck
@@ -125,8 +128,8 @@ services:
       PORT: '3000'
       APP_URL: https://sdg.localhost
       TRUST_PROXY: 'true'
-      DATABASE_URL: *database-url
-    # turbo builds the workspace packages portal-api imports (auth, portal-database) before `nest start --watch`.
+      DATABASE_URL: *database-url-portal
+    # turbo builds the workspace packages portal-api imports (auth, database) before `nest start --watch`.
     # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
     command: ['pnpm', 'turbo', 'run', 'dev', '--filter=portal-api', '--ui=stream', '--env-mode=loose']
     depends_on:
@@ -199,7 +202,7 @@ volumes:
   nm-portal-web:
   nm-auth:
   nm-design-system:
-  nm-portal-database:
+  nm-database:
   nm-sdg-header:
   nm-playwright-config:
   nm-typescript-config:

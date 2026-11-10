@@ -4,19 +4,19 @@ import type { OidcClient } from '@repo/auth';
 import { OIDC_CLIENT } from '@repo/auth/nestjs';
 import { sql } from 'drizzle-orm';
 
-import { InjectDatabase, type PortalDatabase } from '../database/database.module.js';
+import { InjectDatabase, type Database } from '../database/database.module.js';
 
 export const CHECK_TIMEOUT_MS = 3000;
 
 @Injectable()
 export class DependencyIndicators {
   private readonly health: HealthIndicatorService;
-  private readonly db: PortalDatabase;
+  private readonly db: Database;
   private readonly oidc: OidcClient;
 
   constructor(
     @Inject(HealthIndicatorService) health: HealthIndicatorService,
-    @InjectDatabase() db: PortalDatabase,
+    @InjectDatabase() db: Database,
     @Inject(OIDC_CLIENT) oidc: OidcClient,
   ) {
     this.health = health;

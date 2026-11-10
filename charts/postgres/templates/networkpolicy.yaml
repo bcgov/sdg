@@ -1,5 +1,6 @@
 {{- if .Values.networkPolicy.enabled }}
-# portal-api connects on 5432; the cluster's own pods (instances, pgBackRest) talk to each other on any port.
+# The services with a database login (core-api, portal-api, admin-api) connect on 5432; the cluster's own pods
+# (instances, pgBackRest) talk to each other on any port.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -13,9 +14,11 @@ spec:
   policyTypes: [Ingress]
   ingress:
     - from:
+        {{- range .Values.networkPolicy.clients }}
         - podSelector:
             matchLabels:
-              {{- include "common.peerSelectorLabels" (dict "name" "portal-api" "context" $) | nindent 14 }}
+              {{- include "common.peerSelectorLabels" (dict "name" . "context" $) | nindent 14 }}
+        {{- end }}
       ports:
         - port: 5432
           protocol: TCP

@@ -1,6 +1,7 @@
-# PGO runs this once as the superuser after creating the cluster. PG 15+ no longer grants CREATE on public to every
-# user, and drizzle's migrations create their tables there, so the app user takes ownership of the schema. Clusters
-# created before a change here need it applied by hand (see charts/README.md).
+# PGO runs this once as the superuser after creating the cluster and its users (KTD8): each login gets a schema of its
+# own name, and nothing lives in public. compose's dev Postgres runs the same SQL
+# (packages/database/dev-postgres/init-roles.sql); change both together. A change here reaches only clusters
+# created afterwards: an existing cluster is deleted and recreated (charts/README.md).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,11 +10,20 @@ metadata:
     {{- include "common.labels" (dict "context" . "component" "database") | nindent 4 }}
 data:
   init.sql: |
-    \c {{ .Values.user.database }}
+    \c {{ .Values.database }}
     {{- if .Values.postGISVersion }}
     CREATE EXTENSION IF NOT EXISTS postgis;
     {{- end }}
-    -- pg_cron needs a superuser to install; the app user schedules its own jobs in migrations.
+    -- pg_cron needs a superuser to install; the BFF logins schedule their own jobs in migrations.
     CREATE EXTENSION IF NOT EXISTS pg_cron;
-    GRANT USAGE ON SCHEMA cron TO {{ .Values.user.name }};
-    ALTER SCHEMA public OWNER TO {{ .Values.user.name }};
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+    {{- range .Values.users }}
+    CREATE SCHEMA IF NOT EXISTS {{ .name }} AUTHORIZATION {{ .name }};
+    {{- end }}
+    {{- range .Values.users }}
+    {{- if .cron }}
+    GRANT USAGE ON SCHEMA cron TO {{ .name }};
+    {{- end }}
+    {{- end }}
+    -- pg_cron logs every run in cron.job_run_details; keep a week of every login's runs.
+    SELECT cron.schedule('purge-cron-run-details', '0 3 * * *', $$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '7 days'$$);

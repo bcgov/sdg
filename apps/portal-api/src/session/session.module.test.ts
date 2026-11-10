@@ -8,7 +8,7 @@ import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import { createMockConfig } from '../../test/utils/config.service.js';
 import { isRequest } from '../../test/utils/http.js';
-import type { PortalDatabase } from '../database/database.module.js';
+import type { Database } from '../database/database.module.js';
 import { PostgresSessionStore } from './postgres-session.store.js';
 import { SESSION_COOKIE, SESSION_STORE, SessionModule, sessionOp } from './session.module.js';
 
@@ -24,13 +24,13 @@ function createRequestWithSession(sessionObj: MockSession): Request {
   throw new Error('Invalid request');
 }
 
-function isPortalDatabase(value: unknown): value is PortalDatabase {
+function isDatabase(value: unknown): value is Database {
   return typeof value === 'object' && value !== null;
 }
 
-function createMockDatabase(): PortalDatabase {
+function createMockDatabase(): Database {
   const db: unknown = {};
-  if (isPortalDatabase(db)) return db;
+  if (isDatabase(db)) return db;
   throw new Error('Invalid database');
 }
 

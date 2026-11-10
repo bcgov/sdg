@@ -1,11 +1,11 @@
 import { Logger } from '@nestjs/common';
-import { sessions } from '@repo/portal-database';
 import { and, eq, gt, lt } from 'drizzle-orm';
 import { Store, type SessionData } from 'express-session';
 
-import type { PortalDatabase } from '../database/database.module.js';
+import type { Database } from '../database/database.module.js';
 import { describeError } from '../logging/describe-error.js';
 import { decryptSession, encryptSession } from './session-cipher.js';
+import { sessions } from './sessions.schema.js';
 
 export interface PostgresSessionStoreOptions {
   /** Encryption key for the stored payload (see `deriveSessionKey`). */
@@ -21,16 +21,16 @@ type Callback<T> = (error: unknown, value?: T) => void;
 const logger = new Logger('SessionStore');
 
 /**
- * express-session store on the portal database. Payloads are encrypted: they carry OIDC tokens. Expired rows are
- * never read; a pg_cron job deletes them (portal-database migration 0002_prune_sessions).
+ * express-session store on the portal login's `sessions` table. Payloads are encrypted: they carry OIDC tokens.
+ * Expired rows are never read; deleting them moves to bff-core's sessions migrations (sessions.schema.ts).
  */
 export class PostgresSessionStore extends Store {
-  private readonly db: PortalDatabase;
+  private readonly db: Database;
   private readonly key: Buffer;
   private readonly ttlMs: number;
   private readonly touchThresholdMs: number;
 
-  constructor(db: PortalDatabase, options: PostgresSessionStoreOptions) {
+  constructor(db: Database, options: PostgresSessionStoreOptions) {
     super();
     this.db = db;
     this.key = options.key;

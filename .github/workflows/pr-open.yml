@@ -28,11 +28,11 @@ jobs:
           - package: portal-api
             build_context: .
             build_file: apps/portal-api/Dockerfile
-            triggers: ('apps/portal-api/' 'packages/auth/' 'packages/portal-database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
-          - package: portal-database
+            triggers: ('apps/portal-api/' 'packages/auth/' 'packages/database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: database
             build_context: .
-            build_file: packages/portal-database/Dockerfile
-            triggers: ('packages/portal-database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+            build_file: packages/database/Dockerfile
+            triggers: ('packages/database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
           # The edge image builds from its own directory, not the repo root
           - package: edge
             build_context: apps/portal-web/caddy

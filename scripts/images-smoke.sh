@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Smoke test for the production images (DEVELOPER.md, Production Images).
-# Builds portal-database, portal-api, portal-web and the edge, then runs them the way OpenShift's restricted SCC
+# Builds database, portal-api, portal-web and the edge, then runs them the way OpenShift's restricted SCC
 # does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the compose postgis.
 #
 # Usage: scripts/images-smoke.sh [--no-build]
@@ -43,7 +43,7 @@ image() { echo "localhost/$PREFIX/$1:latest"; }
 
 if $BUILD; then
   echo "Building images"
-  "$ENGINE" build -q -t "$(image portal-database)" -f packages/portal-database/Dockerfile . >/dev/null
+  "$ENGINE" build -q -t "$(image database)" -f packages/database/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-api)" -f apps/portal-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-web)" -f apps/portal-web/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image edge)" apps/portal-web/caddy >/dev/null
@@ -55,11 +55,11 @@ check "portal-api ships dist and no sources" node_in portal-api \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/main.js') && !fs.existsSync('src') ? 0 : 1)"
 check "portal-api ships no devDependencies (pino-pretty, typescript, @nestjs/cli)" node_in portal-api \
   "const fs = require('fs'); process.exit(['pino-pretty', 'typescript', '@nestjs/cli'].some((d) => fs.existsSync('node_modules/' + d)) ? 1 : 0)"
-check "portal-database ships dist/migrate.js and the migrations" node_in portal-database \
+check "database ships dist/migrate.js and the migrations" node_in database \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('migrations/meta/_journal.json') ? 0 : 1)"
 check "no .env files in the Node images" bash -c "! { $ENGINE run --rm $(image portal-api) find / -xdev -name '.env*' -not -name '.env.example'; \
-  $ENGINE run --rm $(image portal-database) find / -xdev -name '.env*' -not -name '.env.example'; } | grep -q ."
-check "no package manager in the final images" bash -c "for i in portal-api portal-database portal-web edge; do \
+  $ENGINE run --rm $(image database) find / -xdev -name '.env*' -not -name '.env.example'; } | grep -q ."
+check "no package manager in the final images" bash -c "for i in portal-api database portal-web edge; do \
   ! $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" sh -c 'command -v apk || command -v npm || command -v pnpm' || exit 1; done"
 
 echo "Waiting for compose postgis"
@@ -74,30 +74,34 @@ psql() { "$ENGINE" exec "$POSTGIS" sh -c "psql -U \"\$POSTGRES_USER\" -d \"\$POS
 psql_smoke() { "$ENGINE" exec "$POSTGIS" sh -c "psql -U \"\$POSTGRES_USER\" -d $SMOKE_DB -tAc \"$1\""; }
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null 2>&1
 psql "create database $SMOKE_DB" >/dev/null
+# The compose logins (packages/database/dev-postgres/init-roles.sql), each owning its schema, as in the main database.
+psql_smoke "grant all on database $SMOKE_DB to core, portal, admin; revoke create on schema public from public; \
+  create schema core authorization core; create schema portal authorization portal" >/dev/null
+CORE_URL="postgres://core:core@postgis:5432/$SMOKE_DB"
 DATABASE_URL="postgres://portal:portal@postgis:5432/$SMOKE_DB"
 
-echo "portal-database (initContainer)"
+echo "database (initContainer)"
 # Runs the migrator once; its output goes to $TMP/<name>.log and its exit code to $TMP/<name>.code.
 migrate() {
   local name="$1"; shift
   local code=0
-  "$ENGINE" run --rm --read-only "${OCP[@]}" "$@" "$(image portal-database)" >"$TMP/$name.log" 2>&1 || code=$?
+  "$ENGINE" run --rm --read-only "${OCP[@]}" "$@" "$(image database)" >"$TMP/$name.log" 2>&1 || code=$?
   echo "$code" >"$TMP/$name.code"
 }
 exit_code() { cat "$TMP/$1.code"; }
 migrate no-url
 check "exits 1 without DATABASE_URL" test "$(exit_code no-url)" = 1
 check "explains the missing DATABASE_URL" grep -q 'DATABASE_URL is not set' "$TMP/no-url.log"
-migrate first -e "DATABASE_URL=$DATABASE_URL"
-check "migrates an empty database (exit 0)" test "$(exit_code first)" = 0
-expected="$(grep -c '"tag"' packages/portal-database/migrations/meta/_journal.json)"
-applied="$(psql_smoke 'select count(*) from drizzle.__drizzle_migrations' || echo 0)"
-check "all $expected journal migrations recorded (found $applied)" test "$applied" = "$expected"
-check "principals, identities and sessions tables exist" test \
-  "$(psql_smoke "select count(*) from information_schema.tables where table_name in ('principals', 'identities', 'sessions')")" = 3
-migrate again -e "DATABASE_URL=$DATABASE_URL"
+migrate first -e "DATABASE_URL=$CORE_URL"
+check "migrates an empty database as the core login (exit 0)" test "$(exit_code first)" = 0
+expected="$(grep -c '"tag"' packages/database/migrations/meta/_journal.json)"
+applied="$(psql_smoke 'select count(*) from core.__drizzle_migrations' || echo 0)"
+check "all $expected journal migrations recorded in core (found $applied)" test "$applied" = "$expected"
+check "core.principals and core.identities exist" test "$(psql_smoke "select count(*) from information_schema.tables \
+  where table_schema = 'core' and table_name in ('principals', 'identities')")" = 2
+migrate again -e "DATABASE_URL=$CORE_URL"
 check "re-running with nothing pending exits 0" test "$(exit_code again)" = 0
-migrate bad-pw -e "DATABASE_URL=postgres://portal:smoke-s3cret@postgis:5432/$SMOKE_DB"
+migrate bad-pw -e "DATABASE_URL=postgres://core:smoke-s3cret@postgis:5432/$SMOKE_DB"
 check "a wrong password exits 1" test "$(exit_code bad-pw)" = 1
 check "the password never reaches the output" bash -c "! grep -q 'smoke-s3cret' '$TMP/bad-pw.log'"
 

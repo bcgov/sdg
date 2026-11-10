@@ -1,5 +1,5 @@
 import type { AuthUser } from '@repo/auth';
-import { identities, principals, type PortalDatabase } from '@repo/portal-database';
+import { identities, principals, type Database } from '@repo/database';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -25,11 +25,11 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
  * Simulates losing a first-login race: the identity lookup inside the transaction sees no row
  * (as if another transaction had not committed yet), but the row exists by the time of the insert.
  */
-function withStaleLookup(db: PortalDatabase): PortalDatabase {
+function withStaleLookup(db: Database): Database {
   const emptyLookup = {
     from: () => ({ where: () => ({ limit: () => Promise.resolve([]) }) }),
   };
-  const transaction: PortalDatabase['transaction'] = (run, config) =>
+  const transaction: Database['transaction'] = (run, config) =>
     db.transaction(
       (tx) =>
         run(
@@ -47,7 +47,7 @@ function withStaleLookup(db: PortalDatabase): PortalDatabase {
 /**
  * Simulates an insert returning no rows for the target table.
  */
-function withFailedInsert(db: PortalDatabase, targetTable: typeof principals | typeof identities): PortalDatabase {
+function withFailedInsert(db: Database, targetTable: typeof principals | typeof identities): Database {
   const emptyInsert = {
     values: () => ({
       returning: () => Promise.resolve([]),
@@ -56,7 +56,7 @@ function withFailedInsert(db: PortalDatabase, targetTable: typeof principals | t
       }),
     }),
   };
-  const transaction: PortalDatabase['transaction'] = (run, config) =>
+  const transaction: Database['transaction'] = (run, config) =>
     db.transaction(
       (tx) =>
         run(

@@ -9,7 +9,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Pull Request-based pipeline
 - Sandboxed development environments: a full, throwaway stack per pull request
 - Gated/controlled production deployments (optional)
-- Container publishing (ghcr.io) of four images: `portal-web`, `portal-api`, `portal-database` and `edge`
+- Container publishing (ghcr.io) of four images: `portal-web`, `portal-api`, `database` and `edge`
 - Helm charts (`charts/`) with an `sdg` umbrella chart, deployed with Helm from GitHub Actions
 - Secrets from Vault, injected by the Vault Agent sidecar; database and cache credentials generated in-cluster
 - Security, vulnerability, infrastructure, and container scan tools
@@ -31,7 +31,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
   - Edge: Caddy with Coraza WAF, routing `/api*` to portal-api and everything else to portal-web
   - Backend: `portal-api`, a NestJS backend-for-frontend with Keycloak (OIDC) sign-in
-  - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `portal-database`
+  - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `database`
 
 # Setup
 
@@ -105,11 +105,11 @@ Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-1
 
 Nobody sets these by hand; they are created in the namespace and read there.
 
-| Secret                             | Namespace(s)            | Holds                        | Created by                                                                      |
-| ---------------------------------- | ----------------------- | ---------------------------- | ------------------------------------------------------------------------------- |
-| `github-actions-token`             | `<plate>-dev/test/prod` | Deploy service account token | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
-| `<release>-postgres-pguser-portal` | the release's namespace | `DATABASE_URL` (key `uri`)   | The Crunchy operator, from the chart's `PostgresCluster`                        |
-| Sysdig team Secret                 | `<plate>-tools`         | Sysdig API token             | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
+| Secret                              | Namespace(s)            | Holds                                                          | Created by                                                                      |
+| ----------------------------------- | ----------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `github-actions-token`              | `<plate>-dev/test/prod` | Deploy service account token                                   | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
+| `<release>-postgres-pguser-<login>` | the release's namespace | `DATABASE_URL` (key `uri`) of logins `core`, `portal`, `admin` | The Crunchy operator, from the chart's `PostgresCluster`                        |
+| Sysdig team Secret                  | `<plate>-tools`         | Sysdig API token                                               | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
 
 On first install portal-api pods wait (`CreateContainerConfigError`) until the operator has created the database user Secret; the migrator then retries until the database accepts connections.
 
@@ -348,7 +348,7 @@ If `@testing-library/user-event` is flagged but exported from `test-utils.tsx`:
 
 ### Packages
 
-Packages are available from your repository (link on right). All four (`portal-web`, `portal-api`, `portal-database`, `edge`) should have visibility set to public for the workflows to run successfully.
+Packages are available from your repository (link on right). All four (`portal-web`, `portal-api`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
 
 E.g. `https://github.com/<owner>/<repo>/packages`
 
@@ -444,8 +444,8 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 - **`rootlessport cannot expose privileged port 443`**: allow rootless Podman to bind 443 with `podman machine ssh "echo net.ipv4.ip_unprivileged_port_start=443 | sudo tee /etc/sysctl.d/99-unprivileged-ports.conf && sudo sysctl --system"`.
 - **`sdg.localhost` does not resolve** (some Safari versions): add `127.0.0.1 sdg.localhost` to `/etc/hosts`.
 - **`permission denied` under `/data` or `/config` in the caddy logs**: the volumes were created when the edge image ran as root. Remove them with `podman compose down && podman volume rm portal_caddy-data portal_caddy-config`, start the stack, and rerun `pnpm stack:trust` (a new local CA is generated).
-- **`schema "cron" does not exist` when migrating**: the `portal-pgdata` volume predates pg_cron, and the `postgis` image only installs the extension on a fresh volume. Recreate it with `podman compose down && podman volume rm portal_portal-pgdata && podman compose up -d --build`, which deletes local data. Keeping the old volume isn't worth it: the image moved from alpine to Debian, which changes collations.
-- **After changing `Dockerfile.dev`, `apps/portal-web/caddy/Dockerfile` or `packages/portal-database/dev-postgres/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
+- **`schema "cron" does not exist`, `role "core" does not exist` or `permission denied` when migrating**: the `portal-pgdata` volume predates pg_cron or the per-service logins (`core`, `portal`, `admin`, each owning its own schema), and the `postgis` image only runs its init scripts (`packages/database/dev-postgres/`) on a fresh volume. Recreate it with `podman compose down && podman volume rm portal_portal-pgdata && podman compose up -d --build`, which deletes local data. Keeping the old volume isn't worth it: the image moved from alpine to Debian, which changes collations.
+- **After changing `Dockerfile.dev`, `apps/portal-web/caddy/Dockerfile` or `packages/database/dev-postgres/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
 - **Adding a workspace package**: add its `node_modules` volume to `x-workspace` and `volumes:` in `compose.yaml`.
 - **WAF**: rules using `block` (1001, 1002, 1005, 1007, 1008) follow Coraza's default action (`pass`) and only log a `Coraza: Warning`. Rules using `deny` (1003, 1004) return 403.
 
@@ -453,12 +453,12 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 
 Multi-stage Dockerfiles for OpenShift. The app images build from the repository root:
 
-| Image             | Build                                                   | Runs                                                                               |
-| ----------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `portal-web`      | `podman build -f apps/portal-web/Dockerfile .`          | Caddy serving the built SPA on `:8080` (cluster-internal)                          |
-| `portal-api`      | `podman build -f apps/portal-api/Dockerfile .`          | `node dist/main.js` on `:3000` (cluster-internal)                                  |
-| `portal-database` | `podman build -f packages/portal-database/Dockerfile .` | `node dist/migrate.js` as portal-api's initContainer (needs `DATABASE_URL`)        |
-| edge              | `podman build apps/portal-web/caddy`                    | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL` |
+| Image        | Build                                            | Runs                                                                               |
+| ------------ | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `portal-web` | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                          |
+| `portal-api` | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000` (cluster-internal)                                  |
+| `database`   | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as an initContainer (needs `DATABASE_URL`, the core login)  |
+| edge         | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL` |
 
 All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, health, SPA routing and caching, edge headers, WAF).
 
@@ -549,7 +549,7 @@ Runs on pull request submission.
 - Build action pushes to GitHub Container Registry (ghcr.io)
 - Build triggers select new builds vs reusing builds
 - Deploy only when changes are made
-- Builds `portal-web`, `portal-api`, `portal-database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
+- Builds `portal-web`, `portal-api`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
 - Smoke checks through the edge and Playwright E2E (chromium) when changes are made
 - Posts sticky comment with deployment links when deployments occur
 - Other checks and updates as required

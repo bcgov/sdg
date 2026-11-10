@@ -5,7 +5,7 @@ import type { Request } from 'express';
 import session from 'express-session';
 
 import type { Env } from '../config/env.js';
-import type { PortalDatabase } from '../database/database.module.js';
+import type { Database } from '../database/database.module.js';
 import { PostgresSessionStore } from './postgres-session.store.js';
 import { deriveSessionKey } from './session-cipher.js';
 import './session.types.js';
@@ -29,7 +29,7 @@ export function sessionOp(req: Request, op: 'save' | 'regenerate' | 'destroy'): 
     {
       provide: SESSION_STORE,
       inject: [getDrizzleToken(), ConfigService],
-      useFactory: (db: PortalDatabase, config: ConfigService<Env, true>): PostgresSessionStore =>
+      useFactory: (db: Database, config: ConfigService<Env, true>): PostgresSessionStore =>
         new PostgresSessionStore(db, {
           key: deriveSessionKey(config.get('SESSION_SECRET', { infer: true })),
           ttlSeconds: config.get('SESSION_TTL_SECONDS', { infer: true }),

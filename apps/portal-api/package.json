@@ -42,7 +42,7 @@
     "@opentelemetry/sdk-trace": "catalog:",
     "@opentelemetry/semantic-conventions": "catalog:",
     "@repo/auth": "workspace:*",
-    "@repo/portal-database": "workspace:*",
+    "@repo/database": "workspace:*",
     "drizzle-orm": "catalog:",
     "express-session": "catalog:",
     "helmet": "catalog:",

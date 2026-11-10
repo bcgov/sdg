@@ -18,9 +18,13 @@ spec:
   databaseInitSQL:
     name: {{ include "common.fullname" . }}-init-sql
     key: init.sql
+  # One login per service, all on the one database. PGO grants each its database, which drizzle's migrators need
+  # (CREATE SCHEMA IF NOT EXISTS for their journal's schema).
   users:
-    - name: {{ .Values.user.name }}
-      databases: [{{ .Values.user.database }}]
+    {{- range .Values.users }}
+    - name: {{ .name }}
+      databases: [{{ $.Values.database }}]
+    {{- end }}
   instances:
     - name: {{ .Values.instances.name }}
       replicas: {{ .Values.instances.replicas }}

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type { AuthUser } from '@repo/auth';
-import { identities, principals, type IdentityClaims } from '@repo/portal-database';
+import { identities, principals, type IdentityClaims } from '@repo/database';
 import { and, eq } from 'drizzle-orm';
 
-import { InjectDatabase, type PortalDatabase } from '../database/database.module.js';
+import { InjectDatabase, type Database } from '../database/database.module.js';
 
 /** Claims that must never be persisted, even if an IdP echoes them into the ID token. */
 const TOKEN_CLAIMS: ReadonlySet<string> = new Set(['access_token', 'refresh_token', 'id_token']);
@@ -14,9 +14,9 @@ export function persistableClaims(claims: Readonly<Record<string, unknown>>): Id
 
 @Injectable()
 export class PrincipalsService {
-  private readonly db: PortalDatabase;
+  private readonly db: Database;
 
-  constructor(@InjectDatabase() db: PortalDatabase) {
+  constructor(@InjectDatabase() db: Database) {
     this.db = db;
   }
 
