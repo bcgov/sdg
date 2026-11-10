@@ -9,7 +9,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Pull Request-based pipeline
 - Sandboxed development environments: a full, throwaway stack per pull request
 - Gated/controlled production deployments (optional)
-- Container publishing (ghcr.io) of five images: `portal-web`, `portal-api`, `core-api`, `database` (the migrator) and `edge`
+- Container publishing (ghcr.io) of seven images: `portal-web`, `portal-api`, `admin-web`, `admin-api`, `core-api`, `database` (the migrator) and `edge`
 - Helm charts (`charts/`) with an `sdg` umbrella chart, deployed with Helm from GitHub Actions
 - Secrets from Vault, injected by the Vault Agent sidecar; database and cache credentials generated in-cluster
 - Security, vulnerability, infrastructure, and container scan tools
@@ -29,13 +29,14 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - **Sample application stack** (pnpm + Turborepo monorepo):
   - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; each service has its own login and schema (`core`, `portal`, `admin`); portal-api keeps the express-session store (encrypted at rest; pg_cron deletes expired sessions every 15 minutes)
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
-  - Edge: Caddy with Coraza WAF, routing `/api*` to portal-api and everything else to portal-web
+  - Edge: Caddy with Coraza WAF, routing by host: the portal host sends `/api*` to portal-api and everything else to portal-web; the admin host (`<release>-admin`) sends `/api*` to admin-api and everything else to admin-web; a gateway host (`<release>-gateway`) is reserved for the service-account API (not deployed yet, so it answers 503)
   - Backend: `portal-api`, a thin NestJS backend-for-frontend on `@repo/bff-core` (Keycloak OIDC sign-in, sessions) that forwards `/api` calls to `core-api`, which owns the principals and the `core` schema
+  - Administration: `admin-web` (React, the service-account registry) and `admin-api`, a second backend-for-frontend on `@repo/bff-core` that signs administrators in with IDIR (cookie `admin.sid`, `admin` schema) and forwards to `core-api`; a sign-in without the `admin` client role is ended at Keycloak and lands on `/not-authorized`
   - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `bff-core`, `server-core`, `database`
 
 # Setup
 
-Setup takes an hour or less. Scripts in [`scripts/`](./scripts/) do the GitHub and OpenShift parts. Each one previews its changes by default, makes them only with `--apply`, and is safe to re-run: it changes only what differs and leaves everything else alone. Running any of them without `--apply` verifies the setup: it ends with `All set: nothing to change.`, or exits non-zero with the number of things to change. It confirms secrets exist but can't verify their values. Run them yourself, with your own logins.
+Setup takes an hour or less, plus waiting for the platform team to issue the Keycloak clients (portal and admin). Scripts in [`scripts/`](./scripts/) do the GitHub and OpenShift parts. Each one previews its changes by default, makes them only with `--apply`, and is safe to re-run: it changes only what differs and leaves everything else alone. Running any of them without `--apply` verifies the setup: it ends with `All set: nothing to change.`, or exits non-zero with the number of things to change. It confirms secrets exist but can't verify their values. Run them yourself, with your own logins.
 
 ## Checklist
 
@@ -54,7 +55,7 @@ Setup takes an hour or less. Scripts in [`scripts/`](./scripts/) do the GitHub a
    ```bash
    scripts/setup-openshift.sh --plate abc123          # preview, then add --apply
    ```
-6. **GitHub environments, secrets and variables**: creates the `test` and `prod` environments (PROD with required reviewers if you name them; without `--reviewers` it reports the current ones), and sets the `OC_NAMESPACE` variable and `OC_TOKEN` secret for pull requests (repository level), TEST and PROD, plus the `OC_SERVER` variable. It also checks the `KEYCLOAK_ISSUER_URL` and `KEYCLOAK_CLIENT_ID` variables for each and prints the `gh variable set` command for any that are missing; it never invents them. Without `--plate` it reads the plate from existing `OC_NAMESPACE` variables. Secrets that are already set are never overwritten. Secret values are piped from `oc` straight into `gh secret set`; they're never printed or written to disk, and previews show only the secret's name.
+6. **GitHub environments, secrets and variables**: creates the `test` and `prod` environments (PROD with required reviewers if you name them; without `--reviewers` it reports the current ones), and sets the `OC_NAMESPACE` variable and `OC_TOKEN` secret for pull requests (repository level), TEST and PROD, plus the `OC_SERVER` variable. It also checks the `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_ADMIN_CLIENT_ID` variables for each and prints the `gh variable set` command for any that are missing; it never invents them. Without `--plate` it reads the plate from existing `OC_NAMESPACE` variables. Secrets that are already set are never overwritten. Secret values are piped from `oc` straight into `gh secret set`; they're never printed or written to disk, and previews show only the secret's name.
    ```bash
    scripts/setup-environments.sh --plate abc123 --reviewers alice,bcgov/my-team   # preview, then add --apply
    ```
@@ -62,10 +63,19 @@ Setup takes an hour or less. Scripts in [`scripts/`](./scripts/) do the GitHub a
    ```bash
    scripts/setup-github.sh                              # preview, then add --apply
    ```
-8. **Vault secrets** (by hand): write `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` to Vault at `<plate>-nonprod/portal-api` (pull requests and TEST) and `<plate>-prod/portal-api` (PROD). See [Vault](#vault).
+8. **Vault secrets** (by hand): write `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` to Vault at `<plate>-nonprod/portal-api` and `<plate>-nonprod/admin-api` (pull requests and TEST), and at `<plate>-prod/portal-api` and `<plate>-prod/admin-api` (PROD). The two apps use different clients, so their secrets differ. See [Vault](#vault).
 9. **Keycloak clients** (by hand): add `https://<release>.apps.<cluster>.devops.gov.bc.ca/api/auth/callback` and `https://<release>.apps.<cluster>.devops.gov.bc.ca/` as valid redirect URIs. Wildcards are allowed on the pull request and TEST clients, so `https://<repo>-*.apps.<cluster>.devops.gov.bc.ca/*` covers every pull request. They are not allowed in PROD: list the exact `https://<repo>-prod.apps.<cluster>.devops.gov.bc.ca` URIs (and the vanity URL's, if you set [`ROUTE_HOST`](#optional-values)).
+   Request a second client for administrators: IDIR, confidential, with an `admin` client role (core-api refuses an administrator token without it). Its redirect URIs are `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca/api/auth/callback`, and its post-logout redirect URIs are `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca/` and `.../not-authorized`. DEV allows a wildcard for every pull request's admin host (`https://<repo>-*-admin.apps.<cluster>.devops.gov.bc.ca/*`); TEST uses its exact `<repo>-test-admin` host or a wildcard if the client allows it; PROD lists the exact `<repo>-prod-admin` URIs. Set `KEYCLOAK_ADMIN_CLIENT_ID` (repository, `test` and `prod` scopes) to that client's id; it also tells core-api which client's tokens are administrators'. The gateway host needs nothing yet.
 10. **First pull request**: open one to run the pipeline, then make the packages public (see [Packages](#packages)).
 11. **Optional** (by hand): [SonarCloud](#code-quality-with-sonarcloud), [Renovate](#renovate), Sysdig, a vanity URL with TLS, PROD deployment rules and team members, all described below.
+
+### Adding the admin app to an existing deployment
+
+Teams that already run the portal alone do these by hand (agents never do):
+
+- Before merging the PR that adds the `core`/`portal`/`admin` logins and schemas, delete the TEST `PostgresCluster` and its PVCs, so the merge deploy recreates it with the new init SQL (PGO runs init SQL only on creation). After the merge, do the same for every PR environment still open; PR data is throwaway. PROD's first release creates its cluster fresh.
+- Developers recreate the local Postgres volume once after pulling (`podman compose down -v`, or remove `portal-pgdata`), because the dev init script runs only on a fresh volume.
+- Before the PR that deploys admin-api is opened, request the DEV admin client and set `KEYCLOAK_ADMIN_CLIENT_ID` and the `admin-api` Vault secret (checklist steps 8 and 9). Before it is merged, do the same for TEST, because the merge deploys admin-api there; PROD needs it before the first release that includes admin-api.
 
 ## Secrets, Variables and Environments
 
@@ -83,12 +93,15 @@ Configuration lives in three places:
 | none        | `vars.OC_NAMESPACE`                                   | PR namespace, `<plate>-dev`                                                            |
 | none        | `secrets.OC_TOKEN`                                    | PR service token (from the `github-actions-token` Secret in `<plate>-dev`)             |
 | none        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PR portal-api Keycloak client                                                          |
+| none        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | PR admin (IDIR) Keycloak client: admin-api's, and the admin client core-api accepts    |
 | test        | `vars.OC_NAMESPACE`                                   | TEST namespace, `<plate>-test`                                                         |
 | test        | `secrets.OC_TOKEN`                                    | TEST service token (from `<plate>-test`)                                               |
 | test        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | TEST portal-api Keycloak client                                                        |
+| test        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | TEST admin Keycloak client                                                             |
 | prod        | `vars.OC_NAMESPACE`                                   | PROD namespace, `<plate>-prod`                                                         |
 | prod        | `secrets.OC_TOKEN`                                    | PROD service token (from `<plate>-prod`)                                               |
 | prod        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PROD portal-api Keycloak client                                                        |
+| prod        | `vars.KEYCLOAK_ADMIN_CLIENT_ID`                       | PROD admin Keycloak client                                                             |
 | any (opt)   | `vars.VAULT_SECRET_PATH`                              | Vault KV path; default `<plate>-nonprod/portal-api` (PROD: `<plate>-prod/portal-api`)  |
 | prod (opt)  | `vars.ROUTE_HOST`                                     | Vanity URL hostname (repository or environment)                                        |
 | prod (opt)  | `secrets.TLS_CERTIFICATE`                             | Leaf certificate PEM for vanity URL                                                    |
@@ -97,7 +110,7 @@ Configuration lives in three places:
 | none (opt)  | `secrets.SONAR_TOKEN`                                 | See [SonarCloud](#code-quality-with-sonarcloud)                                        |
 | none (opt)  | `secrets.SYSDIG_API_TOKEN`                            | PROD alert sync                                                                        |
 
-Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-12`, `sdg-test`, `sdg-prod`) at `https://<release>.apps.<cluster>.devops.gov.bc.ca`. [`scripts/deploy-values.sh`](./scripts/deploy-values.sh) derives the host, images and Vault settings (role `<plate>-nonprod`/`<plate>-prod`, service account `<plate>-vault`, auth path `auth/k8s-<cluster>`) from these values; sizes per environment live in `charts/sdg/values-{pr,test,prod}.yaml`. The Keycloak issuer URL and client id reach portal-api through a ConfigMap; they are not secrets.
+Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-12`, `sdg-test`, `sdg-prod`) at `https://<release>.apps.<cluster>.devops.gov.bc.ca`, with the admin app at `https://<release>-admin.apps.<cluster>.devops.gov.bc.ca` and a reserved `<release>-gateway` host. [`scripts/deploy-values.sh`](./scripts/deploy-values.sh) derives the host, images and Vault settings (role `<plate>-nonprod`/`<plate>-prod`, service account `<plate>-vault`, auth path `auth/k8s-<cluster>`) from these values; sizes per environment live in `charts/sdg/values-{pr,test,prod}.yaml`. The Keycloak issuer URL and client ids reach portal-api, admin-api and core-api through ConfigMaps; they are not secrets.
 
 **Copied the template before `OC_NAMESPACE` became a variable?** Move it: `gh variable set OC_NAMESPACE --body <plate>-dev`, and the same with `--env test` / `--env prod` (or run `scripts/setup-environments.sh --apply`). The old secret is unused and can be deleted. `DB_PASSWORD` is no longer used either (see [OpenShift](#openshift)).
 
@@ -111,18 +124,18 @@ Nobody sets these by hand; they are created in the namespace and read there.
 | `<release>-postgres-pguser-<login>` | the release's namespace | `DATABASE_URL` (key `uri`) of logins `core`, `portal`, `admin` | The Crunchy operator, from the chart's `PostgresCluster`                        |
 | Sysdig team Secret                  | `<plate>-tools`         | Sysdig API token                                               | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
 
-On first install the core-api and portal-api pods wait (`CreateContainerConfigError`) until the operator has created their database user Secrets; the migrators then retry until the database accepts connections.
+On first install the core-api, portal-api and admin-api pods wait (`CreateContainerConfigError`) until the operator has created their database user Secrets; the migrators then retry until the database accepts connections.
 
 ### Vault
 
-portal-api reads two secrets from a Vault KV v2 secret. Deploys use the role `<plate>-nonprod` (pull requests and TEST) or `<plate>-prod` (PROD) with the `<plate>-vault` service account; the path defaults to `<role>/portal-api` and can be changed with `VAULT_SECRET_PATH`.
+portal-api and admin-api each read two secrets from a Vault KV v2 secret. Deploys use the role `<plate>-nonprod` (pull requests and TEST) or `<plate>-prod` (PROD) with the `<plate>-vault` service account; portal-api's path defaults to `<role>/portal-api` and can be changed with `VAULT_SECRET_PATH`; admin-api's is always `<role>/admin-api`.
 
 | Key                      | Description                                                                                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SESSION_SECRET`         | Session cookie signing and stored-session encryption key, at least 32 characters (e.g. `openssl rand -base64 48`); rotating it signs everyone out |
-| `KEYCLOAK_CLIENT_SECRET` | Secret of the Keycloak confidential client named by `KEYCLOAK_CLIENT_ID`                                                                          |
+| `KEYCLOAK_CLIENT_SECRET` | Secret of the Keycloak confidential client named by `KEYCLOAK_CLIENT_ID` (portal-api) or `KEYCLOAK_ADMIN_CLIENT_ID` (admin-api)                   |
 
-Values must not contain `'` or newlines. The Vault Agent writes them to `/vault/secrets/portal-api.env`, which portal-api loads with `node --env-file`. See [`charts/README.md`](./charts/README.md) for where every other value lives and how to deploy without Vault.
+Values must not contain `'` or newlines. The Vault Agent writes them to `/vault/secrets/portal-api.env`, which portal-api loads with `node --env-file`; admin-api's is `/vault/secrets/admin-api.env`. See [`charts/README.md`](./charts/README.md) for where every other value lives and how to deploy without Vault.
 
 ### Optional Values
 
@@ -348,7 +361,7 @@ If `@testing-library/user-event` is flagged but exported from `test-utils.tsx`:
 
 ### Packages
 
-Packages are available from your repository (link on right). All five (`portal-web`, `portal-api`, `core-api`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
+Packages are available from your repository (link on right). New packages are private until a person makes them public, so do it after the first pull request's build. All seven (`portal-web`, `portal-api`, `admin-web`, `admin-api`, `core-api`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
 
 E.g. `https://github.com/<owner>/<repo>/packages`
 
@@ -410,7 +423,10 @@ Run `pnpm test:charts` after changing a chart.
 | `caddy`          | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443) |
 | `portal-web`     | `vite` with HMR                                                                          | only through Caddy                 |
 | `portal-api`     | `nest start --watch`                                                                     | only through Caddy (`/api`)        |
-| `core-api`       | `nest start --watch`                                                                     | only through portal-api            |
+| `core-api`       | `nest start --watch`                                                                     | only through portal-api/admin-api  |
+| `admin-web`      | `vite` with HMR                                                                          | `https://admin.sdg.localhost`      |
+| `admin-api`      | `nest start --watch`                                                                     | only through Caddy (admin `/api`)  |
+| `migrate-admin`  | admin-api's sessions migration; admin-api starts only after it succeeds                  | —                                  |
 | `migrate`        | `drizzle-kit migrate` (core schema); core-api starts only after it succeeds              | —                                  |
 | `migrate-portal` | portal-api's sessions migration; portal-api starts only after it succeeds                | —                                  |
 | `deps`           | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
@@ -420,6 +436,7 @@ Run `pnpm test:charts` after changing a chart.
 
 1. Copy `apps/portal-api/.env.example` to `apps/portal-api/.env` and set `SESSION_SECRET` and the `KEYCLOAK_*` values. compose overrides the URLs (`APP_URL`, `DATABASE_URL`, `TRUST_PROXY`), so the file's `localhost` values can stay for host-run development.
 2. On the Keycloak client, add `https://sdg.localhost/api/auth/callback` and `https://sdg.localhost/` as valid redirect URIs.
+   Optional, for the admin app at **https://admin.sdg.localhost**: copy `apps/admin-api/.env.example` to `apps/admin-api/.env`, set `SESSION_SECRET` and the admin client's `KEYCLOAK_*` values, and add `https://admin.sdg.localhost/api/auth/callback` as a redirect URI and `https://admin.sdg.localhost/` as a post-logout URI on that client. Without the file admin-api doesn't start and only the admin host answers 502; the portal works. Put core-api's `ADMIN_CLIENT_ID` (`apps/core-api/.env`) on the same client. If you ran the stack before the admin schema existed, recreate the Postgres volume once (see Troubleshooting).
 3. Start the stack. The first run installs dependencies and takes a few minutes:
    ```sh
    podman compose up -d --build   # or: docker compose up -d --build
@@ -444,7 +461,7 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 ## Troubleshooting
 
 - **`rootlessport cannot expose privileged port 443`**: allow rootless Podman to bind 443 with `podman machine ssh "echo net.ipv4.ip_unprivileged_port_start=443 | sudo tee /etc/sysctl.d/99-unprivileged-ports.conf && sudo sysctl --system"`.
-- **`sdg.localhost` does not resolve** (some Safari versions): add `127.0.0.1 sdg.localhost` to `/etc/hosts`.
+- **`sdg.localhost` or `admin.sdg.localhost` does not resolve** (some Safari versions): add `127.0.0.1 sdg.localhost admin.sdg.localhost` to `/etc/hosts`.
 - **`permission denied` under `/data` or `/config` in the caddy logs**: the volumes were created when the edge image ran as root. Remove them with `podman compose down && podman volume rm portal_caddy-data portal_caddy-config`, start the stack, and rerun `pnpm stack:trust` (a new local CA is generated).
 - **`schema "cron" does not exist`, `role "core" does not exist` or `permission denied` when migrating**: the `portal-pgdata` volume predates pg_cron or the per-service logins (`core`, `portal`, `admin`, each owning its own schema), and the `postgis` image only runs its init scripts (`packages/database/dev-postgres/`) on a fresh volume. Recreate it with `podman compose down && podman volume rm portal_portal-pgdata && podman compose up -d --build`, which deletes local data. Keeping the old volume isn't worth it: the image moved from alpine to Debian, which changes collations.
 - **After changing `Dockerfile.dev`, `apps/portal-web/caddy/Dockerfile` or `packages/database/dev-postgres/Dockerfile`**: podman-compose does not recreate containers for a rebuilt image, so run `podman compose down && podman compose up -d --build`. Caddyfile edits only need `podman compose restart caddy`.
@@ -455,13 +472,15 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 
 Multi-stage Dockerfiles for OpenShift. The app images build from the repository root:
 
-| Image        | Build                                            | Runs                                                                                  |
-| ------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `portal-web` | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                             |
-| `portal-api` | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer    |
-| `core-api`   | `podman build -f apps/core-api/Dockerfile .`     | `node dist/main.js` on `:3000` (internal; portal-api calls it)                        |
-| `database`   | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as core-api's initContainer (needs `DATABASE_URL`, core login) |
-| edge         | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL`    |
+| Image        | Build                                            | Runs                                                                                                                 |
+| ------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `portal-web` | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                                                            |
+| `portal-api` | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                   |
+| `admin-web`  | `podman build -f apps/admin-web/Dockerfile .`    | Caddy serving the built admin SPA on `:8080` (cluster-internal)                                                      |
+| `admin-api`  | `podman build -f apps/admin-api/Dockerfile .`    | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                   |
+| `core-api`   | `podman build -f apps/core-api/Dockerfile .`     | `node dist/main.js` on `:3000` (internal; the BFFs call it)                                                          |
+| `database`   | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as core-api's initContainer (needs `DATABASE_URL`, core login)                                |
+| edge         | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL`; admin and gateway hosts likewise |
 
 All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, health, SPA routing and caching, edge headers, WAF).
 
@@ -552,7 +571,7 @@ Runs on pull request submission.
 - Build action pushes to GitHub Container Registry (ghcr.io)
 - Build triggers select new builds vs reusing builds
 - Deploy only when changes are made
-- Builds `portal-web`, `portal-api`, `core-api`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
+- Builds `portal-web`, `portal-api`, `admin-web`, `admin-api`, `core-api`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
 - Smoke checks through the edge and Playwright E2E (chromium) when changes are made
 - Posts sticky comment with deployment links when deployments occur
 - Other checks and updates as required
