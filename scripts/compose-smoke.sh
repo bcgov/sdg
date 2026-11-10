@@ -76,6 +76,7 @@ done
 
 CADDY="$(container caddy)"
 API="$(container portal-api)"
+CORE="$(container core-api)"
 WEB="$(container portal-web)"
 MIGRATE="$(container migrate)"
 POSTGIS="$(container postgis)"
@@ -116,6 +117,10 @@ check "GET /api/auth/me without a session is 401 from portal-api" \
   = "401 application/json; charset=utf-8"
 check "portal-api is live inside the network" "$ENGINE" exec "$API" node -e \
   "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+check "core-api is ready (its database) and reachable from portal-api" "$ENGINE" exec "$API" node -e \
+  "fetch('http://core-api:3000/healthz/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+check "core-api answers 401 to a request without a token" "$ENGINE" exec "$CORE" node -e \
+  "fetch('http://localhost:3000/api/v1/shared/me').then((r) => process.exit(r.status === 401 ? 0 : 1), () => process.exit(1))"
 
 echo "Telemetry (off without compose.observability.yaml)"
 check "GET /telemetry.json reports telemetry off" test "$("${CURL[@]}" "$SITE/telemetry.json")" = '{"enabled":false}'

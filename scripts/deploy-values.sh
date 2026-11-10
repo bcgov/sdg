@@ -2,7 +2,7 @@
 # Values the deploy workflow passes to charts/sdg (DEVELOPER.md, Workflows), derived from the environment
 # so reusable-deploy.yml, charts-test.sh and deploy-values.test.sh share one computation.  No cluster access.
 #
-#   values   print a values file: images, host, Keycloak and Vault settings
+#   values   print a values file: images, host, Keycloak (portal-api, core-api) and Vault settings
 #   outputs  print release=, url= and values_file= lines (for $GITHUB_OUTPUT)
 #
 # Environment (all validated; anything unexpected fails instead of reaching the YAML):
@@ -75,6 +75,10 @@ portal-api:
     role: "${vault_role}"
     secretPath: "${VAULT_SECRET_PATH:-${vault_role}/portal-api}"
     serviceAccountName: "${plate}-vault"
+core-api:
+  keycloak:
+    issuerUrl: "${KEYCLOAK_ISSUER_URL}"
+    portalClientId: "${KEYCLOAK_CLIENT_ID}"
 EOF
     ;;
   outputs)

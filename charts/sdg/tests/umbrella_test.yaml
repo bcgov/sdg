@@ -10,6 +10,8 @@ set:
   portal-api.vault.role: abc123-nonprod
   portal-api.vault.secretPath: abc123-nonprod/portal-api
   portal-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  core-api.keycloak.portalClientId: portal
 tests:
   - it: global image settings reach every app image
     template: charts/portal-api/templates/deployment.yaml
@@ -32,6 +34,70 @@ tests:
               secretKeyRef:
                 name: sdg-12-postgres-pguser-portal
                 key: uri
+
+  - it: global image settings reach core-api and its migrator
+    template: charts/core-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/core-api:pr-12
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ghcr.io/acme/sdg/database:pr-12
+
+  - it: core-api and its migrator connect as the core login the postgres chart creates
+    template: charts/core-api/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-core
+                key: uri
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-core
+                key: uri
+
+  - it: the postgres chart creates the core login and admits core-api
+    template: charts/postgres/templates/postgrescluster.yaml
+    asserts:
+      - contains:
+          path: spec.users
+          content:
+            name: core
+            databases: [portal]
+
+  - it: core-api admits the release's forwarders, not the edge
+    template: charts/core-api/templates/networkpolicy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: portal-api
+                app.kubernetes.io/instance: sdg-12
+      - notContains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: edge
+                app.kubernetes.io/instance: sdg-12
+
+  - it: core-api's Service carries the name the forwarders will call
+    template: charts/core-api/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-core-api
 
   - it: the PGO cluster name yields the Secret portal-api reads
     template: charts/postgres/templates/postgrescluster.yaml

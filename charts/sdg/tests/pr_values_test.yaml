@@ -12,6 +12,8 @@ set:
   portal-api.vault.role: abc123-nonprod
   portal-api.vault.secretPath: abc123-nonprod/portal-api
   portal-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  core-api.keycloak.portalClientId: portal
 tests:
   - it: runs Postgres without pgBackRest on a 256Mi volume
     template: charts/postgres/templates/postgrescluster.yaml
@@ -51,6 +53,19 @@ tests:
 
   - it: lowers portal-api requests, keeps its limit and recreates on rollout
     template: charts/portal-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { memory: 384Mi }
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: runs core-api at its PR-level default requests and recreates it on rollout
+    template: charts/core-api/templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources

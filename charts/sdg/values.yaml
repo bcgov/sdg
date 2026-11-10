@@ -35,6 +35,16 @@ portal-api:
     # Required when enabled, e.g. abc123-vault
     serviceAccountName: ''
 
+core-api:
+  enabled: true
+  keycloak:
+    # Required: the same realm as portal-api, e.g. https://keycloak.example.com/realms/portal
+    issuerUrl: ''
+    # Required: portal-api's client id (keycloak.clientId above)
+    portalClientId: ''
+    # The admin client id; empty until admin-api is deployed (no admin-client token is accepted)
+    adminClientId: ''
+
 edge:
   enabled: true
 

@@ -95,7 +95,7 @@ jobs:
             fi
 
             # file:// dependencies: leaf charts before the umbrella, which packages them
-            for chart in portal-web portal-api edge postgres sdg; do
+            for chart in portal-web portal-api core-api edge postgres sdg; do
               helm dependency build "charts/${chart}" > /dev/null
             done
 

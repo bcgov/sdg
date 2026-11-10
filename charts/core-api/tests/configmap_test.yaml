@@ -1,0 +1,70 @@
+suite: core-api configmap
+templates:
+  - templates/configmap.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+  keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  keycloak.portalClientId: portal
+tests:
+  - it: carries the issuer and the portal client, and no admin client until one is set (KTD13)
+    asserts:
+      - equal:
+          path: data.KEYCLOAK_ISSUER_URL
+          value: https://keycloak.example.com/realms/portal
+      - equal:
+          path: data.PORTAL_CLIENT_ID
+          value: portal
+      - notExists:
+          path: data.ADMIN_CLIENT_ID
+      - equal:
+          path: data.NODE_ENV
+          value: production
+      - equal:
+          path: data.TRUST_PROXY
+          value: 'false'
+
+  - it: passes the admin client id when set
+    set:
+      keycloak.adminClientId: sdg-admin
+    asserts:
+      - equal:
+          path: data.ADMIN_CLIENT_ID
+          value: sdg-admin
+
+  - it: requires the issuer and the portal client id
+    set:
+      keycloak.portalClientId: ''
+    asserts:
+      - failedTemplate:
+          errorMessage: keycloak.portalClientId is required
+
+  - it: holds no secret
+    asserts:
+      - notExists:
+          path: data.DATABASE_URL
+      - notExists:
+          path: data.KEYCLOAK_CLIENT_SECRET
+
+  # MDD 20-observability-lgtm
+  - it: sends OTLP to Alloy only when a collector is configured
+    set:
+      global.observability.collectorHost: observability-alloy.abc123-tools.svc
+      global.observability.environment: pr-1
+    asserts:
+      - equal:
+          path: data.OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://observability-alloy.abc123-tools.svc:4318
+      - equal:
+          path: data.OTEL_SERVICE_NAME
+          value: core-api
+      - equal:
+          path: data.OTEL_RESOURCE_ATTRIBUTES
+          value: deployment.environment=pr-1
+
+  - it: renders no telemetry env without a collector
+    asserts:
+      - notExists:
+          path: data.OTEL_EXPORTER_OTLP_ENDPOINT
