@@ -9,7 +9,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Pull Request-based pipeline
 - Sandboxed development environments: a full, throwaway stack per pull request
 - Gated/controlled production deployments (optional)
-- Container publishing (ghcr.io) of four images: `portal-web`, `portal-api`, `database` and `edge`
+- Container publishing (ghcr.io) of five images: `portal-web`, `portal-api`, `core-api`, `database` (the migrator) and `edge`
 - Helm charts (`charts/`) with an `sdg` umbrella chart, deployed with Helm from GitHub Actions
 - Secrets from Vault, injected by the Vault Agent sidecar; database and cache credentials generated in-cluster
 - Security, vulnerability, infrastructure, and container scan tools
@@ -20,18 +20,18 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Enforced code reviews and workflow jobs (pass|fail)
 - Prometheus metrics export from portal-api and the edge, and an optional self-hosted Grafana LGTM stack (ADR 0001)
 - Rolling updates with zero downtime in PROD
-- Database migrations with Drizzle, run as an initContainer before portal-api starts
+- Database migrations with Drizzle, run as initContainers: the `database` image migrates the `core` schema before core-api starts, and portal-api migrates its sessions before it starts
 - Pod disruption budgets for high availability
 - Self-healing through probes/checks (startup, readiness, liveness)
 - Helm chart lint, unit tests and schema validation; workflow lint (actionlint)
 - k6 load tests against TEST, weekly
 - Local stack with compose behind Caddy and the WAF at `https://sdg.localhost`
 - **Sample application stack** (pnpm + Turborepo monorepo):
-  - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; also the express-session store (encrypted at rest; pg_cron deletes expired sessions every 15 minutes)
+  - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; each service has its own login and schema (`core`, `portal`, `admin`); portal-api keeps the express-session store (encrypted at rest; pg_cron deletes expired sessions every 15 minutes)
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
   - Edge: Caddy with Coraza WAF, routing `/api*` to portal-api and everything else to portal-web
-  - Backend: `portal-api`, a NestJS backend-for-frontend with Keycloak (OIDC) sign-in
-  - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `database`
+  - Backend: `portal-api`, a thin NestJS backend-for-frontend on `@repo/bff-core` (Keycloak OIDC sign-in, sessions) that forwards `/api` calls to `core-api`, which owns the principals and the `core` schema
+  - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `bff-core`, `server-core`, `database`
 
 # Setup
 
@@ -111,7 +111,7 @@ Nobody sets these by hand; they are created in the namespace and read there.
 | `<release>-postgres-pguser-<login>` | the release's namespace | `DATABASE_URL` (key `uri`) of logins `core`, `portal`, `admin` | The Crunchy operator, from the chart's `PostgresCluster`                        |
 | Sysdig team Secret                  | `<plate>-tools`         | Sysdig API token                                               | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
 
-On first install portal-api pods wait (`CreateContainerConfigError`) until the operator has created the database user Secret; the migrator then retries until the database accepts connections.
+On first install the core-api and portal-api pods wait (`CreateContainerConfigError`) until the operator has created their database user Secrets; the migrators then retry until the database accepts connections.
 
 ### Vault
 
@@ -348,7 +348,7 @@ If `@testing-library/user-event` is flagged but exported from `test-utils.tsx`:
 
 ### Packages
 
-Packages are available from your repository (link on right). All four (`portal-web`, `portal-api`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
+Packages are available from your repository (link on right). All five (`portal-web`, `portal-api`, `core-api`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
 
 E.g. `https://github.com/<owner>/<repo>/packages`
 
@@ -367,7 +367,7 @@ Don't forget to add your team members!
 This repository is architected and hardened out-of-the-box to align with Levels 1 and 2 of the **OWASP Application Security Verification Standard (ASVS) v4.0.3**. A detailed security mapping matrix is documented in [SECURITY.md](./SECURITY.md#owasp-asvs-alignment), detailing our implementation of:
 
 - **Active WAF Defense:** Inline Coraza WAF running inside the Caddy reverse proxy (the edge).
-- **Tiered Isolation:** NetworkPolicies enforcing network boundaries between the edge, portal-web, portal-api and database tiers.
+- **Tiered Isolation:** NetworkPolicies enforcing network boundaries between the edge, portal-web, portal-api, core-api and database tiers.
 - **Platform/Container Hardening:** Read-only root filesystems, non-root execution, privilege escalation blocks, default seccomp profiles, and drop capabilities.
 - **Secret Management:** Application secrets from Vault; database and cache credentials generated in-cluster and never stored in GitHub.
 - **Build-Time & Dynamic Testing:** Automated static analysis (Trivy, CodeQL), dependency auditing (Renovate, Knip), and weekly dynamic vulnerability scans (**OWASP ZAP**).
@@ -405,14 +405,16 @@ Run `pnpm test:charts` after changing a chart.
 
 `compose.yaml` runs the whole portal with its dev commands behind Caddy and the Coraza WAF at **https://sdg.localhost**:
 
-| Service      | Runs                                                                                     | Reachable from the host            |
-| ------------ | ---------------------------------------------------------------------------------------- | ---------------------------------- |
-| `caddy`      | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443) |
-| `portal-web` | `vite` with HMR                                                                          | only through Caddy                 |
-| `portal-api` | `nest start --watch`                                                                     | only through Caddy (`/api`)        |
-| `migrate`    | `drizzle-kit migrate`; portal-api starts only after it succeeds                          | —                                  |
-| `deps`       | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
-| `postgis`    | database                                                                                 | `localhost:5432`                   |
+| Service          | Runs                                                                                     | Reachable from the host            |
+| ---------------- | ---------------------------------------------------------------------------------------- | ---------------------------------- |
+| `caddy`          | `apps/portal-web/caddy/Caddyfile.dev` (TLS from Caddy's local CA, WAF, security headers) | `https://sdg.localhost` (port 443) |
+| `portal-web`     | `vite` with HMR                                                                          | only through Caddy                 |
+| `portal-api`     | `nest start --watch`                                                                     | only through Caddy (`/api`)        |
+| `core-api`       | `nest start --watch`                                                                     | only through portal-api            |
+| `migrate`        | `drizzle-kit migrate` (core schema); core-api starts only after it succeeds              | —                                  |
+| `migrate-portal` | portal-api's sessions migration; portal-api starts only after it succeeds                | —                                  |
+| `deps`           | `pnpm install` into Linux-only `node_modules` volumes                                    | —                                  |
+| `postgis`        | database                                                                                 | `localhost:5432`                   |
 
 ## First run
 
@@ -453,12 +455,13 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 
 Multi-stage Dockerfiles for OpenShift. The app images build from the repository root:
 
-| Image        | Build                                            | Runs                                                                               |
-| ------------ | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `portal-web` | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                          |
-| `portal-api` | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer |
-| `database`   | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as an initContainer (needs `DATABASE_URL`, the core login)  |
-| edge         | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL` |
+| Image        | Build                                            | Runs                                                                                  |
+| ------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `portal-web` | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                             |
+| `portal-api` | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer    |
+| `core-api`   | `podman build -f apps/core-api/Dockerfile .`     | `node dist/main.js` on `:3000` (internal; portal-api calls it)                        |
+| `database`   | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as core-api's initContainer (needs `DATABASE_URL`, core login) |
+| edge         | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL`    |
 
 All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, health, SPA routing and caching, edge headers, WAF).
 
@@ -549,7 +552,7 @@ Runs on pull request submission.
 - Build action pushes to GitHub Container Registry (ghcr.io)
 - Build triggers select new builds vs reusing builds
 - Deploy only when changes are made
-- Builds `portal-web`, `portal-api`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
+- Builds `portal-web`, `portal-api`, `core-api`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
 - Smoke checks through the edge and Playwright E2E (chromium) when changes are made
 - Posts sticky comment with deployment links when deployments occur
 - Other checks and updates as required
