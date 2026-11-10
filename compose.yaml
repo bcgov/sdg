@@ -165,8 +165,9 @@ services:
     # turbo builds the workspace packages portal-api imports (server-core, bff-core and theirs) before
     # `nest start --watch`. Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
     command: ['pnpm', 'turbo', 'run', 'dev', '--filter=portal-api', '--ui=stream', '--env-mode=loose']
+    # Starts after every migrator, so its turbo run never rebuilds the shared packages while another one does.
     depends_on:
-      migrate-portal:
+      migrate-admin:
         condition: service_healthy
       core-api:
         condition: service_healthy
@@ -217,10 +218,11 @@ services:
       CORE_API_URL: http://core-api:3000
     # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
     command: ['pnpm', 'turbo', 'run', 'dev', '--filter=admin-api', '--ui=stream', '--env-mode=loose']
+    # Last of the APIs (after gateway-api), so its build never overlaps another; nothing waits on admin-api.
     depends_on:
       migrate-admin:
         condition: service_healthy
-      core-api:
+      gateway-api:
         condition: service_healthy
     healthcheck:
       # Liveness, as for portal-api: readiness checks only its own database, never Keycloak or core-api.
@@ -245,10 +247,9 @@ services:
       TRUST_PROXY: 'true'
       CORE_API_URL: http://core-api:3000
     command: ['pnpm', 'turbo', 'run', 'dev', '--filter=gateway-api', '--ui=stream', '--env-mode=loose']
+    # After portal-api: one turbo run at a time builds the shared workspace packages.
     depends_on:
-      migrate-admin:
-        condition: service_healthy
-      core-api:
+      portal-api:
         condition: service_healthy
     healthcheck:
       # Liveness; readiness checks nothing more (core-api being down is a 503 per request).
