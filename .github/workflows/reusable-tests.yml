@@ -8,6 +8,15 @@ on:
         description: Deployment URL, e.g. https://sdg-12.apps.gold.devops.gov.bc.ca (reusable-deploy.yml's url output)
         required: true
         type: string
+      ### Optional: both set smokes the edge's admin and gateway hosts
+      admin_url:
+        description: Admin host URL (reusable-deploy.yml's admin_url output)
+        default: ''
+        type: string
+      gateway_url:
+        description: Gateway host URL (reusable-deploy.yml's gateway_url output)
+        default: ''
+        type: string
 
 permissions: {}
 
@@ -33,6 +42,33 @@ jobs:
             sleep 10
           done
           echo "ERROR: ${BASE_URL} did not become healthy in time."
+          exit 1
+
+      # The edge routes by Host. /telemetry.json is answered by the edge itself, so 200 there shows the admin host's
+      # Route reaches it; the gateway host serves only /api, so / is 404 (portal-web would answer 200).
+      # TODO: admin-api and admin-web aren't deployed yet, so the edge has no admin upstreams and answers 503 for
+      # / and /api; once they are, expect 200 and 401 like the portal above.
+      - name: Admin and gateway hosts
+        if: inputs.admin_url != '' && inputs.gateway_url != ''
+        env:
+          ADMIN_URL: ${{ inputs.admin_url }}
+          GATEWAY_URL: ${{ inputs.gateway_url }}
+        run: |
+          status() { curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" "$1" || true; }
+          for i in {1..30}; do
+            telemetry=$(status "${ADMIN_URL}/telemetry.json")
+            admin_web=$(status "${ADMIN_URL}/")
+            admin_api=$(status "${ADMIN_URL}/api/auth/me")
+            gateway=$(status "${GATEWAY_URL}/")
+            got="admin /telemetry.json ${telemetry}, / ${admin_web}, /api/auth/me ${admin_api}; gateway / ${gateway}"
+            if [ "$telemetry" = 200 ] && [ "$admin_web" = 503 ] && [ "$admin_api" = 503 ] && [ "$gateway" = 404 ]; then
+              echo "$got"
+              exit 0
+            fi
+            echo "Waiting (${got}; want 200, 503, 503; 404), retrying in 10s... ($i/30)"
+            sleep 10
+          done
+          echo "ERROR: the admin and gateway hosts did not answer as expected in time."
           exit 1
 
   e2e-tests:

@@ -7,6 +7,10 @@ global:
     tag: ''
   # Public hostname: the edge Ingress host and portal-api's APP_URL (https://<host>).
   host: ''
+  # Admin and gateway hostnames (edge Ingress rules and Host routing), e.g. <release>-admin and <release>-gateway
+  # on the same apps domain. Empty: the edge serves no such host.
+  adminHost: ''
+  gatewayHost: ''
   # Observability stack this release reports to (doc 20; charts/observability). All empty: telemetry off.
   observability:
     # Alloy's Service host, e.g. observability-alloy.abc123-tools.svc

@@ -30,8 +30,14 @@ on:
         description: Has deployment been triggered?
         value: ${{ jobs.deploy.outputs.triggered }}
       url:
-        description: Public URL of the deployment
+        description: Public URL of the deployment (portal)
         value: ${{ jobs.deploy.outputs.url }}
+      admin_url:
+        description: Public URL of the admin host
+        value: ${{ jobs.deploy.outputs.admin_url }}
+      gateway_url:
+        description: Public URL of the gateway host
+        value: ${{ jobs.deploy.outputs.gateway_url }}
 
 permissions: {}
 
@@ -44,6 +50,8 @@ jobs:
     outputs:
       triggered: ${{ steps.deploy.outputs.triggered }}
       url: ${{ steps.vars.outputs.url }}
+      admin_url: ${{ steps.vars.outputs.admin_url }}
+      gateway_url: ${{ steps.vars.outputs.gateway_url }}
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     env:
@@ -64,8 +72,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # Release name, URL and values file come from one script, shared with scripts/charts-test.sh;
-      # release=, url= and values_file= become step outputs and env vars for the commands below
+      # Release name, URLs and values file come from one script, shared with scripts/charts-test.sh;
+      # release=, url=, admin_url=, gateway_url= and values_file= become step outputs and env vars below
       - name: Vars
         id: vars
         run: |

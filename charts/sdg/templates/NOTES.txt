@@ -2,6 +2,12 @@
 {{- if index .Values "edge" "enabled" }}
 
   URL: https://{{ .Values.global.host }}
+{{- with .Values.global.adminHost }}
+  Admin: https://{{ . }}
+{{- end }}
+{{- with .Values.global.gatewayHost }}
+  Gateway: https://{{ . }}
+{{- end }}
 {{- end }}
 {{- if index .Values "postgres" "enabled" }}
 

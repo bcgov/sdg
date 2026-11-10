@@ -2,8 +2,8 @@
 # Values the deploy workflow passes to charts/sdg (DEVELOPER.md, Workflows), derived from the environment
 # so reusable-deploy.yml, charts-test.sh and deploy-values.test.sh share one computation.  No cluster access.
 #
-#   values   print a values file: images, host, Keycloak (portal-api, core-api) and Vault settings
-#   outputs  print release=, url= and values_file= lines (for $GITHUB_OUTPUT)
+#   values   print a values file: images, hosts, Keycloak (portal-api, core-api) and Vault settings
+#   outputs  print release=, url=, admin_url=, gateway_url= and values_file= lines (for $GITHUB_OUTPUT)
 #
 # Environment (all validated; anything unexpected fails instead of reaching the YAML):
 #   TARGET               PR number, test or prod                 REPOSITORY  owner/name (github.repository)
@@ -37,7 +37,11 @@ release="${repository#*/}-${TARGET}"
 server="${OC_SERVER#https://api.}"
 server="${server%:6443}"
 cluster="${server%%.*}"
+# Portal, admin and gateway hosts. A release name has at most 53 characters, so "<release>-gateway" (61) stays within
+# a DNS label's 63.
 host="${release}.apps.${server}"
+admin_host="${release}-admin.apps.${server}"
+gateway_host="${release}-gateway.apps.${server}"
 
 case "${1:-}" in
   values)
@@ -65,7 +69,9 @@ global:
   image:
     registry: "ghcr.io/${repository}"
     tag: "${TAG}"
-  host: "${host}"${observability}
+  host: "${host}"
+  adminHost: "${admin_host}"
+  gatewayHost: "${gateway_host}"${observability}
 portal-api:
   keycloak:
     issuerUrl: "${KEYCLOAK_ISSUER_URL}"
@@ -84,6 +90,8 @@ EOF
   outputs)
     echo "release=${release}"
     echo "url=https://${host}"
+    echo "admin_url=https://${admin_host}"
+    echo "gateway_url=https://${gateway_host}"
     echo "values_file=charts/sdg/values-${ENVIRONMENT:-pr}.yaml"
     ;;
   *)

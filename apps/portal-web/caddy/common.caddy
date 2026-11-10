@@ -16,9 +16,10 @@
 	}
 }
 
-# Proxy requests to the API service
+# Proxy /api to an API service. Argument: its upstream URL from the environment. Spread with {args[:]}: an unset
+# URL is no argument at all, which leaves the proxy without a target, and Caddy answers 503.
 (api_proxy) {
-	reverse_proxy /api* {$PORTAL_API_URL} {
+	reverse_proxy /api* {args[:]} {
 		header_up Host {http.reverse_proxy.upstream.hostport}
 		header_up X-Real-IP {remote_host}
 	}

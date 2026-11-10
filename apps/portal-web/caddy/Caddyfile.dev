@@ -1,4 +1,5 @@
-# Local dev (compose.yaml): https://sdg.localhost in front of the Vite dev server and portal-api.
+# Local dev (compose.yaml): https://sdg.localhost in front of the Vite dev server and portal-api, plus the admin and
+# gateway hosts. An unset upstream URL leaves its reverse_proxy without a target: Caddy answers 503.
 {
 	metrics
 	# Admin API on localhost only: /load and /config change the live config. Metrics have their own listener.
@@ -28,10 +29,34 @@ sdg.localhost {
 
 	encode zstd gzip
 	import collect_{$TELEMETRY:off}
-	import api_proxy
+	import api_proxy {$PORTAL_API_URL}
 	# Everything else goes to Vite, HMR websocket included. The original Host is kept: Vite allows *.localhost.
 	reverse_proxy {$PORTAL_WEB_URL}
 	import security_headers "'unsafe-inline'" "'unsafe-inline'"
+}
+
+# admin-web, with /api to admin-api.
+admin.sdg.localhost {
+	tls internal
+	import logging
+	import waf
+	encode zstd gzip
+	import collect_{$TELEMETRY:off}
+	import api_proxy {$ADMIN_API_URL}
+	reverse_proxy {$ADMIN_WEB_URL}
+	import security_headers "'unsafe-inline'" "'unsafe-inline'"
+}
+
+# gateway-api's /api only; anything else is 404. No web app, so no Vite allowances.
+gateway.sdg.localhost {
+	tls internal
+	import logging
+	import waf
+	encode zstd gzip
+	import api_proxy {$GATEWAY_API_URL}
+	@not_api not path /api*
+	respond @not_api 404
+	import security_headers "" ""
 }
 
 # Grafana from compose.observability.yaml (502 when that override isn't running).

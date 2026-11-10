@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // react-aria (bundled into @bcgov/design-system-react-components) prepends a few <style> elements with fixed
-// text. The production edge CSP allows exactly those by hash (caddy/Caddyfile), so this fails when an upgrade
-// changes one, before the strict CSP blocks it in a browser.
+// text. The production edge CSP allows exactly those by hash on every site in caddy/Caddyfile, so this fails when an
+// upgrade changes one, or a site's security_headers line misses one, before the strict CSP blocks it in a browser.
 const designSystem = fileURLToPath(new URL('../../../packages/design-system/package.json', import.meta.url));
 const bcgovEntry = createRequire(designSystem).resolve('@bcgov/design-system-react-components');
 const bcgovModule = readFileSync(bcgovEntry.replace(/cjs[/\\]index\.cjs$/, 'esm/index.js'), 'utf8');
@@ -37,8 +37,9 @@ const sha256 = (text: string) => `'sha256-${createHash('sha256').update(text).di
 
 describe('production CSP style hashes', () => {
   const styles = fixedStyleTexts(bcgovModule);
-  const productionHeaders = caddyfile.match(/^\s*import security_headers (.*)$/m)?.[1] ?? '';
-  const allowed = productionHeaders.match(/'sha256-[A-Za-z0-9+/=]+'/g) ?? [];
+  const expected = [...new Set(styles.map(sha256))].toSorted();
+  // One per host the edge serves (portal, admin, gateway): each site's second argument is its extra style-src.
+  const siteHeaders = [...caddyfile.matchAll(/^\s*import security_headers (.*)$/gm)].map(([, args]) => args!);
 
   it('finds the fixed react-aria styles', () => {
     expect(styles.length).toBeGreaterThan(0);
@@ -46,12 +47,17 @@ describe('production CSP style hashes', () => {
     expect(styles.filter((text) => text.includes('${'))).toEqual([]);
   });
 
-  it('allows exactly the hash of each fixed style', () => {
-    expect(allowed.toSorted()).toEqual([...new Set(styles.map(sha256))].toSorted());
+  it('finds a security_headers line for each site', () => {
+    expect(siteHeaders.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('keeps unsafe-inline out of the production style-src', () => {
+  it('allows exactly the hash of each fixed style on every site', () => {
+    const allowed = siteHeaders.map((args) => args.match(/'sha256-[A-Za-z0-9+/=]+'/g)?.toSorted() ?? []);
+    expect(allowed).toEqual(siteHeaders.map(() => expected));
+  });
+
+  it('keeps unsafe-inline out of every production style-src', () => {
     expect(styleSrc).toContain('{args[1]}');
-    expect(styleSrc.replace('{args[1]}', productionHeaders)).not.toContain('unsafe-inline');
+    expect(siteHeaders.filter((args) => styleSrc.replace('{args[1]}', args).includes('unsafe-inline'))).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
-# Production edge: proxies /api to portal-api and everything else to portal-web (its own static-file image).
+# Production edge: routes the portal, admin and gateway hosts to their apps (/api to each host's API, everything else
+# to its web app; portal-web is its own static-file image).
 # TLS terminates at the OpenShift route.
 {
 	metrics
@@ -28,9 +29,35 @@ import common.caddy
 	import waf
 
 	encode zstd gzip
-	import collect_{$TELEMETRY:off}
-	import api_proxy
-	reverse_proxy {$PORTAL_WEB_URL}
-	# style-src hashes: react-aria's fixed touch-action and overscroll-behavior <style> elements (common.caddy).
-	import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
+
+	# Routed by Host. ADMIN_HOST and GATEWAY_HOST default to reserved .invalid names that no request carries. An unset
+	# upstream URL (its app not deployed) leaves that reverse_proxy without a target, which Caddy answers with 503.
+	# Every security_headers line allows react-aria's fixed touch-action and overscroll-behavior <style> elements by
+	# hash (common.caddy); portal-web's csp-hashes.test.ts checks each line.
+
+	# Admin: admin-web, with /api to admin-api.
+	@admin host {$ADMIN_HOST:admin.invalid}
+	handle @admin {
+		import collect_{$TELEMETRY:off}
+		import api_proxy {$ADMIN_API_URL}
+		reverse_proxy {$ADMIN_WEB_URL}
+		import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
+	}
+
+	# Gateway: gateway-api's /api only, for service accounts; anything else is 404.
+	@gateway host {$GATEWAY_HOST:gateway.invalid}
+	handle @gateway {
+		import api_proxy {$GATEWAY_API_URL}
+		@not_api not path /api*
+		respond @not_api 404
+		import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
+	}
+
+	# Portal: every other host, so the release host and any vanity host (route-tls.yml) reach portal-web and portal-api.
+	handle {
+		import collect_{$TELEMETRY:off}
+		import api_proxy {$PORTAL_API_URL}
+		reverse_proxy {$PORTAL_WEB_URL}
+		import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
+	}
 }

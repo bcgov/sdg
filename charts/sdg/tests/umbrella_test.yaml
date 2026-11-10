@@ -161,6 +161,36 @@ tests:
           path: spec.rules[0].host
           value: sdg-12.apps.example.com
 
+  - it: global admin and gateway hosts reach the edge's Ingress rules and Host routing
+    template: charts/edge/templates/ingress.yaml
+    set:
+      global.adminHost: sdg-12-admin.apps.example.com
+      global.gatewayHost: sdg-12-gateway.apps.example.com
+    asserts:
+      - equal:
+          path: spec.rules[1].host
+          value: sdg-12-admin.apps.example.com
+      - equal:
+          path: spec.rules[2].host
+          value: sdg-12-gateway.apps.example.com
+
+  - it: global admin and gateway hosts reach the edge's Caddy env
+    template: charts/edge/templates/deployment.yaml
+    set:
+      global.adminHost: sdg-12-admin.apps.example.com
+      global.gatewayHost: sdg-12-gateway.apps.example.com
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_HOST
+            value: sdg-12-admin.apps.example.com
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_HOST
+            value: sdg-12-gateway.apps.example.com
+
   - it: global.host drives APP_URL
     template: charts/portal-api/templates/configmap.yaml
     asserts:

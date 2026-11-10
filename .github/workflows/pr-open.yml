@@ -79,6 +79,8 @@ jobs:
     uses: ./.github/workflows/reusable-tests.yml
     with:
       url: ${{ needs.deploys.outputs.url }}
+      admin_url: ${{ needs.deploys.outputs.admin_url }}
+      gateway_url: ${{ needs.deploys.outputs.gateway_url }}
 
   comment:
     name: Deployment Links
@@ -95,6 +97,8 @@ jobs:
           message: |
             ### 🚀 Deployments Available
             - [Portal](${{ needs.deploys.outputs.url }})
+            - [Admin](${{ needs.deploys.outputs.admin_url }})
+            - [Gateway](${{ needs.deploys.outputs.gateway_url }}) (service accounts, `/api` only)
 
   # ==========================================================================
   # WARNING: This job acts as the required merge gate for this workflow.

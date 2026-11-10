@@ -35,6 +35,8 @@ values="$("$SCRIPT" values)" || { echo "FAIL: PR values exited non-zero"; FAILED
 expect "registry is lowercased ghcr.io/<repository>" "$values" "    registry: \"ghcr.io/acme/sdg\""
 expect "tag is TAG" "$values" "    tag: \"0123abc\""
 expect "host is <repo>-<target> on the cluster's apps domain" "$values" "  host: \"sdg-12.apps.gold.devops.gov.bc.ca\""
+expect "admin host is <repo>-<target>-admin" "$values" "  adminHost: \"sdg-12-admin.apps.gold.devops.gov.bc.ca\""
+expect "gateway host is <repo>-<target>-gateway" "$values" "  gatewayHost: \"sdg-12-gateway.apps.gold.devops.gov.bc.ca\""
 expect "Keycloak issuer passes through" "$values" "    issuerUrl: \"https://dev.loginproxy.gov.bc.ca/auth/realms/standard\""
 expect "Keycloak client id passes through" "$values" "    clientId: \"sdg-1234\""
 core_api="$(sed -n '/^core-api:/,/^[a-z]/p' <<< "$values")"
@@ -48,6 +50,8 @@ expect "PR Vault secret path defaults to <role>/portal-api" "$values" "    secre
 outputs="$("$SCRIPT" outputs)" || { echo "FAIL: PR outputs exited non-zero"; FAILED=1; }
 expect "PR release is <repo>-<pr>" "$outputs" "release=sdg-12"
 expect "PR url is https://<host>" "$outputs" "url=https://sdg-12.apps.gold.devops.gov.bc.ca"
+expect "PR admin url is https://<admin host>" "$outputs" "admin_url=https://sdg-12-admin.apps.gold.devops.gov.bc.ca"
+expect "PR gateway url is https://<gateway host>" "$outputs" "gateway_url=https://sdg-12-gateway.apps.gold.devops.gov.bc.ca"
 expect "PR values file is values-pr.yaml" "$outputs" "values_file=charts/sdg/values-pr.yaml"
 
 base_env
@@ -64,6 +68,8 @@ expect "prod Vault role is <plate>-prod" "$values" "    role: \"d62e77-prod\""
 expect "prod Vault secret path is <plate>-prod/portal-api" "$values" "    secretPath: \"d62e77-prod/portal-api\""
 expect "Silver server gives the Silver auth path" "$values" "    authPath: \"auth/k8s-silver\""
 expect "prod url is on the Silver apps domain" "$outputs" "url=https://sdg-prod.apps.silver.devops.gov.bc.ca"
+expect "prod admin url is on the Silver apps domain" "$outputs" "admin_url=https://sdg-prod-admin.apps.silver.devops.gov.bc.ca"
+expect "prod gateway url is on the Silver apps domain" "$outputs" "gateway_url=https://sdg-prod-gateway.apps.silver.devops.gov.bc.ca"
 expect "prod values file is values-prod.yaml" "$outputs" "values_file=charts/sdg/values-prod.yaml"
 
 base_env
@@ -73,6 +79,19 @@ expect "VAULT_SECRET_PATH overrides the default" "$("$SCRIPT" values)" "    secr
 base_env
 unset TAG KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID OC_NAMESPACE
 expect "outputs need no image, Keycloak or namespace settings" "$("$SCRIPT" outputs 2>&1)" "url=https://sdg-12.apps.gold.devops.gov.bc.ca"
+
+# The longest release name (53 characters) keeps every host's first DNS label within 63 characters
+base_env
+export REPOSITORY=acme/abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvw TARGET=12
+outputs="$("$SCRIPT" outputs)" || { echo "FAIL: 53-character release outputs exited non-zero"; FAILED=1; }
+expect "a 53-character release is accepted" "$outputs" "release=abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvw-12"
+labels="$(sed -n 's|^[a-z_]*url=https://\([^.]*\)\..*|\1|p' <<< "$outputs")"
+if [ "$(wc -l <<< "$labels")" -eq 3 ] && ! awk 'length > 63 { found = 1 } END { exit !found }' <<< "$labels"; then
+  echo "PASS: portal, admin and gateway host labels are 63 characters or fewer"
+else echo "FAIL: host labels over 63 characters (or missing):"; echo "$labels"; FAILED=1; fi
+export REPOSITORY=acme/abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwx
+if "$SCRIPT" outputs >/dev/null 2>&1; then echo "FAIL: a 54-character release was accepted"; FAILED=1
+else echo "PASS: a 54-character release is rejected"; fi
 
 # Observability (doc 20): off unless OBSERVABILITY=true
 base_env

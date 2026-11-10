@@ -24,7 +24,8 @@ command -v kubeconform >/dev/null || { echo "kubeconform is missing: https://git
 ../scripts/deploy-values.test.sh
 
 # Values every required field needs, shaped for the umbrella; leaf charts get the same keys without the prefix.
-LINT_GLOBALS=(--set global.image.registry=ghcr.io/example/sdg --set global.image.tag=lint --set global.host=sdg.example.com)
+LINT_GLOBALS=(--set global.image.registry=ghcr.io/example/sdg --set global.image.tag=lint --set global.host=sdg.example.com
+  --set global.adminHost=sdg-admin.example.com --set global.gatewayHost=sdg-gateway.example.com)
 lint_values() {
   local prefix="$1"
   echo "${LINT_GLOBALS[@]}" \
@@ -109,6 +110,10 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" "CORE_API_URL: \"?http://${release}-core-api:3000\"?$" "points portal-api at the release's core-api"
   expect_rendered "$env" "$manifests" 'command: \[node, dist/migrate.js\]' "migrates portal-api's sessions with its own image"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
+  expect_rendered "$env" "$manifests" "host: \"?${release}-admin\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-admin.<apps domain>"
+  expect_rendered "$env" "$manifests" "host: \"?${release}-gateway\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-gateway.<apps domain>"
+  expect_rendered "$env" "$manifests" "value: \"?${release}-admin\.apps\.gold\.devops\.gov\.bc\.ca\"?$" "gives the edge its admin host"
+  expect_rendered "$env" "$manifests" "value: \"?${release}-gateway\.apps\.gold\.devops\.gov\.bc\.ca\"?$" "gives the edge its gateway host"
   expect_rendered "$env" "$manifests" 'vault.hashicorp.com/auth-path: "?auth/k8s-gold' "uses the cluster's Vault auth path"
   stack="example-$([ "$env" = prod ] && echo prod || echo tools)"
   expect_rendered "$env" "$manifests" "OTEL_EXPORTER_OTLP_ENDPOINT: \"?http://observability-alloy\.${stack}\.svc:4318" "sends OTLP to Alloy in ${stack}"
