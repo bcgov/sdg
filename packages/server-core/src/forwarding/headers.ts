@@ -1,7 +1,7 @@
 /** Incoming request headers, as Node (`IncomingHttpHeaders`) or Express presents them. */
 export type IncomingHeaders = Readonly<Record<string, string | readonly string[] | undefined>>;
 
-/** The only request headers forwarded (KTD3): content negotiation, the body's type, trace context and request id. */
+/** The only request headers forwarded: content negotiation, the body's type, trace context and request id. */
 const FORWARDED_REQUEST_HEADERS = [
   'accept',
   'accept-language',

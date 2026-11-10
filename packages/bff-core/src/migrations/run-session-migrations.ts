@@ -15,7 +15,7 @@ export class SessionMigrationError extends Error {
 export interface SessionMigrationOptions {
   /**
    * The migrating login's own schema (`portal`, `admin`), where drizzle keeps this BFF's journal
-   * (`<schema>.__drizzle_migrations`), so it never collides with another login's journal (KTD9).
+   * (`<schema>.__drizzle_migrations`), so it never collides with another login's journal.
    */
   readonly migrationsSchema: string;
 }
@@ -45,7 +45,7 @@ function redact(error: unknown, url: URL): string {
 
 /**
  * Applies the sessions migrations as the BFF's own login: the `sessions` table lands in that login's schema and the
- * login schedules its own `<login>-prune-expired-sessions` job (KTD9). Run from each BFF image's session-migrate
+ * login schedules its own `<login>-prune-expired-sessions` job. Run from each BFF image's session-migrate
  * entry (an initContainer). Resolves when nothing is pending; rejects with a {@link SessionMigrationError} otherwise.
  */
 export async function runSessionMigrations(

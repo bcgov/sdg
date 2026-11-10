@@ -40,7 +40,7 @@ migrator:
 
 logLevel: info
 
-# core-api only verifies tokens, so it needs no client secret (KTD13).
+# core-api only verifies tokens, so it needs no client secret.
 keycloak:
   # Required, e.g. https://keycloak.example.com/realms/portal
   issuerUrl: ''
@@ -59,7 +59,7 @@ database:
   caSecretName: '{{ .Release.Name }}-postgres-cluster-cert'
   caSecretKey: ca.crt
 
-# PR-level requests by default (KTD14), so TEST and PROD inherit them too; raise them per environment if needed.
+# PR-level requests by default, so TEST and PROD inherit them too; raise them per environment if needed.
 resources:
   requests:
     cpu: 20m
@@ -69,7 +69,7 @@ resources:
 
 networkPolicy:
   enabled: true
-  # app.kubernetes.io/name of the pods (same release) that call core-api: the forwarders (R3).
+  # app.kubernetes.io/name of the pods (same release) that call core-api: the forwarders.
   clients: [portal-api, admin-api, gateway-api]
 
 podDisruptionBudget:

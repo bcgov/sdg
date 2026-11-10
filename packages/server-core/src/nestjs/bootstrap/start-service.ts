@@ -28,7 +28,6 @@ async function listen(appModule: Type, options: StartServiceOptions): Promise<vo
     bufferLogs: true,
     rawBody: options.rawBody ?? false,
   });
-  // Route Nest's Logger (and the logs buffered during bootstrap) through nestjs-pino.
   app.useLogger(app.get(PinoLogger));
   const config = app.get<ConfigService<ServiceEnv, true>>(ConfigService);
   configureApp(app, options);

@@ -14,7 +14,7 @@ export interface ConfigureAppOptions {
   readonly swagger: SwaggerOptions;
   /**
    * Route paths (Nest path syntax, e.g. `internal/{*path}`) served outside /api, for every method: core-api's
-   * BFF-only `/internal/*` routes, which no forwarder forwards (KTD2).
+   * BFF-only `/internal/*` routes, which no forwarder forwards.
    */
   readonly unprefixed?: readonly string[];
 }

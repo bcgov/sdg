@@ -6,7 +6,7 @@ import { BFF_OPTIONS, type BffModuleOptions } from '../nestjs/bff.options.js';
 const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD']);
 
 /**
- * Refuses cross-site writes (R31, CWE-352): every request other than GET or HEAD, auth routes included, must carry an
+ * Refuses cross-site writes (CWE-352): every request other than GET or HEAD, auth routes included, must carry an
  * `Origin` equal to the BFF's own origin (from APP_URL), or it gets 403 before any handler runs, so core-api is never
  * contacted. A same-site page can send a form POST with the SameSite=lax cookie, and only Origin tells it apart;
  * browsers send Origin on every non-GET request, so a missing one is refused too. BffModule registers it globally.

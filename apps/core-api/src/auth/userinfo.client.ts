@@ -46,8 +46,8 @@ async function jsonBody<T>(response: Response, schema: z.ZodType<T>, what: strin
 }
 
 /**
- * Reads the caller's profile from Keycloak's userinfo endpoint with the caller's own access token (KTD5), so the
- * principal gets its real name and email whether or not the realm maps profile claims into access tokens (R12).
+ * Reads the caller's profile from Keycloak's userinfo endpoint with the caller's own access token, so the
+ * principal gets its real name and email whether or not the realm maps profile claims into access tokens.
  * The endpoint comes from the issuer's discovery document, fetched on first use and again after a failure.
  */
 export class UserinfoClient {

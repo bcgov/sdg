@@ -17,7 +17,7 @@ export interface ForwarderLogger {
 export interface ForwarderOptions<C> {
   /** core-api's base URL, without a trailing slash; the request target is appended unchanged. */
   readonly upstream: string;
-  /** The audiences this caller forwards (R4); any other path is answered 404 without contacting core-api. */
+  /** The audiences this caller forwards; any other path is answered 404 without contacting core-api. */
   readonly audiences: readonly Audience[];
   /** Upper-case methods this caller forwards; others get 405. Every method when omitted. */
   readonly methods?: readonly string[];
@@ -46,7 +46,7 @@ export type ForwardResult =
 const rejected = (status: number): ForwardResult => ({ kind: 'rejected', status });
 
 /**
- * Forwards a caller's request to core-api (KTD3), framework-agnostic: decides from the path, method and token whether
+ * Forwards a caller's request to core-api, framework-agnostic: decides from the path, method and token whether
  * to forward at all, then calls core-api with `redirect: 'manual'` and a timeout. Redirects and error statuses are
  * relayed as they are; core-api unreachable or timed out is 503.
  */

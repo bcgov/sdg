@@ -4,7 +4,7 @@ import type { BffModuleAsyncOptions, BffModuleOptions } from '@repo/bff-core/nes
 import type { Env } from '../config/env.js';
 import { SESSION_COOKIE, SESSION_KEY_INFO } from './portal-session.js';
 
-/** bff-core wired for the resident portal: the portal client, the `portal` login, and the portal audience (R4). */
+/** bff-core wired for the resident portal: the portal client, the `portal` login, and the portal audience. */
 export function portalBffOptions(config: ConfigService<Env, true>): BffModuleOptions {
   const env = <K extends keyof Env>(key: K): Env[K] => config.get(key, { infer: true });
   return {

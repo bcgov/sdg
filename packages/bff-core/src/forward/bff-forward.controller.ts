@@ -28,8 +28,8 @@ function isForwardedPath(url: string): boolean {
 }
 
 /**
- * Forwards the signed-in user's `/api/v<N>/<audience>/…` calls to core-api (R4, KTD3) with the session's access token,
- * refreshed first when it is about to expire (R6). Paths outside this BFF's audiences get 404, a missing session 401,
+ * Forwards the signed-in user's `/api/v<N>/<audience>/…` calls to core-api with the session's access token,
+ * refreshed first when it is about to expire. Paths outside this BFF's audiences get 404, a missing session 401,
  * an unreachable IdP or core-api 503. A 401 from core-api ends the session: the BFF just sent a token it believed valid.
  */
 @ApiExcludeController()
@@ -48,7 +48,7 @@ export class BffForwardController {
     this.cookieName = options.session.cookieName;
     this.forwarder = new Forwarder<ForwardContext>({
       upstream: options.coreApiUrl,
-      audiences: [...new Set([...options.audiences, 'shared' as const])],
+      audiences: [...options.audiences, 'shared'],
       token: (context) => this.token(context),
       logger: this.logger,
     });

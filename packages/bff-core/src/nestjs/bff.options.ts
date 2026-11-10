@@ -4,7 +4,7 @@ import type { Audience } from '@repo/server-core/forwarding';
 import type { LoginHook } from '../auth/core-api-login.js';
 
 export interface BffSessionOptions {
-  /** The session cookie, e.g. `portal.sid`; each BFF has its own (R7). */
+  /** The session cookie, e.g. `portal.sid`; each BFF has its own. */
   readonly cookieName: string;
   /** SESSION_SECRET: signs the cookie and, through HKDF with `keyInfo`, keys the stored payload's encryption. */
   readonly secret: string;
@@ -16,21 +16,21 @@ export interface BffSessionOptions {
 
 /**
  * Where to send the browser when core-api refuses a sign-in (403). It runs after the pending session is ended and
- * before the redirect, so it can also end the Keycloak session (admin-api's not-authorized path, KTD6).
+ * before the redirect, so it can also end the Keycloak session (admin-api's not-authorized path).
  */
 export type LoginRefusal = (login: CallbackResult) => Promise<string>;
 
 export interface BffModuleOptions {
-  /** The BFF's public base URL (APP_URL, no trailing slash): its origin (R31), callback URL and error redirects. */
+  /** The BFF's public base URL (APP_URL, no trailing slash): its origin, callback URL and error redirects. */
   readonly appUrl: string;
-  /** Postgres URL of this BFF's own login (KTD8); its `sessions` table lives in that login's schema. */
+  /** Postgres URL of this BFF's own login; its `sessions` table lives in that login's schema. */
   readonly databaseUrl: string;
   readonly session: BffSessionOptions;
   /** This BFF's Keycloak client. The redirect URIs follow from `appUrl`. */
   readonly oidc: Omit<OidcClientOptions, 'redirectUri' | 'postLogoutRedirectUri'>;
   /** core-api's base URL (no trailing slash), for forwarding and the default `onLogin`. */
   readonly coreApiUrl: string;
-  /** The audiences this BFF forwards (e.g. `['portal']`); `shared` is always forwarded too (KTD2). */
+  /** The audiences this BFF forwards (e.g. `['portal']`); `shared` is always forwarded too. */
   readonly audiences: readonly Audience[];
   /** Runs after the code exchange. Defaults to core-api's `/internal/principals/login` (`createCoreApiLogin`). */
   readonly onLogin?: LoginHook;

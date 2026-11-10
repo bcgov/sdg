@@ -83,7 +83,7 @@ describe('AuthController', () => {
       ]);
       const me = await agent.get('/api/auth/me');
       expect(me.status).toBe(200);
-      // The profile core-api read from Keycloak userinfo, not the ID token's 'Ada Lovelace' (R12, KTD5).
+      // The profile core-api read from Keycloak userinfo, not the ID token's 'Ada Lovelace'.
       expect(me.body).toEqual({ id: PRINCIPAL_ID, ...CORE_API_PROFILE });
       expect(await liveSessions()).toBe(1);
     });

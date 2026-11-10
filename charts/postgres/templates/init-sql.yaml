@@ -1,4 +1,4 @@
-# PGO runs this once as the superuser after creating the cluster and its users (KTD8): each login gets a schema of its
+# PGO runs this once as the superuser after creating the cluster and its users: each login gets a schema of its
 # own name, and nothing lives in public. compose's dev Postgres runs the same SQL
 # (packages/database/dev-postgres/init-roles.sql); change both together. A change here reaches only clusters
 # created afterwards: an existing cluster is deleted and recreated (charts/README.md).

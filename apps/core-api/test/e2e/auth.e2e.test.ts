@@ -5,7 +5,7 @@ import { AdminGuard, PortalGuard } from '../../src/auth/audience.guards.js';
 import { createTestApp, type TestApp } from '../../src/testing/app.js';
 import type { TestIdp } from '../../src/testing/idp.js';
 
-/** Test-only routes in the portal and admin audiences, which U5 does not have yet. */
+/** Test-only routes in the portal and admin audiences. */
 @Controller({ path: 'portal/probe', version: '1' })
 @UseGuards(PortalGuard)
 class PortalProbeController {

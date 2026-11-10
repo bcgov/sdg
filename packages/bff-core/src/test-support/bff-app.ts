@@ -39,7 +39,6 @@ export interface BffTestAppOptions {
 function moduleOptions({ idp, coreApi, overrides }: BffTestAppOptions): BffModuleOptions {
   return {
     appUrl: APP_URL,
-    // Never connected: tests swap SESSION_DATABASE for PGlite.
     databaseUrl: 'postgres://portal:unused@127.0.0.1:1/portal',
     session: { cookieName: 'portal.sid', secret: SECRET, keyInfo: 'portal-session-store', ttlSeconds: 3600 },
     oidc: { issuerUrl: idp.issuer, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, fetch: idp.fetch },
@@ -60,7 +59,6 @@ export async function createBffTestApp(setup: BffTestAppOptions): Promise<BffTes
   })
   class TestAppModule {}
 
-  // One OIDC client the tests can spy on (e.g. its `refresh`).
   const oidc = createOidcClient({
     ...options.oidc,
     redirectUri: `${APP_URL}/api/auth/callback`,

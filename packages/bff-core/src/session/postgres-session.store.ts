@@ -27,7 +27,7 @@ type Callback<T> = (error: unknown, value?: T) => void;
 /**
  * express-session store on the BFF login's `sessions` table. Payloads are encrypted: they carry OIDC tokens.
  *
- * Safe across pods (KTD7): `destroy` leaves a tombstone (`destroyed_at`, payload wiped) instead of deleting the row,
+ * Safe across pods: `destroy` leaves a tombstone (`destroyed_at`, payload wiped) instead of deleting the row,
  * and `set` updates only rows without one. A request that loaded the session before another pod ended it can still
  * save (e.g. refreshed tokens), but the save changes nothing and the session stays ended. A new session id has no row,
  * so express-session's first save inserts as usual. Reads skip tombstoned and expired rows; the prune job deletes them.
@@ -77,7 +77,6 @@ export class PostgresSessionStore extends Store {
       const data: SessionData = JSON.parse(decryptSession(this.key, row.sess, sid));
       return data;
     } catch (error) {
-      // Unreadable (e.g. SESSION_SECRET rotated): treat as signed out rather than failing the request.
       this.logger.warn({ msg: 'Discarding unreadable session', error: describeError(error) });
       return null;
     }

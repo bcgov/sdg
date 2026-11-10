@@ -33,7 +33,7 @@ const stringClaim = (claims: Claims, key: string): string | undefined => {
 };
 
 /**
- * Who a verified token belongs to (KTD4): any client-credentials token is a service account (checked first, so a
+ * Who a verified token belongs to: any client-credentials token is a service account (checked first, so a
  * service-account token from the portal client is never taken for a resident); otherwise the token's `azp` must be
  * the portal or the admin client. Undefined for anything else.
  */
@@ -75,8 +75,8 @@ function bearerToken(header: string | string[] | undefined): string | undefined 
 }
 
 /**
- * Verifies the forwarded Bearer token and classifies its caller (KTD4), once per request. 401 for a missing or
- * invalid token; 503 when Keycloak's signing keys cannot be fetched (R10). Audience checks are the guards' job.
+ * Verifies the forwarded Bearer token and classifies its caller, once per request. 401 for a missing or
+ * invalid token; 503 when Keycloak's signing keys cannot be fetched. Audience checks are the guards' job.
  */
 @Injectable()
 export class PrincipalResolver {

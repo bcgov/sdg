@@ -21,7 +21,6 @@ export const TEST_ENV = {
   NODE_ENV: 'test',
   LOG_LEVEL: 'silent',
   APP_URL,
-  // Never connected: SESSION_DATABASE is swapped for PGlite.
   DATABASE_URL: 'postgres://portal:unused@127.0.0.1:1/portal',
   SESSION_SECRET: 'test-session-secret-at-least-32-characters',
   KEYCLOAK_CLIENT_ID: CLIENT_ID,
@@ -119,7 +118,7 @@ export interface SignedIn {
   res: supertest.Response;
 }
 
-/** Signs in through the fake IdP and the core-api stub (F1); throws unless a session cookie was set. */
+/** Signs in through the fake IdP and the core-api stub; throws unless a session cookie was set. */
 export async function signIn(t: TestApp, returnTo = '/'): Promise<SignedIn> {
   const agent = t.http();
   const callback = await authorize(t, agent, returnTo);

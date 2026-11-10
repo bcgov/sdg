@@ -9,6 +9,10 @@ export interface RequestTarget {
 /** `%2f` and `%2e` in any case: an encoded slash or dot could change the path's meaning after one more decode. */
 const ENCODED_SLASH_OR_DOT = /%2[ef]/i;
 
+function hasTrailingSlash(rawPath: string): boolean {
+  return rawPath.length > 1 && rawPath.endsWith('/');
+}
+
 function decodeSegment(segment: string): string | undefined {
   try {
     return decodeURIComponent(segment);
@@ -22,7 +26,7 @@ function decodeSegment(segment: string): string | undefined {
 function decodeSegments(rawPath: string): string[] | undefined {
   // A single trailing slash is allowed: it leaves an empty last segment that names nothing.
   const segments = rawPath.slice(1).split('/');
-  const named = rawPath.length > 1 && rawPath.endsWith('/') ? segments.slice(0, -1) : segments;
+  const named = hasTrailingSlash(rawPath) ? segments.slice(0, -1) : segments;
   const decoded: string[] = [];
   for (const segment of named) {
     const value = decodeSegment(segment);
@@ -33,7 +37,7 @@ function decodeSegments(rawPath: string): string[] | undefined {
 }
 
 /**
- * Checks an origin-form request target (Express `req.originalUrl`) for forwarding (KTD2). Returns undefined, which the
+ * Checks an origin-form request target (Express `req.originalUrl`) for forwarding. Returns undefined, which the
  * caller answers with 404, for anything whose decoded path could differ from what core-api sees: an encoded slash or
  * dot, a dot segment, an empty segment (a single trailing slash aside) or a malformed escape.
  */
@@ -44,6 +48,6 @@ export function normalizeRequestTarget(url: string): RequestTarget | undefined {
   if (ENCODED_SLASH_OR_DOT.test(rawPath)) return undefined;
   const segments = decodeSegments(rawPath);
   if (segments === undefined) return undefined;
-  const trailingSlash = rawPath.length > 1 && rawPath.endsWith('/') ? '/' : '';
+  const trailingSlash = hasTrailingSlash(rawPath) ? '/' : '';
   return { path: `/${segments.join('/')}${trailingSlash}`, target: url };
 }

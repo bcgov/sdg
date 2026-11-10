@@ -6,7 +6,7 @@ export interface SessionUser {
 }
 
 export interface AuthenticatedSession {
-  /** core-api's principal id for this user, from `/internal/principals/login` (KTD5). */
+  /** core-api's principal id for this user, from `/internal/principals/login`. */
   principalId: string;
   user: SessionUser;
   /** Kept server-side for refresh, forwarding (Bearer) and logout (id_token_hint); never sent to the browser. */

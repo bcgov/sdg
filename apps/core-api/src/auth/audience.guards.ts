@@ -4,7 +4,7 @@ import type { Caller, CallerRequest } from './caller.js';
 import { PrincipalResolver } from './principal.resolver.js';
 
 /**
- * Authorizes by audience (R9) after `PrincipalResolver` verified the token: 401/503 come from the resolver, 403 from
+ * Authorizes by audience after `PrincipalResolver` verified the token: 401/503 come from the resolver, 403 from
  * here when the caller is not of this guard's audience. The caller stays on the request (`@CurrentCaller()`).
  */
 export abstract class AudienceGuard implements CanActivate {
@@ -60,8 +60,8 @@ export class SharedGuard extends AudienceGuard {
 }
 
 /**
- * `/internal/*`, the BFF-only routes (KTD5): person tokens from the portal or the admin client. The admin role is
- * checked by the handler that needs it (the login upsert, KTD6), so its refusal is a 403 from that route.
+ * `/internal/*`, the BFF-only routes: person tokens from the portal or the admin client. The admin role is
+ * checked by the handler that needs it (the login upsert), so its refusal is a 403 from that route.
  */
 @Injectable()
 export class InternalGuard extends AudienceGuard {

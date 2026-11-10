@@ -1,11 +1,11 @@
 import type { CallbackResult } from '@repo/auth';
 import { z } from 'zod';
 
-/** core-api's answer to a sign-in (KTD5, KTD6). */
+/** core-api's answer to a sign-in. */
 export type LoginOutcome =
   /**
    * The principal exists (created or refreshed); the BFF creates the session. `name` and `email` are the profile
-   * core-api read from Keycloak userinfo (KTD5); the session shows them, falling back to the ID token's claims only
+   * core-api read from Keycloak userinfo; the session shows them, falling back to the ID token's claims only
    * for a field core-api left out.
    */
   | {
@@ -25,7 +25,7 @@ export type LoginHook = (login: CallbackResult) => Promise<LoginOutcome>;
 /** Upper bound for the principal upsert at sign-in. */
 export const CORE_API_LOGIN_TIMEOUT_MS = 10_000;
 
-/** The route core-api's principal upsert lives on; `/internal/*` is never forwarded (KTD2). */
+/** The route core-api's principal upsert lives on; `/internal/*` is never forwarded. */
 export const PRINCIPALS_LOGIN_PATH = '/internal/principals/login';
 
 export interface CoreApiLoginOptions {
@@ -65,7 +65,7 @@ async function interpret(response: Response): Promise<LoginOutcome> {
 }
 
 /**
- * The default `onLogin` hook (R11, KTD5): POSTs the fresh access token to core-api's `/internal/principals/login`,
+ * The default `onLogin` hook: POSTs the fresh access token to core-api's `/internal/principals/login`,
  * which upserts the principal from the verified token and Keycloak userinfo and answers
  * `{ principalId, name, email }`.
  */

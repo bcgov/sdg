@@ -8,8 +8,6 @@ import { AuthErrorNotice } from '../components/auth-error-notice';
 type IndexSearch = Record<string, unknown> & { authError?: AuthErrorCode };
 
 export const Route = createFileRoute('/')({
-  // Keep other search params (the sign-in link's returnTo carries them); only `authError` is validated.
-  // The router merges validated output over the raw search, so an unknown code must be overwritten with undefined.
   validateSearch: (search): IndexSearch => ({ ...search, authError: parseAuthError(search['authError']) }),
   component: HomePage,
 });

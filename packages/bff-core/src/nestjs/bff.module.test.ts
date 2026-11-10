@@ -18,7 +18,7 @@ describe('BffModule', () => {
   beforeAll(async () => {
     [idp, coreApi, database] = await Promise.all([startFakeIdp(), startCoreApiStub(), createTestSessionDatabase()]);
     // Both on one sessions table with one SESSION_SECRET: the worst case, where only the cookie name and HKDF info
-    // keep them apart. In production each BFF also has its own login and schema (R24).
+    // keep them apart. In production each BFF also has its own login and schema.
     [portal, admin] = await Promise.all([
       createBffTestApp({ idp, coreApi, database }),
       createBffTestApp({

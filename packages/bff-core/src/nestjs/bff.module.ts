@@ -74,13 +74,12 @@ const authProviders = [
   },
   SessionAuthGuard,
   TokenRefreshService,
-  // R31 covers every route of the app, so the origin check is global.
   { provide: APP_GUARD, useClass: OriginGuard },
 ];
 
 /**
  * A browser BFF's sessions, OIDC login (`/api/auth/*`), token refresh, origin check and forwarding to core-api
- * (`/api/v<N>/<audience>/…`), configured per BFF (R5, R7). Import it once, in the app module, which also needs
+ * (`/api/v<N>/<audience>/…`), configured per BFF. Import it once, in the app module, which also needs
  * server-core's LoggingModule and `configureApp`. The app must be created
  * with `rawBody: true` so JSON and form bodies are forwarded byte for byte.
  */

@@ -1,5 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
-# core-api is unreachable from the edge (R3): only the forwarders call it; the observability stack's Alloy may scrape
+# core-api is unreachable from the edge: only the forwarders call it; the observability stack's Alloy may scrape
 # it when configured.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

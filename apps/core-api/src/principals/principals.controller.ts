@@ -29,8 +29,8 @@ import { loginResponseSchema, type LoginResponse } from './principals.schemas.js
 import { PrincipalsService } from './principals.service.js';
 
 /**
- * The BFFs' sign-in step (KTD5, R11): after the code exchange, the BFF sends the fresh access token and core-api
- * creates or refreshes the caller's principal. Outside /api, so no forwarder ever reaches it (KTD2).
+ * The BFFs' sign-in step: after the code exchange, the BFF sends the fresh access token and core-api
+ * creates or refreshes the caller's principal. Outside /api, so no forwarder ever reaches it.
  */
 @ApiTags('internal')
 @ApiBearerAuth()
@@ -56,7 +56,6 @@ export class PrincipalsController {
   @ApiForbiddenResponse({ description: 'An admin-client token without the admin client role, or a service account' })
   @ApiServiceUnavailableResponse({ description: 'Keycloak’s signing keys or userinfo endpoint are unreachable' })
   async login(@CurrentCaller() caller: Caller): Promise<LoginResponse> {
-    // KTD6: the admin role gate. Nothing is read or created for a refused admin (AE1).
     if (caller.kind === 'admin-user' && !caller.isAdmin) {
       throw new ForbiddenException('The admin client role is required');
     }

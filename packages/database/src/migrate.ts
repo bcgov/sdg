@@ -1,5 +1,3 @@
-// Entry point of the database image (dist/migrate.js), run as an initContainer with the core login.
-// Exit code 0: every migration is applied. Exit code 1: DATABASE_URL is missing/invalid or migrating failed.
 import { runMigrations } from './run-migrations.js';
 
 process.on('unhandledRejection', (reason) => {

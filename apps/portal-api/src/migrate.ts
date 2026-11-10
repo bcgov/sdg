@@ -1,6 +1,3 @@
-// Entry point of portal-api's sessions migration (dist/migrate.js), run as an initContainer with the portal login.
-// Exit code 0: every sessions migration is applied in the portal schema. Exit code 1: DATABASE_URL is missing or
-// invalid, or migrating failed (the message names the host and database, never the credentials).
 import { runSessionMigrations } from '@repo/bff-core/migrations';
 
 import { SESSION_SCHEMA } from './bff/portal-session.js';

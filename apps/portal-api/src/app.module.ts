@@ -6,7 +6,7 @@ import { portalBff } from './bff/bff-options.js';
 import { AppConfigModule } from './config/config.module.js';
 import { readiness } from './health/readiness.js';
 
-/** The resident portal's BFF (R2, R5): bff-core's login, sessions and forwarding to core-api, and nothing else. */
+/** The resident portal's BFF: bff-core's login, sessions and forwarding to core-api, and nothing else. */
 @Module({
   imports: [AppConfigModule, LoggingModule, BffModule.forRootAsync(portalBff), HealthModule.forRootAsync(readiness)],
 })

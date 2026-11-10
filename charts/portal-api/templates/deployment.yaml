@@ -39,7 +39,7 @@ spec:
       securityContext:
         {{- include "common.podSecurityContext" . | nindent 8 }}
       initContainers:
-        # Applies pending sessions migrations as the portal login (bff-core, KTD9); a non-zero exit keeps portal-api
+        # Applies pending sessions migrations as the portal login (bff-core); a non-zero exit keeps portal-api
         # from starting. No secrets beyond DATABASE_URL, so it runs without the Vault env file.
         - name: migrate
           image: {{ include "common.image" (dict "image" .Values.image "context" $) }}

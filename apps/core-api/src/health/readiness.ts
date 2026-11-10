@@ -6,7 +6,7 @@ import type { Database } from '../database/database.module.js';
 
 /**
  * GET /healthz/ready: core-api's own database only. Keycloak stays out: an unreachable IdP answers 503 per request
- * (R10), and taking every pod out of rotation for it would only turn those 503s into connection errors.
+ *, and taking every pod out of rotation for it would only turn those 503s into connection errors.
  */
 export const readiness: HealthModuleAsyncOptions = {
   inject: [getDrizzleToken()],

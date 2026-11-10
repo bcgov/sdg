@@ -28,7 +28,7 @@ function readJournalTags(): string[] {
 }
 
 /**
- * compose's dev Postgres as KTD8 sets it up (packages/database/dev-postgres/init-roles.sql): each BFF login owns the
+ * compose's dev Postgres as set up (packages/database/dev-postgres/init-roles.sql): each BFF login owns the
  * schema of its name and may use the cron schema. The pg_cron stub's job table is a plain table, so the logins also
  * get the table rights the real extension grants through its own functions.
  */

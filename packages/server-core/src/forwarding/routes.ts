@@ -1,5 +1,5 @@
 /**
- * The route contract shared by core-api and its forwarders (KTD2). core-api mounts each audience's controllers under
+ * The route contract shared by core-api and its forwarders. core-api mounts each audience's controllers under
  * `/api/v<N>/<audience>/…`, so forwarders pass paths through unchanged. Everything else stays local to a service:
  * `/api/auth/*` and `/healthz/*` in each, `/internal/*` (core-api's BFF-only routes) never forwarded.
  */

@@ -13,7 +13,7 @@ const schema: SessionSchema = { sessions };
 /** The session store's database: node-postgres in production, PGlite in tests (both share Drizzle's pg query API). */
 export type SessionDatabase = PgDatabase<PgQueryResultHKT, SessionSchema>;
 
-/** Wraps the BFF's single pool (its own login, KTD8) in Drizzle. The pool's owner ends it. */
+/** Wraps the BFF's single pool (its own login) in Drizzle. The pool's owner ends it. */
 export function createSessionDatabase(pool: Pool): SessionDatabase {
   return drizzle({ client: pool, schema, casing: 'snake_case' });
 }

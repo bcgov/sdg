@@ -8,7 +8,7 @@ import { SESSION_STORE } from '../nestjs/bff.options.js';
 import type { PostgresSessionStore } from '../session/postgres-session.store.js';
 import { sessionOp } from '../session/session-op.js';
 
-/** An access token expiring within this window is refreshed before it is forwarded (R6, R30). */
+/** An access token expiring within this window is refreshed before it is forwarded. */
 export const REFRESH_WINDOW_MS = 30_000;
 /**
  * How long a finished refresh is still handed to requests presenting the refresh token it replaced. A request that
@@ -49,7 +49,7 @@ function refreshRejected(error: unknown): boolean {
 }
 
 /**
- * Keeps the session's access token fresh for forwarded calls (R6, KTD7). Refreshes are deduplicated per session in
+ * Keeps the session's access token fresh for forwarded calls. Refreshes are deduplicated per session in
  * process, so concurrent requests on one session redeem its refresh token once. Across pods, a rejected refresh first
  * re-reads the session row: another pod may already have redeemed the token and saved newer ones.
  */
@@ -80,7 +80,7 @@ export class TokenRefreshService {
     return this.saveTokens(req, refreshed);
   }
 
-  /** Ends the session: core-api rejected its token (KTD3), or its refresh was rejected. */
+  /** Ends the session: core-api rejected its token, or its refresh was rejected. */
   async endSession(req: Request): Promise<void> {
     if (req.session) await sessionOp(req, 'destroy');
   }

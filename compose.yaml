@@ -174,7 +174,7 @@ services:
       retries: 5
       start_period: 300s
 
-  # No host ports and no Caddy route: only portal-api (and later admin-api and gateway-api) call it (R3).
+  # No host ports and no Caddy route: only portal-api call it.
   # Overrides apps/core-api/.env's localhost DATABASE_URL (process env wins); Keycloak settings stay in that file.
   core-api:
     <<: *workspace

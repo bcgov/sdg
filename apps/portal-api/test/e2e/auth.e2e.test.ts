@@ -70,7 +70,7 @@ describe('portal-api sign-in, current user and sign-out (F1, R11, R12)', () => {
 
       const me = await agent.get('/api/auth/me');
       expect(me.status).toBe(200);
-      // The name core-api read from Keycloak userinfo, not the ID token's (R12, KTD5).
+      // The name core-api read from Keycloak userinfo, not the ID token's.
       expect(me.body).toEqual({ id: PRINCIPAL_ID, ...CORE_API_PROFILE });
       expect(me.body.name).not.toBe(ID_TOKEN_CLAIMS.name);
       expect(JSON.stringify(me.body)).not.toMatch(/token/i);

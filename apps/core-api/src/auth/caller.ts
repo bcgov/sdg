@@ -1,6 +1,6 @@
 import type { AuthUser } from '@repo/auth';
 
-/** The Keycloak clients whose person tokens core-api accepts (KTD13). */
+/** The Keycloak clients whose person tokens core-api accepts. */
 export interface KeycloakClients {
   /** The portal (BCSC) client id. */
   portal: string;
@@ -8,10 +8,10 @@ export interface KeycloakClients {
   admin: string | undefined;
 }
 
-/** The client role an admin-client token needs for admin routes and to sign in to admin-web (R9, R14). */
+/** The client role an admin-client token needs for admin routes and to sign in to admin-web. */
 export const ADMIN_ROLE = 'admin';
 
-/** Who a verified token belongs to (KTD4). Authorization by audience happens in the guards, not here. */
+/** Who a verified token belongs to. Authorization by audience happens in the guards, not here. */
 export type Caller =
   | { kind: 'portal-user'; user: AuthUser; token: string }
   | { kind: 'admin-user'; user: AuthUser; token: string; isAdmin: boolean }

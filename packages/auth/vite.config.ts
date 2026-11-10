@@ -9,7 +9,6 @@ export default defineLibraryConfig({
   entry: {
     index: `${src}index.ts`,
     'nestjs/index': `${src}nestjs/index.ts`,
-    // The in-process fake IdP, for consumers' tests that sign tokens.
     'testing/index': `${src}testing/index.ts`,
   },
   overrides: {

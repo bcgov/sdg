@@ -8,7 +8,6 @@ export default defineLibraryConfig({
   platform: 'node',
   entry: {
     index: `${src}index.ts`,
-    // runSessionMigrations and the migrations folder, for each BFF's session-migrate entry.
     'migrations/index': `${src}migrations/index.ts`,
     'nestjs/index': `${src}nestjs/index.ts`,
     // The core-api stub, for the BFFs' own tests.

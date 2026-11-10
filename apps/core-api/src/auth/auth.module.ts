@@ -15,7 +15,7 @@ export const AUTH_FETCH: unique symbol = Symbol('AUTH_FETCH');
 const issuerUrl = (config: ConfigService<Env, true>): string => config.get('KEYCLOAK_ISSUER_URL', { infer: true });
 
 /**
- * Token verification and classification (KTD4): one JWKS-backed verifier for the realm, accepting the portal client,
+ * Token verification and classification: one JWKS-backed verifier for the realm, accepting the portal client,
  * the admin client and service-account tokens; the resolver, the audience guards and the userinfo client. Global, so
  * every feature module's controllers can use the guards.
  */

@@ -40,7 +40,7 @@ import {
 import type { LoginHook, LoginOutcome } from './core-api-login.js';
 import { SessionAuthGuard } from './session-auth.guard.js';
 
-/** The `authError` the web app shows; `unavailable` offers a retry (AE7). */
+/** The `authError` the web app shows; `unavailable` offers a retry. */
 export type AuthErrorCode = 'invalid_state' | 'access_denied' | 'login_failed' | 'unavailable';
 
 function callbackErrorCode(error: unknown): AuthErrorCode {
@@ -49,7 +49,7 @@ function callbackErrorCode(error: unknown): AuthErrorCode {
   return error.detail === 'access_denied' ? 'access_denied' : 'login_failed';
 }
 
-/** The user the session shows: core-api's userinfo profile (R12, KTD5), the ID token's claims for what it omits. */
+/** The user the session shows: core-api's userinfo profile, the ID token's claims for what it omits. */
 function sessionUser(login: CallbackResult, outcome: Extract<LoginOutcome, { kind: 'accepted' }>): SessionUser {
   return {
     name: outcome.name ?? login.user.name,
@@ -58,7 +58,7 @@ function sessionUser(login: CallbackResult, outcome: Extract<LoginOutcome, { kin
 }
 
 /**
- * BFF login (R5, R11): the browser only ever sees redirects and an httpOnly session cookie. Unversioned by design.
+ * BFF login: the browser only ever sees redirects and an httpOnly session cookie. Unversioned by design.
  * The callback asks core-api for the principal before any session exists, so a refused or failed sign-in leaves none.
  */
 @ApiTags('auth')
@@ -130,7 +130,6 @@ export class AuthController {
   @ApiOkResponse({ description: 'The signed-in user', standardSchema: currentUserSchema })
   @ApiUnauthorizedResponse({ description: 'No authenticated session' })
   me(@Req() req: Request): CurrentUserResponse {
-    // Session-local (KTD7): page loads never depend on core-api or Keycloak.
     const auth = req.session.auth!;
     return { id: auth.principalId, name: auth.user.name, email: auth.user.email };
   }
@@ -150,8 +149,7 @@ export class AuthController {
         this.logger.warn({ msg: 'Keycloak logout URL unavailable', error: describeError(error) });
       }
     }
-    await sessionOp(req, 'destroy');
-    res.clearCookie(this.options.session.cookieName, { path: '/' });
+    await this.endSession(req, res);
     return { redirectUrl };
   }
 
@@ -175,7 +173,7 @@ export class AuthController {
 
   private async refuseLogin(req: Request, res: Response, login: CallbackResult): Promise<void> {
     this.logger.warn({ msg: 'core-api refused the login' });
-    await this.endPendingSession(req, res);
+    await this.endSession(req, res);
     let location = `${this.options.appUrl}/?authError=access_denied`;
     if (this.options.onLoginRefused) {
       try {
@@ -195,12 +193,12 @@ export class AuthController {
   }
 
   private async failLogin(req: Request, res: Response, code: AuthErrorCode): Promise<void> {
-    await this.endPendingSession(req, res);
+    await this.endSession(req, res);
     res.redirect(302, `${this.options.appUrl}/?authError=${code}`);
   }
 
-  /** Ends the pre-login session, which consumes its pending authorization and leaves no session row or cookie. */
-  private async endPendingSession(req: Request, res: Response): Promise<void> {
+  /** Destroys the session and clears its cookie, leaving no session row (a pre-login session's pending authorization goes with it). */
+  private async endSession(req: Request, res: Response): Promise<void> {
     await sessionOp(req, 'destroy');
     res.clearCookie(this.options.session.cookieName, { path: '/' });
   }
