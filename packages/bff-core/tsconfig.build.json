@@ -1,0 +1,8 @@
+{
+  "extends": "@repo/typescript-config/node-library-build.json",
+  "compilerOptions": {
+    "experimentalDecorators": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/test-support"]
+}

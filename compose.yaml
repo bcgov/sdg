@@ -21,6 +21,7 @@ x-workspace: &workspace
     - nm-portal-api:/app/apps/portal-api/node_modules
     - nm-portal-web:/app/apps/portal-web/node_modules
     - nm-auth:/app/packages/auth/node_modules
+    - nm-bff-core:/app/packages/bff-core/node_modules
     - nm-design-system:/app/packages/design-system/node_modules
     - nm-database:/app/packages/database/node_modules
     - nm-sdg-header:/app/packages/sdg-header/node_modules
@@ -202,6 +203,7 @@ volumes:
   nm-portal-api:
   nm-portal-web:
   nm-auth:
+  nm-bff-core:
   nm-design-system:
   nm-database:
   nm-sdg-header:

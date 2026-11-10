@@ -1,0 +1,9 @@
+{
+  "extends": "@repo/typescript-config/node-library.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["node", "vite/client"],
+    "experimentalDecorators": true
+  },
+  "include": ["src/**/*.test.ts", "src/test-support"]
+}
