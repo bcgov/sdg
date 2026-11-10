@@ -2,15 +2,17 @@
 # Values the deploy workflow passes to charts/sdg (DEVELOPER.md, Workflows), derived from the environment
 # so reusable-deploy.yml, charts-test.sh and deploy-values.test.sh share one computation.  No cluster access.
 #
-#   values   print a values file: images, hosts, Keycloak (portal-api, core-api) and Vault settings
+#   values   print a values file: images, hosts, Keycloak (portal-api, admin-api, core-api) and Vault settings
 #   outputs  print release=, url=, admin_url=, gateway_url= and values_file= lines (for $GITHUB_OUTPUT)
 #
 # Environment (all validated; anything unexpected fails instead of reaching the YAML):
 #   TARGET               PR number, test or prod                 REPOSITORY  owner/name (github.repository)
 #   ENVIRONMENT          '' (PRs), test or prod                  TAG         image tag
 #   OC_NAMESPACE         <plate>-dev|test|prod|tools             OC_SERVER   https://api.<cluster>.<domain>:6443
-#   KEYCLOAK_ISSUER_URL  https:// URL                            KEYCLOAK_CLIENT_ID
-#   VAULT_SECRET_PATH    optional; default <plate>-nonprod/portal-api (<plate>-prod/portal-api for prod)
+#   KEYCLOAK_ISSUER_URL  https:// URL                            KEYCLOAK_CLIENT_ID  the portal client
+#   KEYCLOAK_ADMIN_CLIENT_ID  the admin (IDIR) client: admin-api signs in with it and core-api accepts its tokens
+#   VAULT_SECRET_PATH    optional, portal-api's; default <plate>-nonprod/portal-api (<plate>-prod/portal-api for prod).
+#                        admin-api's is always <role>/admin-api.
 #   OBSERVABILITY        optional; "true" reports to the observability stack (doc 20): <plate>-tools for PRs and test,
 #                        <plate>-prod for prod. Unset or "false" leaves telemetry off.
 # `outputs` needs only TARGET, ENVIRONMENT, REPOSITORY and OC_SERVER.
@@ -49,6 +51,7 @@ case "${1:-}" in
     check OC_NAMESPACE '^[a-z0-9]+-(dev|test|prod|tools)$'
     check KEYCLOAK_ISSUER_URL '^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$'
     check KEYCLOAK_CLIENT_ID '^[A-Za-z0-9._-]+$'
+    check KEYCLOAK_ADMIN_CLIENT_ID '^[A-Za-z0-9._-]+$'
     check VAULT_SECRET_PATH '^([A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+)?$'
     check OBSERVABILITY '^(true|false)?$'
     plate="${OC_NAMESPACE%-*}"
@@ -81,10 +84,20 @@ portal-api:
     role: "${vault_role}"
     secretPath: "${VAULT_SECRET_PATH:-${vault_role}/portal-api}"
     serviceAccountName: "${plate}-vault"
+admin-api:
+  keycloak:
+    issuerUrl: "${KEYCLOAK_ISSUER_URL}"
+    clientId: "${KEYCLOAK_ADMIN_CLIENT_ID}"
+  vault:
+    authPath: "auth/k8s-${cluster}"
+    role: "${vault_role}"
+    secretPath: "${vault_role}/admin-api"
+    serviceAccountName: "${plate}-vault"
 core-api:
   keycloak:
     issuerUrl: "${KEYCLOAK_ISSUER_URL}"
     portalClientId: "${KEYCLOAK_CLIENT_ID}"
+    adminClientId: "${KEYCLOAK_ADMIN_CLIENT_ID}"
 EOF
     ;;
   outputs)

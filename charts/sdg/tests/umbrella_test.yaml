@@ -5,6 +5,7 @@ set:
   global.image.registry: ghcr.io/acme/sdg
   global.image.tag: pr-12
   global.host: sdg-12.apps.example.com
+  global.adminHost: sdg-12-admin.apps.example.com
   portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   portal-api.keycloak.clientId: portal
   portal-api.vault.role: abc123-nonprod
@@ -12,6 +13,12 @@ set:
   portal-api.vault.serviceAccountName: abc123-vault
   core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   core-api.keycloak.portalClientId: portal
+  core-api.keycloak.adminClientId: sdg-admin
+  admin-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  admin-api.keycloak.clientId: sdg-admin
+  admin-api.vault.role: abc123-nonprod
+  admin-api.vault.secretPath: abc123-nonprod/admin-api
+  admin-api.vault.serviceAccountName: abc123-vault
 tests:
   - it: global image settings reach every app image
     template: charts/portal-api/templates/deployment.yaml
@@ -197,3 +204,111 @@ tests:
       - equal:
           path: data.APP_URL
           value: https://sdg-12.apps.example.com
+
+  - it: global image settings reach admin-api and its sessions migration
+    template: charts/admin-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/admin-api:pr-12
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ghcr.io/acme/sdg/admin-api:pr-12
+
+  - it: admin-api and its sessions migration connect as the admin login the postgres chart creates
+    template: charts/admin-api/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-admin
+                key: uri
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-admin
+                key: uri
+
+  - it: the postgres chart creates the admin login and admits admin-api
+    template: charts/postgres/templates/postgrescluster.yaml
+    asserts:
+      - contains:
+          path: spec.users
+          content:
+            name: admin
+            databases: [portal]
+
+  - it: postgres admits admin-api on 5432
+    template: charts/postgres/templates/networkpolicy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: admin-api
+                app.kubernetes.io/instance: sdg-12
+
+  - it: core-api admits admin-api and accepts the admin client's tokens
+    template: charts/core-api/templates/networkpolicy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: admin-api
+                app.kubernetes.io/instance: sdg-12
+
+  - it: core-api is given the admin client id admin-api signs in with
+    template: charts/core-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.ADMIN_CLIENT_ID
+          value: sdg-admin
+
+  - it: admin-api calls the release's core-api Service and lives on the admin host
+    template: charts/admin-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.CORE_API_URL
+          value: http://sdg-12-core-api:3000
+      - equal:
+          path: data.APP_URL
+          value: https://sdg-12-admin.apps.example.com
+      - equal:
+          path: data.KEYCLOAK_CLIENT_ID
+          value: sdg-admin
+
+  - it: the edge sends the admin host's /api to the release's admin-api Service
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_API_URL
+            value: http://sdg-12-admin-api:3000
+
+  - it: admin-api's Service carries the name the edge calls
+    template: charts/admin-api/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-admin-api
+
+  - it: only the edge reaches admin-api
+    template: charts/admin-api/templates/networkpolicy.yaml
+    asserts:
+      - equal:
+          path: spec.ingress[0].from
+          value:
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: edge
+                  app.kubernetes.io/instance: sdg-12

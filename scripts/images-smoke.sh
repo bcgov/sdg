@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # Smoke test for the production images (DEVELOPER.md, Production Images).
-# Builds database, core-api, portal-api, portal-web and the edge, then runs them the way OpenShift's restricted SCC
-# does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the compose postgis.
+# Builds database, core-api, portal-api, admin-api, portal-web and the edge, then runs them the way OpenShift's
+# restricted SCC does (arbitrary UID in group 0, no capabilities, no privilege escalation) against the compose postgis.
 #
 # Usage: scripts/images-smoke.sh [--no-build]
 #   --no-build  reuse images built by an earlier run
-# ENGINE=docker uses Docker instead of Podman.
+# ENGINE=docker uses Docker instead of Podman. COMPOSE_PROJECT_NAME (default portal, the dev stack's) runs against
+# another project's postgis, e.g. COMPOSE_PROJECT_NAME=sdg-smoke POSTGRES_PORT=5433 beside a running dev stack.
 set -euo pipefail
 
 ENGINE="${ENGINE:-podman}"
 COMPOSE="${COMPOSE:-$ENGINE compose}"
-NETWORK=portal_default
+PROJECT="${COMPOSE_PROJECT_NAME:-portal}"
+export COMPOSE_PROJECT_NAME="$PROJECT"
+NETWORK="${PROJECT}_default"
 PREFIX=sdg-images-smoke
 SMOKE_DB=portal_images_smoke
 WAIT_SECONDS="${WAIT_SECONDS:-120}"
@@ -26,7 +29,7 @@ done
 cd "$(dirname "$0")/.."
 TMP="$(mktemp -d)"
 cleanup() {
-  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-web" "$PREFIX-edge" >/dev/null 2>&1 || true
+  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-admin" "$PREFIX-web" "$PREFIX-edge" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -46,30 +49,33 @@ if $BUILD; then
   "$ENGINE" build -q -t "$(image database)" -f packages/database/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image core-api)" -f apps/core-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-api)" -f apps/portal-api/Dockerfile . >/dev/null
+  "$ENGINE" build -q -t "$(image admin-api)" -f apps/admin-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-web)" -f apps/portal-web/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image edge)" apps/portal-web/caddy >/dev/null
 fi
 
 echo "Image contents"
 node_in() { "$ENGINE" run --rm "$(image "$1")" node -e "$2"; }
-for app in core-api portal-api; do
+for app in core-api portal-api admin-api; do
   check "$app ships dist and no sources" node_in "$app" \
     "const fs = require('fs'); process.exit(fs.existsSync('dist/main.js') && !fs.existsSync('src') ? 0 : 1)"
   check "$app ships no devDependencies (pino-pretty, typescript, @nestjs/cli)" node_in "$app" \
     "const fs = require('fs'); process.exit(['pino-pretty', 'typescript', '@nestjs/cli'].some((d) => fs.existsSync('node_modules/' + d)) ? 1 : 0)"
 done
-check "portal-api ships dist/migrate.js and bff-core's sessions migrations" node_in portal-api \
-  "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('node_modules/@repo/bff-core/migrations/meta/_journal.json') ? 0 : 1)"
+for app in portal-api admin-api; do
+  check "$app ships dist/migrate.js and bff-core's sessions migrations" node_in "$app" \
+    "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('node_modules/@repo/bff-core/migrations/meta/_journal.json') ? 0 : 1)"
+done
 check "database ships dist/migrate.js and the migrations" node_in database \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('migrations/meta/_journal.json') ? 0 : 1)"
-check "no .env files in the Node images" bash -c "! for i in core-api portal-api database; do \
+check "no .env files in the Node images" bash -c "! for i in core-api portal-api admin-api database; do \
   $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" find / -xdev -name '.env*' -not -name '.env.example'; done | grep -q ."
-check "no package manager in the final images" bash -c "for i in core-api portal-api database portal-web edge; do \
+check "no package manager in the final images" bash -c "for i in core-api portal-api admin-api database portal-web edge; do \
   ! $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" sh -c 'command -v apk || command -v npm || command -v pnpm' || exit 1; done"
 
 echo "Waiting for compose postgis"
 $COMPOSE up -d postgis >/dev/null
-POSTGIS="$("$ENGINE" ps -q --filter label=com.docker.compose.project=portal --filter label=com.docker.compose.service=postgis)"
+POSTGIS="$("$ENGINE" ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter label=com.docker.compose.service=postgis)"
 deadline=$((SECONDS + WAIT_SECONDS))
 until [ "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$POSTGIS")" = healthy ]; do
   ((SECONDS > deadline)) && { fail "postgis healthy within ${WAIT_SECONDS}s"; exit 1; }
@@ -81,13 +87,15 @@ psql "drop database if exists $SMOKE_DB with (force)" >/dev/null 2>&1
 psql "create database $SMOKE_DB" >/dev/null
 # The compose logins (packages/database/dev-postgres/init-roles.sql), each owning its schema, as in the main database.
 psql_smoke "grant all on database $SMOKE_DB to core, portal, admin; revoke create on schema public from public; \
-  create schema core authorization core; create schema portal authorization portal" >/dev/null
+  create schema core authorization core; create schema portal authorization portal; \
+  create schema admin authorization admin" >/dev/null
 # pg_cron runs only in the main database (cron.database_name), so a stand-in takes the sessions migration's
 # cron.schedule here; compose-smoke.sh checks the real job.
-psql_smoke "create schema cron; grant usage on schema cron to portal; create function cron.schedule(job_name text, \
+psql_smoke "create schema cron; grant usage on schema cron to portal, admin; create function cron.schedule(job_name text, \
   schedule text, command text) returns bigint language sql as 'select 1::bigint'" >/dev/null
 CORE_URL="postgres://core:core@postgis:5432/$SMOKE_DB"
 DATABASE_URL="postgres://portal:portal@postgis:5432/$SMOKE_DB"
+ADMIN_DATABASE_URL="postgres://admin:admin@postgis:5432/$SMOKE_DB"
 
 echo "database (initContainer)"
 # Runs the migrator once; its output goes to $TMP/<name>.log and its exit code to $TMP/<name>.code.
@@ -132,24 +140,24 @@ check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-core 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
 echo "portal-api sessions migration (initContainer)"
-# Runs `node dist/migrate.js` in the portal-api image once, like migrate above.
+# migrate_sessions <app> <name> [run options]: runs `node dist/migrate.js` in the app's image once, like migrate above.
 migrate_sessions() {
-  local name="$1"; shift
+  local app="$1" name="$2"; shift 2
   local code=0
-  "$ENGINE" run --rm --read-only "${OCP[@]}" "$@" "$(image portal-api)" node dist/migrate.js >"$TMP/$name.log" 2>&1 \
+  "$ENGINE" run --rm --read-only "${OCP[@]}" "$@" "$(image "$app")" node dist/migrate.js >"$TMP/$name.log" 2>&1 \
     || code=$?
   echo "$code" >"$TMP/$name.code"
 }
-migrate_sessions sessions-no-url
+migrate_sessions portal-api sessions-no-url
 check "exits 1 without DATABASE_URL" test "$(exit_code sessions-no-url)" = 1
-migrate_sessions sessions-first -e "DATABASE_URL=$DATABASE_URL"
+migrate_sessions portal-api sessions-first -e "DATABASE_URL=$DATABASE_URL"
 check "migrates the sessions as the portal login (exit 0)" test "$(exit_code sessions-first)" = 0
 expected="$(grep -c '"tag"' packages/bff-core/migrations/meta/_journal.json)"
 applied="$(psql_smoke 'select count(*) from portal.__drizzle_migrations' || echo 0)"
 check "all $expected sessions migrations recorded in portal (found $applied)" test "$applied" = "$expected"
 check "portal.sessions exists" test "$(psql_smoke "select count(*) from information_schema.tables \
   where table_schema = 'portal' and table_name = 'sessions'")" = 1
-migrate_sessions sessions-again -e "DATABASE_URL=$DATABASE_URL"
+migrate_sessions portal-api sessions-again -e "DATABASE_URL=$DATABASE_URL"
 check "re-running with nothing pending exits 0" test "$(exit_code sessions-again)" = 0
 
 echo "portal-api"
@@ -172,10 +180,40 @@ check "an admin route is 404 on portal-api (AE2)" fetch_in "$PREFIX-api" /api/v1
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-api 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
+echo "admin-api sessions migration (initContainer)"
+migrate_sessions admin-api admin-sessions -e "DATABASE_URL=$ADMIN_DATABASE_URL"
+check "migrates the sessions as the admin login (exit 0)" test "$(exit_code admin-sessions)" = 0
+applied="$(psql_smoke 'select count(*) from admin.__drizzle_migrations' || echo 0)"
+check "all $expected sessions migrations recorded in admin (found $applied)" test "$applied" = "$expected"
+check "admin.sessions exists, apart from portal's" test "$(psql_smoke "select count(*) from information_schema.tables \
+  where table_name = 'sessions' and table_schema in ('admin', 'portal')")" = 2
+migrate_sessions admin-api admin-sessions-portal -e "DATABASE_URL=$DATABASE_URL"
+check "admin-api's migration as the portal login fails (no admin schema access)" \
+  test "$(exit_code admin-sessions-portal)" = 1
+
+echo "admin-api"
+"$ENGINE" run -d --name "$PREFIX-admin" --read-only "${OCP[@]}" \
+  -e "DATABASE_URL=$ADMIN_DATABASE_URL" -e "CORE_API_URL=http://$PREFIX-core:3000" \
+  -e APP_URL=https://admin.example.gov.bc.ca -e TRUST_PROXY=true \
+  -e "SESSION_SECRET=$(head -c 48 /dev/urandom | base64)" \
+  -e KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal \
+  -e KEYCLOAK_CLIENT_ID=admin -e KEYCLOAK_CLIENT_SECRET=smoke \
+  "$(image admin-api)" >/dev/null
+deadline=$((SECONDS + 60))
+until fetch_in "$PREFIX-admin" /healthz/live 200 >/dev/null 2>&1 || ((SECONDS > deadline)); do sleep 1; done
+check "/healthz/live is 200 under an arbitrary UID with a read-only root" fetch_in "$PREFIX-admin" /healthz/live 200
+check "/healthz/ready is 200 with its database as the admin login" fetch_in "$PREFIX-admin" /healthz/ready 200
+check "GET /api/auth/me without a session is 401" fetch_in "$PREFIX-admin" /api/auth/me 401
+check "a signed-out admin call is 401" fetch_in "$PREFIX-admin" /api/v1/admin/service-clients 401
+check "a portal route is 404 on admin-api (R4)" fetch_in "$PREFIX-admin" /api/v1/portal/anything 404
+check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
+  "$ENGINE logs $PREFIX-admin 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
+
 echo "portal-web and edge"
 "$ENGINE" run -d --name "$PREFIX-web" "${OCP[@]}" "$(image portal-web)" >/dev/null
 "$ENGINE" run -d --name "$PREFIX-edge" "${OCP[@]}" -p 127.0.0.1::3000 \
   -e "PORTAL_API_URL=http://$PREFIX-api:3000" -e "PORTAL_WEB_URL=http://$PREFIX-web:8080" \
+  -e ADMIN_HOST=admin.smoke.test -e "ADMIN_API_URL=http://$PREFIX-admin:3000" \
   "$(image edge)" >/dev/null
 EDGE="http://$("$ENGINE" port "$PREFIX-edge" 3000 | head -n 1)"
 deadline=$((SECONDS + 30))
@@ -210,6 +248,10 @@ check "OPTIONS is 405 at the edge (WAF rule 1009)" test "$(status -X OPTIONS "$E
 check "GET /api/auth/me without a session is 401 from portal-api" \
   test "$("${CURL[@]}" -D "$TMP/api.headers" -o /dev/null -w '%{http_code}' "$EDGE/api/auth/me")" = 401
 check "API responses default to Cache-Control: no-store" grep -qi '^cache-control: no-store' "$TMP/api.headers"
+check "the admin host's /api/auth/me is 401 from admin-api" \
+  test "$(status -H 'Host: admin.smoke.test' "$EDGE/api/auth/me")" = 401
+check "the admin host's portal route is 404 from admin-api" \
+  test "$(status -H 'Host: admin.smoke.test' "$EDGE/api/v1/portal/anything")" = 404
 check "/.env is blocked by the WAF" test "$(status "$EDGE/.env")" = 403
 
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null || true

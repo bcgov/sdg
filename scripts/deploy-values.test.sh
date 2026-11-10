@@ -12,6 +12,7 @@ base_env() {
   export TARGET=12 TAG=0123abc REPOSITORY=Acme/sdg ENVIRONMENT='' VAULT_SECRET_PATH='' OBSERVABILITY=''
   export OC_NAMESPACE=d62e77-dev OC_SERVER=https://api.gold.devops.gov.bc.ca:6443
   export KEYCLOAK_ISSUER_URL=https://dev.loginproxy.gov.bc.ca/auth/realms/standard KEYCLOAK_CLIENT_ID=sdg-1234
+  export KEYCLOAK_ADMIN_CLIENT_ID=sdg-admin-5678
 }
 
 # expect <name> <haystack> <needle>
@@ -38,10 +39,18 @@ expect "host is <repo>-<target> on the cluster's apps domain" "$values" "  host:
 expect "admin host is <repo>-<target>-admin" "$values" "  adminHost: \"sdg-12-admin.apps.gold.devops.gov.bc.ca\""
 expect "gateway host is <repo>-<target>-gateway" "$values" "  gatewayHost: \"sdg-12-gateway.apps.gold.devops.gov.bc.ca\""
 expect "Keycloak issuer passes through" "$values" "    issuerUrl: \"https://dev.loginproxy.gov.bc.ca/auth/realms/standard\""
-expect "Keycloak client id passes through" "$values" "    clientId: \"sdg-1234\""
+portal_api="$(sed -n '/^portal-api:/,/^[a-z]/p' <<< "$values")"
+expect "portal-api signs in with the portal client" "$portal_api" "    clientId: \"sdg-1234\""
+admin_api="$(sed -n '/^admin-api:/,/^[a-z]/p' <<< "$values")"
+expect "admin-api signs in with the admin client" "$admin_api" "    clientId: \"sdg-admin-5678\""
+expect "admin-api uses the same realm" "$admin_api" "    issuerUrl: \"https://dev.loginproxy.gov.bc.ca/auth/realms/standard\""
+expect "admin-api's Vault secret path is <role>/admin-api" "$admin_api" "    secretPath: \"d62e77-nonprod/admin-api\""
+expect "admin-api's Vault auth path follows the cluster" "$admin_api" "    authPath: \"auth/k8s-gold\""
+expect "admin-api's Vault service account is <plate>-vault" "$admin_api" "    serviceAccountName: \"d62e77-vault\""
 core_api="$(sed -n '/^core-api:/,/^[a-z]/p' <<< "$values")"
 expect "core-api verifies tokens from the same realm" "$core_api" "    issuerUrl: \"https://dev.loginproxy.gov.bc.ca/auth/realms/standard\""
 expect "core-api accepts the portal client's tokens" "$core_api" "    portalClientId: \"sdg-1234\""
+expect "core-api accepts the admin client's tokens" "$core_api" "    adminClientId: \"sdg-admin-5678\""
 expect "Vault auth path follows the cluster" "$values" "    authPath: \"auth/k8s-gold\""
 expect "PR Vault role is <plate>-nonprod" "$values" "    role: \"d62e77-nonprod\""
 expect "Vault service account is <plate>-vault" "$values" "    serviceAccountName: \"d62e77-vault\""
@@ -66,6 +75,7 @@ export TARGET=prod ENVIRONMENT=prod OC_NAMESPACE=d62e77-prod OC_SERVER=https://a
 values="$("$SCRIPT" values)"; outputs="$("$SCRIPT" outputs)"
 expect "prod Vault role is <plate>-prod" "$values" "    role: \"d62e77-prod\""
 expect "prod Vault secret path is <plate>-prod/portal-api" "$values" "    secretPath: \"d62e77-prod/portal-api\""
+expect "prod admin-api Vault secret path is <plate>-prod/admin-api" "$values" "    secretPath: \"d62e77-prod/admin-api\""
 expect "Silver server gives the Silver auth path" "$values" "    authPath: \"auth/k8s-silver\""
 expect "prod url is on the Silver apps domain" "$outputs" "url=https://sdg-prod.apps.silver.devops.gov.bc.ca"
 expect "prod admin url is on the Silver apps domain" "$outputs" "admin_url=https://sdg-prod-admin.apps.silver.devops.gov.bc.ca"
@@ -74,10 +84,13 @@ expect "prod values file is values-prod.yaml" "$outputs" "values_file=charts/sdg
 
 base_env
 export VAULT_SECRET_PATH=d62e77-nonprod/sdg/portal-api
-expect "VAULT_SECRET_PATH overrides the default" "$("$SCRIPT" values)" "    secretPath: \"d62e77-nonprod/sdg/portal-api\""
+values="$("$SCRIPT" values)"
+expect "VAULT_SECRET_PATH overrides the default" "$values" "    secretPath: \"d62e77-nonprod/sdg/portal-api\""
+expect "VAULT_SECRET_PATH leaves admin-api's path alone" "$(sed -n '/^admin-api:/,/^[a-z]/p' <<< "$values")" \
+  "    secretPath: \"d62e77-nonprod/admin-api\""
 
 base_env
-unset TAG KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID OC_NAMESPACE
+unset TAG KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID KEYCLOAK_ADMIN_CLIENT_ID OC_NAMESPACE
 expect "outputs need no image, Keycloak or namespace settings" "$("$SCRIPT" outputs 2>&1)" "url=https://sdg-12.apps.gold.devops.gov.bc.ca"
 
 # The longest release name (53 characters) keeps every host's first DNS label within 63 characters
@@ -124,6 +137,8 @@ rejects "missing Keycloak issuer" KEYCLOAK_ISSUER_URL ''
 rejects "non-https Keycloak issuer" KEYCLOAK_ISSUER_URL 'http://keycloak.example.com'
 rejects "quote in Keycloak issuer" KEYCLOAK_ISSUER_URL 'https://x.example.com/"a'
 rejects "missing Keycloak client id" KEYCLOAK_CLIENT_ID ''
+rejects "missing Keycloak admin client id" KEYCLOAK_ADMIN_CLIENT_ID ''
+rejects "Keycloak admin client id with YAML metacharacters" KEYCLOAK_ADMIN_CLIENT_ID 'a: b'
 rejects "target that is not a PR number, test or prod" TARGET 'feature/x'
 rejects "unknown environment" ENVIRONMENT 'staging'
 rejects "namespace without a plate suffix" OC_NAMESPACE 'default'

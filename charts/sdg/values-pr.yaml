@@ -1,6 +1,6 @@
 # Pull request environments (<plate>-dev, release <repo>-<pr>), layered on values.yaml by reusable-deploy.yml.
-# Each PR runs the whole stack in a namespace it may share, so PRs are throwaway and small: about 90m CPU,
-# 500Mi memory (requests) and 256Mi of PVC each. Only requests are lowered; each chart's limits still apply.
+# Each PR runs the whole stack in a namespace it may share, so PRs are throwaway and small: about 110m CPU,
+# 630Mi memory (requests) and 256Mi of PVC each. Only requests are lowered; each chart's limits still apply.
 postgres:
   instances:
     storage: 256Mi
@@ -27,8 +27,12 @@ portal-api:
   strategy:
     type: Recreate
 
-# core-api's chart already requests PR-level resources (20m / 128Mi).
+# core-api's and admin-api's charts already request PR-level resources (20m / 128Mi).
 core-api:
+  strategy:
+    type: Recreate
+
+admin-api:
   strategy:
     type: Recreate
 

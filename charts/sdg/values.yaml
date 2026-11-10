@@ -8,7 +8,8 @@ global:
   # Public hostname: the edge Ingress host and portal-api's APP_URL (https://<host>).
   host: ''
   # Admin and gateway hostnames (edge Ingress rules and Host routing), e.g. <release>-admin and <release>-gateway
-  # on the same apps domain. Empty: the edge serves no such host.
+  # on the same apps domain. Empty: the edge serves no such host. adminHost is required while admin-api is enabled
+  # (its APP_URL is https://<adminHost>).
   adminHost: ''
   gatewayHost: ''
   # Observability stack this release reports to (doc 20; charts/observability). All empty: telemetry off.
@@ -39,6 +40,22 @@ portal-api:
     # Required when enabled, e.g. abc123-vault
     serviceAccountName: ''
 
+admin-api:
+  enabled: true
+  keycloak:
+    # Required: the same realm as portal-api
+    issuerUrl: ''
+    # Required: the admin (IDIR) client, with the admin client role; core-api's adminClientId below names it too
+    clientId: ''
+  vault:
+    enabled: true
+    # Required when enabled, e.g. abc123-nonprod
+    role: ''
+    # Required when enabled, e.g. abc123-nonprod/admin-api (KV v2 holding SESSION_SECRET, KEYCLOAK_CLIENT_SECRET)
+    secretPath: ''
+    # Required when enabled, e.g. abc123-vault
+    serviceAccountName: ''
+
 core-api:
   enabled: true
   keycloak:
@@ -46,11 +63,14 @@ core-api:
     issuerUrl: ''
     # Required: portal-api's client id (keycloak.clientId above)
     portalClientId: ''
-    # The admin client id; empty until admin-api is deployed (no admin-client token is accepted)
+    # Required: admin-api's client id (admin-api.keycloak.clientId above); empty, no admin-client token is accepted
     adminClientId: ''
 
 edge:
   enabled: true
+  # The admin host's /api goes to admin-api.
+  upstreams:
+    adminApi: 'http://{{ .Release.Name }}-admin-api:3000'
 
 postgres:
   enabled: true

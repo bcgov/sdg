@@ -1,7 +1,11 @@
 # Local development stack for the portal (`podman compose up -d` or `docker compose up -d`).
-# Caddy fronts everything at https://sdg.localhost; portal-api, core-api and portal-web publish no host ports.
+# Caddy fronts everything at https://sdg.localhost (and https://admin.sdg.localhost); portal-api, admin-api, core-api
+# and portal-web publish no host ports.
 # Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets come
-# from apps/portal-api/.env, and core-api's Keycloak issuer and client ids from apps/core-api/.env (both gitignored). See DEVELOPER.md "Local Stack" for the one-time TLS trust step.
+# from apps/portal-api/.env and apps/admin-api/.env, and core-api's Keycloak issuer and client ids from
+# apps/core-api/.env (all gitignored). apps/admin-api/.env is optional: without the admin client, admin-api doesn't
+# start and only the admin host fails (502); the portal works. See DEVELOPER.md "Local Stack" for the one-time TLS
+# trust step.
 # Postgres's host port defaults to 5432; override with POSTGRES_PORT if it is taken.
 # Telemetry is off here; `-f compose.observability.yaml` adds the Grafana LGTM stack and turns it on (DEVELOPER.md).
 name: portal
@@ -19,6 +23,7 @@ x-workspace: &workspace
     - pnpm-store:/pnpm/store
     - nm-root:/app/node_modules
     - nm-portal-api:/app/apps/portal-api/node_modules
+    - nm-admin-api:/app/apps/admin-api/node_modules
     - nm-core-api:/app/apps/core-api/node_modules
     - nm-portal-web:/app/apps/portal-web/node_modules
     - nm-auth:/app/packages/auth/node_modules
@@ -57,6 +62,7 @@ x-init-healthcheck: &init-healthcheck
 # these local-dev passwords). POSTGRES_USER is the superuser that runs that init script; no service connects as it.
 x-database-url-core: &database-url-core postgres://core:core@postgis:5432/${POSTGRES_DB:-portal}
 x-database-url-portal: &database-url-portal postgres://portal:portal@postgis:5432/${POSTGRES_DB:-portal}
+x-database-url-admin: &database-url-admin postgres://admin:admin@postgis:5432/${POSTGRES_DB:-portal}
 
 services:
   postgis:
@@ -174,7 +180,59 @@ services:
       retries: 5
       start_period: 300s
 
-  # No host ports and no Caddy route: only portal-api call it.
+  # Init container: applies admin-api's sessions migrations to the admin schema as the admin login, like migrate-portal.
+  # It needs no Keycloak settings, so it runs without apps/admin-api/.env. It waits for migrate-portal, whose build has
+  # left bff-core built, so the two never build the shared packages at once.
+  migrate-admin:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      DATABASE_URL: *database-url-admin
+    command:
+      - sh
+      - -c
+      - >-
+        rm -f /tmp/ready && pnpm turbo run build --filter=admin-api --ui=stream && pnpm --filter admin-api db:migrate
+        && touch /tmp/ready && exec sleep infinity
+    init: true
+    restart: 'no'
+    healthcheck: *init-healthcheck
+    depends_on:
+      migrate-portal:
+        condition: service_healthy
+
+  # No host ports: reachable only through Caddy at https://admin.sdg.localhost/api.
+  # Overrides the localhost URLs in apps/admin-api/.env (process env wins); the admin client's settings and the session
+  # secret stay in that file. Nothing depends on admin-api, so without that file the rest of the stack still runs.
+  admin-api:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      PORT: '3000'
+      APP_URL: https://admin.sdg.localhost
+      TRUST_PROXY: 'true'
+      DATABASE_URL: *database-url-admin
+      CORE_API_URL: http://core-api:3000
+    # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
+    command: ['pnpm', 'turbo', 'run', 'dev', '--filter=admin-api', '--ui=stream', '--env-mode=loose']
+    depends_on:
+      migrate-admin:
+        condition: service_healthy
+      core-api:
+        condition: service_healthy
+    healthcheck:
+      # Liveness, as for portal-api: readiness checks only its own database, never Keycloak or core-api.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # No host ports and no Caddy route: only portal-api and admin-api call it.
   # Overrides apps/core-api/.env's localhost DATABASE_URL (process env wins); Keycloak settings stay in that file.
   core-api:
     <<: *workspace
@@ -229,6 +287,9 @@ services:
       LOG_LEVEL: INFO
       PORTAL_API_URL: http://portal-api:3000
       PORTAL_WEB_URL: http://portal-web:5173
+      # The admin host's /api (Caddyfile.dev's admin.sdg.localhost). Caddy doesn't wait for admin-api: until it
+      # listens, or when it can't start without apps/admin-api/.env, that host answers 502.
+      ADMIN_API_URL: http://admin-api:3000
     ports:
       - '443:8443'
     volumes:
@@ -252,6 +313,7 @@ volumes:
   pnpm-store:
   nm-root:
   nm-portal-api:
+  nm-admin-api:
   nm-core-api:
   nm-portal-web:
   nm-auth:
