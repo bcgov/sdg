@@ -67,15 +67,16 @@ function toRefreshedTokens(
   };
 }
 
+/** The IdP's `error` for a refused refresh, or the client library's code for a failure before a response. */
+function refreshErrorDetail(error: unknown): string | undefined {
+  if (error instanceof client.ResponseBodyError) return error.error;
+  if (error instanceof client.ClientError) return error.code;
+  return undefined;
+}
+
 function toRefreshError(error: unknown): AuthError {
   if (error instanceof AuthError) return error;
-  const detail =
-    error instanceof client.ResponseBodyError
-      ? error.error
-      : error instanceof client.ClientError
-        ? error.code
-        : undefined;
-  return new AuthError('refresh_failed', { detail, cause: error });
+  return new AuthError('refresh_failed', { detail: refreshErrorDetail(error), cause: error });
 }
 
 function toCallbackError(error: unknown): AuthError {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export interface LoginQuery {
-  returnTo?: string | undefined;
+  returnTo?: string;
 }
 
 /** /login query. A repeated or object `returnTo` falls back to "/" (via safeReturnTo) instead of a 400. */

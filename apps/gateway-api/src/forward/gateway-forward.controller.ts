@@ -40,7 +40,7 @@ export class GatewayForwardController {
       upstream: config.get('CORE_API_URL', { infer: true }),
       audiences: ['gateway'],
       methods: ['GET'],
-      token: async (req) => bearerToken(req.headers.authorization),
+      token: (req) => Promise.resolve(bearerToken(req.headers.authorization)),
       logger: this.logger,
     });
   }

@@ -19,7 +19,7 @@ interface ClientListProps {
 }
 
 /** The registered clients, or why they can't be shown: loading, a load failure with a retry, or none yet. */
-function ClientList({ actions }: ClientListProps) {
+function ClientList({ actions }: Readonly<ClientListProps>) {
   const { data: clients, error, isPending, isError, refetch } = useServiceClients();
   const retry = useCallback(() => void refetch(), [refetch]);
   if (isError) {

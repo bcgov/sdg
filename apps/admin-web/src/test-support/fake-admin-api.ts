@@ -23,6 +23,12 @@ type Refusal = { method: string; path: string | RegExp; respond: () => Response 
 export const nestError = (statusCode: number, message: string | string[], error?: string) =>
   Response.json({ statusCode, message, ...(error ? { error } : {}) }, { status: statusCode });
 
+/** The URL a `fetch` call was made with. */
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
 /**
  * An in-memory admin-api behind a stubbed `fetch`: the session, the registry and its history behave like
  * core-api's (409 on a duplicate, 404 on a missing client, history newest first with `nextBefore`). `refuseNext`
@@ -65,8 +71,7 @@ export class FakeAdminApi {
 
   private async handle(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
     const method = (init.method ?? 'GET').toUpperCase();
-    const target = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const url = new URL(target, 'https://admin.example.test');
+    const url = new URL(requestUrl(input), 'https://admin.example.test');
     const body: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
     this.calls.push({ method, path: `${url.pathname}${url.search}`, body });
     const refusal = this.refusals.findIndex(
@@ -77,26 +82,40 @@ export class FakeAdminApi {
   }
 
   private route(method: string, url: URL, body: unknown): Response {
-    if (url.pathname === '/api/auth/me') {
-      return this.signedIn ? Response.json(ADMIN) : nestError(401, 'Unauthorized');
-    }
-    if (url.pathname === '/api/auth/logout' && method === 'POST') {
-      this.signedIn = false;
-      return Response.json({ redirectUrl: '/' });
-    }
+    const auth = this.authRoute(method, url.pathname);
+    if (auth) return auth;
     if (!this.signedIn) return nestError(401, 'Unauthorized');
     if (url.pathname === BASE && method === 'GET') return Response.json(this.clients);
     if (url.pathname === `${BASE}/history` && method === 'GET') return this.history(url.searchParams);
     if (url.pathname === BASE && method === 'POST') return this.add(body);
-    const match = /^\/api\/v1\/admin\/service-clients\/([^/]+)(?:\/(disable|enable))?$/.exec(url.pathname);
-    if (!match) return nestError(404, `Cannot ${method} ${url.pathname}`, 'Not Found');
+    return this.clientRoute(method, url.pathname);
+  }
+
+  /** admin-api's own /api/auth routes, answered whether or not the administrator is signed in. */
+  private authRoute(method: string, pathname: string): Response | undefined {
+    if (pathname === '/api/auth/me') {
+      return this.signedIn ? Response.json(ADMIN) : nestError(401, 'Unauthorized');
+    }
+    if (pathname === '/api/auth/logout' && method === 'POST') {
+      this.signedIn = false;
+      return Response.json({ redirectUrl: '/' });
+    }
+    return undefined;
+  }
+
+  /** `/service-clients/:clientId` (DELETE) and `/service-clients/:clientId/disable|enable` (POST). */
+  private clientRoute(method: string, pathname: string): Response {
+    const notFound = () => nestError(404, `Cannot ${method} ${pathname}`, 'Not Found');
+    const match = /^\/api\/v1\/admin\/service-clients\/([^/]+)(?:\/(disable|enable))?$/.exec(pathname);
+    if (!match) return notFound();
     const clientId = decodeURIComponent(match[1]!);
     if (!this.clients.some((client) => client.clientId === clientId)) {
       return nestError(404, `No service client ${clientId} is registered`, 'Not Found');
     }
-    if (method === 'DELETE' && !match[2]) return this.remove(clientId);
-    if (method === 'POST' && match[2]) return this.setEnabled(clientId, match[2] === 'enable');
-    return nestError(404, `Cannot ${method} ${url.pathname}`, 'Not Found');
+    const toggle = match[2];
+    if (method === 'DELETE' && !toggle) return this.remove(clientId);
+    if (method === 'POST' && toggle) return this.setEnabled(clientId, toggle === 'enable');
+    return notFound();
   }
 
   private history(query: URLSearchParams): Response {

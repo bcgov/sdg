@@ -23,7 +23,8 @@ export class ApiError extends Error {
   readonly reasons: readonly string[];
 
   constructor(kind: ApiErrorKind, status: number | undefined, reasons: readonly string[] = [], cause?: unknown) {
-    super(`admin-api request failed (${kind}${status === undefined ? '' : `, ${status}`})`, { cause });
+    const detail = status === undefined ? kind : `${kind}, ${status}`;
+    super(`admin-api request failed (${detail})`, { cause });
     this.name = 'ApiError';
     this.kind = kind;
     this.status = status;

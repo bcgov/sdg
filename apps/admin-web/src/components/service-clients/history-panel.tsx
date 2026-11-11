@@ -17,7 +17,7 @@ const ACTION_LABELS: Readonly<Record<ServiceClientAction, string>> = {
 
 const dateTime = new Intl.DateTimeFormat('en-CA', { dateStyle: 'medium', timeStyle: 'short' });
 
-function HistoryTable({ events }: { events: readonly ServiceClientEvent[] }) {
+function HistoryTable({ events }: Readonly<{ events: readonly ServiceClientEvent[] }>) {
   return (
     <div className={styles.tableWrapper}>
       <table className={styles.table}>
@@ -47,6 +47,12 @@ function HistoryTable({ events }: { events: readonly ServiceClientEvent[] }) {
   );
 }
 
+/** "Showing 3 changes.", or nothing before the first event. */
+function showingSummary(count: number): string {
+  if (count === 0) return '';
+  return `Showing ${count} ${count === 1 ? 'change' : 'changes'}.`;
+}
+
 /** The registry's history: who changed what and when, a page at a time. */
 export function HistoryPanel() {
   const {
@@ -65,7 +71,8 @@ export function HistoryPanel() {
   const events = useMemo(() => data?.pages.flatMap((page) => page.events) ?? [], [data]);
   // Only a failed "Load more" retries the next page; a failed first load or refetch (after a change) reloads from the
   // newest event.
-  const notice = isError ? loadFailureNotice(error, 'The history', isFetchNextPageError ? loadMore : retry) : null;
+  const tryAgain = isFetchNextPageError ? loadMore : retry;
+  const notice = isError ? loadFailureNotice(error, 'The history', tryAgain) : null;
 
   if (isPending) return <Text elementType="p">Loading the history…</Text>;
   return (
@@ -74,7 +81,7 @@ export function HistoryPanel() {
       {data && events.length === 0 && <Text elementType="p">No changes have been made to the registry yet.</Text>}
       {events.length > 0 && <HistoryTable events={events} />}
       <Text elementType="p" aria-live="polite">
-        {events.length > 0 ? `Showing ${events.length} ${events.length === 1 ? 'change' : 'changes'}.` : ''}
+        {showingSummary(events.length)}
       </Text>
       {hasNextPage && (
         <Button variant="secondary" isPending={isFetchingNextPage} onPress={loadMore}>

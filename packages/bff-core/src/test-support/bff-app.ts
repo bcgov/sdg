@@ -16,6 +16,9 @@ import type { PostgresSessionStore } from '../session/postgres-session.store.js'
 import type { CoreApiStub } from '../testing/core-api-stub.js';
 import type { TestSessionDatabase } from './database.js';
 
+/** express-session hands its callbacks `any`; reject with an Error either way. */
+const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));
+
 export const APP_URL = 'http://app.test';
 export const SECRET = 'test-session-secret-at-least-32-characters';
 
@@ -127,7 +130,7 @@ export async function setTokens(t: BffTestApp, sid: string, tokens: Partial<Oidc
     cookie: { originalMaxAge: 3_600_000, expires: new Date(Date.now() + 3_600_000), httpOnly: true, path: '/' },
   };
   await new Promise<void>((resolve, reject) =>
-    t.store.set(sid, session, (error) => (error ? reject(error) : resolve())),
+    t.store.set(sid, session, (error: unknown) => (error ? reject(asError(error)) : resolve())),
   );
   return data.auth.tokens;
 }

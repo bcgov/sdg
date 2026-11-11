@@ -17,7 +17,7 @@ interface RemoveDialogProps {
  * Confirms a removal. react-aria's modal traps focus inside the dialog, closes on Escape and returns focus to the
  * Remove button that opened it.
  */
-export function RemoveDialog({ client, isPending, onConfirm, onCancel }: RemoveDialogProps) {
+export function RemoveDialog({ client, isPending, onConfirm, onCancel }: Readonly<RemoveDialogProps>) {
   // Keeps the last client's text while the dialog closes.
   const [shown, setShown] = useState(client);
   if (client !== null && client !== shown) setShown(client);

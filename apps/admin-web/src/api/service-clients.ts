@@ -10,6 +10,8 @@ export interface ServiceClient {
 
 export const SERVICE_CLIENT_ACTIONS = ['added', 'disabled', 'enabled', 'removed'] as const;
 export type ServiceClientAction = (typeof SERVICE_CLIENT_ACTIONS)[number];
+/** SERVICE_CLIENT_ACTIONS widened, so `includes` accepts an unchecked value. */
+const KNOWN_ACTIONS: readonly unknown[] = SERVICE_CLIENT_ACTIONS;
 
 /** One registry change; `actor.name` is the administrator's display name when they made it. */
 export interface ServiceClientEvent {
@@ -56,7 +58,7 @@ function isEvent(value: unknown): value is ServiceClientEvent {
   return (
     typeof value['id'] === 'number' &&
     isString(value['clientId']) &&
-    SERVICE_CLIENT_ACTIONS.some((action) => action === value['action']) &&
+    KNOWN_ACTIONS.includes(value['action']) &&
     isString(actor['principalId']) &&
     isString(actor['name']) &&
     isString(value['createdAt'])

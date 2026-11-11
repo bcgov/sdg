@@ -6,10 +6,12 @@
 export const AUDIENCES = ['portal', 'admin', 'gateway', 'shared'] as const;
 export type Audience = (typeof AUDIENCES)[number];
 
-const FORWARDED_PATH = new RegExp(`^/api/v[1-9]\\d*/(${AUDIENCES.join('|')})(?:/|$)`);
+const FORWARDED_PATH = new RegExp(String.raw`^/api/v[1-9]\d*/(${AUDIENCES.join('|')})(?:/|$)`);
+/** AUDIENCES widened, so `includes` accepts any string. */
+const KNOWN_AUDIENCES: readonly (string | undefined)[] = AUDIENCES;
 
 function isAudience(value: string | undefined): value is Audience {
-  return AUDIENCES.some((audience) => audience === value);
+  return KNOWN_AUDIENCES.includes(value);
 }
 
 /** The audience of a normalized, percent-decoded path (`normalizeRequestTarget`), or undefined if not forwardable. */

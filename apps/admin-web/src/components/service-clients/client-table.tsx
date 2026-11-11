@@ -15,7 +15,7 @@ interface RowProps {
 }
 
 /** Buttons are named with the client id, so each is distinguishable out of context (screen reader lists, voice). */
-function ClientRow({ client, isBusy, isLocked, onToggle, onRemove }: RowProps) {
+function ClientRow({ client, isBusy, isLocked, onToggle, onRemove }: Readonly<RowProps>) {
   const toggle = useCallback(() => onToggle(client), [client, onToggle]);
   const remove = useCallback(() => onRemove(client), [client, onRemove]);
   const toggleLabel = client.enabled ? 'Disable' : 'Enable';
@@ -60,7 +60,7 @@ interface ClientTableProps {
   onRemove: (client: ServiceClient) => void;
 }
 
-export function ClientTable({ clients, busyClientId, onToggle, onRemove }: ClientTableProps) {
+export function ClientTable({ clients, busyClientId, onToggle, onRemove }: Readonly<ClientTableProps>) {
   return (
     <div className={styles.tableWrapper}>
       <table className={styles.table}>

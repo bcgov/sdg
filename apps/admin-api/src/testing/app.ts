@@ -1,16 +1,10 @@
-import {
-  bffTestEnv,
-  bffTestKit,
-  type BffTestApp,
-  type BffTestAppOptions,
-  type SignedIn,
-} from '@repo/bff-core/testing/nestjs';
+import { bffTestEnv, bffTestKit, type BffTestApp, type BffTestAppOptions } from '@repo/bff-core/testing/nestjs';
 
 import { SESSION_COOKIE } from '../bff/admin-session.js';
 import { swaggerOptions } from '../openapi/swagger-options.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
-export type { SignedIn };
+export type { SignedIn } from '@repo/bff-core/testing/nestjs';
 export type TestApp = BffTestApp<TestDatabase>;
 export type TestAppOptions = BffTestAppOptions;
 

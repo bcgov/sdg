@@ -11,8 +11,8 @@ export type LoginOutcome =
   | {
       readonly kind: 'accepted';
       readonly principalId: string;
-      readonly name?: string | undefined;
-      readonly email?: string | null | undefined;
+      readonly name?: string;
+      readonly email?: string | null;
     }
   /** core-api refused the user (403), e.g. an admin-client token without the admin role. No session is created. */
   | { readonly kind: 'refused' }

@@ -42,7 +42,7 @@ export class GatewayGuard implements CanActivate {
     const caller = await this.resolver.resolve(request);
     if (caller.kind !== 'service-account') throw new ForbiddenException();
     const entry = await this.registry.find(caller.clientId);
-    if (entry === undefined || !entry.enabled) {
+    if (!entry?.enabled) {
       this.logger.warn({
         msg: 'Refused a gateway call from a service client that is not registered and enabled',
         clientId: caller.clientId,

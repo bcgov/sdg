@@ -80,7 +80,7 @@ interface NoticeAlertProps {
 }
 
 /** A failure in an assertive live region, with a retry or reload when one helps. */
-export function NoticeAlert({ notice, onDismiss }: NoticeAlertProps) {
+export function NoticeAlert({ notice, onDismiss }: Readonly<NoticeAlertProps>) {
   const { retry, reload } = notice;
   const onRetry = useCallback(() => {
     onDismiss?.();

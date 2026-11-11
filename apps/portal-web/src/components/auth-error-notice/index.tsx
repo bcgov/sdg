@@ -16,7 +16,7 @@ interface AuthErrorNoticeProps {
  * Inline notice for a failed sign-in. The retry is a fresh login: the callback's code exchange is single-use, so
  * the failed attempt can't be replayed. `access_denied` means the person declined, so no retry is offered.
  */
-export function AuthErrorNotice({ code, returnTo, onDismiss }: AuthErrorNoticeProps) {
+export function AuthErrorNotice({ code, returnTo, onDismiss }: Readonly<AuthErrorNoticeProps>) {
   const description =
     code === 'unavailable'
       ? 'The service is temporarily unavailable. Try again in a few minutes.'

@@ -1,7 +1,7 @@
 import { Button } from '@repo/design-system/components/button';
 import { Form } from '@repo/design-system/components/form';
 import { TextField } from '@repo/design-system/components/text-field';
-import { type FormEvent, useCallback, useState } from 'react';
+import { type SyntheticEvent, useCallback, useState } from 'react';
 
 import { ApiError, apiErrorKind } from '../../api/http';
 import type { NewServiceClient, ServiceClient } from '../../api/service-clients';
@@ -82,7 +82,7 @@ function useAddClientForm(onAdded: (client: ServiceClient) => void) {
   );
 
   const submit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
+    (event: SyntheticEvent<HTMLFormElement>) => {
       event.preventDefault();
       const input = { clientId: values.clientId.trim(), displayName: values.displayName.trim() };
       const missing = missingFields(input);
@@ -107,7 +107,7 @@ interface AddClientFormProps {
 }
 
 /** Registers a Keycloak client id. A refused add keeps what was typed and says why next to the field. */
-export function AddClientForm({ onAdded }: AddClientFormProps) {
+export function AddClientForm({ onAdded }: Readonly<AddClientFormProps>) {
   const { values, errors, notice, isPending, submit, change, dismiss } = useAddClientForm(onAdded);
   const changeClientId = useCallback((value: string) => change('clientId', value), [change]);
   const changeDisplayName = useCallback((value: string) => change('displayName', value), [change]);

@@ -1,6 +1,6 @@
 // Explicit table types for the `core` schema. `isolatedDeclarations` cannot infer Drizzle's builder chains, so each
 // table declares its column map with these aliases; `coreSchema.table(...)` must still be assignable to it.
-import type { BuildColumns, HasDefault, IsIdentity, IsPrimaryKey, NotNull } from 'drizzle-orm';
+import type { BuildColumns, HasDefault, IsPrimaryKey, NotNull } from 'drizzle-orm';
 import type {
   PgBigInt53BuilderInitial,
   PgBooleanBuilderInitial,
@@ -32,4 +32,4 @@ export type PgTableOf<TName extends string, TColumns extends Record<string, PgCo
   dialect: 'pg';
 }>;
 
-export type { HasDefault, IsIdentity, IsPrimaryKey, NotNull };
+export type { HasDefault, IsIdentity, IsPrimaryKey, NotNull } from 'drizzle-orm';
