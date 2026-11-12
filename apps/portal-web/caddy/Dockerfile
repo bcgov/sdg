@@ -1,6 +1,6 @@
 # Edge: Caddy with the Coraza WAF in front of portal-web and portal-api. Runs Caddyfile (production) by default;
 # compose.yaml mounts and runs Caddyfile.dev.
-FROM docker.io/library/caddy:2.11.7-builder-alpine AS builder
+FROM docker.io/library/caddy:2.11.8-builder-alpine AS builder
 # The builder image sets XCADDY_SETCAP=1, which grants the binary cap_net_bind_service. OpenShift drops every
 # capability, and exec of a binary that requests one then fails; the production ports (3000, 3003) need none.
 RUN XCADDY_SETCAP=0 xcaddy build --with github.com/corazawaf/coraza-caddy/v2@v2.6.2 \
