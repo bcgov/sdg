@@ -53,13 +53,13 @@ describe('the account menu (R11)', () => {
     expect(precedes(separators[1]!, items[1]!)).toBe(true);
   });
 
-  it('goes to /settings client-side from Settings and closes the menu', async () => {
+  it('goes to /profile client-side from Settings and closes the menu', async () => {
     const user = userEvent.setup();
     const { router, sidebar } = await renderShell('/');
     const menu = await openMenu(user);
     await user.click(within(menu).getByRole('menuitem', { name: 'Settings' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/settings');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/profile');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(sidebar).toBeInTheDocument();
   });

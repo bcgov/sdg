@@ -51,7 +51,7 @@ export function AccountMenu() {
   const { data: user } = useCurrentUser();
   const router = useRouter();
   const signOut = useSignOut();
-  const openSettings = useCallback(() => void router.navigate({ to: '/settings' }), [router]);
+  const openProfile = useCallback(() => void router.navigate({ to: '/profile' }), [router]);
   // The `_app` guard has loaded the user before the shell renders; there is nothing to show without one.
   if (!user) return null;
   const label = `Account menu for ${user.name}`;
@@ -66,7 +66,7 @@ export function AccountMenu() {
             </MenuSectionHeader>
           </MenuSection>
           <Separator size="small" />
-          <MenuItem textValue="Settings" onAction={openSettings} iconLeft={SETTINGS_ICON}>
+          <MenuItem textValue="Settings" onAction={openProfile} iconLeft={SETTINGS_ICON}>
             Settings
           </MenuItem>
           <Separator size="small" />

@@ -1,7 +1,8 @@
 /* The account button at the foot of the sidebar (R11): avatar, name and email, or the avatar alone on the icon rail.
-   The bcgov Button's styles load as adopted stylesheets, later in the cascade, so these overrides of its layout are
-   more specific than bcgov's own rules. */
-.account > button {
+   The bcgov Button's styles load as adopted stylesheets, later in the cascade, and its size rules (e.g.
+   `.bcds-react-aria-Button.medium`, two classes) set 16px of inline padding, so these overrides need more than one
+   class to win: the attribute selector lifts them above bcgov's own rules. */
+.account > button[type] {
   justify-content: flex-start;
   box-sizing: border-box;
   width: 100%;
@@ -11,7 +12,7 @@
   text-align: start;
 }
 
-.account > button:not([data-hovered]) {
+.account > button[type]:not([data-hovered]) {
   background-color: transparent;
 }
 
