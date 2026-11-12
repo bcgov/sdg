@@ -2,8 +2,8 @@
 {{- if index .Values "edge" "enabled" }}
 
   URL: https://{{ .Values.global.host }}
-{{- with .Values.global.adminHost }}
-  Admin: https://{{ . }}
+{{- with .Values.global.consoleHost }}
+  Console: https://{{ . }}
 {{- end }}
 {{- with .Values.global.gatewayHost }}
   Gateway: https://{{ . }}

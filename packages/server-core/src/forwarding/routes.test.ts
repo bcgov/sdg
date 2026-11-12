@@ -4,16 +4,16 @@ import { AUDIENCES, classifyPath } from './routes.js';
 
 describe('route contract', () => {
   it('has the four audiences', () => {
-    expect(AUDIENCES).toEqual(['portal', 'admin', 'gateway', 'shared']);
+    expect(AUDIENCES).toEqual(['portal', 'console', 'gateway', 'shared']);
   });
 
   it.each([
     ['/api/v1/portal/x', 'portal'],
-    ['/api/v1/admin/x', 'admin'],
+    ['/api/v1/console/x', 'console'],
     ['/api/v1/gateway/clients/a/b', 'gateway'],
     ['/api/v1/shared/me', 'shared'],
     ['/api/v2/portal/x', 'portal'],
-    ['/api/v12/admin', 'admin'],
+    ['/api/v12/console', 'console'],
     ['/api/v1/portal/', 'portal'],
   ])('classifies %s as %s', (path, audience) => {
     expect(classifyPath(path)).toBe(audience);

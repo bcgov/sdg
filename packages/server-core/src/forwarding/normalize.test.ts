@@ -29,12 +29,12 @@ describe('normalizeRequestTarget', () => {
   });
 
   it.each([
-    ['an encoded slash', '/api/v1/portal%2fadmin/x'],
-    ['an upper-case encoded slash', '/api/v1/portal%2Fadmin/x'],
-    ['encoded dots', '/api/v1/portal/%2e%2e/admin/x'],
+    ['an encoded slash', '/api/v1/portal%2fconsole/x'],
+    ['an upper-case encoded slash', '/api/v1/portal%2Fconsole/x'],
+    ['encoded dots', '/api/v1/portal/%2e%2e/console/x'],
     ['an upper-case encoded dot', '/api/v1/portal/%2E/x'],
     ['a dot segment', '/api/v1/portal/./x'],
-    ['a dot-dot segment', '/api/v1/portal/../admin/x'],
+    ['a dot-dot segment', '/api/v1/portal/../console/x'],
     ['a trailing dot-dot segment', '/api/v1/portal/x/..'],
     ['an empty segment', '/api/v1//portal/x'],
     ['an empty leading segment', '//api/v1/portal/x'],

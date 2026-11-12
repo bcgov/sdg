@@ -1,5 +1,5 @@
 # core-api: the NestJS service owning every business rule (apps/core-api), with the database migrator as its
-# initContainer. Env contract: apps/core-api/src/config/env.ts. Reached only by portal-api, admin-api and gateway-api,
+# initContainer. Env contract: apps/core-api/src/config/env.ts. Reached only by portal-api, console-api and gateway-api,
 # never from the edge (networkpolicy.yaml).
 global:
   image:
@@ -46,8 +46,8 @@ keycloak:
   issuerUrl: ''
   # Required: the portal (BCSC) client id; its person tokens reach portal and shared routes.
   portalClientId: ''
-  # The admin (IDIR) client id. Empty: no admin-client token is accepted (until admin-api is deployed).
-  adminClientId: ''
+  # The console (IDIR) client id. Empty: no console-client token is accepted (until console-api is deployed).
+  consoleClientId: ''
 
 # Crunchy PGO user Secret for the core login (<cluster>-pguser-core); use key pgbouncer-uri when PgBouncer is enabled.
 database:
@@ -70,7 +70,7 @@ resources:
 networkPolicy:
   enabled: true
   # app.kubernetes.io/name of the pods (same release) that call core-api: the forwarders.
-  clients: [portal-api, admin-api, gateway-api]
+  clients: [portal-api, console-api, gateway-api]
 
 podDisruptionBudget:
   enabled: false

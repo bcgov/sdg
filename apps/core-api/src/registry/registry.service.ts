@@ -62,7 +62,7 @@ export class RegistryService {
 
   constructor(@InjectDatabase() db: Database, @Inject(KEYCLOAK_CLIENTS) clients: KeycloakClients) {
     this.db = db;
-    this.reserved = new Set([clients.portal, ...(clients.admin === undefined ? [] : [clients.admin])]);
+    this.reserved = new Set([clients.portal, ...(clients.console === undefined ? [] : [clients.console])]);
   }
 
   async list(): Promise<ServiceClientView[]> {
@@ -75,10 +75,10 @@ export class RegistryService {
     return row === undefined ? undefined : toView(row);
   }
 
-  /** 400 for the portal or admin client id, 409 when the client id is already registered. */
+  /** 400 for the portal or console client id, 409 when the client id is already registered. */
   async add(input: AddServiceClient, actor: Actor): Promise<ServiceClientView> {
     if (this.reserved.has(input.clientId)) {
-      throw new BadRequestException('The portal and admin clients cannot be registered as service accounts');
+      throw new BadRequestException('The portal and console clients cannot be registered as service accounts');
     }
     return await this.db.transaction(async (tx) => {
       const [created] = await tx.insert(serviceClients).values(input).onConflictDoNothing().returning();

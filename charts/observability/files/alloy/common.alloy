@@ -36,7 +36,7 @@ otelcol.exporter.otlphttp "loki" {
   }
 }
 
-// Browser telemetry from portal-web and admin-web (Grafana Faro), proxied by the edge from each host's public /collect.
+// Browser telemetry from portal-web and console-web (Grafana Faro), proxied by the edge from each host's public /collect.
 // Labels are fixed here, never taken from the payload beyond loki.process's allow-list below; the edge also caps
 // request bodies at 64 KiB.
 faro.receiver "web" {
@@ -76,14 +76,14 @@ loki.process "faro" {
   }
 
   // Both web apps share this receiver (the edge proxies /collect on every host) and the receiver doesn't see the
-  // request's Host, so admin-web's lines are told apart by the Faro app name it sends (app_name=admin-web). Only that
+  // request's Host, so console-web's lines are told apart by the Faro app name it sends (app_name=console-web). Only that
   // exact value relabels a line; anything else keeps service_name="portal-web".
   stage.regex {
-    expression = `(?:^|\s)app_name=(?P<admin_web>admin-web)(?:\s|$)`
+    expression = `(?:^|\s)app_name=(?P<console_web>console-web)(?:\s|$)`
   }
 
   stage.labels {
-    values = { service_name = "admin_web" }
+    values = { service_name = "console_web" }
   }
 
   forward_to = [loki.write.default.receiver]

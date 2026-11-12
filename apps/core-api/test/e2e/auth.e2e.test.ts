@@ -1,11 +1,11 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { AdminGuard, PortalGuard } from '../../src/auth/audience.guards.js';
+import { ConsoleGuard, PortalGuard } from '../../src/auth/audience.guards.js';
 import { createTestApp, type TestApp } from '../../src/testing/app.js';
 import type { TestIdp } from '../../src/testing/idp.js';
 
-/** Test-only routes in the portal and admin audiences. */
+/** Test-only routes in the portal and console audiences. */
 @Controller({ path: 'portal/probe', version: '1' })
 @UseGuards(PortalGuard)
 class PortalProbeController {
@@ -15,16 +15,16 @@ class PortalProbeController {
   }
 }
 
-@Controller({ path: 'admin/probe', version: '1' })
-@UseGuards(AdminGuard)
-class AdminProbeController {
+@Controller({ path: 'console/probe', version: '1' })
+@UseGuards(ConsoleGuard)
+class ConsoleProbeController {
   @Get()
   get(): { audience: string } {
-    return { audience: 'admin' };
+    return { audience: 'console' };
   }
 }
 
-const probes = [PortalProbeController, AdminProbeController];
+const probes = [PortalProbeController, ConsoleProbeController];
 
 describe('Authentication and audiences (R8, R9)', () => {
   let t: TestApp;
@@ -43,18 +43,20 @@ describe('Authentication and audiences (R8, R9)', () => {
 
   beforeEach(() => t.idp.reset());
 
-  it('Should admit a portal token to portal routes and an admin token with the role to admin routes', async () => {
+  it('Should admit a portal token to portal routes and a console token with the role to console routes', async () => {
     expect((await get('/api/v1/portal/probe', await t.idp.portalToken())).body).toEqual({ audience: 'portal' });
-    expect((await get('/api/v1/admin/probe', await t.idp.adminToken(['admin']))).body).toEqual({ audience: 'admin' });
+    expect((await get('/api/v1/console/probe', await t.idp.consoleToken(['admin']))).body).toEqual({
+      audience: 'console',
+    });
   });
 
-  it('Should answer 403 to a portal token on an admin route and an admin token on a portal route', async () => {
-    expect((await get('/api/v1/admin/probe', await t.idp.portalToken())).status).toBe(403);
-    expect((await get('/api/v1/portal/probe', await t.idp.adminToken(['admin']))).status).toBe(403);
+  it('Should answer 403 to a portal token on a console route and a console token on a portal route', async () => {
+    expect((await get('/api/v1/console/probe', await t.idp.portalToken())).status).toBe(403);
+    expect((await get('/api/v1/portal/probe', await t.idp.consoleToken(['admin']))).status).toBe(403);
   });
 
-  it('Should answer 403 to an admin-client token without the admin role on an admin route', async () => {
-    expect((await get('/api/v1/admin/probe', await t.idp.adminToken([]))).status).toBe(403);
+  it('Should answer 403 to a console-client token without the admin role on a console route', async () => {
+    expect((await get('/api/v1/console/probe', await t.idp.consoleToken([]))).status).toBe(403);
   });
 
   it('Should answer 403 to a service account on person routes', async () => {
@@ -71,16 +73,16 @@ describe('Authentication and audiences (R8, R9)', () => {
   });
 
   describe('GET /api/v1/shared/me', () => {
-    it('Should return the principal of a signed-in portal or admin user', async () => {
+    it('Should return the principal of a signed-in portal or console user', async () => {
       await signIn(await t.idp.portalToken());
       const res = await get('/api/v1/shared/me', await t.idp.portalToken());
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ id: expect.any(String), name: 'Ada Lovelace', email: 'ada@example.com' });
 
-      await signIn(await t.idp.adminToken(['admin']));
-      const admin = await get('/api/v1/shared/me', await t.idp.adminToken(['admin']));
-      expect(admin.status).toBe(200);
-      expect(admin.body.id).not.toBe(res.body.id);
+      await signIn(await t.idp.consoleToken(['admin']));
+      const consoleMe = await get('/api/v1/shared/me', await t.idp.consoleToken(['admin']));
+      expect(consoleMe.status).toBe(200);
+      expect(consoleMe.body.id).not.toBe(res.body.id);
     });
 
     it('Should answer 404 for a person who never signed in', async () => {
@@ -91,12 +93,12 @@ describe('Authentication and audiences (R8, R9)', () => {
 
 describe('Signing keys unreachable (R10, AE8)', () => {
   let t: TestApp;
-  let tokens: Record<'portal' | 'admin', string>;
+  let tokens: Record<'portal' | 'console', string>;
 
   beforeAll(async () => {
     // Before the first request, so no JWKS is cached.
     t = await createTestApp({ controllers: probes, prepareIdp: (idp: TestIdp) => (idp.idp.failJwks = true) });
-    tokens = { portal: await t.idp.portalToken(), admin: await t.idp.adminToken(['admin']) };
+    tokens = { portal: await t.idp.portalToken(), console: await t.idp.consoleToken(['admin']) };
   });
 
   afterAll(() => t.close());
@@ -105,7 +107,7 @@ describe('Signing keys unreachable (R10, AE8)', () => {
     ['POST', '/internal/principals/login', 'portal'],
     ['GET', '/api/v1/shared/me', 'portal'],
     ['GET', '/api/v1/portal/probe', 'portal'],
-    ['GET', '/api/v1/admin/probe', 'admin'],
+    ['GET', '/api/v1/console/probe', 'console'],
   ] as const)('Should answer 503 to %s %s', async (method, path, token) => {
     const request = method === 'POST' ? t.http().post(path) : t.http().get(path);
     const res = await request.set('Authorization', `Bearer ${tokens[token]}`);

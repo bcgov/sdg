@@ -9,7 +9,7 @@ set:
   keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   keycloak.portalClientId: portal
 tests:
-  - it: admits only portal-api, admin-api and gateway-api on 3000, never the edge (R3)
+  - it: admits only portal-api, console-api and gateway-api on 3000, never the edge (R3)
     asserts:
       - isKind:
           of: NetworkPolicy
@@ -31,7 +31,7 @@ tests:
                       app.kubernetes.io/instance: sdg
                 - podSelector:
                     matchLabels:
-                      app.kubernetes.io/name: admin-api
+                      app.kubernetes.io/name: console-api
                       app.kubernetes.io/instance: sdg
                 - podSelector:
                     matchLabels:

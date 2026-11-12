@@ -5,7 +5,7 @@ set:
   global.image.registry: ghcr.io/acme/sdg
   global.image.tag: pr-12
   global.host: sdg-12.apps.example.com
-  global.adminHost: sdg-12-admin.apps.example.com
+  global.consoleHost: sdg-12-console.apps.example.com
   global.gatewayHost: sdg-12-gateway.apps.example.com
   portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   portal-api.keycloak.clientId: portal
@@ -14,12 +14,12 @@ set:
   portal-api.vault.serviceAccountName: abc123-vault
   core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   core-api.keycloak.portalClientId: portal
-  core-api.keycloak.adminClientId: sdg-admin
-  admin-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
-  admin-api.keycloak.clientId: sdg-admin
-  admin-api.vault.role: abc123-nonprod
-  admin-api.vault.secretPath: abc123-nonprod/admin-api
-  admin-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.consoleClientId: sdg-console
+  console-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  console-api.keycloak.clientId: sdg-console
+  console-api.vault.role: abc123-nonprod
+  console-api.vault.secretPath: abc123-nonprod/console-api
+  console-api.vault.serviceAccountName: abc123-vault
 tests:
   - it: global image settings reach gateway-api
     template: charts/gateway-api/templates/deployment.yaml

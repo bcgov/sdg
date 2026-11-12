@@ -5,11 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import type { CallerRequest, KeycloakClients } from './caller.js';
 import { acceptedClaims, callerKind, PrincipalResolver } from './principal.resolver.js';
 
-const CLIENTS: KeycloakClients = { portal: 'sdg-portal', admin: 'sdg-admin' };
+const CLIENTS: KeycloakClients = { portal: 'sdg-portal', console: 'sdg-console' };
 const ISS = 'https://idp.test';
 
 const portalClaims = { iss: ISS, sub: 'resident-1', azp: 'sdg-portal', preferred_username: 'abc@bcsc' };
-const adminClaims = (roles: string[]) => ({ iss: ISS, sub: 'idir-1', azp: 'sdg-admin', client_roles: roles });
+const consoleClaims = (roles: string[]) => ({ iss: ISS, sub: 'idir-1', azp: 'sdg-console', client_roles: roles });
 const serviceClaims = {
   iss: ISS,
   sub: 'svc-1',
@@ -33,8 +33,8 @@ describe('callerKind', () => {
     expect(callerKind(portalClaims, CLIENTS)).toBe('portal-user');
   });
 
-  it('Should classify an admin-client person token as an admin user', () => {
-    expect(callerKind(adminClaims([]), CLIENTS)).toBe('admin-user');
+  it('Should classify a console-client person token as a console user', () => {
+    expect(callerKind(consoleClaims([]), CLIENTS)).toBe('console-user');
   });
 
   it('Should classify client-credentials tokens as service accounts, even from the portal client', () => {
@@ -52,17 +52,17 @@ describe('callerKind', () => {
     expect(callerKind({ ...portalClaims, azp: undefined }, CLIENTS)).toBeUndefined();
   });
 
-  it('Should accept no admin-client token while ADMIN_CLIENT_ID is unset', () => {
-    expect(callerKind(adminClaims(['admin']), { portal: 'sdg-portal', admin: undefined })).toBeUndefined();
+  it('Should accept no console-client token while CONSOLE_CLIENT_ID is unset', () => {
+    expect(callerKind(consoleClaims(['admin']), { portal: 'sdg-portal', console: undefined })).toBeUndefined();
   });
 });
 
 describe('acceptedClaims (the verifier audience predicate)', () => {
   const accepts = acceptedClaims(CLIENTS);
 
-  it('Should accept portal, admin and service-account tokens without any lookup', () => {
+  it('Should accept portal, console and service-account tokens without any lookup', () => {
     expect(accepts(portalClaims)).toBe(true);
-    expect(accepts(adminClaims([]))).toBe(true);
+    expect(accepts(consoleClaims([]))).toBe(true);
     expect(accepts(serviceClaims)).toBe(true);
   });
 
@@ -90,14 +90,14 @@ describe('PrincipalResolver', () => {
   });
 
   it('Should read the admin role from client_roles', async () => {
-    const withRole = await new PrincipalResolver(verifierReturning(adminClaims(['admin'])), CLIENTS).resolve(
+    const withRole = await new PrincipalResolver(verifierReturning(consoleClaims(['admin'])), CLIENTS).resolve(
       request('Bearer t'),
     );
-    const withoutRole = await new PrincipalResolver(verifierReturning(adminClaims(['viewer'])), CLIENTS).resolve(
+    const withoutRole = await new PrincipalResolver(verifierReturning(consoleClaims(['viewer'])), CLIENTS).resolve(
       request('Bearer t'),
     );
-    expect(withRole).toMatchObject({ kind: 'admin-user', isAdmin: true });
-    expect(withoutRole).toMatchObject({ kind: 'admin-user', isAdmin: false });
+    expect(withRole).toMatchObject({ kind: 'console-user', isAdmin: true });
+    expect(withoutRole).toMatchObject({ kind: 'console-user', isAdmin: false });
   });
 
   it('Should name a service account by its client id', async () => {

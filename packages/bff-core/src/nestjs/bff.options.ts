@@ -22,7 +22,7 @@ export const BFF_APP_OPTIONS = { rawBody: true } as const;
 
 /**
  * Where to send the browser when core-api refuses a sign-in (403). It runs after the pending session is ended (a
- * session that was already signed in is kept) and before the redirect, so it can also end the Keycloak session (admin-api's not-authorized path).
+ * session that was already signed in is kept) and before the redirect, so it can also end the Keycloak session (console-api's not-authorized path).
  */
 export type LoginRefusal = (login: CallbackResult) => Promise<string>;
 

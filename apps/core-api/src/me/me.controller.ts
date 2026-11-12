@@ -14,7 +14,7 @@ import { CurrentCaller } from '../auth/current-caller.decorator.js';
 import { principalSchema, type PrincipalResponse } from '../principals/principals.schemas.js';
 import { PrincipalsService } from '../principals/principals.service.js';
 
-/** The shared "current user" route: any person token from the portal or the admin client. */
+/** The shared "current user" route: any person token from the portal or the console client. */
 @ApiTags('shared')
 @ApiBearerAuth()
 @Controller({ path: 'shared/me', version: '1' })

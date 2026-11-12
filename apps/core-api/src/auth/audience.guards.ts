@@ -35,19 +35,19 @@ export class PortalGuard extends AudienceGuard {
   }
 }
 
-/** `/api/v<N>/admin/*`: admin-client person tokens carrying the admin client role. */
+/** `/api/v<N>/console/*`: console-client person tokens carrying the admin client role. */
 @Injectable()
-export class AdminGuard extends AudienceGuard {
+export class ConsoleGuard extends AudienceGuard {
   constructor(@Inject(PrincipalResolver) resolver: PrincipalResolver) {
     super(resolver);
   }
 
   protected admits(caller: Caller): boolean {
-    return caller.kind === 'admin-user' && caller.isAdmin;
+    return caller.kind === 'console-user' && caller.isAdmin;
   }
 }
 
-/** `/api/v<N>/shared/*`: person tokens from the portal or the admin client. */
+/** `/api/v<N>/shared/*`: person tokens from the portal or the console client. */
 @Injectable()
 export class SharedGuard extends AudienceGuard {
   constructor(@Inject(PrincipalResolver) resolver: PrincipalResolver) {
@@ -55,12 +55,12 @@ export class SharedGuard extends AudienceGuard {
   }
 
   protected admits(caller: Caller): boolean {
-    return caller.kind === 'portal-user' || caller.kind === 'admin-user';
+    return caller.kind === 'portal-user' || caller.kind === 'console-user';
   }
 }
 
 /**
- * `/internal/*`, the BFF-only routes: person tokens from the portal or the admin client. The admin role is
+ * `/internal/*`, the BFF-only routes: person tokens from the portal or the console client. The admin role is
  * checked by the handler that needs it (the login upsert), so its refusal is a 403 from that route.
  */
 @Injectable()
@@ -70,6 +70,6 @@ export class InternalGuard extends AudienceGuard {
   }
 
   protected admits(caller: Caller): boolean {
-    return caller.kind === 'portal-user' || caller.kind === 'admin-user';
+    return caller.kind === 'portal-user' || caller.kind === 'console-user';
   }
 }

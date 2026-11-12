@@ -25,6 +25,6 @@ jobs:
     with:
       # helm uninstall <repo>-<pr>; PGO deletes the PostgresCluster's PVCs
       cleanup: helm
-      packages: portal-web portal-api admin-web admin-api gateway-api core-api database edge
+      packages: portal-web portal-api console-web console-api gateway-api core-api database edge
       # The default names the template's Bitnami Postgres PVC
       remove_pvc: ''

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: console-api
+description: "console-api: the console's BFF, with its sessions migration as an initContainer."
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

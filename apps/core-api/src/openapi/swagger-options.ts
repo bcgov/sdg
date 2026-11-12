@@ -11,7 +11,7 @@ const { version } = z
 export const swaggerOptions: SwaggerOptions = {
   title: 'Core API',
   description:
-    'Business rules behind portal-api, admin-api and gateway-api. Every route takes the caller’s Keycloak access ' +
+    'Business rules behind portal-api, console-api and gateway-api. Every route takes the caller’s Keycloak access ' +
     'token as a Bearer token; /internal/* is for the BFFs only.',
   version,
   configure: (builder) => builder.addBearerAuth(),

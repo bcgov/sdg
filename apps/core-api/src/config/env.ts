@@ -10,11 +10,11 @@ export const envSchema = z
     KEYCLOAK_ISSUER_URL: baseUrl(['https:']),
     /** The portal (BCSC) client: its person tokens reach portal and shared routes. */
     PORTAL_CLIENT_ID: clientId,
-    /** The admin (IDIR) client. Optional until admin-api exists: unset, no admin-client token is accepted. */
-    ADMIN_CLIENT_ID: z.preprocess(blankAsMissing, clientId.optional()),
+    /** The console (IDIR) client. Optional until console-api exists: unset, no console-client token is accepted. */
+    CONSOLE_CLIENT_ID: z.preprocess(blankAsMissing, clientId.optional()),
   })
-  .refine((env) => env.ADMIN_CLIENT_ID !== env.PORTAL_CLIENT_ID, {
-    path: ['ADMIN_CLIENT_ID'],
+  .refine((env) => env.CONSOLE_CLIENT_ID !== env.PORTAL_CLIENT_ID, {
+    path: ['CONSOLE_CLIENT_ID'],
     message: 'Must differ from PORTAL_CLIENT_ID',
   });
 

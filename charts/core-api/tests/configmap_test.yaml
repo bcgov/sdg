@@ -9,7 +9,7 @@ set:
   keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   keycloak.portalClientId: portal
 tests:
-  - it: carries the issuer and the portal client, and no admin client until one is set (KTD13)
+  - it: carries the issuer and the portal client, and no console client until one is set (KTD13)
     asserts:
       - equal:
           path: data.KEYCLOAK_ISSUER_URL
@@ -18,7 +18,7 @@ tests:
           path: data.PORTAL_CLIENT_ID
           value: portal
       - notExists:
-          path: data.ADMIN_CLIENT_ID
+          path: data.CONSOLE_CLIENT_ID
       - equal:
           path: data.NODE_ENV
           value: production
@@ -26,13 +26,13 @@ tests:
           path: data.TRUST_PROXY
           value: 'false'
 
-  - it: passes the admin client id when set
+  - it: passes the console client id when set
     set:
-      keycloak.adminClientId: sdg-admin
+      keycloak.consoleClientId: sdg-console
     asserts:
       - equal:
-          path: data.ADMIN_CLIENT_ID
-          value: sdg-admin
+          path: data.CONSOLE_CLIENT_ID
+          value: sdg-console
 
   - it: requires the issuer and the portal client id
     set:

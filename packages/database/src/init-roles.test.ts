@@ -13,7 +13,7 @@ import { installPgCronStub } from './testing/index.js';
 // entrypoint does, after the pg_cron stub stands in for init-pg-cron.sql.
 const initRolesSql = readFileSync(new URL('../dev-postgres/init-roles.sql', import.meta.url), 'utf8');
 
-const LOGINS = ['core', 'portal', 'admin'] as const;
+const LOGINS = ['core', 'portal', 'console'] as const;
 type Login = (typeof LOGINS)[number];
 
 describe('dev-postgres init-roles.sql', () => {
@@ -48,25 +48,25 @@ describe('dev-postgres init-roles.sql', () => {
     await client.close();
   });
 
-  it('creates core, portal and admin as non-superuser logins, each owning the schema of its name', async () => {
+  it('creates core, portal and console as non-superuser logins, each owning the schema of its name', async () => {
     const roles = await client.query<{ rolname: string; rolcanlogin: boolean; rolsuper: boolean }>(
       `select rolname, rolcanlogin, rolsuper from pg_roles where rolname = any($1) order by rolname`,
       [LOGINS],
     );
     expect(roles.rows).toEqual(
-      ['admin', 'core', 'portal'].map((rolname) => ({ rolname, rolcanlogin: true, rolsuper: false })),
+      ['console', 'core', 'portal'].map((rolname) => ({ rolname, rolcanlogin: true, rolsuper: false })),
     );
     const schemas = await client.query<{ nspname: string; owner: string }>(
       `select nspname, nspowner::regrole::text as owner from pg_namespace where nspname = any($1) order by nspname`,
       [LOGINS],
     );
-    expect(schemas.rows).toEqual(['admin', 'core', 'portal'].map((name) => ({ nspname: name, owner: name })));
+    expect(schemas.rows).toEqual(['console', 'core', 'portal'].map((name) => ({ nspname: name, owner: name })));
   });
 
   it('lets only core read the core tables', async () => {
     expect(await as('core', 'select from core.principals')).toBe('ok');
     expect(await as('portal', 'select from core.principals')).toBe('42501');
-    expect(await as('admin', 'select from core.identities')).toBe('42501');
+    expect(await as('console', 'select from core.identities')).toBe('42501');
   });
 
   it('resolves an unqualified table to the login schema, which the other logins cannot read', async () => {
@@ -75,7 +75,7 @@ describe('dev-postgres init-roles.sql', () => {
       `select schemaname from pg_tables where tablename = 'sessions'`,
     );
     expect(created.rows).toEqual([{ schemaname: 'portal' }]);
-    expect(await as('admin', 'select from portal.sessions')).toBe('42501');
+    expect(await as('console', 'select from portal.sessions')).toBe('42501');
     expect(await as('core', 'select from portal.sessions')).toBe('42501');
   });
 
@@ -83,7 +83,7 @@ describe('dev-postgres init-roles.sql', () => {
     // One at a time: `as` switches the role of PGlite's single connection.
     expect(await as('core', 'create table public.core_probe (id int)')).toBe('42501');
     expect(await as('portal', 'create table public.portal_probe (id int)')).toBe('42501');
-    expect(await as('admin', 'create table public.admin_probe (id int)')).toBe('42501');
+    expect(await as('console', 'create table public.console_probe (id int)')).toBe('42501');
   });
 
   it('grants the cron schema to the BFF logins only', async () => {
@@ -94,7 +94,7 @@ describe('dev-postgres init-roles.sql', () => {
     expect(usage.rows).toEqual([
       { login: 'core', usage: false },
       { login: 'portal', usage: true },
-      { login: 'admin', usage: true },
+      { login: 'console', usage: true },
     ]);
   });
 

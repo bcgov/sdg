@@ -51,7 +51,7 @@ describe('BffForwardController (KTD3)', () => {
     expect(coreApi.received.map(({ url }) => url)).toEqual(['/api/v2/shared/reference']);
   });
 
-  it.each(['/api/v1/admin/service-clients', '/api/v1/gateway/me', '/api/v1/portal%2F..%2Fadmin/x'])(
+  it.each(['/api/v1/console/service-clients', '/api/v1/gateway/me', '/api/v1/portal%2F..%2Fconsole/x'])(
     'answers 404 to %s without contacting core-api',
     async (path) => {
       expect((await user.agent.get(path)).status).toBe(404);

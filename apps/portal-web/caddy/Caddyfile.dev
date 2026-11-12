@@ -1,4 +1,4 @@
-# Local dev (compose.yaml): https://sdg.localhost in front of the Vite dev server and portal-api, plus the admin and
+# Local dev (compose.yaml): https://sdg.localhost in front of the Vite dev server and portal-api, plus the console and
 # gateway hosts. An unset upstream URL leaves its reverse_proxy without a target: Caddy answers 503.
 {
 	metrics
@@ -35,15 +35,15 @@ sdg.localhost {
 	import security_headers "'unsafe-inline'" "'unsafe-inline'"
 }
 
-# admin-web, with /api to admin-api.
-admin.sdg.localhost {
+# console-web, with /api to console-api.
+console.sdg.localhost {
 	tls internal
 	import logging
 	import waf
 	encode zstd gzip
 	import collect_{$TELEMETRY:off}
-	import api_proxy {$ADMIN_API_URL}
-	reverse_proxy {$ADMIN_WEB_URL}
+	import api_proxy {$CONSOLE_API_URL}
+	reverse_proxy {$CONSOLE_WEB_URL}
 	import security_headers "'unsafe-inline'" "'unsafe-inline'"
 }
 

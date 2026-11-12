@@ -13,13 +13,13 @@ describe('BffModule', () => {
   let coreApi: CoreApiStub;
   let database: TestSessionDatabase;
   let portal: BffTestApp;
-  let admin: BffTestApp;
+  let consoleApp: BffTestApp;
 
   beforeAll(async () => {
     [idp, coreApi, database] = await Promise.all([startFakeIdp(), startCoreApiStub(), createTestSessionDatabase()]);
     // Both on one sessions table with one SESSION_SECRET: the worst case, where only the cookie name and HKDF info
     // keep them apart. In production each BFF also has its own login and schema.
-    [portal, admin] = await Promise.all([
+    [portal, consoleApp] = await Promise.all([
       createBffTestApp({ idp, coreApi, database }),
       createBffTestApp({
         idp,
@@ -27,50 +27,50 @@ describe('BffModule', () => {
         database,
         overrides: {
           session: {
-            cookieName: 'admin.sid',
+            cookieName: 'console.sid',
             secret: 'test-session-secret-at-least-32-characters',
-            keyInfo: 'admin-session-store',
+            keyInfo: 'console-session-store',
             ttlSeconds: 3600,
           },
-          audiences: ['admin'],
+          audiences: ['console'],
         },
       }),
     ]);
   }, 60_000);
 
   afterAll(async () => {
-    await Promise.all([portal.close(), admin.close()]);
+    await Promise.all([portal.close(), consoleApp.close()]);
     await Promise.all([idp.close(), coreApi.close(), database.close()]);
   });
 
   it('gives each BFF its own session cookie', async () => {
     const { cookie: portalCookie } = await signIn(portal, idp);
-    const { cookie: adminCookie } = await signIn(admin, idp);
+    const { cookie: consoleCookie } = await signIn(consoleApp, idp);
     expect(portalCookie).toMatch(/^portal\.sid=/);
-    expect(adminCookie).toMatch(/^admin\.sid=/);
-    expect((await admin.http().get('/api/auth/me').set('cookie', adminCookie)).status).toBe(200);
+    expect(consoleCookie).toMatch(/^console\.sid=/);
+    expect((await consoleApp.http().get('/api/auth/me').set('cookie', consoleCookie)).status).toBe(200);
   });
 
   it("does not accept the other BFF's session, under either cookie name", async () => {
     const { cookie } = await signIn(portal, idp);
     const value = cookie.slice('portal.sid='.length);
     const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-    expect((await admin.http().get('/api/auth/me').set('cookie', cookie)).status).toBe(401);
-    // Even renamed, the payload was sealed with the portal key, so the admin store cannot read the row.
-    expect((await admin.http().get('/api/auth/me').set('cookie', `admin.sid=${value}`)).status).toBe(401);
+    expect((await consoleApp.http().get('/api/auth/me').set('cookie', cookie)).status).toBe(401);
+    // Even renamed, the payload was sealed with the portal key, so the console store cannot read the row.
+    expect((await consoleApp.http().get('/api/auth/me').set('cookie', `console.sid=${value}`)).status).toBe(401);
     expect(warn).toHaveBeenCalledWith(expect.objectContaining({ msg: 'Discarding unreadable session' }));
     expect((await portal.http().get('/api/auth/me').set('cookie', cookie)).status).toBe(200);
     warn.mockRestore();
   });
 
   it('forwards only its own audiences plus shared', async () => {
-    const { cookie } = await signIn(admin, idp);
+    const { cookie } = await signIn(consoleApp, idp);
     coreApi.reset();
-    const get = (path: string) => admin.http().get(path).set('cookie', cookie);
-    expect((await get('/api/v1/admin/service-clients')).status).toBe(200);
+    const get = (path: string) => consoleApp.http().get(path).set('cookie', cookie);
+    expect((await get('/api/v1/console/service-clients')).status).toBe(200);
     expect((await get('/api/v1/shared/x')).status).toBe(200);
     expect((await get('/api/v1/portal/x')).status).toBe(404);
-    expect(coreApi.received.map(({ url }) => url)).toEqual(['/api/v1/admin/service-clients', '/api/v1/shared/x']);
+    expect(coreApi.received.map(({ url }) => url)).toEqual(['/api/v1/console/service-clients', '/api/v1/shared/x']);
   });
 
   it('documents the auth routes with the session scheme and leaves the forwarder out of OpenAPI', async () => {

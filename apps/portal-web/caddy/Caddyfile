@@ -1,4 +1,4 @@
-# Production edge: routes the portal, admin and gateway hosts to their apps (/api to each host's API, everything else
+# Production edge: routes the portal, console and gateway hosts to their apps (/api to each host's API, everything else
 # to its web app; portal-web is its own static-file image).
 # TLS terminates at the OpenShift route.
 {
@@ -30,17 +30,17 @@ import common.caddy
 
 	encode zstd gzip
 
-	# Routed by Host. ADMIN_HOST and GATEWAY_HOST default to reserved .invalid names that no request carries. An unset
+	# Routed by Host. CONSOLE_HOST and GATEWAY_HOST default to reserved .invalid names that no request carries. An unset
 	# upstream URL (its app not deployed) leaves that reverse_proxy without a target, which Caddy answers with 503.
 	# Every security_headers line allows react-aria's fixed touch-action and overscroll-behavior <style> elements by
 	# hash (common.caddy); portal-web's csp-hashes.test.ts checks each line.
 
-	# Admin: admin-web, with /api to admin-api.
-	@admin host {$ADMIN_HOST:admin.invalid}
-	handle @admin {
+	# Console: console-web, with /api to console-api.
+	@console host {$CONSOLE_HOST:console.invalid}
+	handle @console {
 		import collect_{$TELEMETRY:off}
-		import api_proxy {$ADMIN_API_URL}
-		reverse_proxy {$ADMIN_WEB_URL}
+		import api_proxy {$CONSOLE_API_URL}
+		reverse_proxy {$CONSOLE_WEB_URL}
 		import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
 	}
 

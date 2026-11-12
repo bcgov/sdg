@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Smoke test for the production images (DEVELOPER.md, Production Images).
-# Builds database, core-api, portal-api, admin-api, gateway-api, portal-web, admin-web and the edge, then runs them
+# Builds database, core-api, portal-api, console-api, gateway-api, portal-web, console-web and the edge, then runs them
 # the way OpenShift's restricted SCC does (arbitrary UID in group 0, no capabilities, no privilege escalation) against
 # the compose postgis.
 #
@@ -30,7 +30,7 @@ done
 cd "$(dirname "$0")/.."
 TMP="$(mktemp -d)"
 cleanup() {
-  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-admin" "$PREFIX-gateway" "$PREFIX-web" "$PREFIX-admin-web" "$PREFIX-edge" >/dev/null 2>&1 || true
+  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-console" "$PREFIX-gateway" "$PREFIX-web" "$PREFIX-console-web" "$PREFIX-edge" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -50,30 +50,30 @@ if $BUILD; then
   "$ENGINE" build -q -t "$(image database)" -f packages/database/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image core-api)" -f apps/core-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-api)" -f apps/portal-api/Dockerfile . >/dev/null
-  "$ENGINE" build -q -t "$(image admin-api)" -f apps/admin-api/Dockerfile . >/dev/null
+  "$ENGINE" build -q -t "$(image console-api)" -f apps/console-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image gateway-api)" -f apps/gateway-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-web)" -f apps/portal-web/Dockerfile . >/dev/null
-  "$ENGINE" build -q -t "$(image admin-web)" -f apps/admin-web/Dockerfile . >/dev/null
+  "$ENGINE" build -q -t "$(image console-web)" -f apps/console-web/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image edge)" apps/portal-web/caddy >/dev/null
 fi
 
 echo "Image contents"
 node_in() { "$ENGINE" run --rm "$(image "$1")" node -e "$2"; }
-for app in core-api portal-api admin-api gateway-api; do
+for app in core-api portal-api console-api gateway-api; do
   check "$app ships dist and no sources" node_in "$app" \
     "const fs = require('fs'); process.exit(fs.existsSync('dist/main.js') && !fs.existsSync('src') ? 0 : 1)"
   check "$app ships no devDependencies (pino-pretty, typescript, @nestjs/cli)" node_in "$app" \
     "const fs = require('fs'); process.exit(['pino-pretty', 'typescript', '@nestjs/cli'].some((d) => fs.existsSync('node_modules/' + d)) ? 1 : 0)"
 done
-for app in portal-api admin-api; do
+for app in portal-api console-api; do
   check "$app ships dist/migrate.js and bff-core's sessions migrations" node_in "$app" \
     "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('node_modules/@repo/bff-core/migrations/meta/_journal.json') ? 0 : 1)"
 done
 check "database ships dist/migrate.js and the migrations" node_in database \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('migrations/meta/_journal.json') ? 0 : 1)"
-check "no .env files in the Node images" bash -c "! for i in core-api portal-api admin-api gateway-api database; do \
+check "no .env files in the Node images" bash -c "! for i in core-api portal-api console-api gateway-api database; do \
   $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" find / -xdev -name '.env*' -not -name '.env.example'; done | grep -q ."
-check "no package manager in the final images" bash -c "for i in core-api portal-api admin-api gateway-api database portal-web admin-web edge; do \
+check "no package manager in the final images" bash -c "for i in core-api portal-api console-api gateway-api database portal-web console-web edge; do \
   ! $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" sh -c 'command -v apk || command -v npm || command -v pnpm' || exit 1; done"
 
 echo "Waiting for compose postgis"
@@ -89,16 +89,16 @@ psql_smoke() { "$ENGINE" exec "$POSTGIS" sh -c "psql -U \"\$POSTGRES_USER\" -d $
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null 2>&1
 psql "create database $SMOKE_DB" >/dev/null
 # The compose logins (packages/database/dev-postgres/init-roles.sql), each owning its schema, as in the main database.
-psql_smoke "grant all on database $SMOKE_DB to core, portal, admin; revoke create on schema public from public; \
+psql_smoke "grant all on database $SMOKE_DB to core, portal, console; revoke create on schema public from public; \
   create schema core authorization core; create schema portal authorization portal; \
-  create schema admin authorization admin" >/dev/null
+  create schema console authorization console" >/dev/null
 # pg_cron runs only in the main database (cron.database_name), so a stand-in takes the sessions migration's
 # cron.schedule here; compose-smoke.sh checks the real job.
-psql_smoke "create schema cron; grant usage on schema cron to portal, admin; create function cron.schedule(job_name text, \
+psql_smoke "create schema cron; grant usage on schema cron to portal, console; create function cron.schedule(job_name text, \
   schedule text, command text) returns bigint language sql as 'select 1::bigint'" >/dev/null
 CORE_URL="postgres://core:core@postgis:5432/$SMOKE_DB"
 DATABASE_URL="postgres://portal:portal@postgis:5432/$SMOKE_DB"
-ADMIN_DATABASE_URL="postgres://admin:admin@postgis:5432/$SMOKE_DB"
+CONSOLE_DATABASE_URL="postgres://console:console@postgis:5432/$SMOKE_DB"
 
 echo "database (initContainer)"
 # Runs the migrator once; its output goes to $TMP/<name>.log and its exit code to $TMP/<name>.code.
@@ -179,38 +179,38 @@ check "/healthz/live is 200 under an arbitrary UID with a read-only root" live
 check "/healthz/ready is 200 with its database as the portal login (Keycloak and core-api not checked)" \
   fetch_in "$PREFIX-api" /healthz/ready 200
 check "a signed-out portal call is 401" fetch_in "$PREFIX-api" /api/v1/portal/anything 401
-check "an admin route is 404 on portal-api (AE2)" fetch_in "$PREFIX-api" /api/v1/admin/anything 404
+check "a console route is 404 on portal-api (AE2)" fetch_in "$PREFIX-api" /api/v1/console/anything 404
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-api 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
-echo "admin-api sessions migration (initContainer)"
-migrate_sessions admin-api admin-sessions -e "DATABASE_URL=$ADMIN_DATABASE_URL"
-check "migrates the sessions as the admin login (exit 0)" test "$(exit_code admin-sessions)" = 0
-applied="$(psql_smoke 'select count(*) from admin.__drizzle_migrations' || echo 0)"
-check "all $expected sessions migrations recorded in admin (found $applied)" test "$applied" = "$expected"
-check "admin.sessions exists, apart from portal's" test "$(psql_smoke "select count(*) from information_schema.tables \
-  where table_name = 'sessions' and table_schema in ('admin', 'portal')")" = 2
-migrate_sessions admin-api admin-sessions-portal -e "DATABASE_URL=$DATABASE_URL"
-check "admin-api's migration as the portal login fails (no admin schema access)" \
-  test "$(exit_code admin-sessions-portal)" = 1
+echo "console-api sessions migration (initContainer)"
+migrate_sessions console-api console-sessions -e "DATABASE_URL=$CONSOLE_DATABASE_URL"
+check "migrates the sessions as the console login (exit 0)" test "$(exit_code console-sessions)" = 0
+applied="$(psql_smoke 'select count(*) from console.__drizzle_migrations' || echo 0)"
+check "all $expected sessions migrations recorded in console (found $applied)" test "$applied" = "$expected"
+check "console.sessions exists, apart from portal's" test "$(psql_smoke "select count(*) from information_schema.tables \
+  where table_name = 'sessions' and table_schema in ('console', 'portal')")" = 2
+migrate_sessions console-api console-sessions-portal -e "DATABASE_URL=$DATABASE_URL"
+check "console-api's migration as the portal login fails (no console schema access)" \
+  test "$(exit_code console-sessions-portal)" = 1
 
-echo "admin-api"
-"$ENGINE" run -d --name "$PREFIX-admin" --read-only "${OCP[@]}" \
-  -e "DATABASE_URL=$ADMIN_DATABASE_URL" -e "CORE_API_URL=http://$PREFIX-core:3000" \
-  -e APP_URL=https://admin.example.gov.bc.ca -e TRUST_PROXY=true \
+echo "console-api"
+"$ENGINE" run -d --name "$PREFIX-console" --read-only "${OCP[@]}" \
+  -e "DATABASE_URL=$CONSOLE_DATABASE_URL" -e "CORE_API_URL=http://$PREFIX-core:3000" \
+  -e APP_URL=https://console.example.gov.bc.ca -e TRUST_PROXY=true \
   -e "SESSION_SECRET=$(head -c 48 /dev/urandom | base64)" \
   -e KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal \
-  -e KEYCLOAK_CLIENT_ID=admin -e KEYCLOAK_CLIENT_SECRET=smoke \
-  "$(image admin-api)" >/dev/null
+  -e KEYCLOAK_CLIENT_ID=console -e KEYCLOAK_CLIENT_SECRET=smoke \
+  "$(image console-api)" >/dev/null
 deadline=$((SECONDS + 60))
-until fetch_in "$PREFIX-admin" /healthz/live 200 >/dev/null 2>&1 || ((SECONDS > deadline)); do sleep 1; done
-check "/healthz/live is 200 under an arbitrary UID with a read-only root" fetch_in "$PREFIX-admin" /healthz/live 200
-check "/healthz/ready is 200 with its database as the admin login" fetch_in "$PREFIX-admin" /healthz/ready 200
-check "GET /api/auth/me without a session is 401" fetch_in "$PREFIX-admin" /api/auth/me 401
-check "a signed-out admin call is 401" fetch_in "$PREFIX-admin" /api/v1/admin/service-clients 401
-check "a portal route is 404 on admin-api (R4)" fetch_in "$PREFIX-admin" /api/v1/portal/anything 404
+until fetch_in "$PREFIX-console" /healthz/live 200 >/dev/null 2>&1 || ((SECONDS > deadline)); do sleep 1; done
+check "/healthz/live is 200 under an arbitrary UID with a read-only root" fetch_in "$PREFIX-console" /healthz/live 200
+check "/healthz/ready is 200 with its database as the console login" fetch_in "$PREFIX-console" /healthz/ready 200
+check "GET /api/auth/me without a session is 401" fetch_in "$PREFIX-console" /api/auth/me 401
+check "a signed-out console call is 401" fetch_in "$PREFIX-console" /api/v1/console/service-clients 401
+check "a portal route is 404 on console-api (R4)" fetch_in "$PREFIX-console" /api/v1/portal/anything 404
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
-  "$ENGINE logs $PREFIX-admin 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
+  "$ENGINE logs $PREFIX-console 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
 echo "gateway-api"
 "$ENGINE" run -d --name "$PREFIX-gateway" --read-only "${OCP[@]}" \
@@ -234,13 +234,13 @@ check "core-api logged the forwarded gateway call" bash -c \
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-gateway 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
-echo "portal-web, admin-web and edge"
+echo "portal-web, console-web and edge"
 "$ENGINE" run -d --name "$PREFIX-web" "${OCP[@]}" "$(image portal-web)" >/dev/null
-"$ENGINE" run -d --name "$PREFIX-admin-web" "${OCP[@]}" "$(image admin-web)" >/dev/null
+"$ENGINE" run -d --name "$PREFIX-console-web" "${OCP[@]}" "$(image console-web)" >/dev/null
 "$ENGINE" run -d --name "$PREFIX-edge" "${OCP[@]}" -p 127.0.0.1::3000 \
   -e "PORTAL_API_URL=http://$PREFIX-api:3000" -e "PORTAL_WEB_URL=http://$PREFIX-web:8080" \
-  -e ADMIN_HOST=admin.smoke.test -e "ADMIN_API_URL=http://$PREFIX-admin:3000" \
-  -e "ADMIN_WEB_URL=http://$PREFIX-admin-web:8080" \
+  -e CONSOLE_HOST=console.smoke.test -e "CONSOLE_API_URL=http://$PREFIX-console:3000" \
+  -e "CONSOLE_WEB_URL=http://$PREFIX-console-web:8080" \
   -e GATEWAY_HOST=gateway.smoke.test -e "GATEWAY_API_URL=http://$PREFIX-gateway:3000" \
   "$(image edge)" >/dev/null
 EDGE="http://$("$ENGINE" port "$PREFIX-edge" 3000 | head -n 1)"
@@ -276,18 +276,18 @@ check "OPTIONS is 405 at the edge (WAF rule 1009)" test "$(status -X OPTIONS "$E
 check "GET /api/auth/me without a session is 401 from portal-api" \
   test "$("${CURL[@]}" -D "$TMP/api.headers" -o /dev/null -w '%{http_code}' "$EDGE/api/auth/me")" = 401
 check "API responses default to Cache-Control: no-store" grep -qi '^cache-control: no-store' "$TMP/api.headers"
-check "the admin host's /api/auth/me is 401 from admin-api" \
-  test "$(status -H 'Host: admin.smoke.test' "$EDGE/api/auth/me")" = 401
-check "the admin host's portal route is 404 from admin-api" \
-  test "$(status -H 'Host: admin.smoke.test' "$EDGE/api/v1/portal/anything")" = 404
-"${CURL[@]}" -D "$TMP/admin.headers" -o "$TMP/admin.html" -H 'Host: admin.smoke.test' "$EDGE/"
-check "the admin host's / is 200 from admin-web, under an arbitrary UID" \
-  test "$(status -H 'Host: admin.smoke.test' "$EDGE/")" = 200
-check "the admin host's / is admin-web's SPA shell, not portal-web's" grep -q '<title>SDG Admin</title>' "$TMP/admin.html"
-check "the admin host's client routes fall back to admin-web's SPA" \
-  test "$(status -H 'Host: admin.smoke.test' "$EDGE/service-clients")" = 200
-check "the admin host's production CSP has no unsafe-inline styles" bash -c \
-  "grep -i '^content-security-policy:' '$TMP/admin.headers' | grep -o 'style-src [^;]*' | grep -vq unsafe-inline"
+check "the console host's /api/auth/me is 401 from console-api" \
+  test "$(status -H 'Host: console.smoke.test' "$EDGE/api/auth/me")" = 401
+check "the console host's portal route is 404 from console-api" \
+  test "$(status -H 'Host: console.smoke.test' "$EDGE/api/v1/portal/anything")" = 404
+"${CURL[@]}" -D "$TMP/console.headers" -o "$TMP/console.html" -H 'Host: console.smoke.test' "$EDGE/"
+check "the console host's / is 200 from console-web, under an arbitrary UID" \
+  test "$(status -H 'Host: console.smoke.test' "$EDGE/")" = 200
+check "the console host's / is console-web's SPA shell, not portal-web's" grep -q '<title>SDG Console</title>' "$TMP/console.html"
+check "the console host's client routes fall back to console-web's SPA" \
+  test "$(status -H 'Host: console.smoke.test' "$EDGE/service-clients")" = 200
+check "the console host's production CSP has no unsafe-inline styles" bash -c \
+  "grep -i '^content-security-policy:' '$TMP/console.headers' | grep -o 'style-src [^;]*' | grep -vq unsafe-inline"
 check "the gateway host's / is 404 (gateway-api serves /api only)" \
   test "$(status -H 'Host: gateway.smoke.test' "$EDGE/")" = 404
 check "the gateway host's /api/v1/gateway/me without a token is 401 from gateway-api" \

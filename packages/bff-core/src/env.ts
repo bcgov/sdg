@@ -33,7 +33,7 @@ export function bffEnvShape(serviceName: string): BffEnvShape {
     SESSION_SECRET: z.string().min(32),
     SESSION_TTL_SECONDS: z.coerce.number().int().min(300).default(28_800),
     KEYCLOAK_ISSUER_URL: baseUrl(['https:']),
-    // This BFF's own confidential client (portal: BC Services Card; admin: IDIR).
+    // This BFF's own confidential client (portal: BC Services Card; console: IDIR).
     KEYCLOAK_CLIENT_ID: z.string().min(1),
     KEYCLOAK_CLIENT_SECRET: z.string().min(1),
     // core-api's in-cluster URL: sign-in upserts the principal there and this BFF's audiences are forwarded to it.

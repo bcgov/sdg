@@ -29,7 +29,7 @@ export type SessionsTable = PgTableWithColumns<{
 
 /**
  * express-session store table, one per BFF. `sess` is encrypted by the store; it holds OIDC tokens. Unqualified, so it
- * resolves to the connecting login's own schema (`portal`, `admin`) through Postgres's default search_path.
+ * resolves to the connecting login's own schema (`portal`, `console`) through Postgres's default search_path.
  * `destroyed_at` marks a tombstone: the session ended and no later save may bring it back. The prune job
  * (migrations/0000_sessions.sql) deletes expired rows, tombstones included.
  */

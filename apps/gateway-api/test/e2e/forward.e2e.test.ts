@@ -85,7 +85,7 @@ describe('gateway-api forwarding to core-api (R2, R4, R18, R19, KTD12)', () => {
   describe('paths outside the gateway audience (R4)', () => {
     it.each([
       '/api/v1/portal/x',
-      '/api/v1/admin/service-clients',
+      '/api/v1/console/service-clients',
       '/api/v1/shared/me',
       '/internal/principals/login',
       '/api/auth/me',
@@ -97,7 +97,7 @@ describe('gateway-api forwarding to core-api (R2, R4, R18, R19, KTD12)', () => {
 
     it.each([
       '/api/v1/gateway/..%5c..%5cinternal/principals/login',
-      '/api/v1/gateway/%2e%2e/admin/service-clients',
+      '/api/v1/gateway/%2e%2e/console/service-clients',
       '/api/v1/gateway/me%2fx',
       '/api/v1/gateway//me',
     ])('Should answer the traversal %s with 404 without contacting core-api', async (path) => {

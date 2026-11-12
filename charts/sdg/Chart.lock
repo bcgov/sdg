@@ -5,11 +5,11 @@ dependencies:
 - name: portal-api
   repository: file://../portal-api
   version: 0.1.0
-- name: admin-web
-  repository: file://../admin-web
+- name: console-web
+  repository: file://../console-web
   version: 0.1.0
-- name: admin-api
-  repository: file://../admin-api
+- name: console-api
+  repository: file://../console-api
   version: 0.1.0
 - name: gateway-api
   repository: file://../gateway-api
@@ -23,5 +23,5 @@ dependencies:
 - name: postgres
   repository: file://../postgres
   version: 0.1.0
-digest: sha256:c64bc2c209a943f38fe3dcf3ee104e711cfbb5049359bd4e660ed0195b77741f
-generated: "2026-11-10T15:07:10.590267-07:00"
+digest: sha256:53fc1b9d5cd7bcc50a4afbbcfe3fc46be6479801c942400b0d1120c36a94b2d8
+generated: "2026-11-12T09:05:29.611616-07:00"

@@ -12,7 +12,7 @@ import { sessions } from '../session/sessions.schema.js';
 import { sessionMigrationsFolder } from './migrations-folder.js';
 import { runSessionMigrations, SessionMigrationError } from './run-session-migrations.js';
 
-const LOGINS = ['portal', 'admin'] as const;
+const LOGINS = ['portal', 'console'] as const;
 type Login = (typeof LOGINS)[number];
 
 function isPgSnapshot(value: unknown): value is DrizzleSnapshotJSON {
@@ -35,13 +35,13 @@ function readJournalTags(): string[] {
 const CLUSTER_SQL = `
 SET search_path TO "$user", public;
 CREATE ROLE portal LOGIN;
-CREATE ROLE admin LOGIN;
-DO $$ BEGIN EXECUTE format('GRANT ALL ON DATABASE %I TO portal, admin', current_database()); END $$;
+CREATE ROLE console LOGIN;
+DO $$ BEGIN EXECUTE format('GRANT ALL ON DATABASE %I TO portal, console', current_database()); END $$;
 CREATE SCHEMA portal AUTHORIZATION portal;
-CREATE SCHEMA admin AUTHORIZATION admin;
-GRANT USAGE ON SCHEMA cron TO portal, admin;
-GRANT SELECT, INSERT, UPDATE ON cron.job TO portal, admin;
-GRANT USAGE ON SEQUENCE cron.job_jobid_seq TO portal, admin;
+CREATE SCHEMA console AUTHORIZATION console;
+GRANT USAGE ON SCHEMA cron TO portal, console;
+GRANT SELECT, INSERT, UPDATE ON cron.job TO portal, console;
+GRANT USAGE ON SEQUENCE cron.job_jobid_seq TO portal, console;
 `;
 
 describe('sessions migrations', () => {
@@ -67,7 +67,7 @@ describe('sessions migrations', () => {
     await client.exec(CLUSTER_SQL);
     // One after the other: both switch roles on the one PGlite connection.
     await migrateAs('portal');
-    await migrateAs('admin');
+    await migrateAs('console');
   }, 60_000);
 
   afterAll(() => client.close());
@@ -75,11 +75,11 @@ describe('sessions migrations', () => {
   it('creates a sessions table and a migrations journal in each login schema, and nothing in public', async () => {
     const tables = await client.query<{ table_schema: string; table_name: string }>(
       `select table_schema, table_name from information_schema.tables
-       where table_schema in ('portal', 'admin', 'public', 'drizzle') order by table_schema, table_name`,
+       where table_schema in ('portal', 'console', 'public', 'drizzle') order by table_schema, table_name`,
     );
     expect(tables.rows).toEqual([
-      { table_schema: 'admin', table_name: '__drizzle_migrations' },
-      { table_schema: 'admin', table_name: 'sessions' },
+      { table_schema: 'console', table_name: '__drizzle_migrations' },
+      { table_schema: 'console', table_name: 'sessions' },
       { table_schema: 'portal', table_name: '__drizzle_migrations' },
       { table_schema: 'portal', table_name: 'sessions' },
     ]);
@@ -87,7 +87,7 @@ describe('sessions migrations', () => {
       `select schemaname, tableowner from pg_tables where tablename = 'sessions' order by schemaname`,
     );
     expect(owners.rows).toEqual([
-      { schemaname: 'admin', tableowner: 'admin' },
+      { schemaname: 'console', tableowner: 'console' },
       { schemaname: 'portal', tableowner: 'portal' },
     ]);
   });
@@ -98,9 +98,9 @@ describe('sessions migrations', () => {
     );
     expect(jobs.rows).toEqual([
       {
-        jobname: 'admin-prune-expired-sessions',
+        jobname: 'console-prune-expired-sessions',
         schedule: '*/15 * * * *',
-        command: 'DELETE FROM admin.sessions WHERE expires_at <= now()',
+        command: 'DELETE FROM console.sessions WHERE expires_at <= now()',
       },
       {
         jobname: 'portal-prune-expired-sessions',
@@ -120,7 +120,7 @@ describe('sessions migrations', () => {
   });
 
   it('keeps each login out of the other login sessions', async () => {
-    await expect(asLogin('admin', () => client.query('select from portal.sessions'))).rejects.toMatchObject({
+    await expect(asLogin('console', () => client.query('select from portal.sessions'))).rejects.toMatchObject({
       code: '42501',
     });
   });

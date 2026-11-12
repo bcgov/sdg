@@ -53,10 +53,10 @@ export class PrincipalsController {
   @HttpCode(200)
   @ApiOkResponse({ description: 'The caller’s principal, created or refreshed', standardSchema: loginResponseSchema })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token, or Keycloak refused it at userinfo' })
-  @ApiForbiddenResponse({ description: 'An admin-client token without the admin client role, or a service account' })
+  @ApiForbiddenResponse({ description: 'A console-client token without the admin client role, or a service account' })
   @ApiServiceUnavailableResponse({ description: 'Keycloak’s signing keys or userinfo endpoint are unreachable' })
   async login(@CurrentCaller() caller: Caller): Promise<LoginResponse> {
-    if (caller.kind === 'admin-user' && !caller.isAdmin) {
+    if (caller.kind === 'console-user' && !caller.isAdmin) {
       throw new ForbiddenException('The admin client role is required');
     }
     const profile = await this.profile(caller);

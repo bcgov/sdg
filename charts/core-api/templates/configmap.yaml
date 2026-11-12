@@ -13,8 +13,8 @@ data:
   TRUST_PROXY: 'false'
   KEYCLOAK_ISSUER_URL: {{ .Values.keycloak.issuerUrl | required "keycloak.issuerUrl is required" | quote }}
   PORTAL_CLIENT_ID: {{ .Values.keycloak.portalClientId | required "keycloak.portalClientId is required" | quote }}
-  {{- with .Values.keycloak.adminClientId }}
-  ADMIN_CLIENT_ID: {{ . | quote }}
+  {{- with .Values.keycloak.consoleClientId }}
+  CONSOLE_CLIENT_ID: {{ . | quote }}
   {{- end }}
   {{- $o := include "common.observability" . | fromYaml }}
   {{- with $o.collectorHost }}

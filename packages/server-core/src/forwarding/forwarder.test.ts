@@ -94,13 +94,13 @@ function relayed(result: ForwardResult) {
 describe('Forwarder routing', () => {
   it('answers 404 to another audience without calling core-api (AE2)', async () => {
     const { forwarder, token } = portalForwarder();
-    const result = await forwarder.forward(request('/api/v1/admin/registry'), signedIn);
+    const result = await forwarder.forward(request('/api/v1/console/registry'), signedIn);
     expect(result).toEqual({ kind: 'rejected', status: 404 });
     expect(received).toEqual([]);
     expect(token).not.toHaveBeenCalled();
   });
 
-  it.each(['/api/auth/me', '/internal/principals/login', '/healthz/ready', '/api/v1/portal%2f../admin/x'])(
+  it.each(['/api/auth/me', '/internal/principals/login', '/healthz/ready', '/api/v1/portal%2f../console/x'])(
     'answers 404 to %s without calling core-api',
     async (url) => {
       const { forwarder } = portalForwarder();

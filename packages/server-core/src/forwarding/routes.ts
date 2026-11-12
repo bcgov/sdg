@@ -3,7 +3,7 @@
  * `/api/v<N>/<audience>/…`, so forwarders pass paths through unchanged. Everything else stays local to a service:
  * `/api/auth/*` and `/healthz/*` in each, `/internal/*` (core-api's BFF-only routes) never forwarded.
  */
-export const AUDIENCES = ['portal', 'admin', 'gateway', 'shared'] as const;
+export const AUDIENCES = ['portal', 'console', 'gateway', 'shared'] as const;
 export type Audience = (typeof AUDIENCES)[number];
 
 const FORWARDED_PATH = new RegExp(String.raw`^/api/v[1-9]\d*/(${AUDIENCES.join('|')})(?:/|$)`);

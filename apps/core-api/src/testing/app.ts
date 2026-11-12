@@ -10,7 +10,7 @@ import { vi } from 'vitest';
 import { AUTH_FETCH } from '../auth/auth.module.js';
 import { swaggerOptions } from '../openapi/swagger-options.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
-import { ADMIN_CLIENT_ID, PORTAL_CLIENT_ID, startTestIdp, type TestIdp } from './idp.js';
+import { CONSOLE_CLIENT_ID, PORTAL_CLIENT_ID, startTestIdp, type TestIdp } from './idp.js';
 
 export interface TestApp {
   app: NestExpressApplication;
@@ -21,7 +21,7 @@ export interface TestApp {
 }
 
 export interface TestAppOptions {
-  /** Extra controllers mounted on the real AppModule (e.g. probes behind the portal and admin guards). */
+  /** Extra controllers mounted on the real AppModule (e.g. probes behind the portal and console guards). */
   controllers?: Type[];
   /** Env overrides on top of the test env. */
   env?: Record<string, string>;
@@ -42,7 +42,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     DATABASE_URL: 'postgres://core:core@localhost:5432/portal_test',
     KEYCLOAK_ISSUER_URL: idp.issuer,
     PORTAL_CLIENT_ID,
-    ADMIN_CLIENT_ID,
+    CONSOLE_CLIENT_ID,
     ...options.env,
   };
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);

@@ -79,7 +79,7 @@ describe('PostgresSessionStore', () => {
   it('returns null and warns for a payload it cannot decrypt', async () => {
     await set('sid-1', sessionExpiringIn(HOUR_MS));
     const other = new PostgresSessionStore(database.db, {
-      key: deriveSessionKey('test-session-secret-at-least-32-characters', 'admin-session-store'),
+      key: deriveSessionKey('test-session-secret-at-least-32-characters', 'console-session-store'),
       ttlSeconds: 3600,
       logger,
     });

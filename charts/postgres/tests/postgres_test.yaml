@@ -21,7 +21,7 @@ tests:
       - notExists:
           path: spec.image
 
-  - it: creates the core, portal and admin logins, all on the portal database
+  - it: creates the core, portal and console logins, all on the portal database
     template: templates/postgrescluster.yaml
     asserts:
       - equal:
@@ -31,7 +31,7 @@ tests:
               databases: [portal]
             - name: portal
               databases: [portal]
-            - name: admin
+            - name: console
               databases: [portal]
 
   - it: runs one db instance on a 1Gi RWO claim with pod and container security
@@ -104,9 +104,9 @@ tests:
             REVOKE CREATE ON SCHEMA public FROM PUBLIC;
             CREATE SCHEMA IF NOT EXISTS core AUTHORIZATION core;
             CREATE SCHEMA IF NOT EXISTS portal AUTHORIZATION portal;
-            CREATE SCHEMA IF NOT EXISTS admin AUTHORIZATION admin;
+            CREATE SCHEMA IF NOT EXISTS console AUTHORIZATION console;
             GRANT USAGE ON SCHEMA cron TO portal;
-            GRANT USAGE ON SCHEMA cron TO admin;
+            GRANT USAGE ON SCHEMA cron TO console;
             -- pg_cron logs every run in cron.job_run_details; keep a week of every login's runs.
             SELECT cron.schedule('purge-cron-run-details', '0 3 * * *', $$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '7 days'$$);
 
@@ -124,13 +124,13 @@ tests:
             REVOKE CREATE ON SCHEMA public FROM PUBLIC;
             CREATE SCHEMA IF NOT EXISTS core AUTHORIZATION core;
             CREATE SCHEMA IF NOT EXISTS portal AUTHORIZATION portal;
-            CREATE SCHEMA IF NOT EXISTS admin AUTHORIZATION admin;
+            CREATE SCHEMA IF NOT EXISTS console AUTHORIZATION console;
             GRANT USAGE ON SCHEMA cron TO portal;
-            GRANT USAGE ON SCHEMA cron TO admin;
+            GRANT USAGE ON SCHEMA cron TO console;
             -- pg_cron logs every run in cron.job_run_details; keep a week of every login's runs.
             SELECT cron.schedule('purge-cron-run-details', '0 3 * * *', $$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '7 days'$$);
 
-  - it: lets only core-api, portal-api and admin-api reach 5432 and the cluster's own pods reach each other
+  - it: lets only core-api, portal-api and console-api reach 5432 and the cluster's own pods reach each other
     template: templates/networkpolicy.yaml
     asserts:
       - isKind:
@@ -153,7 +153,7 @@ tests:
                       app.kubernetes.io/instance: sdg
                 - podSelector:
                     matchLabels:
-                      app.kubernetes.io/name: admin-api
+                      app.kubernetes.io/name: console-api
                       app.kubernetes.io/instance: sdg
               ports:
                 - port: 5432

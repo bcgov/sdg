@@ -15,7 +15,7 @@ export class SessionMigrationError extends Error {
 
 export interface SessionMigrationOptions {
   /**
-   * The migrating login's own schema (`portal`, `admin`), where drizzle keeps this BFF's journal
+   * The migrating login's own schema (`portal`, `console`), where drizzle keeps this BFF's journal
    * (`<schema>.__drizzle_migrations`), so it never collides with another login's journal.
    */
   readonly migrationsSchema: string;

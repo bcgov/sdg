@@ -12,7 +12,7 @@
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["PORTAL_API_URL", "ADMIN_API_URL"]
+      "passThroughEnv": ["PORTAL_API_URL", "CONSOLE_API_URL"]
     },
     "typecheck": {
       "dependsOn": ["^build"]
@@ -24,7 +24,7 @@
     "test:e2e": {
       "dependsOn": ["^build"],
       "outputs": ["playwright-report/**", "test-results/**"],
-      "passThroughEnv": ["CI", "E2E_BASE_URL", "E2E_ADMIN_*", "PLAYWRIGHT_*"]
+      "passThroughEnv": ["CI", "E2E_BASE_URL", "E2E_CONSOLE_*", "PLAYWRIGHT_*"]
     }
   }
 }

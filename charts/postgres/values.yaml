@@ -18,7 +18,7 @@ users:
   - name: core
   - name: portal
     cron: true
-  - name: admin
+  - name: console
     cron: true
 
 instances:
@@ -75,4 +75,4 @@ backups:
 networkPolicy:
   enabled: true
   # app.kubernetes.io/name of the pods (same release) allowed to connect on 5432.
-  clients: [core-api, portal-api, admin-api]
+  clients: [core-api, portal-api, console-api]

@@ -2,15 +2,15 @@ import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { claimsToAuthUser } from '@repo/auth';
 import { describe, expect, it } from 'vitest';
 
-import { AdminGuard, InternalGuard, PortalGuard, SharedGuard, type AudienceGuard } from './audience.guards.js';
+import { ConsoleGuard, InternalGuard, PortalGuard, SharedGuard, type AudienceGuard } from './audience.guards.js';
 import type { Caller, CallerRequest } from './caller.js';
 import type { PrincipalResolver } from './principal.resolver.js';
 
 const user = claimsToAuthUser({ iss: 'https://idp.test', sub: 'someone' });
 const callers = {
   portal: { kind: 'portal-user', user, token: 't' },
-  admin: { kind: 'admin-user', user, token: 't', isAdmin: true },
-  adminWithoutRole: { kind: 'admin-user', user, token: 't', isAdmin: false },
+  admin: { kind: 'console-user', user, token: 't', isAdmin: true },
+  consoleWithoutRole: { kind: 'console-user', user, token: 't', isAdmin: false },
   service: { kind: 'service-account', user, token: 't', clientId: 'partner' },
 } satisfies Record<string, Caller>;
 
@@ -49,28 +49,28 @@ describe('Audience guards (R9)', () => {
     [
       'PortalGuard',
       PortalGuard,
-      { portal: 'allowed', admin: 'forbidden', adminWithoutRole: 'forbidden', service: 'forbidden' },
+      { portal: 'allowed', admin: 'forbidden', consoleWithoutRole: 'forbidden', service: 'forbidden' },
     ],
     [
-      'AdminGuard',
-      AdminGuard,
-      { portal: 'forbidden', admin: 'allowed', adminWithoutRole: 'forbidden', service: 'forbidden' },
+      'ConsoleGuard',
+      ConsoleGuard,
+      { portal: 'forbidden', admin: 'allowed', consoleWithoutRole: 'forbidden', service: 'forbidden' },
     ],
     [
       'SharedGuard',
       SharedGuard,
-      { portal: 'allowed', admin: 'allowed', adminWithoutRole: 'allowed', service: 'forbidden' },
+      { portal: 'allowed', admin: 'allowed', consoleWithoutRole: 'allowed', service: 'forbidden' },
     ],
     [
       'InternalGuard',
       InternalGuard,
-      { portal: 'allowed', admin: 'allowed', adminWithoutRole: 'allowed', service: 'forbidden' },
+      { portal: 'allowed', admin: 'allowed', consoleWithoutRole: 'allowed', service: 'forbidden' },
     ],
   ] as const)('%s admits only its audience', async (_name, Guard, expected) => {
     const actual = {
       portal: await verdict(Guard, callers.portal),
       admin: await verdict(Guard, callers.admin),
-      adminWithoutRole: await verdict(Guard, callers.adminWithoutRole),
+      consoleWithoutRole: await verdict(Guard, callers.consoleWithoutRole),
       service: await verdict(Guard, callers.service),
     };
     expect(actual).toEqual(expected);

@@ -15,7 +15,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local
 
-  admin-api:
+  console-api:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local

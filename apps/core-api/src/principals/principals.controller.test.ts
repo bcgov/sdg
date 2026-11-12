@@ -58,15 +58,15 @@ describe('POST /internal/principals/login (KTD5, KTD6)', () => {
     expect(stored).not.toContain(token);
   });
 
-  it('Should answer 403 to an admin-client token without the admin role, and create nothing (AE1)', async () => {
-    const res = await login(await t.idp.adminToken(['viewer']));
+  it('Should answer 403 to a console-client token without the admin role, and create nothing (AE1)', async () => {
+    const res = await login(await t.idp.consoleToken(['viewer']));
     expect(res.status).toBe(403);
     expect(await rowCounts()).toEqual({ principals: 0, identities: 0 });
     expect(t.idp.userinfoRequests).toBe(0);
   });
 
-  it('Should create a principal for an admin-client token with the admin role', async () => {
-    const res = await login(await t.idp.adminToken(['admin']));
+  it('Should create a principal for a console-client token with the admin role', async () => {
+    const res = await login(await t.idp.consoleToken(['admin']));
     expect(res.status).toBe(200);
     const [identity] = await t.database.db.select().from(identities);
     expect(identity).toMatchObject({ principalId: res.body.principalId, subject: 'idir-1' });

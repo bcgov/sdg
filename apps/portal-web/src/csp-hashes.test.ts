@@ -38,7 +38,7 @@ const sha256 = (text: string) => `'sha256-${createHash('sha256').update(text).di
 describe('production CSP style hashes', () => {
   const styles = fixedStyleTexts(bcgovModule);
   const expected = [...new Set(styles.map(sha256))].toSorted();
-  // One per host the edge serves (portal, admin, gateway): each site's second argument is its extra style-src.
+  // One per host the edge serves (portal, console, gateway): each site's second argument is its extra style-src.
   const siteHeaders = [...caddyfile.matchAll(/^\s*import security_headers (.*)$/gm)].map(([, args]) => args!);
 
   it('finds the fixed react-aria styles', () => {

@@ -3,7 +3,7 @@ import { serviceClientEvents, serviceClients } from '@repo/database';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDatabase, type TestDatabase } from '../testing/database.js';
-import { ADMIN_CLIENT_ID, PORTAL_CLIENT_ID } from '../testing/idp.js';
+import { CONSOLE_CLIENT_ID, PORTAL_CLIENT_ID } from '../testing/idp.js';
 import { RegistryService, type Actor } from './registry.service.js';
 
 const ada: Actor = { principalId: '6f1c1d3e-8a43-4b7e-9d0c-1f2e3a4b5c6d', name: 'Ada Lovelace' };
@@ -17,7 +17,7 @@ describe('RegistryService (KTD11)', () => {
 
   beforeAll(async () => {
     database = await createTestDatabase();
-    registry = new RegistryService(database.db, { portal: PORTAL_CLIENT_ID, admin: ADMIN_CLIENT_ID });
+    registry = new RegistryService(database.db, { portal: PORTAL_CLIENT_ID, console: CONSOLE_CLIENT_ID });
   });
 
   afterAll(() => database.close());
@@ -56,11 +56,14 @@ describe('RegistryService (KTD11)', () => {
     expect((await registry.find('partner'))?.displayName).toBe('Partner');
   });
 
-  it.each([PORTAL_CLIENT_ID, ADMIN_CLIENT_ID])('Should refuse to register the %s client with 400', async (clientId) => {
-    await expect(registry.add({ clientId, displayName: 'Nope' }, ada)).rejects.toBeInstanceOf(BadRequestException);
-    expect(await database.db.$count(serviceClients)).toBe(0);
-    expect(await actions()).toEqual([]);
-  });
+  it.each([PORTAL_CLIENT_ID, CONSOLE_CLIENT_ID])(
+    'Should refuse to register the %s client with 400',
+    async (clientId) => {
+      await expect(registry.add({ clientId, displayName: 'Nope' }, ada)).rejects.toBeInstanceOf(BadRequestException);
+      expect(await database.db.$count(serviceClients)).toBe(0);
+      expect(await actions()).toEqual([]);
+    },
+  );
 
   it('Should record disable and enable once each, and treat a repeat as a no-op', async () => {
     await registry.add({ clientId: 'partner', displayName: 'Partner' }, ada);

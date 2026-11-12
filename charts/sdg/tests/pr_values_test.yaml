@@ -7,7 +7,7 @@ set:
   global.image.registry: ghcr.io/acme/sdg
   global.image.tag: pr-12
   global.host: sdg-12.apps.example.com
-  global.adminHost: sdg-12-admin.apps.example.com
+  global.consoleHost: sdg-12-console.apps.example.com
   portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   portal-api.keycloak.clientId: portal
   portal-api.vault.role: abc123-nonprod
@@ -15,12 +15,12 @@ set:
   portal-api.vault.serviceAccountName: abc123-vault
   core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   core-api.keycloak.portalClientId: portal
-  core-api.keycloak.adminClientId: sdg-admin
-  admin-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
-  admin-api.keycloak.clientId: sdg-admin
-  admin-api.vault.role: abc123-nonprod
-  admin-api.vault.secretPath: abc123-nonprod/admin-api
-  admin-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.consoleClientId: sdg-console
+  console-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  console-api.keycloak.clientId: sdg-console
+  console-api.vault.role: abc123-nonprod
+  console-api.vault.secretPath: abc123-nonprod/console-api
+  console-api.vault.serviceAccountName: abc123-vault
 tests:
   - it: runs Postgres without pgBackRest on a 256Mi volume
     template: charts/postgres/templates/postgrescluster.yaml
@@ -84,8 +84,8 @@ tests:
           value:
             type: Recreate
 
-  - it: runs admin-api at its PR-level default requests and recreates it on rollout
-    template: charts/admin-api/templates/deployment.yaml
+  - it: runs console-api at its PR-level default requests and recreates it on rollout
+    template: charts/console-api/templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources
@@ -131,8 +131,8 @@ tests:
           value:
             type: Recreate
 
-  - it: runs admin-web at its PR-level default requests and recreates it on rollout
-    template: charts/admin-web/templates/deployment.yaml
+  - it: runs console-web at its PR-level default requests and recreates it on rollout
+    template: charts/console-web/templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources

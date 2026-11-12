@@ -4,17 +4,17 @@ import type { AuthUser } from '@repo/auth';
 export interface KeycloakClients {
   /** The portal (BCSC) client id. */
   portal: string;
-  /** The admin (IDIR) client id; undefined until admin-api exists, and then no admin-client token is accepted. */
-  admin: string | undefined;
+  /** The console (IDIR) client id; undefined until console-api exists, and then no console-client token is accepted. */
+  console: string | undefined;
 }
 
-/** The client role an admin-client token needs for admin routes and to sign in to admin-web. */
+/** The client role a console-client token needs for console routes and to sign in to console-web. */
 export const ADMIN_ROLE = 'admin';
 
 /** Who a verified token belongs to. Authorization by audience happens in the guards, not here. */
 export type Caller =
   | { kind: 'portal-user'; user: AuthUser; token: string }
-  | { kind: 'admin-user'; user: AuthUser; token: string; isAdmin: boolean }
+  | { kind: 'console-user'; user: AuthUser; token: string; isAdmin: boolean }
   | { kind: 'service-account'; user: AuthUser; token: string; clientId: string };
 
 export type CallerKind = Caller['kind'];

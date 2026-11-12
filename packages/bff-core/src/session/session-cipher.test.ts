@@ -17,11 +17,11 @@ describe('session cipher', () => {
   });
 
   it('derives a different key for each BFF from the same secret', () => {
-    const adminKey = deriveSessionKey(SECRET, 'admin-session-store');
-    expect(adminKey.equals(key)).toBe(false);
+    const consoleKey = deriveSessionKey(SECRET, 'console-session-store');
+    expect(consoleKey.equals(key)).toBe(false);
     expect(deriveSessionKey(SECRET, 'portal-session-store').equals(key)).toBe(true);
     const payload = encryptSession(key, 'hello', 'sid-1');
-    expect(() => decryptSession(adminKey, payload, 'sid-1')).toThrow('unable to authenticate data');
+    expect(() => decryptSession(consoleKey, payload, 'sid-1')).toThrow('unable to authenticate data');
   });
 
   it('rejects a tampered ciphertext, another session id, another key and a malformed payload', () => {

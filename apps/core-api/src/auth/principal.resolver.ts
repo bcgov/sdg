@@ -35,14 +35,14 @@ const stringClaim = (claims: Claims, key: string): string | undefined => {
 /**
  * Who a verified token belongs to: any client-credentials token is a service account (checked first, so a
  * service-account token from the portal client is never taken for a resident); otherwise the token's `azp` must be
- * the portal or the admin client. Undefined for anything else.
+ * the portal or the console client. Undefined for anything else.
  */
 export function callerKind(claims: Claims, clients: KeycloakClients): CallerKind | undefined {
   if (isServiceAccount(claims)) return 'service-account';
   const azp = stringClaim(claims, 'azp');
   if (azp === undefined) return undefined;
   if (azp === clients.portal) return 'portal-user';
-  if (clients.admin !== undefined && azp === clients.admin) return 'admin-user';
+  if (clients.console !== undefined && azp === clients.console) return 'console-user';
   return undefined;
 }
 
@@ -56,8 +56,8 @@ function toCaller(user: AuthUser, token: string, clients: KeycloakClients): Call
   switch (kind) {
     case 'portal-user':
       return { kind, user, token };
-    case 'admin-user': {
-      const roles = clients.admin === undefined ? [] : clientRoles(user.claims, clients.admin);
+    case 'console-user': {
+      const roles = clients.console === undefined ? [] : clientRoles(user.claims, clients.console);
       return { kind, user, token, isAdmin: roles.includes(ADMIN_ROLE) };
     }
     case 'service-account': {

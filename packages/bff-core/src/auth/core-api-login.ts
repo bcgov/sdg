@@ -14,7 +14,7 @@ export type LoginOutcome =
       readonly name?: string;
       readonly email?: string | null;
     }
-  /** core-api refused the user (403), e.g. an admin-client token without the admin role. No session is created. */
+  /** core-api refused the user (403), e.g. a console-client token without the admin role. No session is created. */
   | { readonly kind: 'refused' }
   /** core-api was unreachable, timed out or answered 503; the web app offers a retry (`authError=unavailable`). */
   | { readonly kind: 'unavailable'; readonly cause: unknown };

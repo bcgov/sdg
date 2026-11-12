@@ -1,5 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
-# The services with a database login (core-api, portal-api, admin-api) connect on 5432; the cluster's own pods
+# The services with a database login (core-api, portal-api, console-api) connect on 5432; the cluster's own pods
 # (instances, pgBackRest) talk to each other on any port.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

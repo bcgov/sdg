@@ -10,7 +10,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../charts"
-LEAF_CHARTS=(portal-web portal-api admin-web admin-api gateway-api core-api edge postgres)
+LEAF_CHARTS=(portal-web portal-api console-web console-api gateway-api core-api edge postgres)
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.31.0}"
 
@@ -25,7 +25,7 @@ command -v kubeconform >/dev/null || { echo "kubeconform is missing: https://git
 
 # Values every required field needs, shaped for the umbrella; leaf charts get the same keys without the prefix.
 LINT_GLOBALS=(--set global.image.registry=ghcr.io/example/sdg --set global.image.tag=lint --set global.host=sdg.example.com
-  --set global.adminHost=sdg-admin.example.com --set global.gatewayHost=sdg-gateway.example.com)
+  --set global.consoleHost=sdg-console.example.com --set global.gatewayHost=sdg-gateway.example.com)
 lint_values() {
   local prefix="$1"
   echo "${LINT_GLOBALS[@]}" \
@@ -36,14 +36,14 @@ lint_values() {
     --set "${prefix}vault.secretPath=example-nonprod/portal-api" \
     --set "${prefix}vault.serviceAccountName=example-vault"
 }
-# The umbrella: portal-api's and admin-api's values plus core-api's Keycloak settings.
+# The umbrella: portal-api's and console-api's values plus core-api's Keycloak settings.
 umbrella_values() {
-  echo "$(lint_values "portal-api.")" "$(lint_values "admin-api.")" \
-    --set "admin-api.keycloak.clientId=admin" \
-    --set "admin-api.vault.secretPath=example-nonprod/admin-api" \
+  echo "$(lint_values "portal-api.")" "$(lint_values "console-api.")" \
+    --set "console-api.keycloak.clientId=console" \
+    --set "console-api.vault.secretPath=example-nonprod/console-api" \
     --set "core-api.keycloak.issuerUrl=https://keycloak.example.com/realms/portal" \
     --set "core-api.keycloak.portalClientId=portal" \
-    --set "core-api.keycloak.adminClientId=admin"
+    --set "core-api.keycloak.consoleClientId=console"
 }
 
 for chart in "${LEAF_CHARTS[@]}" sdg observability; do
@@ -101,7 +101,7 @@ for env in pr test prod; do
   esac
   deploy_env=(TARGET="$target" ENVIRONMENT="$environment" TAG=0123abc REPOSITORY=example/sdg OC_NAMESPACE="$namespace"
     OC_SERVER=https://api.gold.devops.gov.bc.ca:6443 KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal
-    KEYCLOAK_CLIENT_ID=portal KEYCLOAK_ADMIN_CLIENT_ID=admin VAULT_SECRET_PATH='' OBSERVABILITY=true)
+    KEYCLOAK_CLIENT_ID=portal KEYCLOAK_CONSOLE_CLIENT_ID=console VAULT_SECRET_PATH='' OBSERVABILITY=true)
   outputs="$(env "${deploy_env[@]}" ../scripts/deploy-values.sh outputs)"
   release="$(sed -n 's/^release=//p' <<< "$outputs")"
   values_file="../$(sed -n 's/^values_file=//p' <<< "$outputs")"
@@ -112,21 +112,21 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" 'PORTAL_CLIENT_ID: "?portal"?$' "gives core-api the portal client id"
   expect_rendered "$env" "$manifests" "CORE_API_URL: \"?http://${release}-core-api:3000\"?$" "points portal-api at the release's core-api"
   expect_rendered "$env" "$manifests" 'command: \[node, dist/migrate.js\]' "migrates portal-api's sessions with its own image"
-  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/admin-api:0123abc" "deploys admin-api"
-  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/admin-web:0123abc" "deploys admin-web"
-  expect_rendered "$env" "$manifests" "value: \"?http://${release}-admin-web:8080\"?$" "sends the rest of the admin host to admin-web"
-  expect_rendered "$env" "$manifests" 'ADMIN_CLIENT_ID: "?admin"?$' "gives core-api the admin client id"
-  expect_rendered "$env" "$manifests" 'KEYCLOAK_CLIENT_ID: "?admin"?$' "signs admin-api in with the admin client"
-  expect_rendered "$env" "$manifests" "APP_URL: \"?https://${release}-admin\.apps\.gold\.devops\.gov\.bc\.ca\"?$" "serves admin-api on the admin host"
-  expect_rendered "$env" "$manifests" "name: ${release}-postgres-pguser-admin" "connects admin-api as the admin login"
-  expect_rendered "$env" "$manifests" "agent-inject-secret-admin-api.env: \"?example-(non)?prod/admin-api\"?$" "reads admin-api's secrets from <role>/admin-api"
-  expect_rendered "$env" "$manifests" "value: \"?http://${release}-admin-api:3000\"?$" "sends the admin host's /api to admin-api"
+  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/console-api:0123abc" "deploys console-api"
+  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/console-web:0123abc" "deploys console-web"
+  expect_rendered "$env" "$manifests" "value: \"?http://${release}-console-web:8080\"?$" "sends the rest of the console host to console-web"
+  expect_rendered "$env" "$manifests" 'CONSOLE_CLIENT_ID: "?console"?$' "gives core-api the console client id"
+  expect_rendered "$env" "$manifests" 'KEYCLOAK_CLIENT_ID: "?console"?$' "signs console-api in with the console client"
+  expect_rendered "$env" "$manifests" "APP_URL: \"?https://${release}-console\.apps\.gold\.devops\.gov\.bc\.ca\"?$" "serves console-api on the console host"
+  expect_rendered "$env" "$manifests" "name: ${release}-postgres-pguser-console" "connects console-api as the console login"
+  expect_rendered "$env" "$manifests" "agent-inject-secret-console-api.env: \"?example-(non)?prod/console-api\"?$" "reads console-api's secrets from <role>/console-api"
+  expect_rendered "$env" "$manifests" "value: \"?http://${release}-console-api:3000\"?$" "sends the console host's /api to console-api"
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/gateway-api:0123abc" "deploys gateway-api"
   expect_rendered "$env" "$manifests" "value: \"?http://${release}-gateway-api:3000\"?$" "sends the gateway host's /api to gateway-api"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
-  expect_rendered "$env" "$manifests" "host: \"?${release}-admin\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-admin.<apps domain>"
+  expect_rendered "$env" "$manifests" "host: \"?${release}-console\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-console.<apps domain>"
   expect_rendered "$env" "$manifests" "host: \"?${release}-gateway\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-gateway.<apps domain>"
-  expect_rendered "$env" "$manifests" "value: \"?${release}-admin\.apps\.gold\.devops\.gov\.bc\.ca\"?$" "gives the edge its admin host"
+  expect_rendered "$env" "$manifests" "value: \"?${release}-console\.apps\.gold\.devops\.gov\.bc\.ca\"?$" "gives the edge its console host"
   expect_rendered "$env" "$manifests" "value: \"?${release}-gateway\.apps\.gold\.devops\.gov\.bc\.ca\"?$" "gives the edge its gateway host"
   expect_rendered "$env" "$manifests" 'vault.hashicorp.com/auth-path: "?auth/k8s-gold' "uses the cluster's Vault auth path"
   stack="example-$([ "$env" = prod ] && echo prod || echo tools)"

@@ -5,7 +5,7 @@ set:
   global.image.registry: ghcr.io/acme/sdg
   global.image.tag: pr-12
   global.host: sdg-12.apps.example.com
-  global.adminHost: sdg-12-admin.apps.example.com
+  global.consoleHost: sdg-12-console.apps.example.com
   portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   portal-api.keycloak.clientId: portal
   portal-api.vault.role: abc123-nonprod
@@ -13,12 +13,12 @@ set:
   portal-api.vault.serviceAccountName: abc123-vault
   core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   core-api.keycloak.portalClientId: portal
-  core-api.keycloak.adminClientId: sdg-admin
-  admin-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
-  admin-api.keycloak.clientId: sdg-admin
-  admin-api.vault.role: abc123-nonprod
-  admin-api.vault.secretPath: abc123-nonprod/admin-api
-  admin-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.consoleClientId: sdg-console
+  console-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  console-api.keycloak.clientId: sdg-console
+  console-api.vault.role: abc123-nonprod
+  console-api.vault.secretPath: abc123-nonprod/console-api
+  console-api.vault.serviceAccountName: abc123-vault
 tests:
   - it: global image settings reach every app image
     template: charts/portal-api/templates/deployment.yaml
@@ -168,30 +168,30 @@ tests:
           path: spec.rules[0].host
           value: sdg-12.apps.example.com
 
-  - it: global admin and gateway hosts reach the edge's Ingress rules and Host routing
+  - it: global console and gateway hosts reach the edge's Ingress rules and Host routing
     template: charts/edge/templates/ingress.yaml
     set:
-      global.adminHost: sdg-12-admin.apps.example.com
+      global.consoleHost: sdg-12-console.apps.example.com
       global.gatewayHost: sdg-12-gateway.apps.example.com
     asserts:
       - equal:
           path: spec.rules[1].host
-          value: sdg-12-admin.apps.example.com
+          value: sdg-12-console.apps.example.com
       - equal:
           path: spec.rules[2].host
           value: sdg-12-gateway.apps.example.com
 
-  - it: global admin and gateway hosts reach the edge's Caddy env
+  - it: global console and gateway hosts reach the edge's Caddy env
     template: charts/edge/templates/deployment.yaml
     set:
-      global.adminHost: sdg-12-admin.apps.example.com
+      global.consoleHost: sdg-12-console.apps.example.com
       global.gatewayHost: sdg-12-gateway.apps.example.com
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: ADMIN_HOST
-            value: sdg-12-admin.apps.example.com
+            name: CONSOLE_HOST
+            value: sdg-12-console.apps.example.com
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -205,18 +205,18 @@ tests:
           path: data.APP_URL
           value: https://sdg-12.apps.example.com
 
-  - it: global image settings reach admin-api and its sessions migration
-    template: charts/admin-api/templates/deployment.yaml
+  - it: global image settings reach console-api and its sessions migration
+    template: charts/console-api/templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: ghcr.io/acme/sdg/admin-api:pr-12
+          value: ghcr.io/acme/sdg/console-api:pr-12
       - equal:
           path: spec.template.spec.initContainers[0].image
-          value: ghcr.io/acme/sdg/admin-api:pr-12
+          value: ghcr.io/acme/sdg/console-api:pr-12
 
-  - it: admin-api and its sessions migration connect as the admin login the postgres chart creates
-    template: charts/admin-api/templates/deployment.yaml
+  - it: console-api and its sessions migration connect as the console login the postgres chart creates
+    template: charts/console-api/templates/deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -224,7 +224,7 @@ tests:
             name: DATABASE_URL
             valueFrom:
               secretKeyRef:
-                name: sdg-12-postgres-pguser-admin
+                name: sdg-12-postgres-pguser-console
                 key: uri
       - contains:
           path: spec.template.spec.initContainers[0].env
@@ -232,19 +232,19 @@ tests:
             name: DATABASE_URL
             valueFrom:
               secretKeyRef:
-                name: sdg-12-postgres-pguser-admin
+                name: sdg-12-postgres-pguser-console
                 key: uri
 
-  - it: the postgres chart creates the admin login and admits admin-api
+  - it: the postgres chart creates the console login and admits console-api
     template: charts/postgres/templates/postgrescluster.yaml
     asserts:
       - contains:
           path: spec.users
           content:
-            name: admin
+            name: console
             databases: [portal]
 
-  - it: postgres admits admin-api on 5432
+  - it: postgres admits console-api on 5432
     template: charts/postgres/templates/networkpolicy.yaml
     asserts:
       - contains:
@@ -252,10 +252,10 @@ tests:
           content:
             podSelector:
               matchLabels:
-                app.kubernetes.io/name: admin-api
+                app.kubernetes.io/name: console-api
                 app.kubernetes.io/instance: sdg-12
 
-  - it: core-api admits admin-api and accepts the admin client's tokens
+  - it: core-api admits console-api and accepts the console client's tokens
     template: charts/core-api/templates/networkpolicy.yaml
     asserts:
       - contains:
@@ -263,47 +263,47 @@ tests:
           content:
             podSelector:
               matchLabels:
-                app.kubernetes.io/name: admin-api
+                app.kubernetes.io/name: console-api
                 app.kubernetes.io/instance: sdg-12
 
-  - it: core-api is given the admin client id admin-api signs in with
+  - it: core-api is given the console client id console-api signs in with
     template: charts/core-api/templates/configmap.yaml
     asserts:
       - equal:
-          path: data.ADMIN_CLIENT_ID
-          value: sdg-admin
+          path: data.CONSOLE_CLIENT_ID
+          value: sdg-console
 
-  - it: admin-api calls the release's core-api Service and lives on the admin host
-    template: charts/admin-api/templates/configmap.yaml
+  - it: console-api calls the release's core-api Service and lives on the console host
+    template: charts/console-api/templates/configmap.yaml
     asserts:
       - equal:
           path: data.CORE_API_URL
           value: http://sdg-12-core-api:3000
       - equal:
           path: data.APP_URL
-          value: https://sdg-12-admin.apps.example.com
+          value: https://sdg-12-console.apps.example.com
       - equal:
           path: data.KEYCLOAK_CLIENT_ID
-          value: sdg-admin
+          value: sdg-console
 
-  - it: the edge sends the admin host's /api to the release's admin-api Service
+  - it: the edge sends the console host's /api to the release's console-api Service
     template: charts/edge/templates/deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: ADMIN_API_URL
-            value: http://sdg-12-admin-api:3000
+            name: CONSOLE_API_URL
+            value: http://sdg-12-console-api:3000
 
-  - it: admin-api's Service carries the name the edge calls
-    template: charts/admin-api/templates/service.yaml
+  - it: console-api's Service carries the name the edge calls
+    template: charts/console-api/templates/service.yaml
     asserts:
       - equal:
           path: metadata.name
-          value: sdg-12-admin-api
+          value: sdg-12-console-api
 
-  - it: only the edge reaches admin-api
-    template: charts/admin-api/templates/networkpolicy.yaml
+  - it: only the edge reaches console-api
+    template: charts/console-api/templates/networkpolicy.yaml
     asserts:
       - equal:
           path: spec.ingress[0].from
@@ -313,31 +313,31 @@ tests:
                   app.kubernetes.io/name: edge
                   app.kubernetes.io/instance: sdg-12
 
-  - it: global image settings reach admin-web
-    template: charts/admin-web/templates/deployment.yaml
+  - it: global image settings reach console-web
+    template: charts/console-web/templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: ghcr.io/acme/sdg/admin-web:pr-12
+          value: ghcr.io/acme/sdg/console-web:pr-12
 
-  - it: the edge sends the rest of the admin host to the release's admin-web Service
+  - it: the edge sends the rest of the console host to the release's console-web Service
     template: charts/edge/templates/deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: ADMIN_WEB_URL
-            value: http://sdg-12-admin-web:8080
+            name: CONSOLE_WEB_URL
+            value: http://sdg-12-console-web:8080
 
-  - it: admin-web's Service carries the name the edge calls
-    template: charts/admin-web/templates/service.yaml
+  - it: console-web's Service carries the name the edge calls
+    template: charts/console-web/templates/service.yaml
     asserts:
       - equal:
           path: metadata.name
-          value: sdg-12-admin-web
+          value: sdg-12-console-web
 
-  - it: only the edge reaches admin-web
-    template: charts/admin-web/templates/networkpolicy.yaml
+  - it: only the edge reaches console-web
+    template: charts/console-web/templates/networkpolicy.yaml
     asserts:
       - equal:
           path: spec.ingress

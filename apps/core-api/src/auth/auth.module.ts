@@ -4,7 +4,7 @@ import { createJwtVerifier, type AuthFetch, type JwtVerifier } from '@repo/auth'
 import { JWT_VERIFIER } from '@repo/auth/nestjs';
 
 import type { Env } from '../config/env.js';
-import { AdminGuard, InternalGuard, PortalGuard, SharedGuard } from './audience.guards.js';
+import { ConsoleGuard, InternalGuard, PortalGuard, SharedGuard } from './audience.guards.js';
 import type { KeycloakClients } from './caller.js';
 import { acceptedClaims, KEYCLOAK_CLIENTS, PrincipalResolver } from './principal.resolver.js';
 import { UserinfoClient } from './userinfo.client.js';
@@ -16,7 +16,7 @@ const issuerUrl = (config: ConfigService<Env, true>): string => config.get('KEYC
 
 /**
  * Token verification and classification: one JWKS-backed verifier for the realm, accepting the portal client,
- * the admin client and service-account tokens; the resolver, the audience guards and the userinfo client. Global, so
+ * the console client and service-account tokens; the resolver, the audience guards and the userinfo client. Global, so
  * every feature module's controllers can use the guards.
  */
 @Global()
@@ -28,7 +28,7 @@ const issuerUrl = (config: ConfigService<Env, true>): string => config.get('KEYC
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>): KeycloakClients => ({
         portal: config.get('PORTAL_CLIENT_ID', { infer: true }),
-        admin: config.get('ADMIN_CLIENT_ID', { infer: true }),
+        console: config.get('CONSOLE_CLIENT_ID', { infer: true }),
       }),
     },
     {
@@ -45,10 +45,10 @@ const issuerUrl = (config: ConfigService<Env, true>): string => config.get('KEYC
     },
     PrincipalResolver,
     PortalGuard,
-    AdminGuard,
+    ConsoleGuard,
     SharedGuard,
     InternalGuard,
   ],
-  exports: [KEYCLOAK_CLIENTS, PrincipalResolver, UserinfoClient, PortalGuard, AdminGuard, SharedGuard, InternalGuard],
+  exports: [KEYCLOAK_CLIENTS, PrincipalResolver, UserinfoClient, PortalGuard, ConsoleGuard, SharedGuard, InternalGuard],
 })
 export class AuthModule {}

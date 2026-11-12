@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled }}
 {{- $hosts := list (include "edge.host" (list . "host") | required "ingress.host or global.host is required") }}
-{{- range list "adminHost" "gatewayHost" }}
+{{- range list "consoleHost" "gatewayHost" }}
 {{- with include "edge.host" (list $ .) }}
 {{- $hosts = append $hosts . }}
 {{- end }}

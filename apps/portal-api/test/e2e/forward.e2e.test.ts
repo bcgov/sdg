@@ -37,7 +37,7 @@ describe('portal-api forwarding to core-api (R2, R4, KTD3)', () => {
     expect(t.coreApi.received.map(({ url }) => url)).toEqual(['/api/v1/shared/me']);
   });
 
-  it.each(['/api/v1/admin/anything', '/api/v1/gateway/clients/me'])(
+  it.each(['/api/v1/console/anything', '/api/v1/gateway/clients/me'])(
     'Should answer %s with 404 without contacting core-api (AE2)',
     async (path) => {
       const res = await resident.agent.get(path);

@@ -69,9 +69,9 @@ describe('Gateway route /api/v1/gateway/me behind GatewayGuard (R9, R20, R21, R2
     expect((await call(person)).status).toBe(401);
   });
 
-  it('Should answer 403 to portal and admin person tokens', async () => {
+  it('Should answer 403 to portal and console person tokens', async () => {
     expect((await call(await t.idp.portalToken())).status).toBe(403);
-    expect((await call(await t.idp.adminToken(['admin']))).status).toBe(403);
+    expect((await call(await t.idp.consoleToken(['admin']))).status).toBe(403);
   });
 
   it('Should answer 401 without a token', async () => {

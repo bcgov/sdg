@@ -20,21 +20,21 @@ function errorOf(raw: Record<string, unknown>): EnvValidationError {
 }
 
 describe('core-api env', () => {
-  it('Should parse a Phase 1 env without an admin client and apply defaults', () => {
+  it('Should parse a Phase 1 env without a console client and apply defaults', () => {
     const env = validateEnv(valid);
     expect(env.PORT).toBe(3000);
     expect(env.OTEL_SERVICE_NAME).toBe('core-api');
     expect(env.KEYCLOAK_ISSUER_URL).toBe('https://keycloak.example.com/realms/standard');
-    expect(env.ADMIN_CLIENT_ID).toBeUndefined();
-    expect(validateEnv({ ...valid, ADMIN_CLIENT_ID: '' }).ADMIN_CLIENT_ID).toBeUndefined();
+    expect(env.CONSOLE_CLIENT_ID).toBeUndefined();
+    expect(validateEnv({ ...valid, CONSOLE_CLIENT_ID: '' }).CONSOLE_CLIENT_ID).toBeUndefined();
   });
 
-  it('Should accept an admin client id', () => {
-    expect(validateEnv({ ...valid, ADMIN_CLIENT_ID: 'sdg-admin-5678' }).ADMIN_CLIENT_ID).toBe('sdg-admin-5678');
+  it('Should accept a console client id', () => {
+    expect(validateEnv({ ...valid, CONSOLE_CLIENT_ID: 'sdg-console-5678' }).CONSOLE_CLIENT_ID).toBe('sdg-console-5678');
   });
 
-  it('Should reject an admin client id equal to the portal client id', () => {
-    expect(errorOf({ ...valid, ADMIN_CLIENT_ID: valid.PORTAL_CLIENT_ID }).keys).toEqual(['ADMIN_CLIENT_ID']);
+  it('Should reject a console client id equal to the portal client id', () => {
+    expect(errorOf({ ...valid, CONSOLE_CLIENT_ID: valid.PORTAL_CLIENT_ID }).keys).toEqual(['CONSOLE_CLIENT_ID']);
   });
 
   it('Should require the portal client, an https issuer and a postgres URL', () => {
