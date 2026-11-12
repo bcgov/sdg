@@ -51,5 +51,6 @@
 /* The menu's profile block: a section header, so it is not a menu item. */
 .profile {
   padding: var(--layout-padding-xsmall);
+  padding-block-start: var(--layout-padding-small);
   color: var(--typography-color-primary);
 }
