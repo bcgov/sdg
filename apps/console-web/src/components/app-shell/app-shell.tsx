@@ -1,6 +1,7 @@
-import { Outlet } from '@tanstack/react-router';
+import { Outlet, useRouter } from '@tanstack/react-router';
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useCurrentUser } from '../../auth/use-current-user';
 import { AccountMenu } from './account-menu';
 import { CommandPalette } from './command-palette';
 import { MobilePanel } from './mobile-panel';
@@ -96,7 +97,24 @@ function ShellLayout() {
  * The signed-in pages' layout (dashboard-01, R6): a skip link, the sidebar (the mobile panel when narrow, R13), and the
  * main area under its top bar.
  */
+/**
+ * The `_app` guard let a signed-in administrator in; when the current user later turns null (a /api/auth/me refetch
+ * answered 401, e.g. on window focus after an idle tab), the session has ended. Pages that make no API calls never
+ * see a 401 of their own, so the shell sends them to the sign-in card the way useRefusalRedirects does for one.
+ */
+function useSessionEndedRedirect(): void {
+  const { data: user } = useCurrentUser();
+  const router = useRouter();
+  useEffect(() => {
+    // A 401 from an API call has already been sent to the card by useRefusalRedirects; keep its returnTo.
+    const { pathname, href } = router.state.location;
+    if (user !== null || pathname === '/login') return;
+    void router.navigate({ to: '/login', search: { session: 'ended', returnTo: href } });
+  }, [user, router]);
+}
+
 export function AppShell() {
+  useSessionEndedRedirect();
   return (
     <SidebarProvider>
       <ShellLayout />
