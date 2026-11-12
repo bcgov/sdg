@@ -1,8 +1,8 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { createTestApp, resetOidcStub, type TestApp } from '../../src/testing/app.js';
+import { createTestApp, type TestApp } from '../../src/testing/app.js';
 
 const probeSchema = z.object({
   name: z.string().min(1),
@@ -27,7 +27,9 @@ describe('Global StandardSchemaValidationPipe Integration Test Suite', () => {
 
   afterAll(() => t.close());
 
-  beforeEach(() => resetOidcStub(t.oidc));
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('Should return the parsed (coerced) value for a valid body', async () => {
     const res = await t.http().post('/api/v1/probe').send({ name: 'ada', count: '3' });
@@ -47,14 +49,16 @@ describe('Global StandardSchemaValidationPipe Integration Test Suite', () => {
   });
 
   it('Should keep the login fallback: a repeated returnTo redirects with returnTo "/" instead of 400', async () => {
+    const create = vi.spyOn(t.oidc, 'createAuthorizationRequest');
     const res = await t.http().get('/api/auth/login?returnTo=/a&returnTo=/b');
     expect(res.status).toBe(302);
-    expect(t.oidc.createAuthorizationRequest).toHaveBeenCalledWith('/');
+    expect(create).toHaveBeenCalledWith('/');
   });
 
   it('Should pass a valid relative returnTo through to the authorization request', async () => {
+    const create = vi.spyOn(t.oidc, 'createAuthorizationRequest');
     const res = await t.http().get('/api/auth/login?returnTo=/reports?tab=2');
     expect(res.status).toBe(302);
-    expect(t.oidc.createAuthorizationRequest).toHaveBeenCalledWith('/reports?tab=2');
+    expect(create).toHaveBeenCalledWith('/reports?tab=2');
   });
 });

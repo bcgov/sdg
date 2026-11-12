@@ -1,0 +1,146 @@
+/* The desktop sidebar (sidebar-07 structure, bcgov look). `data-state` switches it between expanded and the icon rail
+   (KTD6). The bcgov Button and Heading styles load as adopted stylesheets, later in the cascade, so the overrides of
+   their layout below are more specific than bcgov's own rules. */
+.sidebar {
+  --sidebar-width: 16rem;
+  --sidebar-width-icon: 3rem;
+  /* Every row is one rail-wide square tall, and its icon sits centered in that square in both states. */
+  --sidebar-item-size: 2.5rem;
+  --sidebar-icon-size: 1.25rem;
+  --sidebar-item-inset: calc((var(--sidebar-item-size) - var(--sidebar-icon-size)) / 2);
+  /* The sidebar's own inline padding, the same in both states so nothing shifts sideways when it collapses: what is
+     left of the rail around one item square. */
+  --sidebar-rail-inset: calc((var(--sidebar-width-icon) - var(--sidebar-item-size)) / 2);
+  /* Inset that centers a 2rem image (the emblem, the avatar) in the item square, on the same axis as the icons. */
+  --sidebar-image-inset: calc((var(--sidebar-item-size) - 2rem) / 2);
+
+  position: sticky;
+  inset-block-start: 0;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  box-sizing: border-box;
+  width: var(--sidebar-width);
+  height: 100dvh;
+  /* No top padding: the brand row sits flush with the top, level with the top bar beside it. */
+  padding: 0 var(--sidebar-rail-inset) var(--layout-padding-small);
+  overflow: hidden auto;
+  border-inline-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  background-color: var(--surface-color-background-light-gray);
+  transition: width 150ms ease-out;
+}
+
+.sidebar[data-state='collapsed'] {
+  width: var(--sidebar-width-icon);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
+
+.label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Collapsed, labels leave the layout but stay each control's accessible name; tooltips show them instead. */
+.sidebar[data-state='collapsed'] .label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.sidebar .icon {
+  flex: none;
+  width: var(--sidebar-icon-size);
+}
+
+/* The same height as the top bar (top-bar.module.css), so the emblem and "SDG" line up with the page title. */
+.sidebar .brand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--layout-margin-small);
+  box-sizing: border-box;
+  min-height: var(--sidebar-item-size);
+  padding: 0 var(--sidebar-image-inset);
+  color: var(--typography-color-primary);
+  font: var(--typography-bold-h5);
+}
+
+.emblem {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+}
+
+.sidebar .search > button {
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--sidebar-item-size);
+  padding: 0 var(--sidebar-item-inset);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-small-body);
+}
+
+.sidebar .search > button:not([data-hovered]) {
+  background-color: var(--surface-color-background-white);
+}
+
+.hint {
+  margin-inline-start: auto;
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-small-body);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-hair);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list .item {
+  display: flex;
+  gap: var(--layout-margin-small);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--sidebar-item-size);
+  padding: 0 var(--sidebar-item-inset);
+  border-radius: var(--layout-border-radius-medium);
+  color: var(--typography-color-primary);
+  /* Small body text, as in the account card, keeps the sidebar light. */
+  font: var(--typography-regular-small-body);
+}
+
+.list .item[data-hovered] {
+  background-color: var(--surface-color-menus-hover);
+  text-decoration: none;
+}
+
+/* The thick left bar is an inset shadow, not a border, so marking an item current never changes its size or shifts
+   its contents. */
+.list .item[data-current] {
+  background-color: var(--surface-color-background-light-blue);
+  box-shadow: inset 3px 0 0 var(--surface-color-primary-default);
+  color: var(--surface-color-primary-default);
+}
+
+/* The Secondary nav and the account button sit at the bottom of the sidebar. */
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  margin-block-start: auto;
+}

@@ -1,0 +1,79 @@
+suite: sdg umbrella (gateway)
+release:
+  name: sdg-12
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-12
+  global.host: sdg-12.apps.example.com
+  global.consoleHost: sdg-12-console.apps.example.com
+  global.gatewayHost: sdg-12-gateway.apps.example.com
+  portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  portal-api.keycloak.clientId: portal
+  portal-api.vault.role: abc123-nonprod
+  portal-api.vault.secretPath: abc123-nonprod/portal-api
+  portal-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  core-api.keycloak.portalClientId: portal
+  core-api.keycloak.consoleClientId: sdg-console
+  console-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  console-api.keycloak.clientId: sdg-console
+  console-api.vault.role: abc123-nonprod
+  console-api.vault.secretPath: abc123-nonprod/console-api
+  console-api.vault.serviceAccountName: abc123-vault
+tests:
+  - it: global image settings reach gateway-api
+    template: charts/gateway-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/gateway-api:pr-12
+
+  - it: gateway-api calls the release's core-api Service
+    template: charts/gateway-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.CORE_API_URL
+          value: http://sdg-12-core-api:3000
+
+  - it: the edge sends the gateway host's /api to the release's gateway-api Service
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_API_URL
+            value: http://sdg-12-gateway-api:3000
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_HOST
+            value: sdg-12-gateway.apps.example.com
+
+  - it: gateway-api's Service carries the name the edge calls
+    template: charts/gateway-api/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-gateway-api
+
+  - it: only the edge reaches gateway-api
+    template: charts/gateway-api/templates/networkpolicy.yaml
+    asserts:
+      - equal:
+          path: spec.ingress[0].from
+          value:
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: edge
+                  app.kubernetes.io/instance: sdg-12
+
+  - it: core-api admits gateway-api
+    template: charts/core-api/templates/networkpolicy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: gateway-api
+                app.kubernetes.io/instance: sdg-12

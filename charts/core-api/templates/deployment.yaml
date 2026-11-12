@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "api") | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "common.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels" (dict "context" . "component" "api") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with include "common.scrapeAnnotations" (dict "context" . "port" 3000) }}
+        {{- . | nindent 8 }}
+        {{- end }}
+    spec:
+      # core-api holds no secrets of its own and calls no Kubernetes API.
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "common.podSecurityContext" . | nindent 8 }}
+      initContainers:
+        # Applies pending core schema migrations as the core login; a non-zero exit keeps core-api from starting.
+        - name: migrate
+          image: {{ include "common.image" (dict "image" .Values.migrator.image "context" $) }}
+          imagePullPolicy: {{ .Values.migrator.image.pullPolicy }}
+          env:
+            {{- include "common.databaseUrlEnv" . | nindent 12 }}
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.migrator.resources | nindent 12 }}
+          {{- with include "common.postgresCaMount" . }}
+          volumeMounts:
+            {{- . | nindent 12 }}
+          {{- end }}
+      containers:
+        # The image's CMD preloads OpenTelemetry (a no-op without OTEL_EXPORTER_OTLP_ENDPOINT).
+        - name: core-api
+          image: {{ include "common.image" (dict "image" .Values.image "context" $) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "common.fullname" . }}
+          env:
+            {{- include "common.databaseUrlEnv" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /healthz/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: http
+            periodSeconds: 20
+          readinessProbe:
+            # Its own database only: Keycloak being down is answered per request with 503.
+            httpGet:
+              path: /healthz/ready
+              port: http
+            periodSeconds: 10
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- with include "common.postgresCaMount" . }}
+            {{- . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- with include "common.postgresCaVolume" . }}
+        {{- . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

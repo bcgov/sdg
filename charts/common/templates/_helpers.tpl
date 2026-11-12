@@ -135,3 +135,43 @@ sdg.gov.bc.ca/environment: {{ . | quote }}
       protocol: TCP
 {{- end -}}
 {{- end -}}
+
+{{/*
+Postgres connection env for a service with its own login (charts/postgres users): DATABASE_URL from that login's PGO
+Secret, PGSSLMODE, and PGO's CA through NODE_EXTRA_CA_CERTS when database.caSecretName is set. Reads .Values.database:
+secretName (rendered with tpl, e.g. '{{ .Release.Name }}-postgres-pguser-core'), secretKey, sslMode, caSecretName.
+*/}}
+{{- define "common.databaseUrlEnv" -}}
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "common.tplvalue" (dict "value" .Values.database.secretName "context" .) }}
+      key: {{ .Values.database.secretKey }}
+- name: PGSSLMODE
+  value: {{ .Values.database.sslMode | quote }}
+{{- if .Values.database.caSecretName }}
+- name: NODE_EXTRA_CA_CERTS
+  value: /etc/postgres-ca/ca.crt
+{{- end }}
+{{- end -}}
+
+{{/* The volumeMount for PGO's CA (common.postgresCaVolume); empty without database.caSecretName. */}}
+{{- define "common.postgresCaMount" -}}
+{{- if .Values.database.caSecretName -}}
+- name: postgres-ca
+  mountPath: /etc/postgres-ca
+  readOnly: true
+{{- end -}}
+{{- end -}}
+
+{{/* The volume holding PGO's CA (database.caSecretName, key database.caSecretKey); empty without database.caSecretName. */}}
+{{- define "common.postgresCaVolume" -}}
+{{- if .Values.database.caSecretName -}}
+- name: postgres-ca
+  secret:
+    secretName: {{ include "common.tplvalue" (dict "value" .Values.database.caSecretName "context" .) }}
+    items:
+      - key: {{ .Values.database.caSecretKey }}
+        path: ca.crt
+{{- end -}}
+{{- end -}}

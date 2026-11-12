@@ -30,8 +30,14 @@ on:
         description: Has deployment been triggered?
         value: ${{ jobs.deploy.outputs.triggered }}
       url:
-        description: Public URL of the deployment
+        description: Public URL of the deployment (portal)
         value: ${{ jobs.deploy.outputs.url }}
+      console_url:
+        description: Public URL of the console host
+        value: ${{ jobs.deploy.outputs.console_url }}
+      gateway_url:
+        description: Public URL of the gateway host
+        value: ${{ jobs.deploy.outputs.gateway_url }}
 
 permissions: {}
 
@@ -44,6 +50,8 @@ jobs:
     outputs:
       triggered: ${{ steps.deploy.outputs.triggered }}
       url: ${{ steps.vars.outputs.url }}
+      console_url: ${{ steps.vars.outputs.console_url }}
+      gateway_url: ${{ steps.vars.outputs.gateway_url }}
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     env:
@@ -55,8 +63,11 @@ jobs:
       OC_SERVER: ${{ vars.OC_SERVER }}
       KEYCLOAK_ISSUER_URL: ${{ vars.KEYCLOAK_ISSUER_URL }}
       KEYCLOAK_CLIENT_ID: ${{ vars.KEYCLOAK_CLIENT_ID }}
+      # The console (IDIR) client: console-api signs in with it and core-api accepts its tokens
+      KEYCLOAK_CONSOLE_CLIENT_ID: ${{ vars.KEYCLOAK_CONSOLE_CLIENT_ID }}
       # Optional override; see scripts/deploy-values.sh
       VAULT_SECRET_PATH: ${{ vars.VAULT_SECRET_PATH }}
+      CONSOLE_VAULT_SECRET_PATH: ${{ vars.CONSOLE_VAULT_SECRET_PATH }}
       # Optional: "true" reports to the observability stack (doc 20; scripts/deploy-values.sh)
       OBSERVABILITY: ${{ vars.OBSERVABILITY }}
     steps:
@@ -64,8 +75,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # Release name, URL and values file come from one script, shared with scripts/charts-test.sh;
-      # release=, url= and values_file= become step outputs and env vars for the commands below
+      # Release name, URLs and values file come from one script, shared with scripts/charts-test.sh;
+      # release=, url=, console_url=, gateway_url= and values_file= become step outputs and env vars below
       - name: Vars
         id: vars
         run: |
@@ -95,7 +106,7 @@ jobs:
             fi
 
             # file:// dependencies: leaf charts before the umbrella, which packages them
-            for chart in portal-web portal-api edge postgres sdg; do
+            for chart in portal-web portal-api console-web console-api gateway-api core-api edge postgres sdg; do
               helm dependency build "charts/${chart}" > /dev/null
             done
 

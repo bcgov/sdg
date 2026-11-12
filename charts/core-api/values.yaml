@@ -1,0 +1,81 @@
+# core-api: the NestJS service owning every business rule (apps/core-api), with the database migrator as its
+# initContainer. Env contract: apps/core-api/src/config/env.ts. Reached only by portal-api, console-api and gateway-api,
+# never from the edge (networkpolicy.yaml).
+global:
+  image:
+    # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
+    registry: ''
+    # Image tag, e.g. a PR number (12), a commit SHA or a release version. Required here or in image.tag.
+    tag: ''
+  # Observability (doc 20): empty = off. See common.observability in charts/common.
+  observability:
+    collectorHost: ''
+    scraperNamespace: ''
+    environment: ''
+
+fullnameOverride: ''
+replicaCount: 1
+# Deployment rollout strategy, e.g. { type: Recreate }. Empty: Kubernetes' default RollingUpdate.
+strategy: {}
+
+image:
+  registry: ''
+  name: core-api
+  tag: ''
+  pullPolicy: IfNotPresent
+
+# Applies the core schema migrations (packages/database) as the core login before core-api starts.
+migrator:
+  image:
+    registry: ''
+    name: database
+    tag: ''
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+logLevel: info
+
+# core-api only verifies tokens, so it needs no client secret.
+keycloak:
+  # Required, e.g. https://keycloak.example.com/realms/portal
+  issuerUrl: ''
+  # Required: the portal (BCSC) client id; its person tokens reach portal and shared routes.
+  portalClientId: ''
+  # The console (IDIR) client id. Empty: no console-client token is accepted (until console-api is deployed).
+  consoleClientId: ''
+
+# Crunchy PGO user Secret for the core login (<cluster>-pguser-core); use key pgbouncer-uri when PgBouncer is enabled.
+database:
+  secretName: '{{ .Release.Name }}-postgres-pguser-core'
+  secretKey: uri
+  # PGO only accepts TLS and its uri has no sslmode: node-postgres reads PGSSLMODE (require = verified TLS).
+  sslMode: require
+  # PGO's CA (<cluster>-cluster-cert), trusted through NODE_EXTRA_CA_CERTS. Empty: the system trust store.
+  caSecretName: '{{ .Release.Name }}-postgres-cluster-cert'
+  caSecretKey: ca.crt
+
+# PR-level requests by default, so TEST and PROD inherit them too; raise them per environment if needed.
+resources:
+  requests:
+    cpu: 20m
+    memory: 128Mi
+  limits:
+    memory: 384Mi
+
+networkPolicy:
+  enabled: true
+  # app.kubernetes.io/name of the pods (same release) that call core-api: the forwarders.
+  clients: [portal-api, console-api, gateway-api]
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

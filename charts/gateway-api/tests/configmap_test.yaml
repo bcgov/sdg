@@ -1,0 +1,67 @@
+suite: gateway-api configmap
+templates:
+  - templates/configmap.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+tests:
+  - it: points at the release's core-api and trusts the edge's X-Forwarded-*
+    asserts:
+      - equal:
+          path: data.CORE_API_URL
+          value: http://sdg-core-api:3000
+      - equal:
+          path: data.TRUST_PROXY
+          value: 'true'
+      - equal:
+          path: data.NODE_ENV
+          value: production
+      - equal:
+          path: data.PORT
+          value: '3000'
+
+  - it: takes another core-api URL
+    set:
+      coreApiUrl: http://core-api.example.svc:3000
+    asserts:
+      - equal:
+          path: data.CORE_API_URL
+          value: http://core-api.example.svc:3000
+
+  - it: requires a core-api URL
+    set:
+      coreApiUrl: ''
+    asserts:
+      - failedTemplate:
+          errorMessage: coreApiUrl is required
+
+  - it: holds no secret and no Keycloak or database settings (KTD12)
+    asserts:
+      - notExists:
+          path: data.DATABASE_URL
+      - notExists:
+          path: data.KEYCLOAK_ISSUER_URL
+      - notExists:
+          path: data.SESSION_SECRET
+
+  - it: sends OTLP to Alloy only when a collector is configured
+    set:
+      global.observability.collectorHost: observability-alloy.abc123-tools.svc
+      global.observability.environment: pr-1
+    asserts:
+      - equal:
+          path: data.OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://observability-alloy.abc123-tools.svc:4318
+      - equal:
+          path: data.OTEL_SERVICE_NAME
+          value: gateway-api
+      - equal:
+          path: data.OTEL_RESOURCE_ATTRIBUTES
+          value: deployment.environment=pr-1
+
+  - it: renders no telemetry env without a collector
+    asserts:
+      - notExists:
+          path: data.OTEL_EXPORTER_OTLP_ENDPOINT

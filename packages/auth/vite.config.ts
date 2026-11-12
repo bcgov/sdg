@@ -9,6 +9,7 @@ export default defineLibraryConfig({
   entry: {
     index: `${src}index.ts`,
     'nestjs/index': `${src}nestjs/index.ts`,
+    'testing/index': `${src}testing/index.ts`,
   },
   overrides: {
     // Nest decorators are legacy (experimentalDecorators) decorators.

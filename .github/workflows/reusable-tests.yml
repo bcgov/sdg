@@ -8,6 +8,15 @@ on:
         description: Deployment URL, e.g. https://sdg-12.apps.gold.devops.gov.bc.ca (reusable-deploy.yml's url output)
         required: true
         type: string
+      ### Optional: both set smokes the edge's console and gateway hosts
+      console_url:
+        description: Console host URL (reusable-deploy.yml's console_url output)
+        default: ''
+        type: string
+      gateway_url:
+        description: Gateway host URL (reusable-deploy.yml's gateway_url output)
+        default: ''
+        type: string
 
 permissions: {}
 
@@ -35,33 +44,87 @@ jobs:
           echo "ERROR: ${BASE_URL} did not become healthy in time."
           exit 1
 
+      # The edge routes by Host. /telemetry.json is answered by the edge itself, so 200 there shows the console host's
+      # Route reaches it; console-web serves / (its title tells it from portal-web) and console-api answers /api/auth/me
+      # signed out with 401, like the portal above; the gateway host serves only /api, so / is 404 (portal-web would
+      # answer 200). gateway-api forwards a Bearer token to core-api, which refuses this one with 401; without
+      # gateway-api or core-api the answer is 502 or 503.
+      - name: Console and gateway hosts
+        if: inputs.console_url != '' && inputs.gateway_url != ''
+        env:
+          CONSOLE_URL: ${{ inputs.console_url }}
+          GATEWAY_URL: ${{ inputs.gateway_url }}
+        run: |
+          status() { curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" "$@" || true; }
+          for i in {1..30}; do
+            telemetry=$(status "${CONSOLE_URL}/telemetry.json")
+            console_web=$(curl --connect-timeout 5 --max-time 10 -s "${CONSOLE_URL}/" | grep -q '<title>SDG Console</title>' \
+              && echo console-web || echo other)
+            console_api=$(status "${CONSOLE_URL}/api/auth/me")
+            gateway=$(status "${GATEWAY_URL}/")
+            gateway_api=$(status -H 'Authorization: Bearer smoke' "${GATEWAY_URL}/api/v1/gateway/me")
+            got="console /telemetry.json ${telemetry}, / ${console_web}, /api/auth/me ${console_api}"
+            got="${got}; gateway / ${gateway}, /api/v1/gateway/me ${gateway_api}"
+            if [ "$telemetry" = 200 ] && [ "$console_web" = console-web ] && [ "$console_api" = 401 ] && [ "$gateway" = 404 ] \
+              && [ "$gateway_api" = 401 ]; then
+              echo "$got"
+              exit 0
+            fi
+            echo "Waiting (${got}; want 200, console-web, 401; 404, 401), retrying in 10s... ($i/30)"
+            sleep 10
+          done
+          echo "ERROR: the console and gateway hosts did not answer as expected in time."
+          exit 1
+
+  # One job per web app, so each suite runs on its own runner. A single runner that opens ~30 browser sessions against
+  # the Gold cluster within ~20s has its new connections dropped for ~2 minutes (seen when both suites shared a job);
+  # separate runners each get their own allowance, and the suites run in parallel.
   e2e-tests:
-    name: E2E
+    name: E2E (${{ matrix.app }})
     runs-on: ubuntu-26.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: portal-web
+            url: ${{ inputs.url }}
+            report: playwright-report-chromium
+          # console-web's signed-out specs against the console host (the signed-in ones need an admin test account and
+          # skip). Without console_url the job runs no steps.
+          - app: console-web
+            url: ${{ inputs.console_url }}
+            report: playwright-report-console-web-chromium
     steps:
       - uses: actions/checkout@v7
+        if: matrix.url != ''
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
+        if: matrix.url != ''
         with:
           node-version-file: .node-version
       - name: Install dependencies
+        if: matrix.url != ''
+        env:
+          APP: ${{ matrix.app }}
         run: |
           npm install -g "pnpm@$(node -p "require('./package.json').devEngines.packageManager.version")"
           pnpm install --frozen-lockfile
-          pnpm --filter portal-web exec playwright install --with-deps chromium
+          pnpm --filter "$APP" exec playwright install --with-deps chromium
 
       - name: Run Tests
+        if: matrix.url != ''
         env:
-          E2E_BASE_URL: ${{ inputs.url }}/
+          APP: ${{ matrix.app }}
+          E2E_BASE_URL: ${{ matrix.url }}/
           CI: 'true'
-        run: pnpm --filter portal-web exec playwright test --project=chromium --reporter=html
+        run: pnpm --filter "$APP" exec playwright test --project=chromium --reporter=html
 
       - uses: actions/upload-artifact@v7
-        if: (! cancelled())
+        if: (! cancelled()) && matrix.url != ''
         name: upload results
         with:
-          name: playwright-report-chromium
-          path: apps/portal-web/playwright-report
+          name: ${{ matrix.report }}
+          path: apps/${{ matrix.app }}/playwright-report
           retention-days: 7

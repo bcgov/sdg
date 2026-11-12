@@ -12,6 +12,8 @@ import type {
 } from './types.js';
 
 const DEFAULT_SCOPES: readonly string[] = ['openid', 'profile', 'email'];
+/** Bounds the back-channel logout; callers run it in the background, so a slow IdP only delays the log line. */
+const END_SESSION_TIMEOUT_MS = 5_000;
 
 type Discover = () => Promise<client.Configuration>;
 
@@ -51,6 +53,32 @@ function toTokens(response: client.TokenEndpointResponse & client.TokenEndpointR
   };
 }
 
+/** Maps a refresh response; unlike `toTokens`, a missing ID token or refresh token keeps the current one. */
+function toRefreshedTokens(
+  response: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+  current: OidcTokens,
+): OidcTokens {
+  const expiresIn = response.expiresIn();
+  return {
+    idToken: response.id_token ?? current.idToken,
+    accessToken: response.access_token,
+    refreshToken: response.refresh_token ?? current.refreshToken,
+    expiresAt: expiresIn === undefined ? null : Date.now() + expiresIn * 1000,
+  };
+}
+
+/** The IdP's `error` for a refused refresh, or the client library's code for a failure before a response. */
+function refreshErrorDetail(error: unknown): string | undefined {
+  if (error instanceof client.ResponseBodyError) return error.error;
+  if (error instanceof client.ClientError) return error.code;
+  return undefined;
+}
+
+function toRefreshError(error: unknown): AuthError {
+  if (error instanceof AuthError) return error;
+  return new AuthError('refresh_failed', { detail: refreshErrorDetail(error), cause: error });
+}
+
 function toCallbackError(error: unknown): AuthError {
   if (error instanceof AuthError) return error;
   if (error instanceof client.AuthorizationResponseError) {
@@ -75,6 +103,41 @@ async function exchangeCode(
   const claims = response.claims();
   if (claims === undefined) throw new AuthError('callback_failed', { detail: 'missing id_token claims' });
   return { user: claimsToAuthUser(claims), tokens };
+}
+
+/** The IdP's `error` code from a failed back-channel logout, or the HTTP status when the body has none. */
+async function endSessionErrorDetail(response: Response): Promise<string> {
+  const body: unknown = await response.json().catch(() => null);
+  if (typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string') return body.error;
+  return `HTTP ${response.status}`;
+}
+
+/** Back-channel logout (Keycloak): the refresh token and client credentials, form-posted to `end_session_endpoint`. */
+async function postEndSession(
+  config: client.Configuration,
+  options: OidcClientOptions,
+  refreshToken: string,
+): Promise<void> {
+  const endpoint = config.serverMetadata().end_session_endpoint;
+  if (endpoint === undefined) throw new AuthError('end_session_failed', { detail: 'no end_session_endpoint' });
+  const body = new URLSearchParams({
+    client_id: options.clientId,
+    client_secret: options.clientSecret,
+    refresh_token: refreshToken,
+  });
+  let response: Response;
+  try {
+    response = await (options.fetch ?? fetch)(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(END_SESSION_TIMEOUT_MS),
+    });
+  } catch (error) {
+    throw new AuthError('end_session_failed', { cause: error });
+  }
+  if (!response.ok) throw new AuthError('end_session_failed', { detail: await endSessionErrorDetail(response) });
+  await response.body?.cancel();
 }
 
 /**
@@ -131,6 +194,21 @@ export function createOidcClient(options: OidcClientOptions): OidcClient {
       };
       if (idToken) parameters['id_token_hint'] = idToken;
       return client.buildEndSessionUrl(config, parameters);
+    },
+
+    async refresh(current: OidcTokens): Promise<OidcTokens> {
+      if (current.refreshToken === null) throw new AuthError('refresh_failed', { detail: 'no refresh token' });
+      const config = await discover();
+      try {
+        return toRefreshedTokens(await client.refreshTokenGrant(config, current.refreshToken), current);
+      } catch (error) {
+        throw toRefreshError(error);
+      }
+    },
+
+    async endSession(current: OidcTokens): Promise<void> {
+      if (current.refreshToken === null) throw new AuthError('end_session_failed', { detail: 'no refresh token' });
+      await postEndSession(await discover(), options, current.refreshToken);
     },
   };
 }

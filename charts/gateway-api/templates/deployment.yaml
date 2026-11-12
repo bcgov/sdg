@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "api") | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "common.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels" (dict "context" . "component" "api") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with include "common.scrapeAnnotations" (dict "context" . "port" 3000) }}
+        {{- . | nindent 8 }}
+        {{- end }}
+    spec:
+      # gateway-api holds no secrets and calls no Kubernetes API.
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "common.podSecurityContext" . | nindent 8 }}
+      containers:
+        # The image's CMD preloads OpenTelemetry (a no-op without OTEL_EXPORTER_OTLP_ENDPOINT).
+        - name: gateway-api
+          image: {{ include "common.image" (dict "image" .Values.image "context" $) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "common.fullname" . }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /healthz/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: http
+            periodSeconds: 20
+          readinessProbe:
+            # Checks nothing beyond liveness: core-api being down is answered per request with 503.
+            httpGet:
+              path: /healthz/ready
+              port: http
+            periodSeconds: 10
+          securityContext:
+            {{- include "common.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

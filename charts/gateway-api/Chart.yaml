@@ -1,0 +1,10 @@
+apiVersion: v2
+name: gateway-api
+description: "gateway-api: the service accounts' entry point, forwarding GET /api/v<N>/gateway/… to core-api."
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

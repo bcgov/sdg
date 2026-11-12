@@ -1,7 +1,6 @@
+import { bootstrapTelemetry, type OtelHandle } from '@repo/server-core/telemetry';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { bootstrapTelemetry } from '../../src/telemetry/bootstrap.js';
-import type { OtelHandle } from '../../src/telemetry/otel-sdk.js';
 import type { TestApp } from '../../src/testing/app.js';
 
 /** Incoming-request series only (supertest's own requests also appear, as http_client_request_duration). */
@@ -18,7 +17,7 @@ describe('portal-api platform middleware', () => {
   let app: TestApp;
 
   beforeAll(async () => {
-    otel = await bootstrapTelemetry({});
+    otel = await bootstrapTelemetry({ serviceName: 'portal-api', env: {} });
     ({ createTestApp } = await import('../../src/testing/app.js'));
     app = await createTestApp();
   }, 120_000);

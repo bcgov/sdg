@@ -1,6 +1,6 @@
 apiVersion: v2
 name: portal-api
-description: 'portal-api: the NestJS BFF, with the portal-database migrator as an initContainer.'
+description: 'portal-api: the resident portal BFF, with its sessions migration as an initContainer.'
 type: application
 version: 0.1.0
 appVersion: '0.1.0'

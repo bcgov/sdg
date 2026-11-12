@@ -1,5 +1,6 @@
-# portal-api: the NestJS BFF (apps/portal-api), with the portal-database migrator as its initContainer.
-# Env contract: apps/portal-api/src/config/env.ts. Reached only through the edge.
+# portal-api: the resident portal's BFF (apps/portal-api on bff-core), which forwards to core-api. Its own image applies
+# the sessions migrations as an initContainer. Env contract: apps/portal-api/src/config/env.ts. Reached only through
+# the edge.
 global:
   image:
     # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
@@ -25,12 +26,8 @@ image:
   tag: ''
   pullPolicy: IfNotPresent
 
+# The sessions migration (node dist/migrate.js in the portal-api image) as the portal login, before portal-api starts.
 migrator:
-  image:
-    registry: ''
-    name: portal-database
-    tag: ''
-    pullPolicy: IfNotPresent
   resources:
     requests:
       cpu: 10m
@@ -43,13 +40,17 @@ appUrl: ''
 logLevel: info
 sessionTtlSeconds: 28800
 
+# core-api's Service (same release): sign-in upserts the principal there and /api/v<N>/{portal,shared}/… is forwarded.
+coreApiUrl: 'http://{{ .Release.Name }}-core-api:3000'
+
 keycloak:
   # Required, e.g. https://keycloak.example.com/realms/portal
   issuerUrl: ''
   # Required: the confidential client id. Its secret comes from Vault (or existingSecret).
   clientId: ''
 
-# Crunchy PGO user Secret (<cluster>-pguser-<user>); use key pgbouncer-uri when PgBouncer is enabled.
+# Crunchy PGO user Secret for the portal login (<cluster>-pguser-portal), which owns only the portal schema (sessions);
+# use key pgbouncer-uri when PgBouncer is enabled.
 database:
   secretName: '{{ .Release.Name }}-postgres-pguser-portal'
   secretKey: uri

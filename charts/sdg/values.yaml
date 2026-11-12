@@ -7,6 +7,11 @@ global:
     tag: ''
   # Public hostname: the edge Ingress host and portal-api's APP_URL (https://<host>).
   host: ''
+  # Console and gateway hostnames (edge Ingress rules and Host routing), e.g. <release>-console and <release>-gateway
+  # on the same apps domain. Empty: the edge serves no such host. consoleHost is required while console-api is enabled
+  # (its APP_URL is https://<consoleHost>).
+  consoleHost: ''
+  gatewayHost: ''
   # Observability stack this release reports to (doc 20; charts/observability). All empty: telemetry off.
   observability:
     # Alloy's Service host, e.g. observability-alloy.abc123-tools.svc
@@ -35,8 +40,46 @@ portal-api:
     # Required when enabled, e.g. abc123-vault
     serviceAccountName: ''
 
+console-web:
+  enabled: true
+
+console-api:
+  enabled: true
+  keycloak:
+    # Required: the same realm as portal-api
+    issuerUrl: ''
+    # Required: the console (IDIR) client, with the admin client role; core-api's consoleClientId below names it too
+    clientId: ''
+  vault:
+    enabled: true
+    # Required when enabled, e.g. abc123-nonprod
+    role: ''
+    # Required when enabled, e.g. abc123-nonprod/console-api (KV v2 holding SESSION_SECRET, KEYCLOAK_CLIENT_SECRET)
+    secretPath: ''
+    # Required when enabled, e.g. abc123-vault
+    serviceAccountName: ''
+
+# Service accounts' entry point on the gateway host; needs nothing but core-api (its coreApiUrl default).
+gateway-api:
+  enabled: true
+
+core-api:
+  enabled: true
+  keycloak:
+    # Required: the same realm as portal-api, e.g. https://keycloak.example.com/realms/portal
+    issuerUrl: ''
+    # Required: portal-api's client id (keycloak.clientId above)
+    portalClientId: ''
+    # Required: console-api's client id (console-api.keycloak.clientId above); empty, no console-client token is accepted
+    consoleClientId: ''
+
 edge:
   enabled: true
+  # The console host: /api to console-api, everything else to console-web. The gateway host: /api to gateway-api.
+  upstreams:
+    consoleApi: 'http://{{ .Release.Name }}-console-api:3000'
+    consoleWeb: 'http://{{ .Release.Name }}-console-web:8080'
+    gatewayApi: 'http://{{ .Release.Name }}-gateway-api:3000'
 
 postgres:
   enabled: true

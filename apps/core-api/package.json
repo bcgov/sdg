@@ -1,0 +1,52 @@
+{
+  "name": "core-api",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "nest start --watch --exec \"node --import ./dist/instrumentation.js\"",
+    "build": "nest build",
+    "start": "node --import ./dist/instrumentation.js dist/main.js",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@nestjs/common": "catalog:",
+    "@nestjs/config": "catalog:",
+    "@nestjs/core": "catalog:",
+    "@nestjs/drizzle": "catalog:",
+    "@nestjs/platform-express": "catalog:",
+    "@nestjs/swagger": "catalog:",
+    "@nestjs/terminus": "catalog:",
+    "@repo/auth": "workspace:*",
+    "@repo/database": "workspace:*",
+    "@repo/server-core": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "nestjs-pino": "catalog:",
+    "pino": "catalog:",
+    "pino-http": "catalog:",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "catalog:",
+    "@nestjs/cli": "catalog:",
+    "@nestjs/testing": "catalog:",
+    "@repo/typescript-config": "workspace:*",
+    "@repo/vitest-config": "workspace:*",
+    "@types/express": "catalog:",
+    "@types/node": "catalog:",
+    "@types/supertest": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "pino-pretty": "catalog:",
+    "supertest": "catalog:",
+    "typescript": "catalog:ts6",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

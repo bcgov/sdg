@@ -16,12 +16,26 @@
 	}
 }
 
-# Proxy requests to the API service
+# Proxy /api to an API service. Argument: its upstream URL from the environment. Spread with {args[:]}: an unset
+# URL is no argument at all, which leaves the proxy without a target, and Caddy answers 503.
 (api_proxy) {
-	reverse_proxy /api* {$PORTAL_API_URL} {
+	reverse_proxy /api* {args[:]} {
 		header_up Host {http.reverse_proxy.upstream.hostport}
 		header_up X-Real-IP {remote_host}
 	}
+}
+
+# A host that serves only /api (the gateway) answers every other path the way its Nest API answers an unknown route:
+# a JSON 404 naming the method and path. Its health and metrics endpoints stay off the edge. The rewrite drops the
+# query and makes {uri} the percent-encoded path: Caddy doesn't JSON-escape what it puts in a body, and the encoded
+# path holds no quote or backslash, while the decoded path and the raw query can.
+(api_only_not_found) {
+	@not_api not path /api*
+	rewrite @not_api {path}?
+	header @not_api Content-Type "application/json; charset=utf-8"
+	respond @not_api <<JSON
+		{"message":"Cannot {method} {uri}","error":"Not Found","statusCode":404}
+		JSON 404
 }
 
 # Argument 1: extra script-src sources. Production passes "", Caddyfile.dev passes "'unsafe-inline'"

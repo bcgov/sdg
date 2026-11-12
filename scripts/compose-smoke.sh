@@ -12,6 +12,8 @@ ENGINE="${ENGINE:-podman}"
 COMPOSE="${COMPOSE:-$ENGINE compose}"
 PROJECT=portal
 SITE=https://sdg.localhost
+CONSOLE_SITE=https://console.sdg.localhost
+GATEWAY_SITE=https://gateway.sdg.localhost
 WAIT_SECONDS="${WAIT_SECONDS:-420}"
 
 UP=true
@@ -62,22 +64,33 @@ if $UP; then
   $COMPOSE up -d --build >/dev/null
 fi
 
-echo "Waiting for $SITE"
 deadline=$((SECONDS + WAIT_SECONDS))
-until curl -ksSf -o /dev/null "$SITE/"; do
-  if ((SECONDS > deadline)); then
-    fail "stack reachable at $SITE within ${WAIT_SECONDS}s"
-    $COMPOSE ps || true
-    echo "Passed: $PASSED  Failed: $FAILED"
-    exit 1
-  fi
-  sleep 5
-done
+# wait_for <site>: until it serves / (console-web starts only after portal-web is up, so it comes second).
+wait_for() {
+  echo "Waiting for $1"
+  until curl -ksSf -o /dev/null "$1/"; do
+    if ((SECONDS > deadline)); then
+      fail "stack reachable at $1 within ${WAIT_SECONDS}s"
+      $COMPOSE ps || true
+      echo "Passed: $PASSED  Failed: $FAILED"
+      exit 1
+    fi
+    sleep 5
+  done
+}
+wait_for "$SITE"
+wait_for "$CONSOLE_SITE"
 
 CADDY="$(container caddy)"
 API="$(container portal-api)"
+CORE="$(container core-api)"
 WEB="$(container portal-web)"
+CONSOLE_WEB="$(container console-web)"
 MIGRATE="$(container migrate)"
+MIGRATE_PORTAL="$(container migrate-portal)"
+MIGRATE_CONSOLE="$(container migrate-console)"
+CONSOLE_API="$(container console-api)"
+GATEWAY_API="$(container gateway-api)"
 POSTGIS="$(container postgis)"
 
 # Verify TLS against Caddy's own local root, not with -k.
@@ -114,8 +127,50 @@ echo "API proxy"
 check "GET /api/auth/me without a session is 401 from portal-api" \
   test "$("${CURL[@]}" -o "$TMP/me.json" -w '%{http_code} %{content_type}' "$SITE/api/auth/me")" \
   = "401 application/json; charset=utf-8"
-check "portal-api is live inside the network" "$ENGINE" exec "$API" node -e \
-  "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+check "portal-api is ready (its database only) inside the network" "$ENGINE" exec "$API" node -e \
+  "fetch('http://localhost:3000/healthz/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+check "GET /api/v1/portal/… without a session is 401 from portal-api" \
+  test "$(status "$SITE/api/v1/portal/anything")" = 401
+check "GET /api/v1/console/… is 404 on the portal host (AE2)" test "$(status "$SITE/api/v1/console/anything")" = 404
+check "core-api is ready (its database) and reachable from portal-api" "$ENGINE" exec "$API" node -e \
+  "fetch('http://core-api:3000/healthz/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+check "core-api answers 401 to a request without a token" "$ENGINE" exec "$CORE" node -e \
+  "fetch('http://localhost:3000/api/v1/shared/me').then((r) => process.exit(r.status === 401 ? 0 : 1), () => process.exit(1))"
+
+echo "Console host"
+# console-api needs the console Keycloak client (apps/console-api/.env), which a developer may not have; the rest of the
+# stack must work without it.
+check "the console host is routed by Caddy (/telemetry.json from the edge)" \
+  test "$("${CURL[@]}" "$CONSOLE_SITE/telemetry.json")" = '{"enabled":false}'
+"${CURL[@]}" -o "$TMP/console-index.html" "$CONSOLE_SITE/" || true
+check "GET / on the console host serves console-web's SPA shell" grep -q '<title>SDG Console</title>' "$TMP/console-index.html"
+check "GET /service-clients on the console host falls through to console-web" \
+  test "$(status "$CONSOLE_SITE/service-clients")" = 200
+if [ -n "$CONSOLE_API" ] && [ "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$CONSOLE_API")" = healthy ]; then
+  check "GET /api/auth/me without a session is 401 from console-api" test "$(status "$CONSOLE_SITE/api/auth/me")" = 401
+  check "GET /api/v1/portal/… is 404 on the console host (R4)" test "$(status "$CONSOLE_SITE/api/v1/portal/anything")" = 404
+  check "console-api publishes no host port" test -z "$("$ENGINE" port "$CONSOLE_API" 2>/dev/null)"
+else
+  echo "  - console-api is not healthy (no apps/console-api/.env?): skipping its API checks"
+fi
+
+echo "Gateway host"
+# gateway-api needs no .env, but starts after the console build; wait for it rather than for a web app.
+until [ "$(status "$GATEWAY_SITE/api/v1/gateway/me")" = 401 ] || ((SECONDS > deadline)); do sleep 5; done
+check "GET / on the gateway host is 404 (gateway-api serves /api only)" test "$(status "$GATEWAY_SITE/")" = 404
+check "GET / on the gateway host answers like gateway-api's own 404" \
+  test "$("${CURL[@]}" "$GATEWAY_SITE/")" = '{"message":"Cannot GET /","error":"Not Found","statusCode":404}'
+check "GET /metrics on the gateway host stays at the edge (gateway-api's metrics are not public)" \
+  test "$("${CURL[@]}" "$GATEWAY_SITE/metrics")" = '{"message":"Cannot GET /metrics","error":"Not Found","statusCode":404}'
+check "GET /api/v1/gateway/me without a token is 401 from gateway-api" \
+  test "$(status "$GATEWAY_SITE/api/v1/gateway/me")" = 401
+check "GET /api/v1/gateway/me with an invalid token is core-api's 401 (gateway-api reaches core-api)" \
+  test "$(status -H 'Authorization: Bearer smoke' "$GATEWAY_SITE/api/v1/gateway/me")" = 401
+check "POST /api/v1/gateway/me is 405 from gateway-api (R19)" \
+  test "$(status -X POST -H 'Authorization: Bearer smoke' "$GATEWAY_SITE/api/v1/gateway/me")" = 405
+check "GET /api/v1/portal/… is 404 on the gateway host (R4)" \
+  test "$(status -H 'Authorization: Bearer smoke' "$GATEWAY_SITE/api/v1/portal/anything")" = 404
+check "gateway-api publishes no host port" test -z "$("$ENGINE" port "$GATEWAY_API" 2>/dev/null)"
 
 echo "Telemetry (off without compose.observability.yaml)"
 check "GET /telemetry.json reports telemetry off" test "$("${CURL[@]}" "$SITE/telemetry.json")" = '{"enabled":false}'
@@ -144,16 +199,43 @@ check "Scanner User-Agent is blocked (rule 1003)" test "$(status -A 'sqlmap/1.8'
 echo "Isolation"
 check "portal-api publishes no host port" test -z "$("$ENGINE" port "$API" 2>/dev/null)"
 check "portal-web publishes no host port" test -z "$("$ENGINE" port "$WEB" 2>/dev/null)"
+check "console-web publishes no host port" test -z "$("$ENGINE" port "$CONSOLE_WEB" 2>/dev/null)"
 
 echo "Migrations"
-# migrate touches /tmp/ready only after drizzle-kit succeeds; portal-api waits for that (service_healthy).
+# Each init service touches /tmp/ready only after its migrations succeed; its app waits for that (service_healthy).
+ready_before() { test "$("$ENGINE" exec "$1" stat -c %Y /tmp/ready)" -le "$("$ENGINE" inspect -f '{{.State.StartedAt.Unix}}' "$2")"; }
 check "migrate completed (healthy)" test "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$MIGRATE")" = healthy
-check "migrations completed before portal-api started" test \
-  "$("$ENGINE" exec "$MIGRATE" stat -c %Y /tmp/ready)" -le "$("$ENGINE" inspect -f '{{.State.StartedAt.Unix}}' "$API")"
-expected="$(grep -c '"tag"' packages/portal-database/migrations/meta/_journal.json)"
-applied="$("$ENGINE" exec "$POSTGIS" sh -c \
-  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select count(*) from drizzle.__drizzle_migrations"' 2>/dev/null || echo 0)"
-check "all $expected journal migrations applied (found $applied)" test "$applied" = "$expected"
+check "core migrations completed before core-api started" ready_before "$MIGRATE" "$CORE"
+check "migrate-portal completed (healthy)" test "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$MIGRATE_PORTAL")" = healthy
+check "sessions migrations completed before portal-api started" ready_before "$MIGRATE_PORTAL" "$API"
+check "migrate-console completed (healthy)" test "$("$ENGINE" inspect -f '{{.State.Health.Status}}' "$MIGRATE_CONSOLE")" = healthy
+# Runs SQL as login $1 over the container's local socket (trusted by the image's pg_hba).
+psql_as() { "$ENGINE" exec "$POSTGIS" sh -c "psql -v ON_ERROR_STOP=1 -U $1 -d \"\$POSTGRES_DB\" -tAc \"$2\""; }
+expected="$(grep -c '"tag"' packages/database/migrations/meta/_journal.json)"
+applied="$(psql_as core 'select count(*) from core.__drizzle_migrations' 2>/dev/null || echo 0)"
+check "all $expected core journal migrations applied (found $applied)" test "$applied" = "$expected"
+expected="$(grep -c '"tag"' packages/bff-core/migrations/meta/_journal.json)"
+applied="$(psql_as portal 'select count(*) from portal.__drizzle_migrations' 2>/dev/null || echo 0)"
+check "all $expected sessions journal migrations applied in portal (found $applied)" test "$applied" = "$expected"
+check "the portal login scheduled its session prune job" test "$(psql_as portal \
+  "select count(*) from cron.job where jobname = 'portal-prune-expired-sessions'")" = 1
+applied="$(psql_as console 'select count(*) from console.__drizzle_migrations' 2>/dev/null || echo 0)"
+check "all $expected sessions journal migrations applied in console (found $applied)" test "$applied" = "$expected"
+check "the console login scheduled its session prune job" test "$(psql_as console \
+  "select count(*) from cron.job where jobname = 'console-prune-expired-sessions'")" = 1
+
+echo "Database logins"
+check "core reads its own schema" psql_as core 'select count(*) from core.principals'
+check "portal reads its own sessions" psql_as portal 'select count(*) from portal.sessions'
+check "console reads its own sessions" psql_as console 'select count(*) from console.sessions'
+denied() { ! psql_as "$@"; }
+check "portal cannot read the core schema" denied portal 'select count(*) from core.principals'
+check "core cannot read portal's sessions" denied core 'select count(*) from portal.sessions'
+check "console cannot read the core schema" denied console 'select count(*) from core.identities'
+check "console cannot read portal's sessions" denied console 'select count(*) from portal.sessions'
+check "portal cannot read console's sessions" denied portal 'select count(*) from console.sessions'
+check "no login is a superuser" test "$(psql_as core \
+  "select count(*) from pg_roles where rolname in ('core', 'portal', 'console') and not rolsuper")" = 3
 
 echo
 echo "Passed: $PASSED  Failed: $FAILED"

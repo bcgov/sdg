@@ -1,0 +1,24 @@
+.topBar {
+  display: flex;
+  align-items: center;
+  /* The space either side of the vertical divider. */
+  gap: var(--layout-margin-xsmall);
+  /* One sidebar row tall (its 2.5rem item square), which fits the 40px toggle button with no padding above or below. */
+  min-height: 2.5rem;
+  padding: 0 var(--layout-padding-small);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+/* A short divider, as in dashboard-01; bcgov's vertical Separator stretches to its container's height. */
+.separator {
+  display: flex;
+  height: 1rem;
+}
+
+/* A top-bar-sized h1. bcgov's h1 rule (h1.bcds-react-aria-Heading) loads as an adopted stylesheet, which comes later
+   in the cascade, so this needs the higher specificity. */
+header.topBar > h1 {
+  margin: 0;
+  font: var(--typography-bold-body);
+  color: var(--typography-color-primary);
+}

@@ -1,0 +1,49 @@
+/* dashboard-01: the sidebar beside the main area, which fills the rest of the width. */
+.shell {
+  display: flex;
+  min-height: 100dvh;
+  background-color: var(--surface-color-background-white);
+}
+
+/* Off-screen until focused, then above the page at the top left. */
+.skipLink {
+  position: absolute;
+  inset-block-start: var(--layout-margin-small);
+  inset-inline-start: var(--layout-margin-small);
+  z-index: 2;
+  padding: var(--layout-padding-small) var(--layout-padding-medium);
+  background-color: var(--surface-color-background-white);
+  color: var(--typography-color-link);
+  transform: translateY(-200%);
+}
+
+.skipLink:focus {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  transform: none;
+}
+
+.inset {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.main {
+  flex: 1 0 auto;
+  padding: var(--layout-padding-large);
+}
+
+/* Focus lands here from the skip link; the container itself needs no ring. */
+.main:focus {
+  outline: none;
+}
+
+/* The padding owns the edge spacing; drop the outer margins of headings/paragraphs at the edges. */
+.main > :first-child {
+  margin-block-start: 0;
+}
+
+.main > :last-child {
+  margin-block-end: 0;
+}

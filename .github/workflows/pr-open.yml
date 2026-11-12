@@ -28,11 +28,27 @@ jobs:
           - package: portal-api
             build_context: .
             build_file: apps/portal-api/Dockerfile
-            triggers: ('apps/portal-api/' 'packages/auth/' 'packages/portal-database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
-          - package: portal-database
+            triggers: ('apps/portal-api/' 'packages/auth/' 'packages/bff-core/' 'packages/database/' 'packages/server-core/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: console-web
             build_context: .
-            build_file: packages/portal-database/Dockerfile
-            triggers: ('packages/portal-database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+            build_file: apps/console-web/Dockerfile
+            triggers: ('apps/console-web/' 'packages/design-system/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: console-api
+            build_context: .
+            build_file: apps/console-api/Dockerfile
+            triggers: ('apps/console-api/' 'packages/auth/' 'packages/bff-core/' 'packages/database/' 'packages/server-core/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: gateway-api
+            build_context: .
+            build_file: apps/gateway-api/Dockerfile
+            triggers: ('apps/gateway-api/' 'packages/server-core/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: core-api
+            build_context: .
+            build_file: apps/core-api/Dockerfile
+            triggers: ('apps/core-api/' 'packages/auth/' 'packages/database/' 'packages/server-core/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          - package: database
+            build_context: .
+            build_file: packages/database/Dockerfile
+            triggers: ('packages/database/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
           # The edge image builds from its own directory, not the repo root
           - package: edge
             build_context: apps/portal-web/caddy
@@ -75,6 +91,8 @@ jobs:
     uses: ./.github/workflows/reusable-tests.yml
     with:
       url: ${{ needs.deploys.outputs.url }}
+      console_url: ${{ needs.deploys.outputs.console_url }}
+      gateway_url: ${{ needs.deploys.outputs.gateway_url }}
 
   comment:
     name: Deployment Links
@@ -91,6 +109,8 @@ jobs:
           message: |
             ### 🚀 Deployments Available
             - [Portal](${{ needs.deploys.outputs.url }})
+            - [Console](${{ needs.deploys.outputs.console_url }})
+            - [Gateway](${{ needs.deploys.outputs.gateway_url }}) (service accounts, `/api` only)
 
   # ==========================================================================
   # WARNING: This job acts as the required merge gate for this workflow.

@@ -1,0 +1,57 @@
+suite: gateway-api networkpolicy
+templates:
+  - templates/networkpolicy.yaml
+release:
+  name: sdg
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-1
+tests:
+  - it: admits only the release's edge on 3000
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: gateway-api
+            app.kubernetes.io/instance: sdg
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: edge
+                      app.kubernetes.io/instance: sdg
+              ports:
+                - port: 3000
+                  protocol: TCP
+
+  - it: omits the NetworkPolicy when disabled
+    set:
+      networkPolicy.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: admits the observability stack's Alloy on 3000 when a scraper namespace is set
+    set:
+      global.observability.scraperNamespace: abc123-tools
+    asserts:
+      - lengthEqual:
+          path: spec.ingress
+          count: 2
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: abc123-tools
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: alloy
+            ports:
+              - port: 3000
+                protocol: TCP

@@ -7,11 +7,20 @@ set:
   global.image.registry: ghcr.io/acme/sdg
   global.image.tag: pr-12
   global.host: sdg-12.apps.example.com
+  global.consoleHost: sdg-12-console.apps.example.com
   portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   portal-api.keycloak.clientId: portal
   portal-api.vault.role: abc123-nonprod
   portal-api.vault.secretPath: abc123-nonprod/portal-api
   portal-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  core-api.keycloak.portalClientId: portal
+  core-api.keycloak.consoleClientId: sdg-console
+  console-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  console-api.keycloak.clientId: sdg-console
+  console-api.vault.role: abc123-nonprod
+  console-api.vault.secretPath: abc123-nonprod/console-api
+  console-api.vault.serviceAccountName: abc123-vault
 tests:
   - it: runs Postgres without pgBackRest on a 256Mi volume
     template: charts/postgres/templates/postgrescluster.yaml
@@ -62,6 +71,45 @@ tests:
           value:
             type: Recreate
 
+  - it: runs core-api at its PR-level default requests and recreates it on rollout
+    template: charts/core-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { memory: 384Mi }
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: runs console-api at its PR-level default requests and recreates it on rollout
+    template: charts/console-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { memory: 384Mi }
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: runs gateway-api at its PR-level default requests and recreates it on rollout
+    template: charts/gateway-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { memory: 384Mi }
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
   - it: lowers edge requests, keeps its limit and recreates on rollout
     template: charts/edge/templates/deployment.yaml
     asserts:
@@ -78,6 +126,19 @@ tests:
   - it: recreates portal-web on rollout
     template: charts/portal-web/templates/deployment.yaml
     asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: runs console-web at its PR-level default requests and recreates it on rollout
+    template: charts/console-web/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 64Mi }
       - equal:
           path: spec.strategy
           value:

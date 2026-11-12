@@ -1,7 +1,11 @@
 # Local development stack for the portal (`podman compose up -d` or `docker compose up -d`).
-# Caddy fronts everything at https://sdg.localhost; portal-api and portal-web publish no host ports.
-# Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets
-# come from apps/portal-api/.env (gitignored). See DEVELOPER.md "Local Stack" for the one-time TLS trust step.
+# Caddy fronts everything at https://sdg.localhost (and https://console.sdg.localhost, https://gateway.sdg.localhost);
+# portal-api, console-api, gateway-api, core-api, portal-web and console-web publish no host ports.
+# Credentials below are local-dev defaults only; real environments use secrets. Keycloak and session secrets come
+# from apps/portal-api/.env and apps/console-api/.env, and core-api's Keycloak issuer and client ids from
+# apps/core-api/.env (all gitignored). apps/console-api/.env is optional: without the console client, console-api doesn't
+# start and only the console host fails (502); the portal works. See DEVELOPER.md "Local Stack" for the one-time TLS
+# trust step.
 # Postgres's host port defaults to 5432; override with POSTGRES_PORT if it is taken.
 # Telemetry is off here; `-f compose.observability.yaml` adds the Grafana LGTM stack and turns it on (DEVELOPER.md).
 name: portal
@@ -19,11 +23,17 @@ x-workspace: &workspace
     - pnpm-store:/pnpm/store
     - nm-root:/app/node_modules
     - nm-portal-api:/app/apps/portal-api/node_modules
+    - nm-console-api:/app/apps/console-api/node_modules
+    - nm-gateway-api:/app/apps/gateway-api/node_modules
+    - nm-core-api:/app/apps/core-api/node_modules
     - nm-portal-web:/app/apps/portal-web/node_modules
+    - nm-console-web:/app/apps/console-web/node_modules
     - nm-auth:/app/packages/auth/node_modules
+    - nm-bff-core:/app/packages/bff-core/node_modules
     - nm-design-system:/app/packages/design-system/node_modules
-    - nm-portal-database:/app/packages/portal-database/node_modules
+    - nm-database:/app/packages/database/node_modules
     - nm-sdg-header:/app/packages/sdg-header/node_modules
+    - nm-server-core:/app/packages/server-core/node_modules
     - nm-playwright-config:/app/tooling/playwright-config/node_modules
     - nm-typescript-config:/app/tooling/typescript-config/node_modules
     - nm-vite-config:/app/tooling/vite-config/node_modules
@@ -50,12 +60,16 @@ x-init-healthcheck: &init-healthcheck
   retries: 3
   start_period: 600s
 
-x-database-url: &database-url postgres://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgis:5432/${POSTGRES_DB:-portal}
+# One login per service, each reaching only its own schema (packages/database/dev-postgres/init-roles.sql, which sets
+# these local-dev passwords). POSTGRES_USER is the superuser that runs that init script; no service connects as it.
+x-database-url-core: &database-url-core postgres://core:core@postgis:5432/${POSTGRES_DB:-portal}
+x-database-url-portal: &database-url-portal postgres://portal:portal@postgis:5432/${POSTGRES_DB:-portal}
+x-database-url-console: &database-url-console postgres://console:console@postgis:5432/${POSTGRES_DB:-portal}
 
 services:
   postgis:
-    # PostGIS 17-3.5 plus pg_cron, which runs the scheduled jobs portal-database's migrations create.
-    build: packages/portal-database/dev-postgres
+    # PostGIS 17-3.5 plus pg_cron, and the core, portal and console logins with their schemas (init-roles.sql).
+    build: packages/database/dev-postgres
     # The official PostGIS images are published for amd64 only; Apple Silicon runs them under emulation.
     platform: linux/amd64
     command:
@@ -69,8 +83,8 @@ services:
         'cron.use_background_workers=on',
       ]
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-portal}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-portal}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
@@ -97,16 +111,16 @@ services:
     restart: 'no'
     healthcheck: *init-healthcheck
 
-  # Init container: portal-api starts only after the migrations complete successfully.
+  # Init container: applies the core schema migrations as the core login; core-api starts only after they succeed.
   migrate:
     <<: *workspace
     environment:
       <<: *workspace-env
-      DATABASE_URL: *database-url
+      DATABASE_URL: *database-url-core
     command:
       - sh
       - -c
-      - rm -f /tmp/ready && pnpm --filter @repo/portal-database db:migrate && touch /tmp/ready && exec sleep infinity
+      - rm -f /tmp/ready && pnpm --filter @repo/database db:migrate && touch /tmp/ready && exec sleep infinity
     init: true
     restart: 'no'
     healthcheck: *init-healthcheck
@@ -114,6 +128,27 @@ services:
       deps:
         condition: service_healthy
       postgis:
+        condition: service_healthy
+
+  # Init container: applies portal-api's sessions migrations (bff-core) to the portal schema as the portal login, with
+  # the same dist/migrate.js the image runs as its initContainer. It builds portal-api first, so it waits for core-api,
+  # whose turbo run has built the packages they share; portal-api starts only after it succeeds.
+  migrate-portal:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      DATABASE_URL: *database-url-portal
+    command:
+      - sh
+      - -c
+      - >-
+        rm -f /tmp/ready && pnpm turbo run build --filter=portal-api --ui=stream && pnpm --filter portal-api db:migrate
+        && touch /tmp/ready && exec sleep infinity
+    init: true
+    restart: 'no'
+    healthcheck: *init-healthcheck
+    depends_on:
+      core-api:
         condition: service_healthy
 
   # No host ports: reachable only through Caddy at https://sdg.localhost/api.
@@ -125,15 +160,125 @@ services:
       PORT: '3000'
       APP_URL: https://sdg.localhost
       TRUST_PROXY: 'true'
-      DATABASE_URL: *database-url
-    # turbo builds the workspace packages portal-api imports (auth, portal-database) before `nest start --watch`.
-    # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
+      DATABASE_URL: *database-url-portal
+      CORE_API_URL: http://core-api:3000
+    # turbo builds the workspace packages portal-api imports (server-core, bff-core and theirs) before
+    # `nest start --watch`. Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
     command: ['pnpm', 'turbo', 'run', 'dev', '--filter=portal-api', '--ui=stream', '--env-mode=loose']
+    # Starts after every migrator, so its turbo run never rebuilds the shared packages while another one does.
+    depends_on:
+      migrate-console:
+        condition: service_healthy
+      core-api:
+        condition: service_healthy
+    healthcheck:
+      # Liveness, as for core-api: readiness checks only its own database, never Keycloak or core-api.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # Init container: applies console-api's sessions migrations to the console schema as the console login, like migrate-portal.
+  # It needs no Keycloak settings, so it runs without apps/console-api/.env. It waits for migrate-portal, whose build has
+  # left bff-core built, so the two never build the shared packages at once.
+  migrate-console:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      DATABASE_URL: *database-url-console
+    command:
+      - sh
+      - -c
+      - >-
+        rm -f /tmp/ready && pnpm turbo run build --filter=console-api --ui=stream && pnpm --filter console-api db:migrate
+        && touch /tmp/ready && exec sleep infinity
+    init: true
+    restart: 'no'
+    healthcheck: *init-healthcheck
+    depends_on:
+      migrate-portal:
+        condition: service_healthy
+
+  # No host ports: reachable only through Caddy at https://console.sdg.localhost/api.
+  # Overrides the localhost URLs in apps/console-api/.env (process env wins); the console client's settings and the session
+  # secret stay in that file. Nothing depends on console-api, so without that file the rest of the stack still runs.
+  console-api:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      PORT: '3000'
+      APP_URL: https://console.sdg.localhost
+      TRUST_PROXY: 'true'
+      DATABASE_URL: *database-url-console
+      CORE_API_URL: http://core-api:3000
+    # Loose env mode: strict mode would drop the overrides above and let .env's localhost URLs win.
+    command: ['pnpm', 'turbo', 'run', 'dev', '--filter=console-api', '--ui=stream', '--env-mode=loose']
+    # Last of the APIs (after gateway-api), so its build never overlaps another; nothing waits on console-api.
+    depends_on:
+      migrate-console:
+        condition: service_healthy
+      gateway-api:
+        condition: service_healthy
+    healthcheck:
+      # Liveness, as for portal-api: readiness checks only its own database, never Keycloak or core-api.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # No host ports: reachable only through Caddy at https://gateway.sdg.localhost/api. It needs no .env: it holds no
+  # secrets, and CORE_API_URL is set here. It waits for migrate-console, the last build of the packages the services
+  # share, so no two turbo runs build them at once.
+  gateway-api:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      PORT: '3000'
+      TRUST_PROXY: 'true'
+      CORE_API_URL: http://core-api:3000
+    command: ['pnpm', 'turbo', 'run', 'dev', '--filter=gateway-api', '--ui=stream', '--env-mode=loose']
+    # After portal-api: one turbo run at a time builds the shared workspace packages.
+    depends_on:
+      portal-api:
+        condition: service_healthy
+    healthcheck:
+      # Liveness; readiness checks nothing more (core-api being down is a 503 per request).
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/healthz/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # No host ports and no Caddy route: only portal-api, console-api and gateway-api call it.
+  # Overrides apps/core-api/.env's localhost DATABASE_URL (process env wins); Keycloak settings stay in that file.
+  core-api:
+    <<: *workspace
+    environment:
+      <<: *workspace-env
+      PORT: '3000'
+      DATABASE_URL: *database-url-core
+    # turbo builds the workspace packages core-api imports (auth, database, server-core) before `nest start --watch`.
+    # Loose env mode: strict mode would drop the overrides above and let .env's localhost URL win.
+    command: ['pnpm', 'turbo', 'run', 'dev', '--filter=core-api', '--ui=stream', '--env-mode=loose']
     depends_on:
       migrate:
         condition: service_healthy
     healthcheck:
-      # Liveness, not readiness: readiness runs Keycloak discovery.
+      # Liveness, not readiness: readiness checks its own database, never Keycloak.
       test:
         - CMD
         - node
@@ -165,6 +310,39 @@ services:
     depends_on:
       deps:
         condition: service_healthy
+    # Healthy once Vite serves, i.e. after turbo has built design-system and sdg-header; console-web waits for that.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:5173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+  # console-web's Vite dev server (port 5174), at https://console.sdg.localhost through Caddy, whose /api goes to console-api.
+  # It waits for portal-web, whose turbo run has built the packages they share, so the two never build them at once.
+  console-web:
+    <<: *workspace
+    environment: *workspace-env
+    command:
+      [
+        'pnpm',
+        'turbo',
+        'run',
+        'dev',
+        '--filter=console-web',
+        '--ui=stream',
+        '--env-mode=loose',
+        '--',
+        '--host',
+        '0.0.0.0',
+      ]
+    depends_on:
+      portal-web:
+        condition: service_healthy
 
   caddy:
     build: apps/portal-web/caddy
@@ -173,6 +351,12 @@ services:
       LOG_LEVEL: INFO
       PORTAL_API_URL: http://portal-api:3000
       PORTAL_WEB_URL: http://portal-web:5173
+      # The console host's /api (Caddyfile.dev's console.sdg.localhost). Caddy doesn't wait for console-api: until it
+      # listens, or when it can't start without apps/console-api/.env, that host answers 502.
+      CONSOLE_API_URL: http://console-api:3000
+      CONSOLE_WEB_URL: http://console-web:5174
+      # The gateway host's /api (Caddyfile.dev's gateway.sdg.localhost); 502 until gateway-api listens.
+      GATEWAY_API_URL: http://gateway-api:3000
     ports:
       - '443:8443'
     volumes:
@@ -188,6 +372,8 @@ services:
         condition: service_started
       portal-web:
         condition: service_started
+      console-web:
+        condition: service_started
 
 volumes:
   portal-pgdata:
@@ -196,11 +382,17 @@ volumes:
   pnpm-store:
   nm-root:
   nm-portal-api:
+  nm-console-api:
+  nm-gateway-api:
+  nm-core-api:
   nm-portal-web:
+  nm-console-web:
   nm-auth:
+  nm-bff-core:
   nm-design-system:
-  nm-portal-database:
+  nm-database:
   nm-sdg-header:
+  nm-server-core:
   nm-playwright-config:
   nm-typescript-config:
   nm-vite-config:

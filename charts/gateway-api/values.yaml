@@ -1,0 +1,49 @@
+# gateway-api: the service accounts' entry point (apps/gateway-api on server-core only), which forwards GET
+# /api/v<N>/gateway/… to core-api with the caller's Bearer token. No database, session or secret. Env contract:
+# apps/gateway-api/src/config/env.ts. Reached only through the edge, on the gateway host.
+global:
+  image:
+    # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
+    registry: ''
+    # Image tag, e.g. a PR number (12), a commit SHA or a release version. Required here or in image.tag.
+    tag: ''
+  # Observability: empty = off. See common.observability in charts/common.
+  observability:
+    collectorHost: ''
+    scraperNamespace: ''
+    environment: ''
+
+fullnameOverride: ''
+replicaCount: 1
+# Deployment rollout strategy, e.g. { type: Recreate }. Empty: Kubernetes' default RollingUpdate.
+strategy: {}
+
+image:
+  registry: ''
+  name: gateway-api
+  tag: ''
+  pullPolicy: IfNotPresent
+
+logLevel: info
+
+# core-api's Service (same release), rendered with tpl: /api/v<N>/gateway/… is forwarded there.
+coreApiUrl: 'http://{{ .Release.Name }}-core-api:3000'
+
+# PR-level requests by default, which TEST and PROD inherit.
+resources:
+  requests:
+    cpu: 20m
+    memory: 128Mi
+  limits:
+    memory: 384Mi
+
+networkPolicy:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

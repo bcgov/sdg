@@ -1,10 +1,20 @@
-export type AuthErrorCode = 'invalid_state' | 'callback_failed' | 'discovery_failed' | 'invalid_token';
+export type AuthErrorCode =
+  | 'invalid_state'
+  | 'callback_failed'
+  | 'discovery_failed'
+  | 'invalid_token'
+  | 'verifier_unavailable'
+  | 'refresh_failed'
+  | 'end_session_failed';
 
 const MESSAGES: Record<AuthErrorCode, string> = {
   invalid_state: 'Authorization state is missing or does not match',
   callback_failed: 'Authorization callback failed',
   discovery_failed: 'OpenID Provider discovery failed',
   invalid_token: 'Token is invalid',
+  verifier_unavailable: 'Token verification is unavailable',
+  refresh_failed: 'Token refresh failed',
+  end_session_failed: 'Ending the identity provider session failed',
 };
 
 export interface AuthErrorOptions {

@@ -64,6 +64,7 @@ catalog:
   '@types/supertest': ^7.2.1
   '@vitejs/plugin-react': ^6.1.2
   '@vitest/coverage-v8': ^5.0.5
+  dotenv: ^18.0.9
   drizzle-kit: ^0.31.11
   drizzle-orm: ^0.45.4
   express: ^5.3.0
@@ -85,6 +86,9 @@ catalog:
   pino-pretty: ^13.2.0
   react: ^19.3.1
   react-dom: ^19.3.1
+  # Exactly the version @bcgov/design-system-react-components depends on: the two copies move together, since
+  # apps/console-web/src/csp-hashes.test.ts checks this copy's fixed <style> texts against the edge CSP hashes.
+  react-aria-components: 1.22.1
   reflect-metadata: ^0.2.2
   rxjs: ^7.8.2
   supertest: ^7.3.1
@@ -120,3 +124,5 @@ engineStrict: true
 peerDependencyRules:
   allowedVersions:
     '@opentelemetry/api': '1'
+    # Optional peer, for its CLI plugin only (unused): @repo/server-core builds with TypeScript 7.
+    '@nestjs/swagger>typescript': '7'

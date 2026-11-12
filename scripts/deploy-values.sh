@@ -2,15 +2,18 @@
 # Values the deploy workflow passes to charts/sdg (DEVELOPER.md, Workflows), derived from the environment
 # so reusable-deploy.yml, charts-test.sh and deploy-values.test.sh share one computation.  No cluster access.
 #
-#   values   print a values file: images, host, Keycloak and Vault settings
-#   outputs  print release=, url= and values_file= lines (for $GITHUB_OUTPUT)
+#   values   print a values file: images, hosts, Keycloak (portal-api, console-api, core-api) and Vault settings
+#   outputs  print release=, url=, console_url=, gateway_url= and values_file= lines (for $GITHUB_OUTPUT)
 #
 # Environment (all validated; anything unexpected fails instead of reaching the YAML):
 #   TARGET               PR number, test or prod                 REPOSITORY  owner/name (github.repository)
 #   ENVIRONMENT          '' (PRs), test or prod                  TAG         image tag
 #   OC_NAMESPACE         <plate>-dev|test|prod|tools             OC_SERVER   https://api.<cluster>.<domain>:6443
-#   KEYCLOAK_ISSUER_URL  https:// URL                            KEYCLOAK_CLIENT_ID
-#   VAULT_SECRET_PATH    optional; default <plate>-nonprod/portal-api (<plate>-prod/portal-api for prod)
+#   KEYCLOAK_ISSUER_URL  https:// URL                            KEYCLOAK_CLIENT_ID  the portal client
+#   KEYCLOAK_CONSOLE_CLIENT_ID  the console (IDIR) client: console-api signs in with it and core-api accepts its tokens
+#   VAULT_SECRET_PATH    optional, portal-api's; default <plate>-nonprod/portal-api (<plate>-prod/portal-api for prod).
+#   CONSOLE_VAULT_SECRET_PATH  optional, console-api's; default <plate>-nonprod/console-api (<plate>-prod/console-api for
+#                        prod). PRs and test share the nonprod role, so test sets both when its secrets differ.
 #   OBSERVABILITY        optional; "true" reports to the observability stack (doc 20): <plate>-tools for PRs and test,
 #                        <plate>-prod for prod. Unset or "false" leaves telemetry off.
 # `outputs` needs only TARGET, ENVIRONMENT, REPOSITORY and OC_SERVER.
@@ -37,7 +40,11 @@ release="${repository#*/}-${TARGET}"
 server="${OC_SERVER#https://api.}"
 server="${server%:6443}"
 cluster="${server%%.*}"
+# Portal, console and gateway hosts. A release name has at most 53 characters, so "<release>-gateway" (61) stays within
+# a DNS label's 63.
 host="${release}.apps.${server}"
+console_host="${release}-console.apps.${server}"
+gateway_host="${release}-gateway.apps.${server}"
 
 case "${1:-}" in
   values)
@@ -45,7 +52,9 @@ case "${1:-}" in
     check OC_NAMESPACE '^[a-z0-9]+-(dev|test|prod|tools)$'
     check KEYCLOAK_ISSUER_URL '^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$'
     check KEYCLOAK_CLIENT_ID '^[A-Za-z0-9._-]+$'
+    check KEYCLOAK_CONSOLE_CLIENT_ID '^[A-Za-z0-9._-]+$'
     check VAULT_SECRET_PATH '^([A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+)?$'
+    check CONSOLE_VAULT_SECRET_PATH '^([A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+)?$'
     check OBSERVABILITY '^(true|false)?$'
     plate="${OC_NAMESPACE%-*}"
     vault_role="${plate}-$([ "$ENVIRONMENT" = prod ] && echo prod || echo nonprod)"
@@ -65,7 +74,9 @@ global:
   image:
     registry: "ghcr.io/${repository}"
     tag: "${TAG}"
-  host: "${host}"${observability}
+  host: "${host}"
+  consoleHost: "${console_host}"
+  gatewayHost: "${gateway_host}"${observability}
 portal-api:
   keycloak:
     issuerUrl: "${KEYCLOAK_ISSUER_URL}"
@@ -75,11 +86,27 @@ portal-api:
     role: "${vault_role}"
     secretPath: "${VAULT_SECRET_PATH:-${vault_role}/portal-api}"
     serviceAccountName: "${plate}-vault"
+console-api:
+  keycloak:
+    issuerUrl: "${KEYCLOAK_ISSUER_URL}"
+    clientId: "${KEYCLOAK_CONSOLE_CLIENT_ID}"
+  vault:
+    authPath: "auth/k8s-${cluster}"
+    role: "${vault_role}"
+    secretPath: "${CONSOLE_VAULT_SECRET_PATH:-${vault_role}/console-api}"
+    serviceAccountName: "${plate}-vault"
+core-api:
+  keycloak:
+    issuerUrl: "${KEYCLOAK_ISSUER_URL}"
+    portalClientId: "${KEYCLOAK_CLIENT_ID}"
+    consoleClientId: "${KEYCLOAK_CONSOLE_CLIENT_ID}"
 EOF
     ;;
   outputs)
     echo "release=${release}"
     echo "url=https://${host}"
+    echo "console_url=https://${console_host}"
+    echo "gateway_url=https://${gateway_host}"
     echo "values_file=charts/sdg/values-${ENVIRONMENT:-pr}.yaml"
     ;;
   *)

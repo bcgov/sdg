@@ -21,13 +21,17 @@ tests:
       - notExists:
           path: spec.image
 
-  - it: creates the portal user owning the portal database
+  - it: creates the core, portal and console logins, all on the portal database
     template: templates/postgrescluster.yaml
     asserts:
       - equal:
           path: spec.users
           value:
+            - name: core
+              databases: [portal]
             - name: portal
+              databases: [portal]
+            - name: console
               databases: [portal]
 
   - it: runs one db instance on a 1Gi RWO claim with pod and container security
@@ -82,7 +86,7 @@ tests:
       - notExists:
           path: spec.postGISVersion
 
-  - it: init SQL creates PostGIS and pg_cron and gives the app user the public and cron schemas
+  - it: init SQL creates PostGIS and pg_cron, a schema per login, the BFF cron grants and the run-detail purge
     template: templates/init-sql.yaml
     asserts:
       - isKind:
@@ -95,10 +99,16 @@ tests:
           value: |
             \c portal
             CREATE EXTENSION IF NOT EXISTS postgis;
-            -- pg_cron needs a superuser to install; the app user schedules its own jobs in migrations.
+            -- pg_cron needs a superuser to install; the BFF logins schedule their own jobs in migrations.
             CREATE EXTENSION IF NOT EXISTS pg_cron;
+            REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+            CREATE SCHEMA IF NOT EXISTS core AUTHORIZATION core;
+            CREATE SCHEMA IF NOT EXISTS portal AUTHORIZATION portal;
+            CREATE SCHEMA IF NOT EXISTS console AUTHORIZATION console;
             GRANT USAGE ON SCHEMA cron TO portal;
-            ALTER SCHEMA public OWNER TO portal;
+            GRANT USAGE ON SCHEMA cron TO console;
+            -- pg_cron logs every run in cron.job_run_details; keep a week of every login's runs.
+            SELECT cron.schedule('purge-cron-run-details', '0 3 * * *', $$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '7 days'$$);
 
   - it: init SQL skips PostGIS without postGISVersion
     template: templates/init-sql.yaml
@@ -109,12 +119,18 @@ tests:
           path: data["init.sql"]
           value: |
             \c portal
-            -- pg_cron needs a superuser to install; the app user schedules its own jobs in migrations.
+            -- pg_cron needs a superuser to install; the BFF logins schedule their own jobs in migrations.
             CREATE EXTENSION IF NOT EXISTS pg_cron;
+            REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+            CREATE SCHEMA IF NOT EXISTS core AUTHORIZATION core;
+            CREATE SCHEMA IF NOT EXISTS portal AUTHORIZATION portal;
+            CREATE SCHEMA IF NOT EXISTS console AUTHORIZATION console;
             GRANT USAGE ON SCHEMA cron TO portal;
-            ALTER SCHEMA public OWNER TO portal;
+            GRANT USAGE ON SCHEMA cron TO console;
+            -- pg_cron logs every run in cron.job_run_details; keep a week of every login's runs.
+            SELECT cron.schedule('purge-cron-run-details', '0 3 * * *', $$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '7 days'$$);
 
-  - it: lets portal-api reach 5432 and the cluster's own pods reach each other
+  - it: lets only core-api, portal-api and console-api reach 5432 and the cluster's own pods reach each other
     template: templates/networkpolicy.yaml
     asserts:
       - isKind:
@@ -129,7 +145,15 @@ tests:
             - from:
                 - podSelector:
                     matchLabels:
+                      app.kubernetes.io/name: core-api
+                      app.kubernetes.io/instance: sdg
+                - podSelector:
+                    matchLabels:
                       app.kubernetes.io/name: portal-api
+                      app.kubernetes.io/instance: sdg
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: console-api
                       app.kubernetes.io/instance: sdg
               ports:
                 - port: 5432

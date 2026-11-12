@@ -49,6 +49,8 @@ jobs:
     uses: ./.github/workflows/reusable-tests.yml
     with:
       url: ${{ needs.deploy-test.outputs.url }}
+      console_url: ${{ needs.deploy-test.outputs.console_url }}
+      gateway_url: ${{ needs.deploy-test.outputs.gateway_url }}
 
   # PROD is release-only: merges deploy TEST, run the tests and stop; publishing a GitHub
   # release deploys PROD (release.yml has its own deploy-prod, monitor-prod and promote).
@@ -87,7 +89,7 @@ jobs:
   #         sysdig_api_token: ${{ secrets.SYSDIG_API_TOKEN }}
   #         oc_namespace: ${{ vars.OC_NAMESPACE }}
   #         app: ${{ github.event.repository.name }}
-  #         components: portal-web,portal-api,edge
+  #         components: portal-web,portal-api,console-web,console-api,gateway-api,core-api,edge
 
   # promote:
   #   name: Promote Images
@@ -97,7 +99,7 @@ jobs:
   #     packages: write
   #   strategy:
   #     matrix:
-  #       package: [portal-web, portal-api, portal-database, edge]
+  #       package: [portal-web, portal-api, console-web, console-api, gateway-api, core-api, database, edge]
   #   timeout-minutes: 1
   #   steps:
   #     - uses: shrink/actions-docker-registry-tag@e6aaef25c595b6e0edd18bf4c7dbfea3abd43299 # v5

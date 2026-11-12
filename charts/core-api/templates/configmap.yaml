@@ -1,0 +1,27 @@
+# Non-secret env for src/config/env.ts. DATABASE_URL comes from the core login's Crunchy Secret (deployment.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.fullname" . }}
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "api") | nindent 4 }}
+data:
+  NODE_ENV: production
+  PORT: '3000'
+  LOG_LEVEL: {{ .Values.logLevel | quote }}
+  # Called directly by the forwarders, never through a proxy.
+  TRUST_PROXY: 'false'
+  KEYCLOAK_ISSUER_URL: {{ .Values.keycloak.issuerUrl | required "keycloak.issuerUrl is required" | quote }}
+  PORTAL_CLIENT_ID: {{ .Values.keycloak.portalClientId | required "keycloak.portalClientId is required" | quote }}
+  {{- with .Values.keycloak.consoleClientId }}
+  CONSOLE_CLIENT_ID: {{ . | quote }}
+  {{- end }}
+  {{- $o := include "common.observability" . | fromYaml }}
+  {{- with $o.collectorHost }}
+  # OpenTelemetry (src/instrumentation.ts): only when a collector is configured.
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s:4318" . | quote }}
+  OTEL_SERVICE_NAME: core-api
+  {{- with $o.environment }}
+  OTEL_RESOURCE_ATTRIBUTES: {{ printf "deployment.environment=%s" . | quote }}
+  {{- end }}
+  {{- end }}

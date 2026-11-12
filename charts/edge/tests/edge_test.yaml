@@ -50,6 +50,99 @@ tests:
             name: PORTAL_WEB_URL
             value: http://web.other:8080
 
+  - it: leaves the console and gateway hosts and upstreams unset by default (Caddy then never selects those hosts)
+    template: templates/deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: CONSOLE_HOST
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: GATEWAY_HOST
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: CONSOLE_API_URL
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: CONSOLE_WEB_URL
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: GATEWAY_API_URL
+
+  # Hosts without their apps yet: the edge routes them and answers 503 (console) or 404 (gateway outside /api).
+  - it: gives Caddy the console and gateway hosts, without upstreams until those apps are set
+    template: templates/deployment.yaml
+    set:
+      global.consoleHost: sdg-console.example.com
+      global.gatewayHost: sdg-gateway.example.com
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONSOLE_HOST
+            value: sdg-console.example.com
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_HOST
+            value: sdg-gateway.example.com
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: CONSOLE_API_URL
+
+  - it: ingress hosts override the global console and gateway hosts
+    template: templates/deployment.yaml
+    set:
+      global.consoleHost: sdg-console.example.com
+      ingress.consoleHost: console.gov.bc.ca
+      ingress.gatewayHost: api.gov.bc.ca
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONSOLE_HOST
+            value: console.gov.bc.ca
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_HOST
+            value: api.gov.bc.ca
+
+  - it: renders the console and gateway upstreams with the release name
+    template: templates/deployment.yaml
+    set:
+      upstreams.consoleApi: 'http://{{ .Release.Name }}-console-api:3000'
+      upstreams.consoleWeb: 'http://{{ .Release.Name }}-console-web:8080'
+      upstreams.gatewayApi: 'http://{{ .Release.Name }}-gateway-api:3000'
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONSOLE_API_URL
+            value: http://sdg-console-api:3000
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONSOLE_WEB_URL
+            value: http://sdg-console-web:8080
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_API_URL
+            value: http://sdg-gateway-api:3000
+
   - it: listens on http 3000 and metrics 3003 and probes the http socket
     template: templates/deployment.yaml
     asserts:
@@ -158,6 +251,82 @@ tests:
             - {}
       - notExists:
           path: spec.ingressClassName
+
+  - it: routes the portal, console and gateway hosts to the edge, one rule each
+    template: templates/ingress.yaml
+    set:
+      global.consoleHost: sdg-console.example.com
+      global.gatewayHost: sdg-gateway.example.com
+    asserts:
+      - lengthEqual:
+          path: spec.rules
+          count: 3
+      - equal:
+          path: spec.rules[0].host
+          value: sdg.example.com
+      - equal:
+          path: spec.rules[1].host
+          value: sdg-console.example.com
+      - equal:
+          path: spec.rules[2].host
+          value: sdg-gateway.example.com
+      - equal:
+          path: spec.rules[2].http.paths
+          value:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: sdg-edge
+                  port:
+                    name: http
+      - equal:
+          path: spec.tls
+          value:
+            - {}
+
+  # deploy-values.sh: hosts are <release>, <release>-console and <release>-gateway; a release name has at most 53
+  # characters, so the longest host label is 61 and every Kubernetes name stays within 63.
+  - it: keeps a 53-character release's host labels and names within 63 characters
+    template: templates/ingress.yaml
+    release:
+      name: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz
+    set:
+      global.host: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz.apps.example.com
+      global.consoleHost: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-console.apps.example.com
+      global.gatewayHost: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-gateway.apps.example.com
+    asserts:
+      - lengthEqual:
+          path: spec.rules
+          count: 3
+      - matchRegex:
+          path: spec.rules[0].host
+          pattern: ^[a-z0-9-]{1,63}\.apps\.example\.com$
+      - matchRegex:
+          path: spec.rules[1].host
+          pattern: ^[a-z0-9-]{1,63}\.apps\.example\.com$
+      - matchRegex:
+          path: spec.rules[2].host
+          pattern: ^[a-z0-9-]{1,63}\.apps\.example\.com$
+      - matchRegex:
+          path: metadata.name
+          pattern: ^.{1,63}$
+      - matchRegex:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          pattern: ^.{1,63}$
+
+  - it: lists every host on a TLS secret
+    template: templates/ingress.yaml
+    set:
+      global.consoleHost: sdg-console.example.com
+      global.gatewayHost: sdg-gateway.example.com
+      ingress.tls.secretName: sdg-tls
+    asserts:
+      - equal:
+          path: spec.tls
+          value:
+            - hosts: [sdg.example.com, sdg-console.example.com, sdg-gateway.example.com]
+              secretName: sdg-tls
 
   - it: ingress host, class, TLS secret and annotations are configurable
     template: templates/ingress.yaml

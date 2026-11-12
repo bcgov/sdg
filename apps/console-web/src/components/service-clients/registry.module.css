@@ -1,0 +1,62 @@
+.section {
+  margin-block: var(--layout-margin-xlarge);
+}
+
+/* Focus lands on the list's section after a removal (script only, never Tab); it needs no ring. */
+.section:focus {
+  outline: none;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--typography-regular-body);
+  color: var(--typography-color-primary);
+}
+
+.table caption {
+  text-align: start;
+  font: var(--typography-regular-small-body);
+  color: var(--typography-color-secondary);
+  padding-block-end: var(--layout-padding-small);
+}
+
+.table th,
+.table td {
+  text-align: start;
+  vertical-align: middle;
+  padding: var(--layout-padding-small);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.table th {
+  font: var(--typography-bold-body);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  max-width: 40rem;
+}
+
+/* A polite live region (implicit role status) that holds the latest confirmed change. */
+.status {
+  display: block;
+}
+
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+}

@@ -1,0 +1,56 @@
+/* The account button at the foot of the sidebar (R11): avatar, name and email, or the avatar alone on the icon rail.
+   The bcgov Button's styles load as adopted stylesheets, later in the cascade, and its size rules (e.g.
+   `.bcds-react-aria-Button.medium`, two classes) set 16px of inline padding, so these overrides need more than one
+   class to win: the attribute selector lifts them above bcgov's own rules. */
+.account > button[type] {
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3rem;
+  /* The same in both states (sidebar.module.css): the 2rem avatar's center sits on the nav icons' axis, so it lines up
+     with them and does not shift when the sidebar collapses. */
+  padding: var(--layout-padding-xsmall) var(--sidebar-image-inset, 0.25rem);
+  color: var(--typography-color-primary);
+  text-align: start;
+}
+
+.account > button[type]:not([data-hovered]) {
+  background-color: transparent;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-small);
+  min-width: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name,
+.email {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Regular weight and a label-sized email keep the identity light next to the nav items (sidebar card and menu). */
+.name {
+  font: var(--typography-regular-small-body);
+}
+
+.email {
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-label);
+}
+
+/* The menu's profile block: a section header, so it is not a menu item. */
+.profile {
+  padding: var(--layout-padding-xsmall);
+  padding-block-start: var(--layout-padding-small);
+  color: var(--typography-color-primary);
+}

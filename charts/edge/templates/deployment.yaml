@@ -34,6 +34,19 @@ spec:
               value: {{ include "common.tplvalue" (dict "value" .Values.upstreams.portalApi "context" .) | quote }}
             - name: PORTAL_WEB_URL
               value: {{ include "common.tplvalue" (dict "value" .Values.upstreams.portalWeb "context" .) | quote }}
+            {{- /* Unset, not empty: Caddy's host matcher rejects an empty host, and a missing upstream answers 503. */}}
+            {{- range $name, $key := dict "CONSOLE_HOST" "consoleHost" "GATEWAY_HOST" "gatewayHost" }}
+            {{- with include "edge.host" (list $ $key) }}
+            - name: {{ $name }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- range $name, $value := dict "CONSOLE_API_URL" .Values.upstreams.consoleApi "CONSOLE_WEB_URL" .Values.upstreams.consoleWeb "GATEWAY_API_URL" .Values.upstreams.gatewayApi }}
+            {{- with $value }}
+            - name: {{ $name }}
+              value: {{ include "common.tplvalue" (dict "value" . "context" $) | quote }}
+            {{- end }}
+            {{- end }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel | quote }}
             {{- $o := include "common.observability" . | fromYaml }}

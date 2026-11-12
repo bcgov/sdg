@@ -1,0 +1,10 @@
+apiVersion: v2
+name: core-api
+description: 'core-api: the NestJS service owning every business rule, with the database migrator as an initContainer.'
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

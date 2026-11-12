@@ -1,5 +1,5 @@
 # postgres: a Crunchy PGO v5 PostgresCluster (the operator must be installed in the cluster).
-# PGO writes the app credentials to Secret <fullname>-pguser-<user.name>; portal-api reads its uri key.
+# PGO writes each login's credentials to Secret <fullname>-pguser-<name>; each service reads its own login's uri key.
 fullnameOverride: ''
 
 # Image selection is left to the operator: it picks its PostGIS image for these versions. BC Gov Gold's operator
@@ -8,9 +8,18 @@ postgresVersion: 17
 # Empty: plain PostgreSQL and no CREATE EXTENSION postgis.
 postGISVersion: '3.5'
 
-user:
-  name: portal
-  database: portal
+# The one database every service connects to. pg_cron runs here too (parameters cron.database_name).
+database: portal
+
+# One login per service, each owning the schema of its own name, which Postgres's default search_path
+# ("$user", public) resolves first; no login can use another's schema (init-sql.yaml). cron: true grants USAGE on the
+# cron schema, so the login can schedule its own jobs (the BFFs' session pruning).
+users:
+  - name: core
+  - name: portal
+    cron: true
+  - name: console
+    cron: true
 
 instances:
   name: db
@@ -40,8 +49,8 @@ instances:
 parameters:
   max_wal_size: 256MB
   min_wal_size: 64MB
-  # pg_cron runs portal-database's scheduled jobs (e.g. deleting expired sessions). PGO adds its own libraries to
-  # shared_preload_libraries; changing it needs a restart. cron.database_name must be user.database.
+  # pg_cron runs the scheduled jobs (the BFFs' session pruning, purge-cron-run-details). PGO adds its own libraries to
+  # shared_preload_libraries; changing it needs a restart. cron.database_name must be database.
   shared_preload_libraries: pg_cron
   cron.database_name: portal
   # Jobs run in background workers, not libpq connections to localhost that pg_hba would need to authenticate.
@@ -65,3 +74,5 @@ backups:
 
 networkPolicy:
   enabled: true
+  # app.kubernetes.io/name of the pods (same release) allowed to connect on 5432.
+  clients: [core-api, portal-api, console-api]

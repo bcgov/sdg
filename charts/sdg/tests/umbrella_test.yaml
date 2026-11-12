@@ -5,11 +5,20 @@ set:
   global.image.registry: ghcr.io/acme/sdg
   global.image.tag: pr-12
   global.host: sdg-12.apps.example.com
+  global.consoleHost: sdg-12-console.apps.example.com
   portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
   portal-api.keycloak.clientId: portal
   portal-api.vault.role: abc123-nonprod
   portal-api.vault.secretPath: abc123-nonprod/portal-api
   portal-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  core-api.keycloak.portalClientId: portal
+  core-api.keycloak.consoleClientId: sdg-console
+  console-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  console-api.keycloak.clientId: sdg-console
+  console-api.vault.role: abc123-nonprod
+  console-api.vault.secretPath: abc123-nonprod/console-api
+  console-api.vault.serviceAccountName: abc123-vault
 tests:
   - it: global image settings reach every app image
     template: charts/portal-api/templates/deployment.yaml
@@ -19,9 +28,9 @@ tests:
           value: ghcr.io/acme/sdg/portal-api:pr-12
       - equal:
           path: spec.template.spec.initContainers[0].image
-          value: ghcr.io/acme/sdg/portal-database:pr-12
+          value: ghcr.io/acme/sdg/portal-api:pr-12
 
-  - it: portal-api secret references match the postgres chart names
+  - it: portal-api and its sessions migration connect as the portal login the postgres chart creates
     template: charts/portal-api/templates/deployment.yaml
     asserts:
       - contains:
@@ -32,6 +41,85 @@ tests:
               secretKeyRef:
                 name: sdg-12-postgres-pguser-portal
                 key: uri
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-portal
+                key: uri
+
+  - it: portal-api calls the release's core-api Service
+    template: charts/portal-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.CORE_API_URL
+          value: http://sdg-12-core-api:3000
+
+  - it: global image settings reach core-api and its migrator
+    template: charts/core-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/core-api:pr-12
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ghcr.io/acme/sdg/database:pr-12
+
+  - it: core-api and its migrator connect as the core login the postgres chart creates
+    template: charts/core-api/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-core
+                key: uri
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-core
+                key: uri
+
+  - it: the postgres chart creates the core login and admits core-api
+    template: charts/postgres/templates/postgrescluster.yaml
+    asserts:
+      - contains:
+          path: spec.users
+          content:
+            name: core
+            databases: [portal]
+
+  - it: core-api admits the release's forwarders, not the edge
+    template: charts/core-api/templates/networkpolicy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: portal-api
+                app.kubernetes.io/instance: sdg-12
+      - notContains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: edge
+                app.kubernetes.io/instance: sdg-12
+
+  - it: core-api's Service carries the name the forwarders call
+    template: charts/core-api/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-core-api
 
   - it: the PGO cluster name yields the Secret portal-api reads
     template: charts/postgres/templates/postgrescluster.yaml
@@ -39,9 +127,11 @@ tests:
       - equal:
           path: metadata.name
           value: sdg-12-postgres
-      - equal:
-          path: spec.users[0].name
-          value: portal
+      - contains:
+          path: spec.users
+          content:
+            name: portal
+            databases: [portal]
 
   - it: edge upstreams match the portal-api and portal-web Service names
     template: charts/edge/templates/deployment.yaml
@@ -78,9 +168,185 @@ tests:
           path: spec.rules[0].host
           value: sdg-12.apps.example.com
 
+  - it: global console and gateway hosts reach the edge's Ingress rules and Host routing
+    template: charts/edge/templates/ingress.yaml
+    set:
+      global.consoleHost: sdg-12-console.apps.example.com
+      global.gatewayHost: sdg-12-gateway.apps.example.com
+    asserts:
+      - equal:
+          path: spec.rules[1].host
+          value: sdg-12-console.apps.example.com
+      - equal:
+          path: spec.rules[2].host
+          value: sdg-12-gateway.apps.example.com
+
+  - it: global console and gateway hosts reach the edge's Caddy env
+    template: charts/edge/templates/deployment.yaml
+    set:
+      global.consoleHost: sdg-12-console.apps.example.com
+      global.gatewayHost: sdg-12-gateway.apps.example.com
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONSOLE_HOST
+            value: sdg-12-console.apps.example.com
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_HOST
+            value: sdg-12-gateway.apps.example.com
+
   - it: global.host drives APP_URL
     template: charts/portal-api/templates/configmap.yaml
     asserts:
       - equal:
           path: data.APP_URL
           value: https://sdg-12.apps.example.com
+
+  - it: global image settings reach console-api and its sessions migration
+    template: charts/console-api/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/console-api:pr-12
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ghcr.io/acme/sdg/console-api:pr-12
+
+  - it: console-api and its sessions migration connect as the console login the postgres chart creates
+    template: charts/console-api/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-console
+                key: uri
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: sdg-12-postgres-pguser-console
+                key: uri
+
+  - it: the postgres chart creates the console login and admits console-api
+    template: charts/postgres/templates/postgrescluster.yaml
+    asserts:
+      - contains:
+          path: spec.users
+          content:
+            name: console
+            databases: [portal]
+
+  - it: postgres admits console-api on 5432
+    template: charts/postgres/templates/networkpolicy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: console-api
+                app.kubernetes.io/instance: sdg-12
+
+  - it: core-api admits console-api and accepts the console client's tokens
+    template: charts/core-api/templates/networkpolicy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: console-api
+                app.kubernetes.io/instance: sdg-12
+
+  - it: core-api is given the console client id console-api signs in with
+    template: charts/core-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.CONSOLE_CLIENT_ID
+          value: sdg-console
+
+  - it: console-api calls the release's core-api Service and lives on the console host
+    template: charts/console-api/templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.CORE_API_URL
+          value: http://sdg-12-core-api:3000
+      - equal:
+          path: data.APP_URL
+          value: https://sdg-12-console.apps.example.com
+      - equal:
+          path: data.KEYCLOAK_CLIENT_ID
+          value: sdg-console
+
+  - it: the edge sends the console host's /api to the release's console-api Service
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONSOLE_API_URL
+            value: http://sdg-12-console-api:3000
+
+  - it: console-api's Service carries the name the edge calls
+    template: charts/console-api/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-console-api
+
+  - it: only the edge reaches console-api
+    template: charts/console-api/templates/networkpolicy.yaml
+    asserts:
+      - equal:
+          path: spec.ingress[0].from
+          value:
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: edge
+                  app.kubernetes.io/instance: sdg-12
+
+  - it: global image settings reach console-web
+    template: charts/console-web/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/console-web:pr-12
+
+  - it: the edge sends the rest of the console host to the release's console-web Service
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONSOLE_WEB_URL
+            value: http://sdg-12-console-web:8080
+
+  - it: console-web's Service carries the name the edge calls
+    template: charts/console-web/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-console-web
+
+  - it: only the edge reaches console-web
+    template: charts/console-web/templates/networkpolicy.yaml
+    asserts:
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: edge
+                      app.kubernetes.io/instance: sdg-12
+              ports:
+                - port: 8080
+                  protocol: TCP

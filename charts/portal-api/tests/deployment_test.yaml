@@ -60,7 +60,7 @@ tests:
                 name: shared-pguser-portal
                 key: pgbouncer-uri
 
-  - it: runs the migrator initContainer with the same DATABASE_URL
+  - it: migrates the sessions with its own image as the portal login before starting
     template: templates/deployment.yaml
     asserts:
       - equal:
@@ -68,7 +68,12 @@ tests:
           value: migrate
       - equal:
           path: spec.template.spec.initContainers[0].image
-          value: ghcr.io/acme/sdg/portal-database:pr-1
+          value: ghcr.io/acme/sdg/portal-api:pr-1
+      - equal:
+          path: spec.template.spec.initContainers[0].command
+          value: [node, dist/migrate.js]
+      - notExists:
+          path: spec.template.spec.initContainers[0].envFrom
       - contains:
           path: spec.template.spec.initContainers[0].env
           content:

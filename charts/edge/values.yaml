@@ -1,5 +1,6 @@
 # edge: Caddy + Coraza WAF (apps/portal-web/caddy), the only component exposed outside the namespace.
-# /api* goes to portal-api, everything else to portal-web; TLS terminates at the ingress controller.
+# Routes by Host: the console host to console-api (/api*) and console-web, the gateway host to gateway-api (/api* only, else
+# 404), and every other host to portal-api (/api*) and portal-web. TLS terminates at the ingress controller.
 global:
   image:
     # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
@@ -8,6 +9,10 @@ global:
     tag: ''
   # Public hostname; the Ingress host unless ingress.host is set.
   host: ''
+  # Console and gateway hostnames, unless ingress.consoleHost / ingress.gatewayHost are set. Empty: no Ingress rule, and
+  # the edge treats that host like any other (portal).
+  consoleHost: ''
+  gatewayHost: ''
   # Observability (doc 20): empty = off. See common.observability in charts/common.
   observability:
     collectorHost: ''
@@ -32,11 +37,19 @@ logLevel: INFO
 upstreams:
   portalApi: 'http://{{ .Release.Name }}-portal-api:3000'
   portalWeb: 'http://{{ .Release.Name }}-portal-web:8080'
+  # Empty: the app isn't deployed, and the edge answers 503 where it would proxy to it (the console host, and /api on
+  # the gateway host).
+  consoleApi: ''
+  consoleWeb: ''
+  gatewayApi: ''
 
 ingress:
   enabled: true
   # Empty: global.host. One of them is required.
   host: ''
+  # Empty: global.consoleHost / global.gatewayHost (optional).
+  consoleHost: ''
+  gatewayHost: ''
   # Empty: no ingressClassName (OpenShift's ingress-to-route controller handles class-less Ingresses).
   className: ''
   # Empty: route.openshift.io/termination: edge, so OpenShift creates an edge-terminated Route on the router's

@@ -7,7 +7,7 @@
 #     Observability workflow (ADR 0001); KEYCLOAK_ISSUER_URL and GRAFANA_OIDC_CLIENT_ID are checked
 # OC_TOKEN is piped from the `github-actions-token` Secret made by setup-openshift.sh
 # straight into `gh secret set`; secret values are never printed or saved.
-# KEYCLOAK_ISSUER_URL and KEYCLOAK_CLIENT_ID (per scope) are only checked: they are
+# KEYCLOAK_ISSUER_URL, KEYCLOAK_CLIENT_ID and KEYCLOAK_CONSOLE_CLIENT_ID (per scope) are only checked: they are
 # the team's to choose, so a missing one is reported with the command that sets it.
 #
 # Uses your own `gh` (repo admin) and `oc` logins.  Without --apply it checks the
@@ -204,9 +204,9 @@ for scope in "${SCOPES[@]}"; do
     echo "  note: DB_PASSWORD for ${scope} is no longer used (PGO generates the database password); delete it when you like"
   fi
   secret "$scope" OC_TOKEN "$ns"
-  # Keycloak client settings (portal-api: scripts/deploy-values.sh; Grafana: observability.yml); set by the team,
+  # Keycloak client settings (portal-api and console-api: scripts/deploy-values.sh; Grafana: observability.yml); set by the team,
   # never generated. The tools environment also reads repository variables, so either place counts.
-  names=(KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID)
+  names=(KEYCLOAK_ISSUER_URL KEYCLOAK_CLIENT_ID KEYCLOAK_CONSOLE_CLIENT_ID)
   [ "$scope" != tools ] || names=(KEYCLOAK_ISSUER_URL GRAFANA_OIDC_CLIENT_ID)
   for name in "${names[@]}"; do
     if [ -n "$(get_var "$scope" "$name")" ] || { [ "$scope" = tools ] && [ -n "$(get_var repo "$name")" ]; }; then
