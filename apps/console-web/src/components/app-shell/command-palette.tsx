@@ -17,6 +17,7 @@ import {
 } from 'react-aria-components';
 
 import { ALL_NAV } from './nav-items';
+import { SHELL_OVERLAY_PROPS } from './shell-overlay';
 
 import styles from './command-palette.module.css';
 
@@ -47,7 +48,7 @@ export function CommandPalette({ isOpen, onOpenChange }: CommandPaletteProps) {
   return (
     <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange} isDismissable>
       <Modal className={styles.modal}>
-        <Dialog className={styles.dialog} aria-label="Search">
+        <Dialog className={styles.dialog} aria-label="Search" {...SHELL_OVERLAY_PROPS}>
           <Autocomplete filter={contains}>
             {/* oxlint-disable-next-line jsx-a11y/no-autofocus -- a search dialog opens onto its field (R14); the modal returns focus on close. */}
             <SearchField className={styles.field} aria-label="Search" autoFocus>

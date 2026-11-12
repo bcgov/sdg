@@ -61,4 +61,25 @@ test.describe('console-web app shell', () => {
     await expect(panel).toHaveCount(0);
     await expect(page.getByRole('banner').getByRole('heading', { level: 1 })).toHaveText('Service accounts');
   });
+
+  test('opens the palette only once the closing mobile panel has gone (KTD7)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mockRegistry(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+    const panel = page.getByRole('dialog', { name: 'Navigation' });
+    await expect(panel).toBeVisible();
+
+    // Inside the panel's exit animation: it is closing but still in the page.
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('ControlOrMeta+k');
+
+    // At the moment the palette appears the panel must already be gone (no auto-wait): the two never share the page.
+    // Role queries skip aria-hidden content, so finding the dialog also proves the panel did not hide it.
+    const search = page.getByRole('dialog', { name: 'Search' });
+    await search.waitFor();
+    expect(await page.getByRole('dialog', { name: 'Navigation', includeHidden: true }).count()).toBe(0);
+    await expect(search).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search' })).toBeFocused();
+  });
 });

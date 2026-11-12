@@ -3,6 +3,7 @@ import { Modal } from '@repo/design-system/components/modal';
 import { useLocation } from '@tanstack/react-router';
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 
+import { SHELL_OVERLAY_PROPS } from './shell-overlay';
 import { Sidebar } from './sidebar';
 import { ExpandedSidebar, useSidebar } from './sidebar-context';
 
@@ -55,7 +56,7 @@ export function MobilePanel({ onSearch, onClosed, account }: MobilePanelProps) {
   useCloseOnNavigation(close);
   return (
     <Modal className={styles.panel} isOpen={mobileOpen} onOpenChange={setMobileOpen} isDismissable>
-      <Dialog aria-label="Navigation">
+      <Dialog aria-label="Navigation" {...SHELL_OVERLAY_PROPS}>
         <PanelContent onSearch={onSearch} onClosed={onClosed} account={account} />
       </Dialog>
     </Modal>

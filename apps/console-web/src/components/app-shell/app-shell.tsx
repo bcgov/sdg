@@ -5,6 +5,7 @@ import { useCurrentUser } from '../../auth/use-current-user';
 import { AccountMenu } from './account-menu';
 import { CommandPalette } from './command-palette';
 import { MobilePanel } from './mobile-panel';
+import { SHELL_OVERLAY } from './shell-overlay';
 import { Sidebar } from './sidebar';
 import { SidebarProvider, useSidebar } from './sidebar-context';
 import { SIDEBAR_TOGGLE_ID, TopBar } from './top-bar';
@@ -15,6 +16,17 @@ import styles from './app-shell.module.css';
 type Shortcuts = Readonly<Record<string, () => void>>;
 
 /**
+ * A design-system dialog, alert dialog or menu is open (e.g. the registry's Remove dialog, the account menu). Those come
+ * from the react-aria copy bcgov bundles, so the shell's own overlays (marked with SHELL_OVERLAY) must not open over
+ * them: the two copies' focus containment and hide-outside would fight (KTD7).
+ */
+function isPageOverlayOpen(): boolean {
+  return (
+    document.querySelector(`[role="dialog"]:not([${SHELL_OVERLAY}]), [role="alertdialog"], [role="menu"]`) !== null
+  );
+}
+
+/**
  * The shell's one `document` keydown listener (KTD7). It is mounted only under `_app`, so the shortcuts do nothing
  * on the sign-in card. ⌘ and Ctrl both count, so the shortcut works whichever modifier the platform uses.
  */
@@ -22,6 +34,7 @@ function useShortcuts(shortcuts: Shortcuts): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return;
+      if (isPageOverlayOpen()) return;
       const handler = shortcuts[event.key.toLowerCase()];
       if (!handler) return;
       event.preventDefault();
@@ -42,19 +55,27 @@ function usePalette() {
   const { isMobile, mobileOpen, setMobileOpen, toggleSidebar } = useSidebar();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const queued = useRef(false);
+  // The panel stays mounted through its exit animation after mobileOpen turns false; it counts as open until then.
+  const panelMounted = useRef(false);
+  useEffect(() => {
+    if (mobileOpen) panelMounted.current = true;
+  }, [mobileOpen]);
   const openPalette = useCallback(() => {
-    if (!mobileOpen) return setPaletteOpen(true);
+    if (!isMobile || !(mobileOpen || panelMounted.current)) return setPaletteOpen(true);
     queued.current = true;
     setMobileOpen(false);
-  }, [mobileOpen, setMobileOpen]);
+  }, [isMobile, mobileOpen, setMobileOpen]);
   const onPanelClosed = useCallback(() => {
+    panelMounted.current = false;
     if (!queued.current) return;
     queued.current = false;
     document.getElementById(SIDEBAR_TOGGLE_ID)?.focus();
     setPaletteOpen(true);
   }, []);
   const toggleUnlessStacking = useCallback(() => {
-    if (!(isMobile && paletteOpen)) toggleSidebar();
+    // A queued palette is waiting for the panel to go; reopening the panel would strand it.
+    if (queued.current || (isMobile && paletteOpen)) return;
+    toggleSidebar();
   }, [isMobile, paletteOpen, toggleSidebar]);
   const shortcuts = useMemo(() => ({ b: toggleUnlessStacking, k: openPalette }), [toggleUnlessStacking, openPalette]);
   useShortcuts(shortcuts);
