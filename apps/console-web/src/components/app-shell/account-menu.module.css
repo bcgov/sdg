@@ -38,13 +38,14 @@
   text-overflow: ellipsis;
 }
 
+/* Regular weight and a label-sized email keep the identity light next to the nav items (sidebar card and menu). */
 .name {
-  font: var(--typography-bold-small-body);
+  font: var(--typography-regular-small-body);
 }
 
 .email {
   color: var(--typography-color-secondary);
-  font: var(--typography-regular-small-body);
+  font: var(--typography-regular-label);
 }
 
 /* The menu's profile block: a section header, so it is not a menu item. */
