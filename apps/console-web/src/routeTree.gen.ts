@@ -14,8 +14,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotAuthorizedRouteImport } from './routes/not-authorized'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSplatRouteImport } from './routes/_app/$'
-import { Route as AppAccountSettingsRouteImport } from './routes/_app/account-settings'
 import { Route as AppHelpRouteImport } from './routes/_app/help'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppServiceClientsRouteImport } from './routes/_app/service-clients'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 
@@ -43,14 +43,14 @@ const AppSplatRoute = AppSplatRouteImport.update({
   path: '/$',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAccountSettingsRoute = AppAccountSettingsRouteImport.update({
-  id: '/account-settings',
-  path: '/account-settings',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppHelpRoute = AppHelpRouteImport.update({
   id: '/help',
   path: '/help',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
 const AppServiceClientsRoute = AppServiceClientsRouteImport.update({
@@ -69,8 +69,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/not-authorized': typeof NotAuthorizedRoute
   '/$': typeof AppSplatRoute
-  '/account-settings': typeof AppAccountSettingsRoute
   '/help': typeof AppHelpRoute
+  '/profile': typeof AppProfileRoute
   '/service-clients': typeof AppServiceClientsRoute
   '/settings': typeof AppSettingsRoute
 }
@@ -78,8 +78,8 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/not-authorized': typeof NotAuthorizedRoute
   '/$': typeof AppSplatRoute
-  '/account-settings': typeof AppAccountSettingsRoute
   '/help': typeof AppHelpRoute
+  '/profile': typeof AppProfileRoute
   '/service-clients': typeof AppServiceClientsRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
@@ -90,8 +90,8 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/not-authorized': typeof NotAuthorizedRoute
   '/_app/$': typeof AppSplatRoute
-  '/_app/account-settings': typeof AppAccountSettingsRoute
   '/_app/help': typeof AppHelpRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/service-clients': typeof AppServiceClientsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
@@ -103,8 +103,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/not-authorized'
     | '/$'
-    | '/account-settings'
     | '/help'
+    | '/profile'
     | '/service-clients'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -112,8 +112,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/not-authorized'
     | '/$'
-    | '/account-settings'
     | '/help'
+    | '/profile'
     | '/service-clients'
     | '/settings'
     | '/'
@@ -123,8 +123,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/not-authorized'
     | '/_app/$'
-    | '/_app/account-settings'
     | '/_app/help'
+    | '/_app/profile'
     | '/_app/service-clients'
     | '/_app/settings'
     | '/_app/'
@@ -173,18 +173,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSplatRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/account-settings': {
-      id: '/_app/account-settings'
-      path: '/account-settings'
-      fullPath: '/account-settings'
-      preLoaderRoute: typeof AppAccountSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/help': {
       id: '/_app/help'
       path: '/help'
       fullPath: '/help'
       preLoaderRoute: typeof AppHelpRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/service-clients': {
@@ -206,8 +206,8 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppSplatRoute: typeof AppSplatRoute
-  AppAccountSettingsRoute: typeof AppAccountSettingsRoute
   AppHelpRoute: typeof AppHelpRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppServiceClientsRoute: typeof AppServiceClientsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -215,8 +215,8 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppSplatRoute: AppSplatRoute,
-  AppAccountSettingsRoute: AppAccountSettingsRoute,
   AppHelpRoute: AppHelpRoute,
+  AppProfileRoute: AppProfileRoute,
   AppServiceClientsRoute: AppServiceClientsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,

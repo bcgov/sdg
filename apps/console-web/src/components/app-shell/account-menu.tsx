@@ -2,7 +2,7 @@ import { Avatar } from '@repo/design-system/components/avatar';
 import { Button } from '@repo/design-system/components/button';
 import { Menu, MenuItem, MenuSection, MenuSectionHeader, MenuTrigger } from '@repo/design-system/components/menu';
 import { Separator } from '@repo/design-system/components/separator';
-import { faArrowRightFromBracket, faGear, FontAwesomeIcon } from '@repo/design-system/icons';
+import { faArrowRightFromBracket, FontAwesomeIcon, faUser } from '@repo/design-system/icons';
 import { useRouter } from '@tanstack/react-router';
 import { useCallback } from 'react';
 
@@ -16,7 +16,7 @@ import styles from './account-menu.module.css';
 
 type Size = 'small' | 'medium';
 
-const SETTINGS_ICON = <FontAwesomeIcon icon={faGear} />;
+const PROFILE_ICON = <FontAwesomeIcon icon={faUser} />;
 const LOG_OUT_ICON = <FontAwesomeIcon icon={faArrowRightFromBracket} />;
 
 /** Avatar, name and email (when there is one), as in the trigger and the menu's profile block. */
@@ -44,14 +44,14 @@ function AccountButton({ user, label }: Readonly<{ user: CurrentUser; label: str
 }
 
 /**
- * The account button at the foot of the sidebar and its menu (R11): the profile block, Account settings and Log out, as in
+ * The account button at the foot of the sidebar and its menu (R11): the profile block, Profile and Log out, as in
  * `<sdg-header>`'s account menu. Items navigate with `onAction` (KTD8): a bcgov MenuItem `href` would reload the page.
  */
 export function AccountMenu() {
   const { data: user } = useCurrentUser();
   const router = useRouter();
   const signOut = useSignOut();
-  const openAccountSettings = useCallback(() => void router.navigate({ to: '/account-settings' }), [router]);
+  const openProfile = useCallback(() => void router.navigate({ to: '/profile' }), [router]);
   // The `_app` guard has loaded the user before the shell renders; there is nothing to show without one.
   if (!user) return null;
   const label = `Account menu for ${user.name}`;
@@ -66,8 +66,8 @@ export function AccountMenu() {
             </MenuSectionHeader>
           </MenuSection>
           <Separator size="small" />
-          <MenuItem textValue="Account settings" size="small" onAction={openAccountSettings} iconLeft={SETTINGS_ICON}>
-            Account settings
+          <MenuItem textValue="Profile" size="small" onAction={openProfile} iconLeft={PROFILE_ICON}>
+            Profile
           </MenuItem>
           <Separator size="small" />
           <MenuItem textValue="Log out" size="small" onAction={signOut} iconLeft={LOG_OUT_ICON}>
