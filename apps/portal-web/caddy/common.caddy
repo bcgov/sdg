@@ -9,6 +9,18 @@
 }
 
 (waf) {
+	# No response names the server or the proxy chain, the WAF's own denials included (ZAP 40025, Proxy Disclosure):
+	# Caddy sets Server itself and reverse_proxy adds Via. Deferred, so it also strips what an upstream adds; the
+	# Caddyfiles order coraza_waf after header, so this wraps the WAF's 405s and 403s too.
+	header {
+		-Server
+		-Via
+		defer
+	}
+	# The WAF's denials (405, 403) are errors, which Caddy writes outside the handler chain: strip Server there too.
+	handle_errors {
+		header -Server
+	}
 	coraza_waf {
 		directives `
 		Include /etc/caddy/coraza.conf

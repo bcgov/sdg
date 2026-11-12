@@ -113,6 +113,8 @@ check "HMR websocket upgrades through Caddy" bash -c \
 echo "Security headers"
 header() { grep -i "^$1:" "$TMP/headers" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
 check "Server header removed" bash -c "! grep -qi '^server:' '$TMP/headers'"
+# ZAP 40025 (Proxy Disclosure) fingerprints the proxy chain from these headers.
+check "Via header removed (proxied response)" bash -c "! grep -qi '^via:' '$TMP/headers'"
 check "X-Frame-Options SAMEORIGIN" test "$(header X-Frame-Options)" = SAMEORIGIN
 check "X-Content-Type-Options nosniff" test "$(header X-Content-Type-Options)" = nosniff
 check "Strict-Transport-Security set" test "$(header Strict-Transport-Security)" = max-age=31536000
@@ -183,6 +185,8 @@ check "Caddy admin API not reachable from other containers" "$ENGINE" exec "$API
 echo "WAF"
 check "/.env is blocked (rule 1004)" test "$(status "$SITE/.env")" = 403
 check "TRACE is 405 (rule 1009)" test "$(status -X TRACE "$SITE/")" = 405
+check "The WAF's own 405 names no server (ZAP 40025)" \
+  bash -c "! ${CURL[*]} -X OPTIONS -H 'Max-Forwards: 0' -D - -o /dev/null '$SITE/' | grep -qiE '^(server|via):'"
 # Rules using `block` follow Coraza's default action (pass): they log a warning but let the request through.
 MARK="smoke$RANDOM$RANDOM"
 detected() { "$ENGINE" logs --since 2m "$CADDY" 2>&1 | grep "$MARK" | grep -q "Coraza: Warning. $1"; }

@@ -15,7 +15,7 @@ catalog:
   '@fortawesome/react-fontawesome': ^3.5.0
   '@grafana/faro-web-sdk': ^2.13.0
   '@grafana/faro-web-tracing': ^2.13.0
-  '@nestjs/cli': 12.0.11
+  '@nestjs/cli': 12.0.12
   '@nestjs/common': ^12.2.0
   '@nestjs/config': ^12.0.1
   '@nestjs/core': ^12.2.0
@@ -117,6 +117,12 @@ allowBuilds:
   protobufjs: true
 
 engineStrict: true
+
+# drizzle-kit (0.31.11, the latest) still loads its config through the deprecated @esbuild-kit/esm-loader, whose
+# core-utils pins esbuild 0.18 (GHSA-67mh-4wv8-2f99, the esbuild dev server's CORS; drizzle-kit never starts it). Raise
+# it to the esbuild 0.25 line drizzle-kit itself uses. Drop this once drizzle-kit stops depending on @esbuild-kit.
+overrides:
+  '@esbuild-kit/core-utils>esbuild': ^0.25.12
 
 # Grafana Faro (portal-web) still ships OpenTelemetry JS 2.x packages whose peer ranges stop below
 # @opentelemetry/api 1.10, which portal-api's SDK 3.x needs. 1.10 is a backward-compatible minor, and one API version
