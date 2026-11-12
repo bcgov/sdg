@@ -6,7 +6,9 @@
 	auto_https off
 	# Admin API on localhost only: /load and /config change the live config. Metrics have their own listener.
 	admin localhost:2019
-	order coraza_waf first
+	# Just inside header, so the waf snippet's header removal wraps the WAF's own responses; the WAF still sees every
+	# request before routing, rewrites and proxying.
+	order coraza_waf after header
 	# TLS ends at the OpenShift router, so Caddy sees plain http. Trust the router's X-Forwarded-* (it reaches the edge
 	# from the cluster network; the NetworkPolicy admits only the router namespace) so portal-api gets
 	# X-Forwarded-Proto: https and the real client IP. Without it the Secure session cookie is never set (invalid_state).

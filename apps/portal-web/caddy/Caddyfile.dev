@@ -7,7 +7,9 @@
 	# Unprivileged ports: the image runs as a non-root user. compose.yaml publishes 8443 as the host's 443.
 	http_port 8080
 	https_port 8443
-	order coraza_waf first
+	# Just inside header, so the waf snippet's header removal wraps the WAF's own responses; the WAF still sees every
+	# request before routing, rewrites and proxying.
+	order coraza_waf after header
 	# Certificates come from Caddy's local CA. It can't reach the host trust store from the container;
 	# trust the root manually (DEVELOPER.md, Local Stack).
 	skip_install_trust
