@@ -1,7 +1,8 @@
+/* dashboard-01: the sidebar beside the main area, which fills the rest of the width. */
 .shell {
   display: flex;
-  flex-direction: column;
   min-height: 100dvh;
+  background-color: var(--surface-color-background-white);
 }
 
 /* Off-screen until focused, then above the page at the top left. */
@@ -9,7 +10,7 @@
   position: absolute;
   inset-block-start: var(--layout-margin-small);
   inset-inline-start: var(--layout-margin-small);
-  z-index: 1;
+  z-index: 2;
   padding: var(--layout-padding-small) var(--layout-padding-medium);
   background-color: var(--surface-color-background-white);
   color: var(--typography-color-link);
@@ -21,13 +22,11 @@
   transform: none;
 }
 
-.header {
-  padding: var(--layout-padding-medium) var(--layout-padding-large);
-  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
-}
-
-.header > * {
-  margin: 0;
+.inset {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .main {

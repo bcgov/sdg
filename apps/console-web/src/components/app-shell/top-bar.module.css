@@ -1,0 +1,22 @@
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-small);
+  min-height: 3rem;
+  padding: var(--layout-padding-xsmall) var(--layout-padding-medium);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+/* A short divider, as in dashboard-01; bcgov's vertical Separator stretches to its container's height. */
+.separator {
+  display: flex;
+  height: 1rem;
+}
+
+/* A top-bar-sized h1. bcgov's h1 rule (h1.bcds-react-aria-Heading) loads as an adopted stylesheet, which comes later
+   in the cascade, so this needs the higher specificity. */
+header.topBar > h1 {
+  margin: 0;
+  font: var(--typography-bold-body);
+  color: var(--typography-color-primary);
+}
