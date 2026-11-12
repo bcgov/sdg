@@ -1,0 +1,69 @@
+/* The mobile panel (R13): the shared sidebar sliding in from the left over a tinted overlay. The bcgov Modal's own
+   rules match only `.bcds-react-aria-Modal`, which this module's class replaces, and its overlay rules match only an
+   overlay that `:has()` that class; so the overlay is styled here through the default overlay class react-aria still
+   renders around `.panel` (KTD3). */
+:global(.react-aria-ModalOverlay):has(.panel) {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--surface-color-overlay-default);
+}
+
+:global(.react-aria-ModalOverlay):has(.panel)[data-entering] {
+  animation: overlay-fade 200ms ease-out;
+}
+
+:global(.react-aria-ModalOverlay):has(.panel)[data-exiting] {
+  animation: overlay-fade 150ms ease-in reverse;
+}
+
+.panel {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  display: flex;
+  max-width: calc(100% - var(--layout-margin-xlarge));
+  box-shadow: var(--surface-shadow-large);
+}
+
+.panel[data-entering] {
+  animation: panel-slide 200ms ease-out;
+}
+
+.panel[data-exiting] {
+  animation: panel-slide 150ms ease-in reverse;
+}
+
+/* The dialog takes focus when the panel opens; the panel itself needs no ring. */
+.panel > [role='dialog'] {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.react-aria-ModalOverlay):has(.panel)[data-entering],
+  :global(.react-aria-ModalOverlay):has(.panel)[data-exiting],
+  .panel[data-entering],
+  .panel[data-exiting] {
+    animation: none;
+  }
+}
+
+@keyframes overlay-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes panel-slide {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: none;
+  }
+}

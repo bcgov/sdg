@@ -3,9 +3,10 @@ import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } fr
 
 import { AccountMenu } from './account-menu';
 import { CommandPalette } from './command-palette';
+import { MobilePanel } from './mobile-panel';
 import { Sidebar } from './sidebar';
 import { SidebarProvider, useSidebar } from './sidebar-context';
-import { TopBar } from './top-bar';
+import { SIDEBAR_TOGGLE_ID, TopBar } from './top-bar';
 
 import styles from './app-shell.module.css';
 
@@ -30,15 +31,40 @@ function useShortcuts(shortcuts: Shortcuts): void {
   }, [shortcuts]);
 }
 
+/**
+ * The palette's open state, owned by the shell so every way of opening it (Search, ⌘K) goes through one place. The
+ * palette and the mobile panel never stack (KTD7): they come from different react-aria copies, whose focus containment
+ * and hide-outside would fight. Opening the palette from the open panel closes the panel and opens the palette once
+ * the panel has gone, from the top-bar toggle, so Escape returns focus there. ⌘B doesn't open the panel over it.
+ */
+function usePalette() {
+  const { isMobile, mobileOpen, setMobileOpen, toggleSidebar } = useSidebar();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const queued = useRef(false);
+  const openPalette = useCallback(() => {
+    if (!mobileOpen) return setPaletteOpen(true);
+    queued.current = true;
+    setMobileOpen(false);
+  }, [mobileOpen, setMobileOpen]);
+  const onPanelClosed = useCallback(() => {
+    if (!queued.current) return;
+    queued.current = false;
+    document.getElementById(SIDEBAR_TOGGLE_ID)?.focus();
+    setPaletteOpen(true);
+  }, []);
+  const toggleUnlessStacking = useCallback(() => {
+    if (!(isMobile && paletteOpen)) toggleSidebar();
+  }, [isMobile, paletteOpen, toggleSidebar]);
+  const shortcuts = useMemo(() => ({ b: toggleUnlessStacking, k: openPalette }), [toggleUnlessStacking, openPalette]);
+  useShortcuts(shortcuts);
+  return { paletteOpen, setPaletteOpen, openPalette, onPanelClosed };
+}
+
 const ACCOUNT_MENU = <AccountMenu />;
 
 function ShellLayout() {
-  const { toggleSidebar } = useSidebar();
-  // The shell owns the palette's open state, so every way of opening it (Search, ⌘K) goes through one place.
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const openPalette = useCallback(() => setPaletteOpen(true), []);
-  const shortcuts = useMemo(() => ({ b: toggleSidebar, k: openPalette }), [toggleSidebar, openPalette]);
-  useShortcuts(shortcuts);
+  const { isMobile } = useSidebar();
+  const { paletteOpen, setPaletteOpen, openPalette, onPanelClosed } = usePalette();
   const mainRef = useRef<HTMLElement>(null);
   // Focus `main` directly: not every browser (or jsdom) focuses a fragment's target, and the URL keeps no `#main-content`.
   const skipToMain = useCallback((event: MouseEvent) => {
@@ -50,7 +76,11 @@ function ShellLayout() {
       <a className={styles.skipLink} href="#main-content" onClick={skipToMain}>
         Skip to main content
       </a>
-      <Sidebar onSearch={openPalette} account={ACCOUNT_MENU} />
+      {isMobile ? (
+        <MobilePanel onSearch={openPalette} onClosed={onPanelClosed} account={ACCOUNT_MENU} />
+      ) : (
+        <Sidebar onSearch={openPalette} account={ACCOUNT_MENU} />
+      )}
       <div className={styles.inset}>
         <TopBar />
         <main ref={mainRef} id="main-content" className={styles.main} tabIndex={-1}>
@@ -62,7 +92,10 @@ function ShellLayout() {
   );
 }
 
-/** The signed-in pages' layout (dashboard-01, R6): a skip link, the sidebar, and the main area under its top bar. */
+/**
+ * The signed-in pages' layout (dashboard-01, R6): a skip link, the sidebar (the mobile panel when narrow, R13), and the
+ * main area under its top bar.
+ */
 export function AppShell() {
   return (
     <SidebarProvider>

@@ -8,7 +8,7 @@ import { RailTooltip, SidebarLink, SidebarNav } from './sidebar-nav';
 
 import styles from './sidebar.module.css';
 
-/** The sidebar element's id, which the top-bar toggle names in `aria-controls`. */
+/** The sidebar element's id, which the top-bar toggle names in `aria-controls`; only one sidebar renders at a time. */
 export const SIDEBAR_ID = 'app-sidebar';
 
 /** The command palette's shortcut as the platform writes it (R8). */
@@ -51,8 +51,9 @@ interface SidebarProps {
 }
 
 /**
- * The desktop sidebar (R6–R10, R12): brand, Search, Main nav, then Secondary nav and the account button at the
- * bottom. Expanded or collapsed to an icon rail is `data-state`, which the CSS module styles (KTD6).
+ * The sidebar (R6–R10, R12): brand, Search, Main nav, then Secondary nav and the account button at the bottom.
+ * Expanded or collapsed to an icon rail is `data-state`, which the CSS module styles (KTD6). Wide, it sits beside the
+ * main area; narrow, the mobile panel holds it, always expanded (R13).
  */
 export function Sidebar({ onSearch, account }: SidebarProps) {
   const { expanded } = useSidebar();

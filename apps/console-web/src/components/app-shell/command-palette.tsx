@@ -32,7 +32,8 @@ interface CommandPaletteProps {
 
 /**
  * The command palette (R8, R14): a modal search that filters the destinations as the administrator types and goes
- * to the chosen one with `router.navigate` (KTD8). Escape closes it, and the modal returns focus to where it was.
+ * to the chosen one with `router.navigate` (KTD8). Escape or a press outside it closes it, and the modal returns focus
+ * to where it was.
  */
 export function CommandPalette({ isOpen, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
@@ -47,7 +48,7 @@ export function CommandPalette({ isOpen, onOpenChange }: CommandPaletteProps) {
     [onOpenChange, router],
   );
   return (
-    <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange}>
+    <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange} isDismissable>
       <Modal className={styles.modal}>
         <Dialog className={styles.dialog} aria-label="Search">
           <Autocomplete filter={contains}>

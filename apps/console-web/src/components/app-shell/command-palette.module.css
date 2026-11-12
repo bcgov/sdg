@@ -30,6 +30,7 @@
   outline: none;
 }
 
+/* The divider between the search box and the results. */
 .field {
   border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
 }
@@ -37,7 +38,7 @@
 .input {
   box-sizing: border-box;
   width: 100%;
-  padding: var(--layout-padding-medium);
+  padding: var(--layout-padding-small);
   border: none;
   background: transparent;
   color: var(--typography-color-primary);
@@ -48,9 +49,16 @@
   color: var(--typography-color-placeholder);
 }
 
-.input:focus-visible {
-  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
-  outline-offset: calc(-1 * var(--layout-border-width-medium));
+/* No ring or border on the focused input: the open dialog already shows where focus is. The module classes replace
+   react-aria's default class names, so these state selectors are what the input carries. */
+.field .input,
+.field .input:focus,
+.field .input:focus-visible,
+.field .input[data-focused],
+.field .input[data-focus-visible] {
+  border: none;
+  outline: none;
+  box-shadow: none;
 }
 
 /* The browser's own clear button; the field clears with Escape. */

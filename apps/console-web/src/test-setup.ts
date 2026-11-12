@@ -4,6 +4,8 @@ import { config as fontAwesomeConfig } from '@fortawesome/fontawesome-svg-core';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 
+import { stubViewport } from './test-support/match-media';
+
 // As in main.tsx: FontAwesome's <style> injection is off, so tests see the same document head as the edge CSP allows.
 fontAwesomeConfig.autoAddCss = false;
 
@@ -14,6 +16,8 @@ afterEach(cleanup);
 beforeEach(() => {
   // The router's scroll restoration calls scrollTo, which jsdom doesn't implement.
   vi.stubGlobal('scrollTo', vi.fn<typeof window.scrollTo>());
+  // jsdom has no matchMedia: every test starts on a wide screen unless it stubs a narrow one.
+  stubViewport(false);
   vi.stubGlobal(
     'fetch',
     vi.fn<typeof fetch>(() =>

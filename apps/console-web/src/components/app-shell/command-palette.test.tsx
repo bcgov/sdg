@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { fakeConsoleApi } from '../../test-support/fake-console-api';
 import { renderAt } from '../../test-support/render';
-import { renderShell } from '../../test-support/shell';
+import { renderMobileShell, renderShell } from '../../test-support/shell';
 
 afterEach(() => {
   localStorage.clear();
@@ -63,6 +63,17 @@ describe('the command palette (R8, R14)', () => {
     await waitFor(() => expect(within(sidebar).getByRole('button', { name: 'Search' })).toHaveFocus());
   });
 
+  it('closes on a press outside it and returns focus to the Search button', async () => {
+    const user = userEvent.setup();
+    const { sidebar } = await renderShell('/');
+    const dialog = await openFromSearch(user, sidebar);
+    const overlay = dialog.closest('[class*="overlay"]');
+    if (!(overlay instanceof HTMLElement)) throw new Error('the palette has no overlay');
+    await user.click(overlay);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(within(sidebar).getByRole('button', { name: 'Search' })).toHaveFocus());
+  });
+
   it('adds no <style> beyond react-aria’s two fixed ones, which the edge CSP allows by hash (R17)', async () => {
     const user = userEvent.setup();
     const { sidebar } = await renderShell('/');
@@ -94,5 +105,33 @@ describe('the palette shortcut (R8, KTD7)', () => {
     await screen.findByRole('link', { name: 'Sign in' });
     await user.keyboard('{Control>}k{/Control}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('the palette and the mobile panel never stack (KTD7)', () => {
+  it('closes the open panel before Ctrl+K opens the palette, and Escape then returns focus to the toggle', async () => {
+    const user = userEvent.setup();
+    const { toggle } = await renderMobileShell('/');
+    await user.click(toggle);
+    await screen.findByRole('dialog', { name: 'Navigation' });
+    await user.keyboard('{Control>}k{/Control}');
+    const palette = await screen.findByRole('dialog', { name: 'Search' });
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
+    await waitFor(() => expect(within(palette).getByRole('searchbox')).toHaveFocus());
+    expect(palette.closest('[aria-hidden="true"], [inert]')).toBeNull();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(toggle).toHaveFocus());
+  });
+
+  it('does not open the panel over the open palette with Ctrl+B', async () => {
+    const user = userEvent.setup();
+    await renderMobileShell('/');
+    await user.keyboard('{Control>}k{/Control}');
+    await screen.findByRole('dialog', { name: 'Search' });
+    await user.keyboard('{Control>}b{/Control}');
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Search' })).toBeInTheDocument();
   });
 });

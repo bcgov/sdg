@@ -3,6 +3,7 @@ import type userEvent from '@testing-library/user-event';
 import { expect } from 'vitest';
 
 import { fakeConsoleApi, type FakeConsoleApi } from './fake-console-api';
+import { stubViewport } from './match-media';
 import { renderAt } from './render';
 
 /** Renders a signed-in page and waits for the shell; the sidebar is the element the toggle controls. */
@@ -12,6 +13,14 @@ export async function renderShell(path: string, consoleApi: FakeConsoleApi = fak
   const sidebar = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
   if (!sidebar) throw new Error('the toggle controls no element');
   return { ...rendered, consoleApi, toggle, sidebar };
+}
+
+/** Renders a signed-in page on a narrow screen (below 768px) and waits for the top-bar toggle that opens the panel. */
+export async function renderMobileShell(path: string, consoleApi: FakeConsoleApi = fakeConsoleApi()) {
+  const viewport = stubViewport(true);
+  const rendered = renderAt(path);
+  const toggle = await screen.findByRole('button', { name: 'Open navigation' });
+  return { ...rendered, consoleApi, viewport, toggle };
 }
 
 type User = ReturnType<typeof userEvent.setup>;
