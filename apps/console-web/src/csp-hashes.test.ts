@@ -34,10 +34,18 @@ function fixedStyleTexts(source: string): string[] {
 
 const sha256 = (text: string) => `'sha256-${createHash('sha256').update(text).digest('base64')}'`;
 
-/** Each style text's hash that a site's security_headers arguments leave out, as `<site index>: <hash>`. */
+/**
+ * The style-src sources of a `security_headers` import: its second quoted argument (`{args[1]}` in common.caddy's
+ * Content-Security-Policy); the first goes to script-src.
+ */
+function styleSrc(args: string): string {
+  return [...args.matchAll(/"([^"]*)"/g)][1]?.[1] ?? '';
+}
+
+/** Each style text's hash that a site's style-src argument leaves out, as `<site index>: <hash>`. */
 function missingHashes(texts: readonly string[], siteHeaders: readonly string[]): string[] {
   return siteHeaders.flatMap((args, site) =>
-    texts.map(sha256).flatMap((hash) => (args.includes(hash) ? [] : [`${site}: ${hash}`])),
+    texts.map(sha256).flatMap((hash) => (styleSrc(args).split(' ').includes(hash) ? [] : [`${site}: ${hash}`])),
   );
 }
 
@@ -66,5 +74,10 @@ describe("console-web's react-aria style hashes", () => {
   it('reports a fixed style whose hash no site allows', () => {
     const changed = `${pressStyles[0]}\n`;
     expect(missingHashes([changed], siteHeaders)).toEqual(siteHeaders.map((_, site) => `${site}: ${sha256(changed)}`));
+  });
+
+  it('reports a hash placed in the script-src argument instead of style-src', () => {
+    const hash = sha256(pressStyles[0]!);
+    expect(missingHashes([pressStyles[0]!], [`"${hash}" ""`])).toEqual([`0: ${hash}`]);
   });
 });
