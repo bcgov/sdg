@@ -1,12 +1,12 @@
 import { Button } from '@repo/design-system/components/button';
 import { ButtonGroup } from '@repo/design-system/components/button-group';
-import { Heading } from '@repo/design-system/components/heading';
 import { Link } from '@repo/design-system/components/link';
 import { Text } from '@repo/design-system/components/text';
 import { createFileRoute } from '@tanstack/react-router';
 
 import { loginHref } from '../auth/api';
-import { useSignOut } from '../components/site-header/use-header-auth';
+import { useSignOut } from '../auth/use-sign-out';
+import { AuthCard } from '../components/auth-card';
 
 export const Route = createFileRoute('/not-authorized')({
   component: NotAuthorizedPage,
@@ -15,14 +15,13 @@ export const Route = createFileRoute('/not-authorized')({
 /**
  * Where console-api sends a sign-in core-api refused, and where console-web goes when core-api refuses a call.
  * console-api has already ended the refused Keycloak session over the back channel and kept no session, so
- * Sign out goes through console-api's logout: with a session it returns Keycloak's end-session URL, without one the
- * landing page.
+ * Sign out goes through console-api's logout: with a session it returns Keycloak's end-session URL, without one `/`,
+ * which the signed-in routes' guard sends on to the sign-in card.
  */
 function NotAuthorizedPage() {
   const signOut = useSignOut();
   return (
-    <>
-      <Heading level={1}>You are not authorized to use SDG Console</Heading>
+    <AuthCard title="You are not authorized to use SDG Console">
       <Text elementType="p">
         Signing in to SDG Console requires the admin client role on the SDG console client. Your account does not have
         it, so you have not been signed in.
@@ -38,6 +37,6 @@ function NotAuthorizedPage() {
           Sign in with a different account
         </Link>
       </ButtonGroup>
-    </>
+    </AuthCard>
   );
 }

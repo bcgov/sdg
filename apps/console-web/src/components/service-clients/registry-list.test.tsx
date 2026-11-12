@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import { currentUserQueryKey } from '../../auth/use-current-user';
 import { fakeConsoleApi, nestError, serviceClient } from '../../test-support/fake-console-api';
-import { headerQueries } from '../../test-support/header';
 import { renderAt } from '../../test-support/render';
 
 const LIST = '/api/v1/console/service-clients';
@@ -48,19 +47,23 @@ describe('registry list (R16)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('returns to sign-in with "session ended" when console-api answers 401 during a list load (R32)', async () => {
+  it('returns to the sign-in card with "session ended" when console-api answers 401 during a list load (AE3)', async () => {
     const api = fakeConsoleApi({ clients: [serviceClient('billing-1')] });
     api.refuseNext('GET', LIST, () => nestError(401, 'Unauthorized'));
     const { router, queryClient } = renderAt('/service-clients');
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Your session ended');
-    expect(router.state.location.pathname).toBe('/');
+    expect(router.state.location.pathname).toBe('/login');
+    expect(router.state.location.search).toEqual({ session: 'ended', returnTo: '/service-clients' });
     expect(screen.getByRole('link', { name: 'Sign in again' })).toHaveAttribute(
       'href',
       '/api/auth/login?returnTo=%2Fservice-clients',
     );
     expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull();
-    expect(await (await headerQueries()).findByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      'href',
+      '/api/auth/login?returnTo=%2Fservice-clients',
+    );
   });
 
   it('keeps the page the administrator was on when every registry call answers 401', async () => {
@@ -87,13 +90,14 @@ describe('registry list (R16)', () => {
     expect(router.state.location.pathname).toBe('/not-authorized');
   });
 
-  it('asks a signed-out visitor to sign in and calls no registry route', async () => {
+  it('sends a signed-out visitor to the sign-in card and calls no registry route', async () => {
     const api = fakeConsoleApi({ signedIn: false });
-    renderAt('/service-clients');
+    const { router } = renderAt('/service-clients');
     expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
       'href',
       '/api/auth/login?returnTo=%2Fservice-clients',
     );
+    expect(router.state.location.pathname).toBe('/login');
     await waitFor(() => expect(api.callsTo('GET', '/api/auth/me')).toHaveLength(1));
     expect(api.calls.filter((call) => call.path.startsWith(LIST))).toEqual([]);
   });

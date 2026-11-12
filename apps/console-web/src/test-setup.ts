@@ -1,6 +1,11 @@
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import '@testing-library/jest-dom/vitest';
+import { config as fontAwesomeConfig } from '@fortawesome/fontawesome-svg-core';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
+
+// As in main.tsx: FontAwesome's <style> injection is off, so tests see the same document head as the edge CSP allows.
+fontAwesomeConfig.autoAddCss = false;
 
 // Testing Library only auto-registers cleanup when Vitest globals are enabled.
 afterEach(cleanup);

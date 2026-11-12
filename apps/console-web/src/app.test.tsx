@@ -1,80 +1,81 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import * as api from './auth/api';
-import { currentUserQueryKey } from './auth/use-current-user';
-import { ADMIN, fakeConsoleApi } from './test-support/fake-console-api';
-import { headerQueries } from './test-support/header';
+import { fakeConsoleApi } from './test-support/fake-console-api';
 import { renderAt } from './test-support/render';
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('console-web app shell', () => {
-  it('renders <sdg-header> titled "SDG Console" as the only banner, with a skip link to #main-content', async () => {
-    renderAt('/');
-    const header = await headerQueries();
-    const banners = header.getAllByRole('banner');
-    expect(banners).toHaveLength(1);
-    expect(within(banners[0]!).getByText('SDG Console')).toHaveClass('bcds-header--title');
-    expect(header.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main-content');
-    expect(screen.queryAllByRole('banner')).toHaveLength(0);
+describe('signed-out visitors are sent to the sign-in card (R1, KTD4)', () => {
+  it('sends /service-clients to /login with returnTo=/service-clients (AE1)', async () => {
+    const api = fakeConsoleApi({ signedIn: false });
+    const { router } = renderAt('/service-clients');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(router.state.location.search).toEqual({ returnTo: '/service-clients' });
+    expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      'href',
+      '/api/auth/login?returnTo=%2Fservice-clients',
+    );
+    expect(api.calls.filter((call) => call.path.startsWith('/api/v1/'))).toEqual([]);
   });
 
-  it('renders route content in <main id="main-content"> above the B.C. footer', async () => {
-    renderAt('/');
-    const main = await screen.findByRole('main');
-    expect(main).toHaveAttribute('id', 'main-content');
-    expect(within(main).getByRole('heading', { level: 1 })).toHaveTextContent('SDG Console');
-    expect(screen.getByRole('contentinfo')).toHaveClass('bcds-footer');
+  it("carries console-api's /?authError= redirect over to the card (AE2)", async () => {
+    const { router } = renderAt('/?authError=access_denied');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(router.state.location.search).toEqual({ authError: 'access_denied', returnTo: '/' });
+    expect(await screen.findByRole('alert')).toHaveTextContent("Sign-in didn't complete");
   });
 
-  it('renders "Page not found" for an unknown path', async () => {
-    renderAt('/does-not-exist');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
+  it('sends / to /login with returnTo=/ when the session cannot be checked (500)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() => Promise.resolve(new Response('Internal Server Error', { status: 500 }))),
+    );
+    const { router } = renderAt('/');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(router.state.location.search).toEqual({ returnTo: '/' });
+    expect(await screen.findByText(/Your session could not be checked/)).toBeInTheDocument();
+  });
+
+  it('sends an unknown path to /login', async () => {
+    const { router } = renderAt('/does-not-exist');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(router.state.location.search).toEqual({ returnTo: '/does-not-exist' });
   });
 });
 
-describe('header account control (R15)', () => {
-  it("shows the administrator's name with Log out when signed in, and signs out through console-api", async () => {
+describe('signed-in pages (R9, R10, R15, KTD5)', () => {
+  it.each([
+    ['/', 'Dashboard'],
+    ['/service-clients', 'Service accounts'],
+    ['/settings', 'Settings'],
+    ['/help', 'Get help'],
+  ])('renders %s titled %s, with the title as the only h1', async (path, title) => {
     fakeConsoleApi();
-    const logout = vi.spyOn(api, 'logout').mockImplementation(async (onSignedOut) => {
-      onSignedOut();
-    });
-    const { queryClient } = renderAt('/');
-    const header = await headerQueries();
-    await userEvent.click(await header.findByRole('button', { name: `Account menu for ${ADMIN.name}` }));
-    const menu = await header.findByRole('menu');
-    expect(within(menu).getByText(ADMIN.email)).toBeInTheDocument();
-    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Log out' }));
-    expect(logout).toHaveBeenCalledTimes(1);
-    expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull();
-    expect(await header.findByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+    const { router } = renderAt(path);
+    expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(router.state.location.pathname).toBe(path);
   });
 
-  it('marks the Service accounts nav item current on its page', async () => {
+  it('renders the page in <main id="main-content">, with a skip link to it', async () => {
     fakeConsoleApi();
-    renderAt('/service-clients');
-    const nav = (await headerQueries()).getByRole('navigation', { name: 'Main' });
-    await waitFor(() =>
-      expect(within(nav).getByRole('link', { name: 'Service accounts' })).toHaveAttribute('aria-current', 'page'),
-    );
+    renderAt('/settings');
+    const main = await screen.findByRole('main');
+    expect(main).toHaveAttribute('id', 'main-content');
+    expect(within(main).getByText(/no settings/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main-content');
   });
 
-  it('shows Sign in and logs the error when console-api is unreachable', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.stubGlobal(
-      'fetch',
-      vi.fn<typeof fetch>(() => Promise.resolve(new Response('Bad gateway', { status: 502 }))),
-    );
-    renderAt('/');
-    const header = await headerQueries();
-    expect(await header.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
-      'href',
-      '/api/auth/login?returnTo=%2F',
-    );
-    expect(consoleError).toHaveBeenCalledWith('console-web: could not load the current user', expect.any(Error));
+  it('renders "Page not found" inside the shell for an unknown path, as the only h1', async () => {
+    fakeConsoleApi();
+    const { router } = renderAt('/does-not-exist');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Skip to main content' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/does-not-exist');
   });
 });

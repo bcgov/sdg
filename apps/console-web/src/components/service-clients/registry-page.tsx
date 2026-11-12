@@ -51,7 +51,10 @@ function useFocusAfterChange() {
   return { listRef, focusList };
 }
 
-/** The service-account registry: list, add, disable, re-enable, remove, and the history of changes. */
+/**
+ * The service-account registry: list, add, disable, re-enable, remove, and the history of changes. The app shell shows
+ * its title as the page's `h1`.
+ */
 export function RegistryPage() {
   const { listRef, focusList } = useFocusAfterChange();
   const actions = useRegistryActions(focusList);
@@ -60,7 +63,6 @@ export function RegistryPage() {
 
   return (
     <>
-      <Heading level={1}>Service accounts</Heading>
       <Text elementType="p">
         Service accounts listed here, while enabled, may call the gateway with their Keycloak client credentials.
       </Text>

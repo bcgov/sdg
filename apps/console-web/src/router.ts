@@ -29,4 +29,8 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: ReturnType<typeof createAppRouter>;
   }
+  interface StaticDataRouteOption {
+    /** The page's title: the app shell shows it as the page's `h1`. */
+    title?: string;
+  }
 }

@@ -9,7 +9,7 @@ interface SessionEndedNoticeProps {
   onDismiss: () => void;
 }
 
-/** Shown on the landing after console-api answered 401: the session is gone, so the only way on is signing in. */
+/** Shown on the sign-in card after console-api answered 401: the session is gone, so the only way on is signing in. */
 export function SessionEndedNotice({ returnTo, onDismiss }: Readonly<SessionEndedNoticeProps>) {
   const signIn = useMemo(() => <Link href={loginHref(returnTo)}>Sign in again</Link>, [returnTo]);
   return (

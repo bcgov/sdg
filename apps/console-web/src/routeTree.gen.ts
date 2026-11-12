@@ -9,13 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotAuthorizedRouteImport } from './routes/not-authorized'
-import { Route as ServiceClientsRouteImport } from './routes/service-clients'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppSplatRouteImport } from './routes/_app/$'
+import { Route as AppHelpRouteImport } from './routes/_app/help'
+import { Route as AppServiceClientsRouteImport } from './routes/_app/service-clients'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotAuthorizedRoute = NotAuthorizedRouteImport.update({
@@ -23,49 +32,112 @@ const NotAuthorizedRoute = NotAuthorizedRouteImport.update({
   path: '/not-authorized',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ServiceClientsRoute = ServiceClientsRouteImport.update({
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSplatRoute = AppSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHelpRoute = AppHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppServiceClientsRoute = AppServiceClientsRouteImport.update({
   id: '/service-clients',
   path: '/service-clients',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/login': typeof LoginRoute
   '/not-authorized': typeof NotAuthorizedRoute
-  '/service-clients': typeof ServiceClientsRoute
+  '/$': typeof AppSplatRoute
+  '/help': typeof AppHelpRoute
+  '/service-clients': typeof AppServiceClientsRoute
+  '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/not-authorized': typeof NotAuthorizedRoute
-  '/service-clients': typeof ServiceClientsRoute
+  '/$': typeof AppSplatRoute
+  '/help': typeof AppHelpRoute
+  '/service-clients': typeof AppServiceClientsRoute
+  '/settings': typeof AppSettingsRoute
+  '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
   '/not-authorized': typeof NotAuthorizedRoute
-  '/service-clients': typeof ServiceClientsRoute
+  '/_app/$': typeof AppSplatRoute
+  '/_app/help': typeof AppHelpRoute
+  '/_app/service-clients': typeof AppServiceClientsRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/not-authorized' | '/service-clients'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/not-authorized'
+    | '/$'
+    | '/help'
+    | '/service-clients'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/not-authorized' | '/service-clients'
-  id: '__root__' | '/' | '/not-authorized' | '/service-clients'
+  to:
+    | '/login'
+    | '/not-authorized'
+    | '/$'
+    | '/help'
+    | '/service-clients'
+    | '/settings'
+    | '/'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/not-authorized'
+    | '/_app/$'
+    | '/_app/help'
+    | '/_app/service-clients'
+    | '/_app/settings'
+    | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
   NotAuthorizedRoute: typeof NotAuthorizedRoute
-  ServiceClientsRoute: typeof ServiceClientsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/not-authorized': {
@@ -75,20 +147,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotAuthorizedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/service-clients': {
-      id: '/service-clients'
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/$': {
+      id: '/_app/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof AppSplatRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/help': {
+      id: '/_app/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof AppHelpRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/service-clients': {
+      id: '/_app/service-clients'
       path: '/service-clients'
       fullPath: '/service-clients'
-      preLoaderRoute: typeof ServiceClientsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppServiceClientsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppSplatRoute: typeof AppSplatRoute
+  AppHelpRoute: typeof AppHelpRoute
+  AppServiceClientsRoute: typeof AppServiceClientsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppSplatRoute: AppSplatRoute,
+  AppHelpRoute: AppHelpRoute,
+  AppServiceClientsRoute: AppServiceClientsRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
   NotAuthorizedRoute: NotAuthorizedRoute,
-  ServiceClientsRoute: ServiceClientsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

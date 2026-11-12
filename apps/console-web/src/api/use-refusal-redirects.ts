@@ -6,7 +6,7 @@ import { currentUserQueryKey } from '../auth/use-current-user';
 import { ApiError } from './http';
 
 /**
- * The app-wide refusal handling, for every query and mutation: a 401 sends the administrator back to sign-in with a
+ * The app-wide refusal handling, for every query and mutation: a 401 sends the administrator to the sign-in card with a
  * "session ended" message, and core-api's 403 to the not-authorized page. Every other refusal stays with the screen
  * that made the call.
  */
@@ -21,7 +21,7 @@ export function useRefusalRedirects(): void {
       if (error.kind === 'session-ended') {
         queryClient.setQueryData(currentUserQueryKey, null);
         // A screen's other calls fail the same way once the first has redirected; keep the first page as returnTo.
-        if (pathname !== '/') void router.navigate({ to: '/', search: { session: 'ended', returnTo: href } });
+        if (pathname !== '/login') void router.navigate({ to: '/login', search: { session: 'ended', returnTo: href } });
       } else if (error.kind === 'not-authorized') {
         void router.navigate({ to: '/not-authorized' });
       }
