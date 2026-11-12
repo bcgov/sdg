@@ -44,14 +44,14 @@ function AccountButton({ user, label }: Readonly<{ user: CurrentUser; label: str
 }
 
 /**
- * The account button at the foot of the sidebar and its menu (R11): the profile block, Settings and Log out, as in
+ * The account button at the foot of the sidebar and its menu (R11): the profile block, Account settings and Log out, as in
  * `<sdg-header>`'s account menu. Items navigate with `onAction` (KTD8): a bcgov MenuItem `href` would reload the page.
  */
 export function AccountMenu() {
   const { data: user } = useCurrentUser();
   const router = useRouter();
   const signOut = useSignOut();
-  const openProfile = useCallback(() => void router.navigate({ to: '/profile' }), [router]);
+  const openAccountSettings = useCallback(() => void router.navigate({ to: '/account-settings' }), [router]);
   // The `_app` guard has loaded the user before the shell renders; there is nothing to show without one.
   if (!user) return null;
   const label = `Account menu for ${user.name}`;
@@ -66,8 +66,8 @@ export function AccountMenu() {
             </MenuSectionHeader>
           </MenuSection>
           <Separator size="small" />
-          <MenuItem textValue="Settings" size="small" onAction={openProfile} iconLeft={SETTINGS_ICON}>
-            Settings
+          <MenuItem textValue="Account settings" size="small" onAction={openAccountSettings} iconLeft={SETTINGS_ICON}>
+            Account settings
           </MenuItem>
           <Separator size="small" />
           <MenuItem textValue="Log out" size="small" onAction={signOut} iconLeft={LOG_OUT_ICON}>
