@@ -49,6 +49,7 @@ function AccountButton({ user, label }: Readonly<{ user: CurrentUser; label: str
  */
 export function AccountMenu() {
   const { data: user } = useCurrentUser();
+  const { expanded } = useSidebar();
   const router = useRouter();
   const signOut = useSignOut();
   const openProfile = useCallback(() => void router.navigate({ to: '/profile' }), [router]);
@@ -56,7 +57,7 @@ export function AccountMenu() {
   if (!user) return null;
   const label = `Account menu for ${user.name}`;
   return (
-    <div className={styles.account}>
+    <div className={styles.account} data-state={expanded ? 'expanded' : 'collapsed'}>
       <MenuTrigger>
         <AccountButton user={user} label={label} />
         <Menu placement="right bottom">
