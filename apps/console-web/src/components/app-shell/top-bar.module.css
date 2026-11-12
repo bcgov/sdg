@@ -2,8 +2,9 @@
   display: flex;
   align-items: center;
   gap: var(--layout-margin-small);
-  min-height: 3rem;
-  padding: var(--layout-padding-xsmall) var(--layout-padding-medium);
+  /* One sidebar row tall (its 2.5rem item square), which fits the 40px toggle button with no padding above or below. */
+  min-height: 2.5rem;
+  padding: 0 var(--layout-padding-small);
   border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
 }
 
