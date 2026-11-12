@@ -59,18 +59,18 @@ export function AccountMenu() {
     <div className={styles.account}>
       <MenuTrigger>
         <AccountButton user={user} label={label} />
-        <Menu placement="right bottom">
+        <Menu placement="right bottom" itemSize="small">
           <MenuSection>
             <MenuSectionHeader className={styles.profile}>
               <Identity user={user} size="medium" />
             </MenuSectionHeader>
           </MenuSection>
           <Separator size="small" />
-          <MenuItem textValue="Settings" onAction={openProfile} iconLeft={SETTINGS_ICON}>
+          <MenuItem textValue="Settings" size="small" onAction={openProfile} iconLeft={SETTINGS_ICON}>
             Settings
           </MenuItem>
           <Separator size="small" />
-          <MenuItem textValue="Log out" onAction={signOut} iconLeft={LOG_OUT_ICON}>
+          <MenuItem textValue="Log out" size="small" onAction={signOut} iconLeft={LOG_OUT_ICON}>
             Log out
           </MenuItem>
         </Menu>
