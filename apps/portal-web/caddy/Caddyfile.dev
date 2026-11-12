@@ -47,15 +47,14 @@ console.sdg.localhost {
 	import security_headers "'unsafe-inline'" "'unsafe-inline'"
 }
 
-# gateway-api's /api only; anything else is 404. No web app, so no Vite allowances.
+# gateway-api's /api only; anything else is a JSON 404 from the edge. No web app, so no Vite allowances.
 gateway.sdg.localhost {
 	tls internal
 	import logging
 	import waf
 	encode zstd gzip
 	import api_proxy {$GATEWAY_API_URL}
-	@not_api not path /api*
-	respond @not_api 404
+	import api_only_not_found
 	import security_headers "" ""
 }
 

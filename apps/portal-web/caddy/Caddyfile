@@ -44,12 +44,11 @@ import common.caddy
 		import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
 	}
 
-	# Gateway: gateway-api's /api only, for service accounts; anything else is 404.
+	# Gateway: gateway-api's /api only, for service accounts; anything else is a JSON 404 from the edge.
 	@gateway host {$GATEWAY_HOST:gateway.invalid}
 	handle @gateway {
 		import api_proxy {$GATEWAY_API_URL}
-		@not_api not path /api*
-		respond @not_api 404
+		import api_only_not_found
 		import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
 	}
 

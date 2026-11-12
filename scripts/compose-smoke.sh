@@ -158,6 +158,10 @@ echo "Gateway host"
 # gateway-api needs no .env, but starts after the console build; wait for it rather than for a web app.
 until [ "$(status "$GATEWAY_SITE/api/v1/gateway/me")" = 401 ] || ((SECONDS > deadline)); do sleep 5; done
 check "GET / on the gateway host is 404 (gateway-api serves /api only)" test "$(status "$GATEWAY_SITE/")" = 404
+check "GET / on the gateway host answers like gateway-api's own 404" \
+  test "$("${CURL[@]}" "$GATEWAY_SITE/")" = '{"message":"Cannot GET /","error":"Not Found","statusCode":404}'
+check "GET /metrics on the gateway host stays at the edge (gateway-api's metrics are not public)" \
+  test "$("${CURL[@]}" "$GATEWAY_SITE/metrics")" = '{"message":"Cannot GET /metrics","error":"Not Found","statusCode":404}'
 check "GET /api/v1/gateway/me without a token is 401 from gateway-api" \
   test "$(status "$GATEWAY_SITE/api/v1/gateway/me")" = 401
 check "GET /api/v1/gateway/me with an invalid token is core-api's 401 (gateway-api reaches core-api)" \
