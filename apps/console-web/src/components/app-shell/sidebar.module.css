@@ -23,7 +23,8 @@
   box-sizing: border-box;
   width: var(--sidebar-width);
   height: 100dvh;
-  padding: var(--layout-padding-small) var(--sidebar-rail-inset);
+  /* No top padding: the brand row sits flush with the top, level with the top bar beside it. */
+  padding: 0 var(--sidebar-rail-inset) var(--layout-padding-small);
   overflow: hidden auto;
   border-inline-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
   background-color: var(--surface-color-background-light-gray);
@@ -61,11 +62,14 @@
   width: var(--sidebar-icon-size);
 }
 
+/* The same height as the top bar (top-bar.module.css), so the emblem and "SDG" line up with the page title. */
 .sidebar .brand {
   display: flex;
+  flex: none;
+  align-items: center;
   gap: var(--layout-margin-small);
   box-sizing: border-box;
-  min-height: 3rem;
+  min-height: var(--sidebar-item-size);
   padding: 0 var(--sidebar-image-inset);
   color: var(--typography-color-primary);
   font: var(--typography-bold-h5);
