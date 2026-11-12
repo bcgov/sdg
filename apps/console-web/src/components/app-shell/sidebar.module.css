@@ -129,8 +129,11 @@
   text-decoration: none;
 }
 
+/* The thick left bar is an inset shadow, not a border, so marking an item current never changes its size or shifts
+   its contents. */
 .list .item[data-current] {
   background-color: var(--surface-color-background-light-blue);
+  box-shadow: inset 3px 0 0 var(--surface-color-primary-default);
   color: var(--surface-color-primary-default);
 }
 
