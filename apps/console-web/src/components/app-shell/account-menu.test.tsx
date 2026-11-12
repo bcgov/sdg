@@ -41,25 +41,25 @@ describe('the account menu (R11)', () => {
     expect(precedes(profile, firstItem!)).toBe(true);
   });
 
-  it('lists exactly Profile then Log out, each after a separator', async () => {
+  it('lists exactly Account settings then Log out, each after a separator', async () => {
     const user = userEvent.setup();
     await renderShell('/');
     const menu = await openMenu(user);
     const items = within(menu).getAllByRole('menuitem');
     const separators = within(menu).getAllByRole('separator');
-    expect(items.map((item) => item.textContent)).toEqual(['Profile', 'Log out']);
+    expect(items.map((item) => item.textContent)).toEqual(['Account settings', 'Log out']);
     expect(separators).toHaveLength(2);
     expect(precedes(separators[0]!, items[0]!) && precedes(items[0]!, separators[1]!)).toBe(true);
     expect(precedes(separators[1]!, items[1]!)).toBe(true);
   });
 
-  it('goes to /profile client-side from Profile and closes the menu', async () => {
+  it('goes to /account-settings client-side from Account settings and closes the menu', async () => {
     const user = userEvent.setup();
     const { router, sidebar } = await renderShell('/');
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole('menuitem', { name: 'Profile' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/profile');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Account settings' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Account settings' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/account-settings');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(sidebar).toBeInTheDocument();
   });
@@ -95,14 +95,14 @@ describe('the account menu (R11)', () => {
     expect(menu).not.toHaveTextContent('@');
   });
 
-  it('is keyboard-operable: Enter opens onto Profile, arrows move, Escape closes back to the trigger', async () => {
+  it('is keyboard-operable: Enter opens onto Account settings, arrows move, Escape closes back to the trigger', async () => {
     const user = userEvent.setup();
     await renderShell('/');
     const trigger = screen.getByRole('button', { name: TRIGGER_NAME });
     await tabTo(user, trigger);
     await user.keyboard('{Enter}');
     const menu = await screen.findByRole('menu');
-    expect(within(menu).getByRole('menuitem', { name: 'Profile' })).toHaveFocus();
+    expect(within(menu).getByRole('menuitem', { name: 'Account settings' })).toHaveFocus();
     await user.keyboard('{ArrowDown}');
     expect(within(menu).getByRole('menuitem', { name: 'Log out' })).toHaveFocus();
     await user.keyboard('{Escape}');
