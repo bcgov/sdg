@@ -39,7 +39,7 @@ flowchart TB
 
 ## Level 2: Containers
 
-Six services plus the database. Hosts are `sdg-N`, `sdg-N-console` and `sdg-N-gateway` for pull request N, and `sdg-test…` and `sdg-prod…` for TEST and PROD.
+One lane per host, each with its own entry point. The edge is the only Route: every other container is cluster-internal and reached only through it. Hosts are `sdg-N`, `sdg-N-console` and `sdg-N-gateway` for pull request N, and `sdg-test…` and `sdg-prod…` for TEST and PROD.
 
 ```mermaid
 flowchart TB
@@ -48,12 +48,24 @@ flowchart TB
   partner["<b>Partner system</b>"]:::ext
 
   subgraph SDG["Single Digital Gateway"]
-    edge["<b>Edge</b><br/>Caddy + Coraza WAF<br/>Routes by host"]:::internal
-    portalweb["<b>portal-web</b><br/>React SPA"]:::internal
-    consoleweb["<b>console-web</b><br/>React SPA<br/>Service-account registry"]:::internal
-    portalapi["<b>portal-api</b><br/>NestJS BFF on bff-core<br/>Cookie portal.sid"]:::internal
-    consoleapi["<b>console-api</b><br/>NestJS BFF on bff-core<br/>Cookie console.sid"]:::internal
-    gatewayapi["<b>gateway-api</b><br/>NestJS forwarder on server-core<br/>GET only, no session"]:::internal
+    edge["<b>Edge</b><br/>Caddy + Coraza WAF<br/>The only Route; routes by host"]:::internal
+
+    subgraph PORTAL["Portal host"]
+      direction TB
+      portalweb["<b>portal-web</b><br/>React SPA, runs in the browser<br/>Files served by Caddy"]:::internal
+      portalapi["<b>portal-api</b><br/>NestJS BFF on bff-core<br/>Cookie portal.sid"]:::internal
+    end
+
+    subgraph CONSOLE["Console host"]
+      direction TB
+      consoleweb["<b>console-web</b><br/>React SPA, runs in the browser<br/>Service-account registry"]:::internal
+      consoleapi["<b>console-api</b><br/>NestJS BFF on bff-core<br/>Cookie console.sid"]:::internal
+    end
+
+    subgraph GATEWAY["Gateway host"]
+      gatewayapi["<b>gateway-api</b><br/>NestJS forwarder on server-core<br/>GET only, no session"]:::internal
+    end
+
     coreapi["<b>core-api</b><br/>NestJS<br/>Principals, registry,<br/>all authorization"]:::internal
     db[("<b>Postgres</b><br/>PGO cluster, database portal<br/>Schemas core, portal, console")]:::internal
   end
@@ -63,13 +75,15 @@ flowchart TB
 
   resident -->|"portal host"| edge
   console -->|"console host"| edge
-  partner -->|"gateway host"| edge
+  partner -->|"gateway host, Bearer token"| edge
 
-  edge -->|"/ on portal host"| portalweb
-  edge -->|"/api* on portal host"| portalapi
-  edge -->|"/ on console host"| consoleweb
-  edge -->|"/api* on console host"| consoleapi
-  edge -->|"/api* on gateway host"| gatewayapi
+  edge -->|"/"| portalweb
+  edge -->|"/api*"| portalapi
+  portalweb -.->|"the SPA calls /api<br/>through the edge"| portalapi
+  edge -->|"/"| consoleweb
+  edge -->|"/api*"| consoleapi
+  consoleweb -.->|"the SPA calls /api<br/>through the edge"| consoleapi
+  edge -->|"/api* only"| gatewayapi
 
   portalapi -->|"portal + shared routes,<br/>user's access token"| coreapi
   consoleapi -->|"console + shared routes,<br/>user's access token"| coreapi
@@ -89,12 +103,16 @@ flowchart TB
   classDef internal fill:#1168bd,stroke:#0b4884,color:#ffffff
   classDef ext fill:#6b7685,stroke:#4b5563,color:#ffffff
   style SDG fill:none,stroke:#1168bd,stroke-dasharray:6 4
+  style PORTAL fill:none,stroke:#5d82a8
+  style CONSOLE fill:none,stroke:#5d82a8
+  style GATEWAY fill:none,stroke:#5d82a8
 ```
 
-- Routes have the shape `/api/v1/<audience>/…`. Each forwarder passes on only its own audiences and answers 404 to the rest without calling core-api.
-- gateway-api checks only the request's shape: 401 without a Bearer token, 405 for anything but GET, 404 outside `/api/v1/gateway/*`.
+- Each lane has one entry point into core-api: a BFF for people (portal-api, console-api) and gateway-api for service accounts. The web apps only serve files; the SPA in the browser then calls its own host's `/api`, so it reaches its BFF through the edge like any other request.
+- Routes have the shape `/api/v1/<audience>/…`. Each entry point passes on only its own audiences and answers 404 to the rest without calling core-api.
+- gateway-api checks only the request's shape: 401 without a Bearer token, 405 for anything but GET, 404 outside `/api/v1/gateway/*`. On the gateway host the edge answers 404 to anything outside `/api*`.
 - Each service has its own Postgres login and schema and can't read the others'. pg_cron prunes expired sessions. gateway-api has no database.
-- On the gateway host the edge answers 404 to anything outside `/api*`. A host whose upstream isn't deployed answers 503.
+- A host whose upstream isn't deployed answers 503.
 
 ## Level 3: core-api components
 
