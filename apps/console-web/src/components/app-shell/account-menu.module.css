@@ -7,15 +7,11 @@
   box-sizing: border-box;
   width: 100%;
   min-height: 3rem;
-  /* The nav items' inline padding (sidebar.module.css), so the card lines up with them. */
-  padding: var(--layout-padding-xsmall) var(--sidebar-item-inset, 0.625rem);
+  /* The same in both states (sidebar.module.css): the 2rem avatar's center sits on the nav icons' axis, so it lines up
+     with them and does not shift when the sidebar collapses. */
+  padding: var(--layout-padding-xsmall) var(--sidebar-image-inset, 0.25rem);
   color: var(--typography-color-primary);
   text-align: start;
-}
-
-/* On the icon rail the 2rem avatar is centered in the rail-wide square instead. */
-.account[data-state='collapsed'] > button[type] {
-  padding-inline: calc((var(--sidebar-item-size, 2.5rem) - 2rem) / 2);
 }
 
 .account > button[type]:not([data-hovered]) {

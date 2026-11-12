@@ -8,6 +8,11 @@
   --sidebar-item-size: 2.5rem;
   --sidebar-icon-size: 1.25rem;
   --sidebar-item-inset: calc((var(--sidebar-item-size) - var(--sidebar-icon-size)) / 2);
+  /* The sidebar's own inline padding, the same in both states so nothing shifts sideways when it collapses: what is
+     left of the rail around one item square. */
+  --sidebar-rail-inset: calc((var(--sidebar-width-icon) - var(--sidebar-item-size)) / 2);
+  /* Inset that centers a 2rem image (the emblem, the avatar) in the item square, on the same axis as the icons. */
+  --sidebar-image-inset: calc((var(--sidebar-item-size) - 2rem) / 2);
 
   position: sticky;
   inset-block-start: 0;
@@ -18,7 +23,7 @@
   box-sizing: border-box;
   width: var(--sidebar-width);
   height: 100dvh;
-  padding: var(--layout-padding-small);
+  padding: var(--layout-padding-small) var(--sidebar-rail-inset);
   overflow: hidden auto;
   border-inline-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
   background-color: var(--surface-color-background-light-gray);
@@ -27,7 +32,6 @@
 
 .sidebar[data-state='collapsed'] {
   width: var(--sidebar-width-icon);
-  padding-inline: calc((var(--sidebar-width-icon) - var(--sidebar-item-size)) / 2);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -62,7 +66,7 @@
   gap: var(--layout-margin-small);
   box-sizing: border-box;
   min-height: 3rem;
-  padding: 0 var(--layout-padding-xsmall);
+  padding: 0 var(--sidebar-image-inset);
   color: var(--typography-color-primary);
   font: var(--typography-bold-h5);
 }
