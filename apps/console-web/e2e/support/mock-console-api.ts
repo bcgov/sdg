@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 
 export const admin = { id: '0b6f8d0e-5c43-4a8e-9a43-2f1a3d9e7c11', name: 'Ada Lovelace', email: 'ada@gov.bc.ca' };
 
-/** Fakes console-api's /api/auth/me in the browser, so the signed-out suite needs no API or Keycloak. */
+/** Fakes console-api's /api/auth/me in the browser, so the mocked specs need no API or Keycloak. */
 export async function mockSession(page: Page, signedIn: () => boolean): Promise<void> {
   await page.route('**/api/auth/me', (route) =>
     signedIn()

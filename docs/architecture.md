@@ -58,7 +58,7 @@ flowchart TB
 
     subgraph CONSOLE["Console host"]
       direction TB
-      consoleweb["<b>console-web</b><br/>React SPA, runs in the browser<br/>Service-account registry"]:::internal
+      consoleweb["<b>console-web</b><br/>React SPA, runs in the browser<br/>Sidebar shell, service-account registry"]:::internal
       consoleapi["<b>console-api</b><br/>NestJS BFF on bff-core<br/>Cookie console.sid"]:::internal
     end
 

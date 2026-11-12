@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
-// Runs the service-account registry flow against a deployed console host with a real administrator
-// (playwright.config.ts signs in first). Runs only when E2E_CONSOLE_USERNAME and E2E_CONSOLE_PASSWORD are set; skipped otherwise.
+// Runs the service-account registry flow, inside the app shell, against a deployed console host with a real
+// administrator (playwright.config.ts signs in first). Runs only when E2E_CONSOLE_USERNAME and E2E_CONSOLE_PASSWORD are set; skipped otherwise.
 test.skip(!process.env['E2E_CONSOLE_USERNAME'] || !process.env['E2E_CONSOLE_PASSWORD'], 'needs an admin test account');
 
 function row(page: Page, clientId: string) {
@@ -15,7 +15,10 @@ async function expectUpdate(page: Page, text: string) {
 test('adds, disables, re-enables and removes a service account, and records each change', async ({ page }) => {
   const clientId = `e2e-${Date.now()}`;
   await page.goto('/service-clients');
-  await expect(page.getByRole('heading', { level: 1, name: 'Service accounts' })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('heading', { level: 1, name: 'Service accounts' })).toBeVisible();
+  await expect(
+    page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Service Accounts' }),
+  ).toHaveAttribute('aria-current', 'page');
 
   await page.getByRole('textbox', { name: /Client ID/ }).fill(clientId);
   await page.getByRole('textbox', { name: /Display name/ }).fill('Playwright e2e');

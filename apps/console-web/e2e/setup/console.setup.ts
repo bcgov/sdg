@@ -6,16 +6,19 @@ import { test as setup } from '@repo/playwright-config';
 // playwright.config.ts reads the same file for the signed-in specs.
 const consoleAuthFile = path.resolve(import.meta.dirname, '../../playwright/.auth/console.json');
 
+// Signed out, a signed-in page sends the visitor to the sign-in card, which returns them there after Keycloak.
 setup('sign in as an administrator', async ({ page, clientURL, clientUsername, clientPassword }) => {
-  await page.goto(clientURL);
-  await page.getByRole('banner').getByRole('link', { name: 'Sign in' }).click();
+  await page.goto(new URL('/service-clients', clientURL).href);
+  await page.waitForURL((url) => url.pathname === '/login');
+  await page.getByRole('main').getByRole('link', { name: 'Sign in' }).click();
 
   await page.getByRole('button', { name: 'Test with username and password' }).click();
   await page.getByRole('textbox', { name: 'Email or username' }).fill(clientUsername);
   await page.getByRole('textbox', { name: 'Password' }).fill(clientPassword);
   await page.getByRole('button', { name: 'Continue' }).click();
 
-  await page.waitForURL((url) => url.origin === new URL(clientURL).origin && url.pathname === '/');
-  await expect(page.getByRole('banner').getByRole('button', { name: /^Account menu for / })).toBeVisible();
+  await page.waitForURL((url) => url.origin === new URL(clientURL).origin && url.pathname === '/service-clients');
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Account menu for / })).toBeVisible();
   await page.context().storageState({ path: consoleAuthFile });
 });

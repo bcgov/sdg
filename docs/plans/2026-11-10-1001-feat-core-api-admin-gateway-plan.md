@@ -120,6 +120,7 @@ The text requirements below are complete without the diagram.
 - R13. admin-web is a new React app served on its own hostname through the shared edge. On that host, `/api` goes to admin-api.
 - R14. Only IDIR users holding the admin client role on the admin client can sign in. Anyone else sees a not-authorized page that says the admin client role is required and offers a sign-out that also ends their Keycloak session. No session or principal is created for them.
 - R15. admin-web shows the shared `<sdg-header>` with the administrator's name and sign-out.
+  - Superseded: the header requirement is replaced by docs/plans/2026-11-12-1016-feat-console-app-shell-plan.md (console-web's sidebar shell and account menu).
 - R16. admin-web has a service-account registry screen. Administrators can list registered clients, add one by Keycloak client id with a display name, disable or re-enable one, and remove one after confirming.
 - R17. Every registry change records which administrator made it and when, and the registry screen shows that history. The history is one log that outlives the entries it describes: removing a client keeps its earlier history and records the removal.
 - R32. admin-web handles admin-api's refusals explicitly. A 401 returns the administrator to sign-in with a "session ended" message. A 503 keeps the session and offers a retry. A 403 shows the not-authorized page (R14). No registry change is shown as successful unless core-api confirmed it.
