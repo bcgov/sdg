@@ -1,7 +1,8 @@
 .topBar {
   display: flex;
   align-items: center;
-  gap: var(--layout-margin-small);
+  /* The space either side of the vertical divider. */
+  gap: var(--layout-margin-xsmall);
   /* One sidebar row tall (its 2.5rem item square), which fits the 40px toggle button with no padding above or below. */
   min-height: 2.5rem;
   padding: 0 var(--layout-padding-small);
