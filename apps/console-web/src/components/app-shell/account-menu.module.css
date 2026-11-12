@@ -1,0 +1,51 @@
+/* The account button at the foot of the sidebar (R11): avatar, name and email, or the avatar alone on the icon rail.
+   The bcgov Button's styles load as adopted stylesheets, later in the cascade, so these overrides of its layout are
+   more specific than bcgov's own rules. */
+.account > button {
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3rem;
+  padding: var(--layout-padding-xsmall);
+  color: var(--typography-color-primary);
+  text-align: start;
+}
+
+.account > button:not([data-hovered]) {
+  background-color: transparent;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-small);
+  min-width: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name,
+.email {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.name {
+  font: var(--typography-bold-small-body);
+}
+
+.email {
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-small-body);
+}
+
+/* The menu's profile block: a section header, so it is not a menu item. */
+.profile {
+  padding: var(--layout-padding-small);
+  color: var(--typography-color-primary);
+}

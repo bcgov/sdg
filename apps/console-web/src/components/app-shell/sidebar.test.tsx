@@ -2,38 +2,12 @@ import { cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fakeConsoleApi } from '../../test-support/fake-console-api';
-import { renderAt } from '../../test-support/render';
+import { renderShell, tabTo } from '../../test-support/shell';
 
 afterEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
 });
-
-/** Renders a signed-in page and waits for the shell; the sidebar is the element the toggle controls. */
-async function renderShell(path: string) {
-  fakeConsoleApi();
-  const rendered = renderAt(path);
-  const toggle = await screen.findByRole('button', { name: /sidebar$/ });
-  const sidebar = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
-  if (!sidebar) throw new Error('the toggle controls no element');
-  return { ...rendered, toggle, sidebar };
-}
-
-type User = ReturnType<typeof userEvent.setup>;
-
-/** Presses Tab until the element has focus, at most `pressesLeft` times. */
-async function pressTabUntil(user: User, element: HTMLElement, pressesLeft: number): Promise<void> {
-  if (document.activeElement === element || pressesLeft === 0) return;
-  await user.tab();
-  return pressTabUntil(user, element, pressesLeft - 1);
-}
-
-/** Tabs to an element, so react-aria sees keyboard focus (tooltips open only on visible focus). */
-async function tabTo(user: User, element: HTMLElement) {
-  await pressTabUntil(user, element, 20);
-  expect(element).toHaveFocus();
-}
 
 const linkNames = (nav: HTMLElement) =>
   within(nav)

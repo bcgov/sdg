@@ -1,0 +1,100 @@
+/* The command palette (R8, R14) in the bcgov look: the design system's overlay tint, a modal panel near the top of
+   the viewport, a search field and the destination list. Every class replaces react-aria's default class name. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--layout-margin-xlarge) var(--layout-margin-medium);
+  background: var(--surface-color-overlay-default);
+}
+
+.modal {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 32rem;
+  max-height: 100%;
+  overflow: hidden;
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-forms-default);
+  box-shadow: var(--surface-shadow-large);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+  outline: none;
+}
+
+.field {
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--layout-padding-medium);
+  border: none;
+  background: transparent;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+.input::placeholder {
+  color: var(--typography-color-placeholder);
+}
+
+.input:focus-visible {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+/* The browser's own clear button; the field clears with Escape. */
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.list {
+  overflow-y: auto;
+  padding: var(--layout-padding-xsmall);
+  outline: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-small);
+  padding: var(--layout-padding-small);
+  border-radius: var(--layout-border-radius-small);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+  cursor: pointer;
+  outline: none;
+}
+
+.item[data-focused],
+.item[data-hovered] {
+  background-color: var(--surface-color-menus-hover);
+}
+
+.item[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+.icon {
+  flex: none;
+  width: var(--icons-size-small);
+  color: var(--typography-color-secondary);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--layout-padding-small);
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-body);
+}

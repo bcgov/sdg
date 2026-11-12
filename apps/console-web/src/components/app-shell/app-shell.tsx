@@ -1,6 +1,8 @@
 import { Outlet } from '@tanstack/react-router';
-import { type MouseEvent, useCallback, useEffect, useMemo, useRef } from 'react';
+import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { AccountMenu } from './account-menu';
+import { CommandPalette } from './command-palette';
 import { Sidebar } from './sidebar';
 import { SidebarProvider, useSidebar } from './sidebar-context';
 import { TopBar } from './top-bar';
@@ -28,9 +30,14 @@ function useShortcuts(shortcuts: Shortcuts): void {
   }, [shortcuts]);
 }
 
+const ACCOUNT_MENU = <AccountMenu />;
+
 function ShellLayout() {
   const { toggleSidebar } = useSidebar();
-  const shortcuts = useMemo(() => ({ b: toggleSidebar }), [toggleSidebar]);
+  // The shell owns the palette's open state, so every way of opening it (Search, ⌘K) goes through one place.
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const shortcuts = useMemo(() => ({ b: toggleSidebar, k: openPalette }), [toggleSidebar, openPalette]);
   useShortcuts(shortcuts);
   const mainRef = useRef<HTMLElement>(null);
   // Focus `main` directly: not every browser (or jsdom) focuses a fragment's target, and the URL keeps no `#main-content`.
@@ -43,13 +50,14 @@ function ShellLayout() {
       <a className={styles.skipLink} href="#main-content" onClick={skipToMain}>
         Skip to main content
       </a>
-      <Sidebar />
+      <Sidebar onSearch={openPalette} account={ACCOUNT_MENU} />
       <div className={styles.inset}>
         <TopBar />
         <main ref={mainRef} id="main-content" className={styles.main} tabIndex={-1}>
           <Outlet />
         </main>
       </div>
+      <CommandPalette isOpen={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
 }
