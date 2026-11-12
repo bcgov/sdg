@@ -89,6 +89,7 @@
   padding: 0 var(--sidebar-item-inset);
   border: var(--layout-border-width-small) solid var(--surface-color-border-default);
   color: var(--typography-color-secondary);
+  font: var(--typography-regular-small-body);
 }
 
 .sidebar .search > button:not([data-hovered]) {
@@ -119,6 +120,8 @@
   padding: 0 var(--sidebar-item-inset);
   border-radius: var(--layout-border-radius-medium);
   color: var(--typography-color-primary);
+  /* Small body text, as in the account card, keeps the sidebar light. */
+  font: var(--typography-regular-small-body);
 }
 
 .list .item[data-hovered] {
