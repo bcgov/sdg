@@ -50,6 +50,6 @@
 
 /* The menu's profile block: a section header, so it is not a menu item. */
 .profile {
-  padding: var(--layout-padding-small);
+  padding: var(--layout-padding-xsmall);
   color: var(--typography-color-primary);
 }
