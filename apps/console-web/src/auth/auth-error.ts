@@ -7,3 +7,8 @@ export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
 export function parseAuthError(value: unknown): AuthErrorCode | undefined {
   return AUTH_ERROR_CODES.find((code) => code === value);
 }
+
+/** The `session=ended` notice a 401 redirect carries; anything else is ignored. */
+export function parseSessionNotice(value: unknown): 'ended' | undefined {
+  return value === 'ended' ? 'ended' : undefined;
+}

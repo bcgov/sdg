@@ -15,7 +15,7 @@ const FALLBACK_TITLE = 'SDG Console';
 export const SIDEBAR_TOGGLE_ID = 'sidebar-toggle';
 
 /** The deepest matched route's `staticData.title`, so every signed-in page has a non-empty `h1` (KTD5). */
-export function usePageTitle(): string {
+function usePageTitle(): string {
   return useMatches({ select: (matches) => matches.at(-1)?.staticData.title ?? FALLBACK_TITLE });
 }
 

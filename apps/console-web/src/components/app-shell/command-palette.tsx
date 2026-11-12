@@ -16,12 +16,9 @@ import {
   useFilter,
 } from 'react-aria-components';
 
-import { MAIN_NAV, type NavItem, SECONDARY_NAV } from './nav-items';
+import { ALL_NAV } from './nav-items';
 
 import styles from './command-palette.module.css';
-
-/** Search covers navigation only: the four sidebar destinations (R14). */
-const DESTINATIONS: readonly NavItem[] = [...MAIN_NAV, ...SECONDARY_NAV];
 
 const renderNoResults = () => <p className={styles.empty}>No results</p>;
 
@@ -40,7 +37,7 @@ export function CommandPalette({ isOpen, onOpenChange }: CommandPaletteProps) {
   const { contains } = useFilter({ sensitivity: 'base' });
   const go = useCallback(
     (key: Key) => {
-      const destination = DESTINATIONS.find((item) => item.to === key);
+      const destination = ALL_NAV.find((item) => item.to === key);
       if (!destination) return;
       onOpenChange(false);
       void router.navigate({ to: destination.to });
@@ -56,7 +53,7 @@ export function CommandPalette({ isOpen, onOpenChange }: CommandPaletteProps) {
             <SearchField className={styles.field} aria-label="Search" autoFocus>
               <Input className={styles.input} placeholder="Search…" />
             </SearchField>
-            <Menu className={styles.list} items={DESTINATIONS} onAction={go} renderEmptyState={renderNoResults}>
+            <Menu className={styles.list} items={ALL_NAV} onAction={go} renderEmptyState={renderNoResults}>
               {(item) => (
                 <MenuItem className={styles.item} id={item.to} textValue={item.label}>
                   <FontAwesomeIcon icon={item.icon} className={styles.icon} />

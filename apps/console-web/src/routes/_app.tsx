@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 
-import { parseAuthError } from '../auth/auth-error';
+import { parseAuthError, parseSessionNotice } from '../auth/auth-error';
 import { lookUpCurrentUser } from '../auth/use-current-user';
 import { AppShell } from '../components/app-shell/app-shell';
 
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/_app')({
     if (await lookUpCurrentUser(context.queryClient)) return;
     const search: Record<string, unknown> = location.search;
     const authError = parseAuthError(search['authError']);
-    const session = search['session'] === 'ended' ? 'ended' : undefined;
+    const session = parseSessionNotice(search['session']);
     const returnTo = authError || session ? location.pathname : location.href;
     throw redirect({ to: '/login', search: { authError, session, returnTo } });
   },

@@ -5,14 +5,14 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
 
 import { loginHref } from '../auth/api';
-import { type AuthErrorCode, parseAuthError } from '../auth/auth-error';
+import { type AuthErrorCode, parseAuthError, parseSessionNotice } from '../auth/auth-error';
 import { parseReturnTo } from '../auth/return-to';
 import { lookUpCurrentUser, useCurrentUser } from '../auth/use-current-user';
 import { AuthCard } from '../components/auth-card';
 import { AuthErrorNotice } from '../components/auth-error-notice';
 import { SessionEndedNotice } from '../components/session-ended-notice';
 
-export interface LoginSearch {
+interface LoginSearch {
   authError?: AuthErrorCode;
   session?: 'ended';
   /** Where signing in returns to; the Dashboard when absent. */
@@ -22,7 +22,7 @@ export interface LoginSearch {
 export const Route = createFileRoute('/login')({
   validateSearch: (search): LoginSearch => ({
     authError: parseAuthError(search['authError']),
-    session: search['session'] === 'ended' ? 'ended' : undefined,
+    session: parseSessionNotice(search['session']),
     returnTo: parseReturnTo(search['returnTo']),
   }),
   beforeLoad: async ({ context, search }) => {

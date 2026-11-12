@@ -18,3 +18,6 @@ export const SECONDARY_NAV: readonly NavItem[] = [
   { label: 'Settings', to: '/settings', icon: faGear },
   { label: 'Get help', to: '/help', icon: faCircleQuestion },
 ];
+
+/** Every destination, Main then Secondary: what the command palette searches (R14). */
+export const ALL_NAV: readonly NavItem[] = [...MAIN_NAV, ...SECONDARY_NAV];
