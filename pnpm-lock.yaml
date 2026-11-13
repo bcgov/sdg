@@ -613,6 +613,9 @@ importers:
       '@repo/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@repo/feature-flags':
+        specifier: workspace:*
+        version: link:../../packages/feature-flags
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.105.1(@types/react@19.3.0)(react@19.3.1)
@@ -980,6 +983,9 @@ importers:
       '@repo/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@repo/feature-flags':
+        specifier: workspace:*
+        version: link:../../packages/feature-flags
       '@repo/sdg-header':
         specifier: workspace:*
         version: link:../../packages/sdg-header
