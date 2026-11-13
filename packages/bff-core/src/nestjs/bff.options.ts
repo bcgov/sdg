@@ -38,6 +38,13 @@ export interface BffModuleOptions {
   readonly coreApiUrl: string;
   /** The audiences this BFF forwards (e.g. `['portal']`); `shared` is always forwarded too. */
   readonly audiences: readonly Audience[];
+  /**
+   * Forwarded GET paths that don't need a session (KTD2): with none, or one that just ended, the call goes to core-api
+   * with no token instead of 401, and core-api's 401 to it doesn't end a session. Matched against the decoded,
+   * normalized path without its query or a trailing slash (`/api/v1/shared/flags`); an IdP outage during a refresh
+   * is still 503. None when omitted.
+   */
+  readonly optionalSessionPaths?: readonly string[];
   /** Runs after the code exchange. Defaults to core-api's `/internal/principals/login` (`createCoreApiLogin`). */
   readonly onLogin?: LoginHook;
   /** Runs when `onLogin` is refused. Defaults to `<appUrl>/?authError=access_denied`. */

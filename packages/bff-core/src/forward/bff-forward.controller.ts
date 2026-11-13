@@ -19,18 +19,28 @@ import { requestBody } from './request-body.js';
 interface ForwardContext {
   readonly req: Request;
   readonly res: Response;
+  /** A GET to one of `optionalSessionPaths`: forwarded with no token when there is no usable session. */
+  readonly sessionOptional: boolean;
+  /** Set by the token supplier when the call goes to core-api with no token. */
+  anonymous: boolean;
 }
 
-/** True for `/api/v<N>/<audience>/…` paths; anything else is left to the app's other routes (or its 404). */
-function isForwardedPath(url: string): boolean {
+/**
+ * The decoded, normalized path of a `/api/v<N>/<audience>/…` target, without a trailing slash, or undefined for
+ * anything else, which is left to the app's other routes (or its 404).
+ */
+function forwardedPath(url: string): string | undefined {
   const target = normalizeRequestTarget(url);
-  return target !== undefined && classifyPath(target.path) !== undefined;
+  if (target === undefined || classifyPath(target.path) === undefined) return undefined;
+  return target.path.endsWith('/') ? target.path.slice(0, -1) : target.path;
 }
 
 /**
  * Forwards the signed-in user's `/api/v<N>/<audience>/…` calls to core-api with the session's access token,
  * refreshed first when it is about to expire. Paths outside this BFF's audiences get 404, a missing session 401,
  * an unreachable IdP or core-api 503. A 401 from core-api ends the session: the BFF just sent a token it believed valid.
+ * A GET to one of `optionalSessionPaths` with no session, or whose session just ended, is forwarded with no token
+ * instead of 401 (KTD2), and a 401 from core-api to it is relayed as is.
  */
 @ApiExcludeController()
 @Controller({ version: VERSION_NEUTRAL })
@@ -38,6 +48,7 @@ export class BffForwardController {
   private readonly logger = new Logger(BffForwardController.name);
   private readonly refresh: TokenRefreshService;
   private readonly cookieName: string;
+  private readonly optionalSessionPaths: ReadonlySet<string>;
   private readonly forwarder: Forwarder<ForwardContext>;
 
   constructor(
@@ -46,6 +57,7 @@ export class BffForwardController {
   ) {
     this.refresh = refresh;
     this.cookieName = options.session.cookieName;
+    this.optionalSessionPaths = new Set(options.optionalSessionPaths);
     this.forwarder = new Forwarder<ForwardContext>({
       upstream: options.coreApiUrl,
       audiences: [...options.audiences, 'shared'],
@@ -57,7 +69,8 @@ export class BffForwardController {
   @All('*path')
   async forward(@Req() req: RawBodyRequest<Request>, @Res() res: Response, @Next() next: NextFunction): Promise<void> {
     // Registered as a catch-all under /api, so it must not shadow routes the app registers after it.
-    if (!isForwardedPath(req.originalUrl)) return next();
+    const path = forwardedPath(req.originalUrl);
+    if (path === undefined) return next();
     let body: Uint8Array | undefined;
     try {
       body = await requestBody(req);
@@ -65,20 +78,30 @@ export class BffForwardController {
       this.logger.error({ msg: 'Could not read the request body to forward', error: describeError(error) });
       throw error;
     }
+    const context: ForwardContext = {
+      req,
+      res,
+      sessionOptional: req.method === 'GET' && this.optionalSessionPaths.has(path),
+      anonymous: false,
+    };
     const result = await this.forwarder.forward(
       { method: req.method, url: req.originalUrl, headers: req.headers, body },
-      { req, res },
+      context,
     );
-    if (result.kind === 'response' && result.status === 401) return this.rejectedByCoreApi(req, res);
+    if (result.kind === 'response' && result.status === 401 && !context.anonymous) {
+      return this.rejectedByCoreApi(req, res);
+    }
     this.send(res, result);
   }
 
-  private async token({ req, res }: ForwardContext): Promise<TokenResult> {
-    const result = await this.refresh.accessToken(req);
+  private async token(context: ForwardContext): Promise<TokenResult> {
+    const result = await this.refresh.accessToken(context.req);
     if (result.kind === 'token') return { token: result.token };
     if (result.kind === 'unavailable') return { status: 503 };
-    if (result.kind === 'ended') res.clearCookie(this.cookieName, { path: '/' });
-    return { status: 401 };
+    if (result.kind === 'ended') context.res.clearCookie(this.cookieName, { path: '/' });
+    if (!context.sessionOptional) return { status: 401 };
+    context.anonymous = true;
+    return { anonymous: true };
   }
 
   private async rejectedByCoreApi(req: Request, res: Response): Promise<void> {

@@ -30,15 +30,15 @@ const HOP_BY_HOP = [
  */
 const NOT_RELAYED = ['set-cookie', 'content-encoding', 'content-length'];
 
-/** The allow-listed headers of the incoming request plus `Authorization: Bearer <token>`. */
-export function forwardedRequestHeaders(incoming: IncomingHeaders, token: string): Headers {
+/** The allow-listed headers of the incoming request plus `Authorization: Bearer <token>`, or none without a token. */
+export function forwardedRequestHeaders(incoming: IncomingHeaders, token: string | undefined): Headers {
   const headers = new Headers();
   for (const name of FORWARDED_REQUEST_HEADERS) {
     const value = incoming[name];
     if (typeof value === 'string') headers.set(name, value);
     else if (value !== undefined) headers.set(name, value.join(', '));
   }
-  headers.set('authorization', `Bearer ${token}`);
+  if (token !== undefined) headers.set('authorization', `Bearer ${token}`);
   return headers;
 }
 
