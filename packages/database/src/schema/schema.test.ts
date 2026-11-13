@@ -4,11 +4,19 @@ import { getTableConfig, IndexedColumn, type Index, type PgColumn } from 'drizzl
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  FEATURE_FLAG_AUDIENCES,
+  FEATURE_FLAG_EVENT_ACTIONS,
+  featureFlagEvents,
+  featureFlagOverrides,
+  featureFlags,
   identities,
   principals,
   SERVICE_CLIENT_ACTIONS,
   serviceClientEvents,
   serviceClients,
+  type FeatureFlag,
+  type FeatureFlagEvent,
+  type FeatureFlagOverride,
   type Identity,
   type NewPrincipal,
   type Principal,
@@ -28,9 +36,25 @@ const indexColumns = (index: Index | undefined): string[] =>
   });
 
 describe('database schema', () => {
-  it('puts every table in the core schema', () => {
-    const tables = [principals, identities, serviceClients, serviceClientEvents];
-    expect(tables.map((table) => getTableConfig(table).schema)).toEqual(['core', 'core', 'core', 'core']);
+  it('Should put every table, the feature-flag tables included, in the core schema', () => {
+    const tables = [
+      principals,
+      identities,
+      serviceClients,
+      serviceClientEvents,
+      featureFlags,
+      featureFlagOverrides,
+      featureFlagEvents,
+    ];
+    expect(tables.map((table) => `${getTableConfig(table).schema}.${getTableConfig(table).name}`)).toEqual([
+      'core.principals',
+      'core.identities',
+      'core.service_clients',
+      'core.service_client_events',
+      'core.feature_flags',
+      'core.feature_flag_overrides',
+      'core.feature_flag_events',
+    ]);
   });
 
   describe('principals', () => {
@@ -100,6 +124,16 @@ describe('database schema', () => {
       expectTypeOf<Identity['claims']>().toEqualTypeOf<Record<string, unknown>>();
       expectTypeOf<Identity['emailVerified']>().toEqualTypeOf<boolean>();
     });
+
+    it('Should record nullable portal and console sign-in times (KTD5)', () => {
+      expect([...columns.keys()].slice(-2)).toEqual(['portal_signed_in_at', 'console_signed_in_at']);
+      for (const name of ['portal_signed_in_at', 'console_signed_in_at']) {
+        expect(columns.get(name)).toMatchObject({ notNull: false, hasDefault: false });
+        expect(columns.get(name)?.getSQLType()).toBe('timestamp with time zone');
+      }
+      expectTypeOf<Identity['portalSignedInAt']>().toEqualTypeOf<Date | null>();
+      expectTypeOf<Identity['consoleSignedInAt']>().toEqualTypeOf<Date | null>();
+    });
   });
 
   describe('service_clients', () => {
@@ -151,6 +185,100 @@ describe('database schema', () => {
     it('allows only the known actions', () => {
       expect(SERVICE_CLIENT_ACTIONS).toEqual(['added', 'disabled', 'enabled', 'removed']);
       expect(config.checks.map((check) => check.name)).toEqual(['service_client_events_action_check']);
+    });
+  });
+
+  describe('feature_flags', () => {
+    const config = getTableConfig(featureFlags);
+    const columns = byName(config.columns);
+
+    it('Should key flags by text and default them off, at 100% and for the portal (R1, KTD6)', () => {
+      expect([...columns.keys()]).toEqual(['key', 'description', 'enabled', 'rollout_pct', 'audience']);
+      expect(columns.get('key')).toMatchObject({ primary: true, notNull: true, columnType: 'PgText' });
+      expect(columns.get('description')?.notNull).toBe(false);
+      expect(columns.get('enabled')).toMatchObject({ notNull: true, default: false, columnType: 'PgBoolean' });
+      expect(columns.get('rollout_pct')).toMatchObject({ notNull: true, default: 100, columnType: 'PgSmallInt' });
+      expect(columns.get('audience')).toMatchObject({ notNull: true, default: 'portal', columnType: 'PgText' });
+      expectTypeOf<FeatureFlag>().toEqualTypeOf<{
+        key: string;
+        description: string | null;
+        enabled: boolean;
+        rolloutPct: number;
+        audience: 'portal' | 'console' | 'both';
+      }>();
+    });
+
+    it('Should check the rollout percentage and the audience', () => {
+      expect(FEATURE_FLAG_AUDIENCES).toEqual(['portal', 'console', 'both']);
+      expect(config.checks.map((check) => check.name)).toEqual([
+        'feature_flags_rollout_pct_check',
+        'feature_flags_audience_check',
+      ]);
+    });
+  });
+
+  describe('feature_flag_overrides', () => {
+    const config = getTableConfig(featureFlagOverrides);
+    const columns = byName(config.columns);
+
+    it('Should key overrides by (flag_key, user_id) with a required on/off value', () => {
+      expect([...columns.keys()]).toEqual(['flag_key', 'user_id', 'enabled']);
+      expect(config.primaryKeys.map((key) => key.getName())).toEqual(['feature_flag_overrides_pkey']);
+      expect(config.primaryKeys[0]?.columns.map(dbName)).toEqual(['flag_key', 'user_id']);
+      for (const name of ['flag_key', 'user_id', 'enabled']) expect(columns.get(name)?.notNull).toBe(true);
+      expect(columns.get('enabled')?.hasDefault).toBe(false);
+      expectTypeOf<FeatureFlagOverride>().toEqualTypeOf<{ flagKey: string; userId: string; enabled: boolean }>();
+    });
+
+    it('Should cascade from both the flag and the principal (R17, KTD6)', () => {
+      const references = config.foreignKeys.map((foreignKey) => {
+        const reference = foreignKey.reference();
+        return {
+          columns: reference.columns.map(dbName),
+          table: getTableConfig(reference.foreignTable).name,
+          foreignColumns: reference.foreignColumns.map(dbName),
+          onDelete: foreignKey.onDelete,
+        };
+      });
+      expect(references).toEqual([
+        { columns: ['flag_key'], table: 'feature_flags', foreignColumns: ['key'], onDelete: 'cascade' },
+        { columns: ['user_id'], table: 'principals', foreignColumns: ['id'], onDelete: 'cascade' },
+      ]);
+    });
+  });
+
+  describe('feature_flag_events', () => {
+    const config = getTableConfig(featureFlagEvents);
+    const columns = byName(config.columns);
+
+    it('Should record the action, flag key, actor, target, changes and time, ordered by an identity id (R19, KTD7)', () => {
+      expect([...columns.keys()]).toEqual([
+        'id',
+        'flag_key',
+        'action',
+        'actor_principal_id',
+        'actor_name',
+        'subject_principal_id',
+        'changes',
+        'created_at',
+      ]);
+      expect(columns.get('id')?.generatedIdentity?.type).toBe('always');
+      for (const name of ['flag_key', 'action', 'actor_principal_id', 'actor_name', 'changes', 'created_at']) {
+        expect(columns.get(name)?.notNull).toBe(true);
+      }
+      expect(columns.get('subject_principal_id')).toMatchObject({ notNull: false, columnType: 'PgUUID' });
+      expect(columns.get('changes')).toMatchObject({ default: {}, columnType: 'PgJsonb' });
+      expectTypeOf<FeatureFlagEvent['action']>().toEqualTypeOf<
+        'created' | 'updated' | 'deleted' | 'override_set' | 'override_removed'
+      >();
+      expectTypeOf<FeatureFlagEvent['subjectPrincipalId']>().toEqualTypeOf<string | null>();
+      expectTypeOf<FeatureFlagEvent['changes']>().toEqualTypeOf<Record<string, unknown>>();
+    });
+
+    it('Should have no foreign key and allow only the known actions (KTD7)', () => {
+      expect(config.foreignKeys).toEqual([]);
+      expect(FEATURE_FLAG_EVENT_ACTIONS).toEqual(['created', 'updated', 'deleted', 'override_set', 'override_removed']);
+      expect(config.checks.map((check) => check.name)).toEqual(['feature_flag_events_action_check']);
     });
   });
 });
