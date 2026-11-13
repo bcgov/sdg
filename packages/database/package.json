@@ -28,7 +28,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio --config drizzle.studio.config.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
