@@ -72,6 +72,20 @@ describe('POST /internal/principals/login (KTD5, KTD6)', () => {
     expect(identity).toMatchObject({ principalId: res.body.principalId, subject: 'idir-1' });
   });
 
+  it('Should record a portal sign-in as portal_signed_in_at only (R18)', async () => {
+    expect((await login(await t.idp.portalToken())).status).toBe(200);
+    const [identity] = await t.database.db.select().from(identities);
+    expect(identity?.portalSignedInAt).toBeInstanceOf(Date);
+    expect(identity?.consoleSignedInAt).toBeNull();
+  });
+
+  it('Should record a console sign-in as console_signed_in_at only (R18)', async () => {
+    expect((await login(await t.idp.consoleToken(['admin']))).status).toBe(200);
+    const [identity] = await t.database.db.select().from(identities);
+    expect(identity?.consoleSignedInAt).toBeInstanceOf(Date);
+    expect(identity?.portalSignedInAt).toBeNull();
+  });
+
   it('Should answer 403 to a service-account token', async () => {
     const res = await login(await t.idp.serviceAccountToken());
     expect(res.status).toBe(403);

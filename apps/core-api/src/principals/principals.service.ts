@@ -3,6 +3,7 @@ import type { AuthUser } from '@repo/auth';
 import { identities, principals, type IdentityClaims } from '@repo/database';
 import { and, eq } from 'drizzle-orm';
 
+import type { CallerKind } from '../auth/caller.js';
 import { InjectDatabase, type Database } from '../database/database.module.js';
 
 /** Claims that must never be persisted, even if an IdP echoes them into its profile claims. */
@@ -14,6 +15,12 @@ export interface PrincipalView {
   name: string;
   email: string | null;
 }
+
+/** The person callers that sign in to an app: a portal resident or a console user. */
+export type SignInKind = Exclude<CallerKind, 'service-account'>;
+
+/** The identity column recording the last sign-in through each app (KTD5). */
+const SIGNED_IN_AT = { 'portal-user': 'portalSignedInAt', 'console-user': 'consoleSignedInAt' } as const;
 
 export function persistableClaims(claims: Readonly<Record<string, unknown>>): IdentityClaims {
   return Object.fromEntries(Object.entries(claims).filter(([key]) => !TOKEN_CLAIMS.has(key)));
@@ -30,8 +37,9 @@ export class PrincipalsService {
   /**
    * Creates or refreshes the principal and identity for a login, in one transaction.
    * The identity is keyed by (issuer, subject); a racing first login resolves through the unique index.
+   * Stamps the sign-in app's column for `kind` and leaves the other app's untouched (KTD5).
    */
-  upsertFromLogin(user: AuthUser): Promise<{ principalId: string }> {
+  upsertFromLogin(user: AuthUser, kind: SignInKind): Promise<{ principalId: string }> {
     const now = new Date();
     const identityFields = {
       email: user.email,
@@ -39,6 +47,7 @@ export class PrincipalsService {
       username: user.username,
       claims: persistableClaims(user.claims),
       lastLoginAt: now,
+      [SIGNED_IN_AT[kind]]: now,
       updatedAt: now,
     };
     const principalFields = { displayName: user.name, email: user.email, lastLoginAt: now, updatedAt: now };

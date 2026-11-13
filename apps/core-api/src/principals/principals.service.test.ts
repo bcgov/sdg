@@ -7,6 +7,8 @@ import { createTestDatabase, type TestDatabase } from '../testing/database.js';
 import { PrincipalsService } from './principals.service.js';
 
 const ISSUER = 'https://keycloak.example.com/realms/portal';
+const PORTAL = 'portal-user';
+const CONSOLE = 'console-user';
 
 function user(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
@@ -79,6 +81,14 @@ function withFailedInsert(db: Database, targetTable: typeof principals | typeof 
   });
 }
 
+/** The only identity's sign-in app markers (KTD5). */
+async function signInMarks(db: Database) {
+  const [identity] = await db
+    .select({ portal: identities.portalSignedInAt, console: identities.consoleSignedInAt })
+    .from(identities);
+  return identity;
+}
+
 describe('PrincipalsService Unit Test Suite', () => {
   let database: TestDatabase;
   let service: PrincipalsService;
@@ -96,7 +106,7 @@ describe('PrincipalsService Unit Test Suite', () => {
 
   describe('first login', () => {
     it('Should create a principal and identity and returns principalId', async () => {
-      const { principalId } = await service.upsertFromLogin(user());
+      const { principalId } = await service.upsertFromLogin(user(), PORTAL);
       const [principal] = await database.db.select().from(principals);
       const [identity] = await database.db.select().from(identities);
       expect(principal).toMatchObject({
@@ -126,6 +136,7 @@ describe('PrincipalsService Unit Test Suite', () => {
             id_token: 'i',
           },
         }),
+        PORTAL,
       );
       const [identity] = await database.db.select().from(identities);
       expect(identity?.claims).toEqual({ sub: 'sub-123', locale: 'en' });
@@ -135,7 +146,7 @@ describe('PrincipalsService Unit Test Suite', () => {
 
   describe('returning login', () => {
     it('Should update identity and principal fields and last_login_at', async () => {
-      await service.upsertFromLogin(user());
+      await service.upsertFromLogin(user(), PORTAL);
       const [before] = await database.db.select().from(identities);
       await service.upsertFromLogin(
         user({
@@ -144,6 +155,7 @@ describe('PrincipalsService Unit Test Suite', () => {
           emailVerified: false,
           username: 'aking',
         }),
+        PORTAL,
       );
       const [principal] = await database.db.select().from(principals);
       const [identity] = await database.db.select().from(identities);
@@ -161,20 +173,23 @@ describe('PrincipalsService Unit Test Suite', () => {
     });
 
     it('Should keep the same principalId', async () => {
-      const first = await service.upsertFromLogin(user());
-      const second = await service.upsertFromLogin(user({ name: 'Someone Else' }));
+      const first = await service.upsertFromLogin(user(), PORTAL);
+      const second = await service.upsertFromLogin(user({ name: 'Someone Else' }), PORTAL);
       expect(second.principalId).toBe(first.principalId);
       expect(await database.db.$count(principals)).toBe(1);
       expect(await database.db.$count(identities)).toBe(1);
-      const other = await service.upsertFromLogin(user({ issuer: 'https://other.example.com/realms/x' }));
+      const other = await service.upsertFromLogin(user({ issuer: 'https://other.example.com/realms/x' }), PORTAL);
       expect(other.principalId).not.toBe(first.principalId);
     });
   });
 
   describe('concurrency', () => {
     it('Should not duplicate principals when two first logins race', async () => {
-      const winner = await service.upsertFromLogin(user());
-      const loser = await new PrincipalsService(withStaleLookup(database.db)).upsertFromLogin(user({ name: 'Ada L.' }));
+      const winner = await service.upsertFromLogin(user(), PORTAL);
+      const loser = await new PrincipalsService(withStaleLookup(database.db)).upsertFromLogin(
+        user({ name: 'Ada L.' }),
+        PORTAL,
+      );
       expect(loser.principalId).toBe(winner.principalId);
       expect(await database.db.$count(principals)).toBe(1);
       expect(await database.db.$count(identities)).toBe(1);
@@ -183,9 +198,47 @@ describe('PrincipalsService Unit Test Suite', () => {
     });
   });
 
+  describe('sign-in app markers (R18, KTD5)', () => {
+    it('Should set portal_signed_in_at and leave console_signed_in_at null on a portal sign-in', async () => {
+      const before = Date.now();
+      await service.upsertFromLogin(user(), PORTAL);
+      const identity = await signInMarks(database.db);
+      expect(identity?.portal?.getTime()).toBeGreaterThanOrEqual(before);
+      expect(identity?.console).toBeNull();
+    });
+
+    it('Should set console_signed_in_at and leave portal_signed_in_at null on a console sign-in', async () => {
+      const before = Date.now();
+      await service.upsertFromLogin(user(), CONSOLE);
+      const identity = await signInMarks(database.db);
+      expect(identity?.console?.getTime()).toBeGreaterThanOrEqual(before);
+      expect(identity?.portal).toBeNull();
+    });
+
+    it('Should update portal_signed_in_at on a second portal sign-in and keep console_signed_in_at', async () => {
+      await service.upsertFromLogin(user(), CONSOLE);
+      await service.upsertFromLogin(user(), PORTAL);
+      const first = await signInMarks(database.db);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await service.upsertFromLogin(user(), PORTAL);
+      const second = await signInMarks(database.db);
+      expect(second?.portal?.getTime()).toBeGreaterThan(first!.portal!.getTime());
+      expect(second?.console).toEqual(first?.console);
+      expect(second?.console).toBeInstanceOf(Date);
+    });
+
+    it('Should set the sign-in app marker when a racing first login resolves through the unique index', async () => {
+      await service.upsertFromLogin(user(), PORTAL);
+      await new PrincipalsService(withStaleLookup(database.db)).upsertFromLogin(user(), CONSOLE);
+      const identity = await signInMarks(database.db);
+      expect(identity?.portal).toBeInstanceOf(Date);
+      expect(identity?.console).toBeInstanceOf(Date);
+    });
+  });
+
   describe('findByIdentity', () => {
     it('Should return the principal linked to an issuer and subject', async () => {
-      const { principalId } = await service.upsertFromLogin(user());
+      const { principalId } = await service.upsertFromLogin(user(), PORTAL);
       expect(await service.findByIdentity(ISSUER, 'sub-123')).toEqual({
         id: principalId,
         name: 'Ada Lovelace',
@@ -194,7 +247,7 @@ describe('PrincipalsService Unit Test Suite', () => {
     });
 
     it('Should return undefined for an identity that never signed in', async () => {
-      await service.upsertFromLogin(user());
+      await service.upsertFromLogin(user(), PORTAL);
       expect(await service.findByIdentity(ISSUER, 'sub-unknown')).toBeUndefined();
       expect(await service.findByIdentity('https://other.example.com', 'sub-123')).toBeUndefined();
     });
@@ -203,12 +256,16 @@ describe('PrincipalsService Unit Test Suite', () => {
   describe('error handling', () => {
     it('Should throw when inserting the principal returns no row', async () => {
       const failingService = new PrincipalsService(withFailedInsert(database.db, principals));
-      await expect(failingService.upsertFromLogin(user())).rejects.toThrow('Inserting the principal returned no row');
+      await expect(failingService.upsertFromLogin(user(), PORTAL)).rejects.toThrow(
+        'Inserting the principal returned no row',
+      );
     });
 
     it('Should throw when upserting the identity returns no row', async () => {
       const failingService = new PrincipalsService(withFailedInsert(database.db, identities));
-      await expect(failingService.upsertFromLogin(user())).rejects.toThrow('Upserting the identity returned no row');
+      await expect(failingService.upsertFromLogin(user(), PORTAL)).rejects.toThrow(
+        'Upserting the identity returned no row',
+      );
     });
   });
 });
