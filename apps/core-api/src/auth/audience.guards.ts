@@ -73,3 +73,21 @@ export class InternalGuard extends AudienceGuard {
     return caller.kind === 'portal-user' || caller.kind === 'console-user';
   }
 }
+
+/**
+ * Routes open to anonymous and person callers (the portal's flag list and hello-world): a request without an
+ * `Authorization` header is admitted without a caller (`@OptionalCaller()` yields undefined). Any header is resolved
+ * as `SharedGuard` does, so a malformed or invalid token is still 401, an outage 503 and a service account 403.
+ */
+@Injectable()
+export class OptionalSharedGuard extends SharedGuard {
+  constructor(@Inject(PrincipalResolver) resolver: PrincipalResolver) {
+    super(resolver);
+  }
+
+  override async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<CallerRequest>();
+    if (request.headers['authorization'] === undefined) return true;
+    return super.canActivate(context);
+  }
+}
