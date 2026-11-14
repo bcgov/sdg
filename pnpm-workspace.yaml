@@ -43,7 +43,7 @@ catalog:
   '@opentelemetry/sdk-node': ^0.301.0
   '@opentelemetry/sdk-trace': ^3.1.0
   '@opentelemetry/semantic-conventions': ^1.44.0
-  '@playwright/test': ^1.65.0
+  '@playwright/test': ^1.65.1
   '@tanstack/react-devtools': ^0.10.13
   '@tanstack/react-query': ^5.104.5
   '@tanstack/react-query-devtools': ^5.104.5
