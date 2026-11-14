@@ -1,3 +1,4 @@
+import { FlagProvider } from '@repo/feature-flags';
 import { type QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 
@@ -11,7 +12,9 @@ export interface AppProps {
 export function App({ queryClient, router }: Readonly<AppProps>) {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <FlagProvider>
+        <RouterProvider router={router} />
+      </FlagProvider>
     </QueryClientProvider>
   );
 }

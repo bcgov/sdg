@@ -80,6 +80,7 @@ describe('useHeaderAuth', () => {
 
     it('Should render Sign in when the API errors', async () => {
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
       renderWith(() => Promise.resolve(new Response('Bad gateway', { status: 502 })));
       const header = await headerQueries();
       expect(await header.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
@@ -87,7 +88,8 @@ describe('useHeaderAuth', () => {
         '/api/auth/login?returnTo=%2F',
       );
       expect(consoleError).toHaveBeenCalledWith('portal-web: could not load the current user', expect.any(Error));
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      // The flag list is fetched too; only the current-user request must not be retried.
+      expect(fetchMock.mock.calls.filter(([url]) => url === '/api/auth/me')).toHaveLength(1);
     });
   });
 
