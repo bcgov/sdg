@@ -1,0 +1,196 @@
+.section {
+  margin-block: var(--layout-margin-xlarge);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--typography-regular-body);
+  color: var(--typography-color-primary);
+}
+
+.table caption {
+  text-align: start;
+  font: var(--typography-regular-small-body);
+  color: var(--typography-color-secondary);
+  padding-block-end: var(--layout-padding-small);
+}
+
+.table th,
+.table td {
+  text-align: start;
+  vertical-align: middle;
+  padding: var(--layout-padding-small);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.table th {
+  font: var(--typography-bold-body);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  max-width: 40rem;
+}
+
+/* A polite live region (implicit role status) that holds the latest confirmed change. */
+.status {
+  display: block;
+}
+
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A result's lines inside its button: name first, then email, kind and last sign-in. */
+.person {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: start;
+}
+
+.personDetail {
+  font: var(--typography-regular-small-body);
+}
+
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  max-width: 40rem;
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  padding: var(--layout-padding-large);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* The key's link covers its whole row, so a press anywhere on the row opens the flag; Tab still reaches the link. */
+.flagRow {
+  position: relative;
+}
+
+.flagRow:hover {
+  background-color: var(--surface-color-background-light-gray);
+}
+
+.rowLink a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--typography-regular-body);
+  color: var(--typography-color-primary);
+}
+
+.history li {
+  padding-block-end: var(--layout-padding-small);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+/* A flag's page: one bordered panel per section, spaced apart, like the command palette's surface. */
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xlarge);
+  margin-block-start: var(--layout-margin-large);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  min-width: 0;
+  padding: var(--layout-padding-large);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-background-white);
+}
+
+/* Inside a panel only the gaps space things out: no heading, paragraph or list margins of their own. */
+.panel h2,
+.panel h3,
+.panel p,
+.panel dl,
+.panel dd,
+.panel ol,
+.panel ul {
+  margin: 0;
+}
+
+/* About 0.75rem under a panel's heading (the gap plus this), and a little more above a sub-heading. */
+.panel > h2 {
+  margin-block-end: var(--layout-margin-xsmall);
+}
+
+.panel > h3 {
+  margin-block-start: var(--layout-margin-small);
+}
+
+/* Term and value on one row. */
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--layout-margin-xsmall) var(--layout-margin-medium);
+  font: var(--typography-regular-body);
+  color: var(--typography-color-primary);
+}
+
+.facts dt {
+  font: var(--typography-bold-body);
+}
+
+.facts dd {
+  overflow-wrap: anywhere;
+}
+
+/* Focus lands on the overrides panel from the R21 notice's link (script only, never Tab). */
+.panel:focus {
+  outline: none;
+}
+
+.dangerPanel {
+  border-color: var(--support-border-color-danger);
+}
+
+@media (max-width: 768px) {
+  .panel {
+    padding: var(--layout-padding-medium);
+  }
+}

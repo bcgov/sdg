@@ -51,6 +51,7 @@ describe('signed-in pages (R9, R10, R15, KTD5)', () => {
   it.each([
     ['/', 'Dashboard'],
     ['/service-clients', 'Service accounts'],
+    ['/feature-flags', 'Feature flags'],
     ['/settings', 'Settings'],
     ['/help', 'Get help'],
   ])('renders %s titled %s, with the title as the only h1', async (path, title) => {

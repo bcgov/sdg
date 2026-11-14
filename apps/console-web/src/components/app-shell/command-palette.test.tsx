@@ -25,12 +25,12 @@ async function openFromSearch(user: User, sidebar: HTMLElement) {
 }
 
 describe('the command palette (R8, R14)', () => {
-  it('opens from Search as a dialog named Search, with the input focused and the four destinations', async () => {
+  it('opens from Search as a dialog named Search, with the input focused and the five destinations', async () => {
     const user = userEvent.setup();
     const { sidebar } = await renderShell('/');
     const dialog = await openFromSearch(user, sidebar);
     expect(within(dialog).getByRole('searchbox')).toHaveFocus();
-    expect(itemNames(dialog)).toEqual(['Dashboard', 'Service Accounts', 'Settings', 'Get help']);
+    expect(itemNames(dialog)).toEqual(['Dashboard', 'Service Accounts', 'Feature Flags', 'Settings', 'Get help']);
   });
 
   it('filters as the administrator types, and says when nothing matches', async () => {
@@ -52,6 +52,17 @@ describe('the command palette (R8, R14)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/settings');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('lists Feature Flags and goes to /feature-flags (R14)', async () => {
+    const user = userEvent.setup();
+    const { router, sidebar } = await renderShell('/');
+    const dialog = await openFromSearch(user, sidebar);
+    await user.keyboard('flag');
+    expect(itemNames(dialog)).toEqual(['Feature Flags']);
+    await user.keyboard('{ArrowDown}{Enter}');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Feature flags' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/feature-flags');
   });
 
   it('closes on Escape and returns focus to the Search button', async () => {
