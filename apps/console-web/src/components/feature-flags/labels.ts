@@ -13,8 +13,8 @@ export const KIND_LABELS: Readonly<Record<PersonKind, string>> = {
 
 export const onOff = (enabled: boolean) => (enabled ? 'On' : 'Off');
 
-export const people = (count: number) => `${count} ${count === 1 ? 'person' : 'people'}`;
-
 export const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+export const people = (count: number) => plural(count, 'person', 'people');
 
 export const dateTime = new Intl.DateTimeFormat('en-CA', { dateStyle: 'medium', timeStyle: 'short' });

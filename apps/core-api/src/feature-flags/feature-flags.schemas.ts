@@ -1,6 +1,11 @@
 import { FEATURE_FLAG_AUDIENCES, FEATURE_FLAG_EVENT_ACTIONS } from '@repo/database';
 import { z } from 'zod';
 
+import { personKindSchema } from '../principals/principals.schemas.js';
+
+export { personKindSchema };
+export type { PersonKind } from '../principals/principals.schemas.js';
+
 /** GET /api/v1/shared/flags: each flag that is on for the caller, mapped to true. A key it doesn't name is off (R10). */
 export const flagListSchema = z.record(z.string(), z.literal(true));
 export type FlagList = z.infer<typeof flagListSchema>;
@@ -13,6 +18,9 @@ export type HelloWorld = z.infer<typeof helloWorldSchema>;
 export const flagKeySchema = z
   .string()
   .regex(/^[a-z][a-z0-9_]{1,62}$/, 'Must start with a lower-case letter, then 1–62 lower-case letters, digits or _');
+
+/** The `:key` route parameter. */
+export const flagKeyParam = { schema: flagKeySchema };
 
 /** Trimmed, at most 500 characters; an empty description is stored as null (KTD13). */
 const descriptionSchema = z.string().trim().max(500).nullable();
@@ -50,10 +58,6 @@ export const flagSummarySchema = z.object({
 export type FlagSummary = z.infer<typeof flagSummarySchema>;
 
 export const flagSummaryListSchema = z.array(flagSummarySchema);
-
-/** Which app a person signs in to, from their identities' sign-in markers (KTD5). */
-export const personKindSchema = z.enum(['resident', 'console-user']);
-export type PersonKind = z.infer<typeof personKindSchema>;
 
 /** PUT /api/v1/console/feature-flags/:key/overrides/:principalId */
 export const setOverrideSchema = z.object({ enabled: z.boolean() });

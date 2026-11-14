@@ -7,7 +7,8 @@ export const isAudience = (value: unknown): value is Audience => AUDIENCES.some(
 export const EVENT_ACTIONS = ['created', 'updated', 'deleted', 'override_set', 'override_removed'] as const;
 export type FlagEventAction = (typeof EVENT_ACTIONS)[number];
 
-export type PersonKind = 'resident' | 'console-user';
+export const PERSON_KINDS = ['resident', 'console-user'] as const;
+export type PersonKind = (typeof PERSON_KINDS)[number];
 
 /** A flag with how many people it is forced on and off for (R21). */
 export interface FlagSummary {
@@ -90,7 +91,6 @@ const isString = (value: unknown): value is string => typeof value === 'string';
 const isNullableString = (value: unknown): value is string | null => value === null || isString(value);
 const isCount = (value: unknown): value is number => Number.isInteger(value);
 const oneOf = (values: readonly unknown[], value: unknown) => values.includes(value);
-const KINDS: readonly unknown[] = ['resident', 'console-user'];
 
 function isSummary(value: unknown): value is FlagSummary {
   if (!isObject(value) || !isObject(value['overrideCounts'])) return false;
@@ -112,7 +112,7 @@ function isOverride(value: unknown): value is FlagOverride {
     isString(value['principalId']) &&
     isString(value['name']) &&
     isNullableString(value['email']) &&
-    oneOf(KINDS, value['kind']) &&
+    oneOf(PERSON_KINDS, value['kind']) &&
     typeof value['enabled'] === 'boolean'
   );
 }
@@ -149,7 +149,7 @@ function isPerson(value: unknown): value is Person {
     isString(value['principalId']) &&
     isString(value['displayName']) &&
     isNullableString(value['email']) &&
-    oneOf(KINDS, value['kind']) &&
+    oneOf(PERSON_KINDS, value['kind']) &&
     isString(value['lastSignInAt'])
   );
 }

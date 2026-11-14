@@ -85,9 +85,8 @@ export class FeatureFlagsService {
 
   /** The flag with every override, each with its target's current name, email and kind; 404 when it doesn't exist. */
   async detail(key: string): Promise<FlagDetail> {
-    const [[flag], counts, rows] = await Promise.all([
+    const [[flag], rows] = await Promise.all([
       this.db.select().from(featureFlags).where(eq(featureFlags.key, key)),
-      countOverrides(this.db, key),
       this.db.select().from(featureFlagOverrides).where(eq(featureFlagOverrides.flagKey, key)),
     ]);
     if (flag === undefined) throw missingFlag(key);
@@ -106,7 +105,8 @@ export class FeatureFlagsService {
       return [{ principalId, name, email, kind: kindOf(target, flag.audience), enabled: row.enabled }];
     });
     overrides.sort((a, b) => a.name.localeCompare(b.name));
-    return { ...toSummary(flag, counts.get(key) ?? NO_OVERRIDES), overrides };
+    const on = rows.filter((row) => row.enabled).length;
+    return { ...toSummary(flag, { on, off: rows.length - on }), overrides };
   }
 
   /** 409 when the key exists. Records `created` with every field's initial value. */

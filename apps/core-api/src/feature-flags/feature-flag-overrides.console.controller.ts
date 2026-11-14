@@ -18,14 +18,13 @@ import { PrincipalsService } from '../principals/principals.service.js';
 import { FeatureFlagOverridesService } from './feature-flag-overrides.service.js';
 import { actorOf } from './feature-flag-records.js';
 import {
-  flagKeySchema,
+  flagKeyParam,
   overrideSchema,
   setOverrideSchema,
   type OverrideView,
   type SetOverride,
 } from './feature-flags.schemas.js';
 
-const keyParam = { schema: flagKeySchema };
 const principalIdParam = { schema: z.uuid() };
 
 /** Per-person overrides of a flag, for administrators (R18, R20). */
@@ -58,7 +57,7 @@ export class FeatureFlagOverridesConsoleController {
   })
   async set(
     @CurrentCaller() caller: Caller,
-    @Param('key', keyParam) key: string,
+    @Param('key', flagKeyParam) key: string,
     @Param('principalId', principalIdParam) principalId: string,
     @Body({ schema: setOverrideSchema }) body: SetOverride,
   ): Promise<OverrideView> {
@@ -71,7 +70,7 @@ export class FeatureFlagOverridesConsoleController {
   @ApiNotFoundResponse({ description: 'The flag does not exist, or has no override for this principal' })
   async remove(
     @CurrentCaller() caller: Caller,
-    @Param('key', keyParam) key: string,
+    @Param('key', flagKeyParam) key: string,
     @Param('principalId', principalIdParam) principalId: string,
   ): Promise<void> {
     await this.overrides.remove(key, principalId, await actorOf(this.principals, caller));

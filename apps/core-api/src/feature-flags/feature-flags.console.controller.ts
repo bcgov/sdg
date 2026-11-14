@@ -22,7 +22,7 @@ import {
   flagDetailSchema,
   flagHistoryPageSchema,
   flagHistoryQuerySchema,
-  flagKeySchema,
+  flagKeyParam,
   flagSummaryListSchema,
   flagSummarySchema,
   updateFlagSchema,
@@ -34,8 +34,6 @@ import {
   type UpdateFlag,
 } from './feature-flags.schemas.js';
 import { FeatureFlagsService } from './feature-flags.service.js';
-
-const keyParam = { schema: flagKeySchema };
 
 /**
  * Flag management and history for administrators: console-client tokens with the admin client role (R20). Every
@@ -79,7 +77,7 @@ export class FeatureFlagsConsoleController {
   @Get('feature-flags/:key')
   @ApiOkResponse({ description: 'The flag and every override', standardSchema: flagDetailSchema })
   @ApiNotFoundResponse({ description: 'The flag does not exist' })
-  detail(@Param('key', keyParam) key: string): Promise<FlagDetail> {
+  detail(@Param('key', flagKeyParam) key: string): Promise<FlagDetail> {
     return this.flags.detail(key);
   }
 
@@ -92,7 +90,7 @@ export class FeatureFlagsConsoleController {
   @ApiNotFoundResponse({ description: 'The flag does not exist' })
   async update(
     @CurrentCaller() caller: Caller,
-    @Param('key', keyParam) key: string,
+    @Param('key', flagKeyParam) key: string,
     @Body({ schema: updateFlagSchema }) body: UpdateFlag,
   ): Promise<FlagSummary> {
     return this.flags.update(key, body, await actorOf(this.principals, caller));
@@ -102,7 +100,7 @@ export class FeatureFlagsConsoleController {
   @HttpCode(204)
   @ApiNoContentResponse({ description: 'Deleted with its overrides; its history stays' })
   @ApiNotFoundResponse({ description: 'The flag does not exist' })
-  async remove(@CurrentCaller() caller: Caller, @Param('key', keyParam) key: string): Promise<void> {
+  async remove(@CurrentCaller() caller: Caller, @Param('key', flagKeyParam) key: string): Promise<void> {
     await this.flags.remove(key, await actorOf(this.principals, caller));
   }
 

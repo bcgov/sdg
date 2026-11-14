@@ -17,6 +17,10 @@ export const principalSchema = z.object({
 });
 export type PrincipalResponse = z.infer<typeof principalSchema>;
 
+/** Which app a person signs in to, from their identities' sign-in markers (KTD5). */
+export const personKindSchema = z.enum(['resident', 'console-user']);
+export type PersonKind = z.infer<typeof personKindSchema>;
+
 export const PEOPLE_SEARCH_LIMIT = 20;
 
 /** POST /api/v1/console/people/search: a partial name or email, and the flag audience to search within (KTD9). */
@@ -31,7 +35,7 @@ export const personSchema = z.object({
   principalId: z.uuid(),
   displayName: z.string(),
   email: z.string().nullable(),
-  kind: z.enum(['resident', 'console-user']),
+  kind: personKindSchema,
   lastSignInAt: z.iso.datetime(),
 });
 export type PersonView = z.infer<typeof personSchema>;
