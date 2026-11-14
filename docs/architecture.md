@@ -125,7 +125,7 @@ flowchart TB
   sso["<b>BC Gov SSO</b>"]:::ext
 
   subgraph CORE["core-api"]
-    guards["<b>Audience guards</b><br/>Shared, Console, Internal<br/>403 for the wrong kind of caller"]:::comp
+    guards["<b>Audience guards</b><br/>Shared, OptionalShared, Console, Internal<br/>403 for the wrong kind of caller"]:::comp
     gguard["<b>GatewayGuard</b><br/>Client must be registered and enabled<br/>Read on every request, no cache"]:::comp
     resolver["<b>PrincipalResolver</b><br/>Verifies the JWT, classifies the caller:<br/>portal user, console user, service account<br/>401 invalid, 503 keys unreachable"]:::comp
     me["<b>MeController</b><br/>GET /api/v1/shared/me"]:::comp
@@ -133,10 +133,14 @@ flowchart TB
     regconsole["<b>Registry console controller</b><br/>/api/v1/console/service-clients<br/>List, history, add, disable, enable, remove"]:::comp
     reggw["<b>Registry gateway controller</b><br/>GET /api/v1/gateway/me"]:::comp
     regsvc["<b>RegistryService</b><br/>Each change and its history event<br/>in one transaction"]:::comp
+    flagshared["<b>Feature flags shared controller</b><br/>GET /api/v1/shared/flags<br/>GET /api/v1/shared/hello-world<br/>No token is anonymous"]:::comp
+    flagconsole["<b>Feature flags console controllers</b><br/>/api/v1/console/feature-flags (CRUD),<br/>…/:key/overrides, /feature-flag-history"]:::comp
+    people["<b>People console controller</b><br/>POST /api/v1/console/people/search<br/>Partial name or email"]:::comp
+    flagsvc["<b>Feature flag services</b><br/>Evaluation (isEnabled), management,<br/>each change and its history event<br/>in one transaction"]:::comp
     userinfo["<b>UserinfoClient</b>"]:::comp
   end
 
-  db[("<b>core schema</b><br/>principals, identities,<br/>service_clients, service_client_events")]:::internal
+  db[("<b>core schema</b><br/>principals, identities,<br/>service_clients, service_client_events,<br/>feature_flags, feature_flag_overrides,<br/>feature_flag_events")]:::internal
 
   bffs --> guards
   gw --> gguard
@@ -146,8 +150,13 @@ flowchart TB
   guards --> me
   guards --> principals
   guards --> regconsole
+  guards --> flagshared
+  guards --> flagconsole
+  guards --> people
   gguard --> reggw
   regconsole --> regsvc
+  flagshared --> flagsvc
+  flagconsole --> flagsvc
   reggw --> regsvc
   gguard -->|"Looks up azp"| regsvc
   principals --> userinfo
@@ -155,6 +164,8 @@ flowchart TB
   me --> db
   principals --> db
   regsvc --> db
+  flagsvc --> db
+  people --> db
 
   classDef internal fill:#1168bd,stroke:#0b4884,color:#ffffff
   classDef comp fill:#85bbf0,stroke:#5d82a8,color:#0b2340
@@ -164,7 +175,8 @@ flowchart TB
 
 - A person token is accepted only from the portal or console client. Service-account tokens are recognized by their `client_id` claim or `service-account-` username, and the registry is matched on `azp`.
 - `/internal/*` is never forwarded. Only the BFFs call it, at sign-in. A refused console user gets 403 there, and console-api turns that into a sign-out.
-- The portal audience has no routes yet. Residents use only the shared `/me` route so far.
+- The portal audience still has no routes of its own. Residents use only `shared` routes: `/me`, `/flags` and `/hello-world`. The two flag routes sit behind `OptionalSharedGuard`: no token is admitted as an anonymous portal visitor, a portal or console person token resolves as usual, an invalid token stays 401, a verifier outage 503 and a service-account token 403.
+- The flag list is evaluated for the caller's app (portal for no token or a portal token, console for a console token) and names only the flags that are on, so unreleased flag names never leave core-api. Console admins manage flags, per-person overrides, history and people search under `console`. `feature_flag_events` has no foreign keys, so history outlives a deleted flag.
 
 ## Level 3: BFF components
 
@@ -183,7 +195,7 @@ flowchart TB
     refusal["<b>Refusal hook</b> (console-api)<br/>Ends the Keycloak session,<br/>redirects to /not-authorized"]:::comp
     sessguard["<b>SessionAuthGuard</b>"]:::comp
     refresh["<b>TokenRefreshService</b><br/>Refreshes near expiry,<br/>re-reads the session across pods"]:::comp
-    forward["<b>BffForwardController</b><br/>Allow-listed audiences only,<br/>404 otherwise; core-api 401 ends the session"]:::comp
+    forward["<b>BffForwardController</b><br/>Allow-listed audiences only, 404 otherwise;<br/>optional-session GETs may go with no token;<br/>core-api 401 ends the session"]:::comp
     store["<b>PostgresSessionStore</b><br/>Tokens encrypted with SessionCipher,<br/>sign-out leaves a tombstone"]:::comp
   end
 
@@ -212,6 +224,7 @@ flowchart TB
 ```
 
 - The browser never sees a token, only the session cookie. The BFF attaches the access token when it forwards.
+- Optional-session allow-list: `optionalSessionPaths` names GET paths that are forwarded without a token when the request has no usable session. portal-api sets `/api/v1/shared/flags` and `/api/v1/shared/hello-world`, so a signed-out visitor, or one whose session just ended (the stale cookie is cleared), reaches core-api as an anonymous caller. console-api sets none, so those requests get 401. An unreachable IdP is still 503, and a core-api 401 on an anonymous request does not end any session.
 - A failed sign-in redirects to the app with `?authError=` (`unavailable`, `login_failed`, `access_denied`, `invalid_state`) and keeps any existing session.
 
 ## Deployment: OpenShift
@@ -263,3 +276,8 @@ flowchart LR
 - Ingress NetworkPolicies separate the tiers: the edge accepts only the OpenShift router, the web apps and forwarders accept only the edge, core-api accepts only the three forwarders, and Postgres accepts only core-api and the two BFFs.
 - The release rolls back as a whole: if one service fails to start, none of the new versions stay.
 - Observability is wired only when `OBSERVABILITY=true`. Otherwise nothing is scraped or sent.
+
+## Shared packages
+
+- `@repo/feature-flags` is the flag provider used by portal-web (around the whole app) and console-web (inside the signed-in shell). It fetches `GET /api/v1/shared/flags` once per page load and exposes a hook that reports loading as well as on/off. It never delays unflagged content, and a failed fetch leaves every flag off. A flag the list doesn't name is off.
+- Flags have an audience of portal, console or both. The console's Feature Flags page (`/feature-flags` in console-web) is the admin UI for the `console` routes above.
