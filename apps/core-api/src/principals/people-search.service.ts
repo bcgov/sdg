@@ -3,6 +3,7 @@ import { identities, principals, type FeatureFlagAudience } from '@repo/database
 import { asc, eq, ilike, isNotNull, max, or, sql, type SQL } from 'drizzle-orm';
 
 import { InjectDatabase, type Database } from '../database/database.module.js';
+import { personKind } from './person-kind.js';
 import {
   PEOPLE_SEARCH_LIMIT,
   type PeopleSearch,
@@ -44,7 +45,7 @@ function toPersonView(row: Row, audience: FeatureFlagAudience): PersonView {
     principalId: row.principalId,
     displayName: row.displayName,
     email: row.email,
-    kind: row.portalAt === null ? 'console-user' : 'resident',
+    kind: personKind({ portal: row.portalAt !== null, console: row.consoleAt !== null }, audience),
     lastSignInAt: latest(...relevant[audience]).toISOString(),
   };
 }

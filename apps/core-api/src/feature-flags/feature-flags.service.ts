@@ -3,8 +3,8 @@ import { featureFlagEvents, featureFlagOverrides, featureFlags, principals, type
 import { and, asc, desc, eq, lt, sql } from 'drizzle-orm';
 
 import { InjectDatabase, type Database } from '../database/database.module.js';
+import { personKind } from '../principals/person-kind.js';
 import {
-  kindOf,
   lockFlag,
   missingFlag,
   overrideTargets,
@@ -102,7 +102,7 @@ export class FeatureFlagsService {
       const target = targets.get(row.userId);
       if (target === undefined) return [];
       const { principalId, name, email } = target;
-      return [{ principalId, name, email, kind: kindOf(target, flag.audience), enabled: row.enabled }];
+      return [{ principalId, name, email, kind: personKind(target, flag.audience), enabled: row.enabled }];
     });
     overrides.sort((a, b) => a.name.localeCompare(b.name));
     const on = rows.filter((row) => row.enabled).length;

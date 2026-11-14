@@ -124,11 +124,13 @@ describe('POST /api/v1/console/people/search (R18, R20, KTD9)', () => {
     ]);
   });
 
-  it('Should label someone who signed in to both apps a resident, last signed in at the later marker', async () => {
+  it("Should label someone who signed in to both apps as the override list does, by the flag's app (AE10)", async () => {
     const portalAt = new Date('2026-11-02T00:00:00.000Z');
     const consoleAt = new Date('2026-11-04T00:00:00.000Z');
     await seed({ name: 'Kim Both', portalAt, consoleAt });
-    expect(await summaries('kim', 'both')).toEqual([['Kim Both', 'resident', consoleAt.toISOString()]]);
+    expect(await summaries('kim', 'portal')).toEqual([['Kim Both', 'resident', portalAt.toISOString()]]);
+    expect(await summaries('kim', 'console')).toEqual([['Kim Both', 'console-user', consoleAt.toISOString()]]);
+    expect(await summaries('kim', 'both')).toEqual([['Kim Both', 'console-user', consoleAt.toISOString()]]);
   });
 
   it('Should not return a principal who has no sign-in marker (KTD5)', async () => {

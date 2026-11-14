@@ -14,7 +14,6 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import type { Caller } from '../auth/caller.js';
 import type { Database } from '../database/database.module.js';
 import type { PrincipalsService } from '../principals/principals.service.js';
-import type { PersonKind } from './feature-flags.schemas.js';
 
 /** The administrator making a flag change: their principal id and current display name. */
 export interface Actor {
@@ -89,10 +88,4 @@ export function inAudience(target: OverrideTarget, audience: FeatureFlagAudience
   if (audience === 'portal') return target.portal;
   if (audience === 'console') return target.console;
   return target.portal || target.console;
-}
-
-/** The person's kind, preferring the flag's own app when they have signed in to both. */
-export function kindOf(target: OverrideTarget, audience: FeatureFlagAudience): PersonKind {
-  if (audience === 'portal' && target.portal) return 'resident';
-  return target.console ? 'console-user' : 'resident';
 }

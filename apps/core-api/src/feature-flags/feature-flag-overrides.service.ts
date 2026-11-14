@@ -3,7 +3,8 @@ import { featureFlagOverrides } from '@repo/database';
 import { and, eq } from 'drizzle-orm';
 
 import { InjectDatabase, type Database } from '../database/database.module.js';
-import { inAudience, kindOf, lockFlag, overrideTargets, recordEvent, type Actor } from './feature-flag-records.js';
+import { personKind } from '../principals/person-kind.js';
+import { inAudience, lockFlag, overrideTargets, recordEvent, type Actor } from './feature-flag-records.js';
 import type { OverrideView } from './feature-flags.schemas.js';
 
 /**
@@ -45,7 +46,7 @@ export class FeatureFlagOverridesService {
         await recordEvent(tx, { flagKey: key, action: 'override_set', changes, subject: principalId }, actor);
       }
       const { name, email } = target;
-      return { principalId, name, email, kind: kindOf(target, flag.audience), enabled };
+      return { principalId, name, email, kind: personKind(target, flag.audience), enabled };
     });
   }
 
