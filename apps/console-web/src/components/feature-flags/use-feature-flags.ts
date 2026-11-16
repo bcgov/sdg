@@ -23,6 +23,7 @@ import {
   type FlagChanges,
   type FlagDetail,
   type FlagHistoryQuery,
+  type FlagListPage,
   type FlagListQuery,
   type FlagOverride,
   type NewFlag,
@@ -114,7 +115,15 @@ export function useDeleteFlag() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (key: string) => deleteFlag(key),
-    onSuccess: () => refetchFlags(queryClient),
+    onSuccess: (_, deleted) => {
+      // The list is unmounted behind the flag page, so its cached pages only go stale; drop the row before it remounts.
+      queryClient.setQueriesData<FlagListPage>({ queryKey: flagAdminKeys.list }, (page) =>
+        page?.items.some(({ key }) => key === deleted)
+          ? { ...page, items: page.items.filter(({ key }) => key !== deleted), total: page.total - 1 }
+          : page,
+      );
+      refetchFlags(queryClient);
+    },
   });
 }
 

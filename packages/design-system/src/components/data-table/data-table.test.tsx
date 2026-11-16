@@ -148,4 +148,15 @@ describe('DataTable cursor mode', () => {
     await userEvent.click(button('Newest'));
     expect(onSearchChange).toHaveBeenLastCalledWith({ q: 'list' }, { replace: false });
   });
+
+  it('Should replace an older-than cursor with the newest page when nothing is newer, e.g. past the oldest event (R20)', () => {
+    const { onSearchChange } = renderTable({
+      config: cursorConfig,
+      prefix: 'h',
+      search: { 'h.before': 'e5', q: 'list' },
+      rows: [],
+      paging: { mode: 'cursor', older: null, newer: null },
+    });
+    expect(onSearchChange).toHaveBeenCalledWith({ q: 'list' }, { replace: true });
+  });
 });

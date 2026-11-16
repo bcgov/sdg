@@ -31,8 +31,8 @@ export const FLAG_LIST_CONFIG: TableConfig = {
   defaultSort: { column: 'key', direction: 'asc' },
 };
 
-/** A flag's history pages through cursors; its params carry the `h.` prefix beside the list's (KTD10). */
-export const HISTORY_CONFIG: TableConfig = { mode: 'cursor' };
+/** A flag's history pages through cursors (event ids); its params carry the `h.` prefix beside the list's (KTD10). */
+export const HISTORY_CONFIG: TableConfig = { mode: 'cursor', isCursor: (raw) => /^[1-9]\d{0,15}$/.test(raw) };
 export const HISTORY_PREFIX = 'h';
 
 const LIST_KEYS = tableParamKeys(FLAG_LIST_CONFIG);

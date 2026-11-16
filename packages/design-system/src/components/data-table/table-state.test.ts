@@ -129,6 +129,14 @@ describe('readTableState', () => {
     expect(readTableState({ before: '42', after: '43' }, history).state.cursor).toBeNull();
     expect(readTableState({ before: '42', after: '43' }, history).corrected).toBe(true);
     expect(readTableState({ before: '' }, history)).toMatchObject({ state: { cursor: null }, corrected: true });
+    const numericIds: TableConfig = { ...history, isCursor: (raw) => /^[1-9]\d*$/.test(raw) };
+    for (const raw of ['12a', '0']) {
+      expect(readTableState({ after: raw }, numericIds)).toMatchObject({ state: { cursor: null }, corrected: true });
+    }
+    expect(readTableState({ before: '12' }, numericIds)).toMatchObject({
+      state: { cursor: { before: '12' } },
+      corrected: false,
+    });
   });
 
   it('Should read only string values', () => {

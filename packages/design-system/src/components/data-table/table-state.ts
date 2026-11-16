@@ -36,6 +36,8 @@ export interface TableConfig {
   /** Sortable column ids, each with the direction its first activation sorts in (R4). */
   sortable?: Readonly<Record<string, SortDirection>>;
   defaultSort?: TableSort;
+  /** Cursor mode: whether a URL cursor is one the server can use; any other is dropped. Any non-empty one by default. */
+  isCursor?: (raw: string) => boolean;
 }
 
 export interface TableState {
@@ -104,7 +106,7 @@ export function readTableState(params: Params, config: TableConfig, prefix?: str
   if (config.mode === 'numbered') {
     state.page = read('page', parsePage) ?? 1;
   } else {
-    state.cursor = readCursor(read, () => {
+    state.cursor = readCursor(read, config.isCursor, () => {
       corrected = true;
     });
   }
@@ -132,11 +134,10 @@ function readSort(config: TableConfig, read: Reader): TableSort | undefined {
   return config.defaultSort;
 }
 
-const nonEmpty = (raw: string) => (raw === '' ? undefined : raw);
-
-function readCursor(read: Reader, drop: () => void): TableCursor | null {
-  const before = read('before', nonEmpty);
-  const after = read('after', nonEmpty);
+function readCursor(read: Reader, isCursor: TableConfig['isCursor'], drop: () => void): TableCursor | null {
+  const usable = (raw: string) => (raw !== '' && (isCursor?.(raw) ?? true) ? raw : undefined);
+  const before = read('before', usable);
+  const after = read('after', usable);
   if (before !== undefined && after !== undefined) {
     // Older and newer at once is malformed: start from the newest.
     drop();

@@ -24,7 +24,8 @@ function mergeTableParams(
 
 /**
  * The state the URL should hold instead, if any (KTD8): a value the codec dropped, a page the server clamped (R14), or
- * a newer-than cursor whose page reached the newest events, which the server answers as the newest page (KTD3).
+ * a cursor whose page has no newer events. That is the newest page for an `after` cursor (KTD3), and for a `before`
+ * cursor either the newest page too or an empty page past the oldest event (a link from another environment).
  */
 function correction(
   state: TableState,
@@ -36,7 +37,7 @@ function correction(
     const page = Math.floor(paging.offset / state.pageSize) + 1;
     if (page !== state.page) return { ...state, page };
   }
-  if (status === 'ready' && paging.mode === 'cursor' && state.cursor && 'after' in state.cursor && !paging.newer) {
+  if (status === 'ready' && paging.mode === 'cursor' && state.cursor && !paging.newer) {
     return { ...state, cursor: null };
   }
   return corrected ? state : null;
