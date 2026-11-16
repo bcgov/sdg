@@ -303,9 +303,10 @@
   background: var(--surface-color-background-light-gray);
 }
 
+/* The body's empty, no-matches and error text, indented like the cells. */
 .message {
   margin: 0;
-  padding: var(--layout-padding-medium) 0;
+  padding: var(--layout-padding-medium) var(--layout-padding-small);
   color: var(--typography-color-secondary);
 }
 
