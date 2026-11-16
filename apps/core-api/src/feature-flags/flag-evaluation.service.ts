@@ -1,10 +1,11 @@
 import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
-import { featureFlagOverrides, featureFlags } from '@repo/database';
-import { and, eq, inArray } from 'drizzle-orm';
+import { featureFlagOverrides } from '@repo/database';
+import { eq } from 'drizzle-orm';
 
 import type { Caller } from '../auth/caller.js';
 import { InjectDatabase, type Database } from '../database/database.module.js';
 import { PrincipalsService } from '../principals/principals.service.js';
+import { FlagCache } from './flag-cache.service.js';
 import { isEnabled, type Flags, type Overrides } from './is-enabled.js';
 
 /** The app a caller is using: no token or a portal token means portal, a console token means console (KTD1). */
@@ -22,10 +23,16 @@ export class FlagEvaluationService {
   private readonly logger = new Logger(FlagEvaluationService.name);
   private readonly db: Database;
   private readonly principals: PrincipalsService;
+  private readonly cache: FlagCache;
 
-  constructor(@InjectDatabase() db: Database, @Inject(PrincipalsService) principals: PrincipalsService) {
+  constructor(
+    @InjectDatabase() db: Database,
+    @Inject(PrincipalsService) principals: PrincipalsService,
+    @Inject(FlagCache) cache: FlagCache,
+  ) {
     this.db = db;
     this.principals = principals;
+    this.cache = cache;
   }
 
   /** The keys of the flags on for this caller, among those whose audience includes the caller's app (R6). */
@@ -48,25 +55,19 @@ export class FlagEvaluationService {
 
   /** R4: the portal and both-audience flags that are on at 100%. */
   private async signedOut(): Promise<Set<string>> {
-    const rows = await this.db
-      .select({ key: featureFlags.key })
-      .from(featureFlags)
-      .where(
-        and(
-          inArray(featureFlags.audience, audiencesOf('portal')),
-          eq(featureFlags.enabled, true),
-          eq(featureFlags.rolloutPct, 100),
-        ),
-      );
-    return new Set(rows.map(({ key }) => key));
+    const audiences: readonly string[] = audiencesOf('portal');
+    const flags = await this.cache.flags();
+    return new Set(
+      flags
+        .filter((flag) => audiences.includes(flag.audience) && flag.enabled && flag.rolloutPct === 100)
+        .map(({ key }) => key),
+    );
   }
 
   private async flagsFor(app: FlagApp): Promise<Flags> {
-    const rows = await this.db
-      .select({ key: featureFlags.key, enabled: featureFlags.enabled, rolloutPct: featureFlags.rolloutPct })
-      .from(featureFlags)
-      .where(inArray(featureFlags.audience, audiencesOf(app)));
-    return new Map(rows.map((flag) => [flag.key, flag]));
+    const audiences: readonly string[] = audiencesOf(app);
+    const flags = await this.cache.flags();
+    return new Map(flags.filter((flag) => audiences.includes(flag.audience)).map((flag) => [flag.key, flag]));
   }
 
   /** The principal's overrides, keyed `${flagKey}:${principalId}` as `isEnabled` reads them. */

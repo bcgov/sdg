@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestApp, type TestApp } from '../testing/app.js';
+import { FlagCache } from './flag-cache.service.js';
 
 const FLAGS = '/api/v1/shared/flags';
 const HELLO = '/api/v1/shared/hello-world';
@@ -20,8 +21,12 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
   const portal = (sub: string) => t.idp.portalToken({ sub });
   const consoleUser = (sub: string) => t.idp.consoleToken([], { sub });
 
-  const flag = (key: string, fields: Partial<NewFeatureFlag> = {}) =>
-    t.database.db.insert(featureFlags).values({ key, enabled: true, rolloutPct: 100, ...fields });
+  /** Flags written straight to the table, as the console would, so the cache is cleared as a console change clears it. */
+  const clearFlagCache = () => t.app.get(FlagCache).invalidate();
+  const flag = async (key: string, fields: Partial<NewFeatureFlag> = {}) => {
+    await t.database.db.insert(featureFlags).values({ key, enabled: true, rolloutPct: 100, ...fields });
+    clearFlagCache();
+  };
   const helloWorld = (fields: Partial<NewFeatureFlag> = {}) => flag('hello_world', fields);
   const override = (userId: string, enabled: boolean) =>
     t.database.db.insert(featureFlagOverrides).values({ flagKey: 'hello_world', userId, enabled });
@@ -59,6 +64,7 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
     t.idp.reset();
     vi.restoreAllMocks();
     await Promise.all([t.database.db.delete(featureFlags), t.database.db.delete(principals)]);
+    clearFlagCache();
   });
 
   it('Should omit an off flag from a signed-in resident’s list and answer hello-world with 404 (AE1)', async () => {
@@ -100,6 +106,7 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
     await seed(subjects);
     const atHalf = await whoGets(subjects);
     await t.database.db.update(featureFlags).set({ rolloutPct: 80 }).where(eq(featureFlags.key, 'hello_world'));
+    clearFlagCache();
     const atEighty = await whoGets(subjects);
     for (const subject of atHalf) expect(atEighty.has(subject)).toBe(true);
     expect(atEighty.size).toBeGreaterThan(atHalf.size);
@@ -167,11 +174,25 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
     expect((await get(HELLO, token)).status).toBe(403);
   });
 
+  it('Should serve a flag change made outside the console only once the 30-second cache expires', async () => {
+    expect((await get(FLAGS)).body).toEqual({});
+    await t.database.db.insert(featureFlags).values({ key: 'hello_world', enabled: true, rolloutPct: 100 });
+    expect((await get(FLAGS)).body).toEqual({});
+    const now = Date.now();
+    const later = vi.spyOn(Date, 'now').mockReturnValue(now + 30_001);
+    try {
+      expect((await get(FLAGS)).body).toEqual({ hello_world: true });
+    } finally {
+      later.mockRestore();
+    }
+  });
+
   it('Should mark the list, the message and the 404 Cache-Control: private, no-store', async () => {
     await helloWorld();
     expect((await get(FLAGS)).headers['cache-control']).toBe('private, no-store');
     expect((await get(HELLO)).headers['cache-control']).toBe('private, no-store');
     await t.database.db.update(featureFlags).set({ enabled: false });
+    clearFlagCache();
     const missing = await get(HELLO);
     expect(missing.status).toBe(404);
     expect(missing.headers['cache-control']).toBe('private, no-store');

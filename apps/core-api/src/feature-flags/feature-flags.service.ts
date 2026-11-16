@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { featureFlagEvents, featureFlagOverrides, featureFlags, principals, type FeatureFlag } from '@repo/database';
 import { and, asc, desc, eq, lt, sql } from 'drizzle-orm';
 
@@ -22,6 +22,7 @@ import {
   type OverrideView,
   type UpdateFlag,
 } from './feature-flags.schemas.js';
+import { FlagCache } from './flag-cache.service.js';
 
 type Counts = FlagSummary['overrideCounts'];
 
@@ -69,9 +70,11 @@ function diff(
 @Injectable()
 export class FeatureFlagsService {
   private readonly db: Database;
+  private readonly cache: FlagCache;
 
-  constructor(@InjectDatabase() db: Database) {
+  constructor(@InjectDatabase() db: Database, @Inject(FlagCache) cache: FlagCache) {
     this.db = db;
+    this.cache = cache;
   }
 
   /** Every flag by key, with its "on" and "off" override counts. */
@@ -110,9 +113,9 @@ export class FeatureFlagsService {
   }
 
   /** 409 when the key exists. Records `created` with every field's initial value. */
-  create(input: CreateFlag, actor: Actor): Promise<FlagSummary> {
+  async create(input: CreateFlag, actor: Actor): Promise<FlagSummary> {
     const { key, enabled, rolloutPct, audience } = input;
-    return this.db.transaction(async (tx) => {
+    const summary = await this.db.transaction(async (tx) => {
       const [created] = await tx
         .insert(featureFlags)
         .values({ key, description: description(input.description), enabled, rolloutPct, audience })
@@ -123,11 +126,13 @@ export class FeatureFlagsService {
       await recordEvent(tx, { flagKey: key, action: 'created', changes }, actor);
       return toSummary(created, NO_OVERRIDES);
     });
+    this.cache.invalidate();
+    return summary;
   }
 
   /** Changes only the given fields and records `updated` with those that changed; 404 when the flag doesn't exist. */
-  update(key: string, input: UpdateFlag, actor: Actor): Promise<FlagSummary> {
-    return this.db.transaction(async (tx) => {
+  async update(key: string, input: UpdateFlag, actor: Actor): Promise<FlagSummary> {
+    const summary = await this.db.transaction(async (tx) => {
       const current = await lockFlag(tx, key);
       const { set, changes } = diff(current, { ...input, description: description(input.description) });
       let flag = current;
@@ -139,16 +144,19 @@ export class FeatureFlagsService {
       // The R21 notice needs the "on" count of a flag just turned off.
       return toSummary(flag, (await countOverrides(tx, key)).get(key) ?? NO_OVERRIDES);
     });
+    this.cache.invalidate();
+    return summary;
   }
 
   /** Deletes the flag and its overrides and records one `deleted` event; 404 when it doesn't exist. History stays. */
-  remove(key: string, actor: Actor): Promise<void> {
-    return this.db.transaction(async (tx) => {
+  async remove(key: string, actor: Actor): Promise<void> {
+    await this.db.transaction(async (tx) => {
       await lockFlag(tx, key);
       const overridesRemoved = await tx.$count(featureFlagOverrides, eq(featureFlagOverrides.flagKey, key));
       await tx.delete(featureFlags).where(eq(featureFlags.key, key));
       await recordEvent(tx, { flagKey: key, action: 'deleted', changes: { overridesRemoved } }, actor);
     });
+    this.cache.invalidate();
   }
 
   /** The log newest first, optionally for one key, `limit` events before the event id `before`. */

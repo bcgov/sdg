@@ -54,6 +54,19 @@ describe('Console flag routes /api/v1/console/feature-flags and /feature-flag-hi
     adminId = login.body.principalId;
   });
 
+  it('Should show a console create, edit and delete in the cached public flag list at once', async () => {
+    const publicList = async () => (await t.http().get('/api/v1/shared/flags')).body;
+    expect(await publicList()).toEqual({});
+    expect((await create({ key: 'hello_world', enabled: true, rolloutPct: 100 })).status).toBe(201);
+    expect(await publicList()).toEqual({ hello_world: true });
+    expect((await patch('hello_world', { enabled: false })).status).toBe(200);
+    expect(await publicList()).toEqual({});
+    await patch('hello_world', { enabled: true });
+    expect(await publicList()).toEqual({ hello_world: true });
+    expect((await auth(t.http().delete(`${FLAGS}/hello_world`))).status).toBe(204);
+    expect(await publicList()).toEqual({});
+  });
+
   it('Should create a flag with 201 and record a created event with its initial state (R15, R19)', async () => {
     const res = await create({ key: 'hello_world', description: '  Says hello  ', rolloutPct: 0 });
     expect(res.status).toBe(201);
