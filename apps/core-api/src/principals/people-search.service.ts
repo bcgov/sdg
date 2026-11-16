@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { identities, principals, type FeatureFlagAudience } from '@repo/database';
 import { asc, eq, ilike, isNotNull, max, or, sql, type SQL } from 'drizzle-orm';
 
+import { containsPattern } from '../common/list-query.js';
 import { InjectDatabase, type Database } from '../database/database.module.js';
 import { personKind } from './person-kind.js';
 import {
@@ -10,11 +11,6 @@ import {
   type PeopleSearchResult,
   type PersonView,
 } from './principals.schemas.js';
-
-/** The query as a LIKE pattern matching it literally anywhere: `\`, `%` and `_` escaped (KTD9). */
-function containsPattern(query: string): string {
-  return `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
-}
 
 const portalAt = max(identities.portalSignedInAt);
 const consoleAt = max(identities.consoleSignedInAt);
