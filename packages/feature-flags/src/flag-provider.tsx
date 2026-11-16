@@ -26,7 +26,7 @@ const noFlags: FlagValues = {};
  * full-page navigations, so the next page load fetches the flags for the new sign-in state. If the list can't be
  * fetched or read, every flag is off and nothing is shown to the user.
  */
-export function FlagProvider({ children }: { children: ReactNode }): ReactElement {
+export function FlagProvider({ children }: Readonly<{ children: ReactNode }>): ReactElement {
   const { data, error, isPending } = useQuery({
     queryKey: flagsQueryKey,
     queryFn: fetchFlags,

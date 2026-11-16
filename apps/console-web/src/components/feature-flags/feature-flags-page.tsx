@@ -75,7 +75,7 @@ function FlagList() {
  * button that opens the create form in a dialog. `deletedKey` is the flag the administrator just deleted from its page.
  * The app shell shows the title as the page's `h1`.
  */
-export function FeatureFlagsPage({ deletedKey }: Readonly<{ deletedKey?: string | undefined }>) {
+export function FeatureFlagsPage({ deletedKey }: Readonly<{ deletedKey?: string }>) {
   const [status, setStatus] = useState(deletedKey ? `Deleted ${deletedKey}.` : '');
   const [creating, setCreating] = useState(false);
   const [isPending, setPending] = useState(false);

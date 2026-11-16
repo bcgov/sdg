@@ -85,7 +85,7 @@ function useOverrideChanges(key: string, { reset, confirm, fail }: FlagFeedback)
  * the list shows its last page if this one is now past the end (R14).
  */
 function useDeletion(key: string, { reset, fail }: FlagFeedback) {
-  const [isAskingDelete, setAsking] = useState(false);
+  const [isAskingDelete, setIsAskingDelete] = useState(false);
   const { mutate, isPending } = useDeleteFlag();
   const navigate = useNavigate();
   const search = useSearch({ from: '/_app/feature-flags/$key' });
@@ -94,19 +94,19 @@ function useDeletion(key: string, { reset, fail }: FlagFeedback) {
       reset();
       mutate(key, {
         onSuccess: () => {
-          setAsking(false);
+          setIsAskingDelete(false);
           void navigate({ to: '/feature-flags', search: { ...listParams(search), deleted: key } });
         },
         onError: (error) => {
-          setAsking(false);
+          setIsAskingDelete(false);
           fail(error, key, attempt);
         },
       });
     };
     attempt();
   }, [key, mutate, navigate, search, reset, fail]);
-  const askDelete = useCallback(() => setAsking(true), []);
-  const cancelDelete = useCallback(() => setAsking(false), []);
+  const askDelete = useCallback(() => setIsAskingDelete(true), []);
+  const cancelDelete = useCallback(() => setIsAskingDelete(false), []);
   return { isAskingDelete, askDelete, cancelDelete, confirmDelete, isDeleting: isPending };
 }
 

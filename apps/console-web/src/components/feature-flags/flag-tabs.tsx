@@ -20,7 +20,8 @@ interface FlagTabsProps {
 
 type Key = Parameters<NonNullable<TabsProps['onSelectionChange']>>[0];
 
-const isFlagTab = (key: Key): key is FlagTab => FLAG_TABS.some((tab) => tab === key);
+const TAB_KEYS: ReadonlySet<Key> = new Set(FLAG_TABS);
+const isFlagTab = (key: Key): key is FlagTab => TAB_KEYS.has(key);
 
 /** The flag's overview, overrides and history, one tab each; the URL holds the tab shown (KTD10). */
 export function FlagTabs({ flag, actions, overridesRef, tab, onShowTab }: Readonly<FlagTabsProps>) {

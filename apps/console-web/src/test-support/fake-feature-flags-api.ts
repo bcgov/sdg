@@ -106,6 +106,12 @@ const noContent = () => new Response(null, { status: 204 });
  * flag's audience, the list paged and the history a cursor page newest first (kept after a delete), and people search
  * capped at 20 with `more`.
  */
+/** A fetch input's URL, whichever form it came in. */
+function hrefOf(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
 export class FakeFeatureFlagsApi {
   flags: FlagDetail[];
   people: Person[];
@@ -139,15 +145,22 @@ export class FakeFeatureFlagsApi {
     return this.flags.find((stored) => stored.key === key);
   }
 
-  private async handle(input: RequestInfo | URL, init: RequestInit = {}, delegate: typeof fetch): Promise<Response> {
-    const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const url = new URL(href, 'https://console.example.test');
+  private has(key: string): boolean {
+    return this.flags.some((stored) => stored.key === key);
+  }
+
+  private async handle(
+    input: RequestInfo | URL,
+    init: RequestInit | undefined,
+    delegate: typeof fetch,
+  ): Promise<Response> {
+    const url = new URL(hrefOf(input), 'https://console.example.test');
     const isOurs = [FEATURE_FLAGS_PATH, FLAG_HISTORY_PATH, PEOPLE_SEARCH_PATH].some((path) =>
       url.pathname.startsWith(path),
     );
     if (!isOurs) return delegate(input, init);
-    const method = (init.method ?? 'GET').toUpperCase();
-    const body: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
+    const method = (init?.method ?? 'GET').toUpperCase();
+    const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
     this.calls.push({ method, path: `${url.pathname}${url.search}`, body });
     if (!this.consoleApi.signedIn) return nestError(401, 'Unauthorized');
     const refusal = this.refusals.findIndex((r) => r.method === method && r.path === url.pathname);
@@ -168,7 +181,7 @@ export class FakeFeatureFlagsApi {
     const match = /^\/api\/v1\/console\/feature-flags\/([^/]+)(?:\/overrides\/([^/]+))?$/.exec(pathname);
     if (!match) return notFound(`Cannot ${method} ${pathname}`);
     const key = decodeURIComponent(match[1]!);
-    if (!this.find(key)) return missingFlag(key);
+    if (!this.has(key)) return missingFlag(key);
     if (match[2]) return this.overrideRoute(method, key, decodeURIComponent(match[2]), body);
     if (method === 'GET') return Response.json(this.find(key));
     if (method === 'PATCH') return this.update(key, body);
@@ -208,7 +221,7 @@ export class FakeFeatureFlagsApi {
   private create(body: Body): Response {
     const key = String(body['key']);
     if (!FLAG_KEY_PATTERN.test(key)) return nestError(400, ['key: Must start with a lower-case letter'], 'Bad Request');
-    if (this.find(key)) return nestError(409, `Feature flag ${key} already exists`, 'Conflict');
+    if (this.has(key)) return nestError(409, `Feature flag ${key} already exists`, 'Conflict');
     const created = this.save(flag(key, fieldsOf(body)));
     this.record(key, 'created', this.changesOf({}, created));
     return Response.json(summaryOf(created), { status: 201 });

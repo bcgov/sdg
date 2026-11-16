@@ -2,7 +2,8 @@ import { ApiError, apiRequest } from './http';
 
 export const AUDIENCES = ['portal', 'console', 'both'] as const;
 export type Audience = (typeof AUDIENCES)[number];
-export const isAudience = (value: unknown): value is Audience => AUDIENCES.some((audience) => audience === value);
+const AUDIENCE_SET: ReadonlySet<unknown> = new Set(AUDIENCES);
+export const isAudience = (value: unknown): value is Audience => AUDIENCE_SET.has(value);
 
 export const EVENT_ACTIONS = ['created', 'updated', 'deleted', 'override_set', 'override_removed'] as const;
 export type FlagEventAction = (typeof EVENT_ACTIONS)[number];
@@ -70,11 +71,11 @@ export interface FlagListPage {
 export interface FlagListQuery {
   readonly limit: number;
   readonly offset: number;
-  readonly q?: string | undefined;
-  readonly audience?: string | undefined;
-  readonly enabled?: string | undefined;
-  readonly sort?: string | undefined;
-  readonly order?: 'asc' | 'desc' | undefined;
+  readonly q?: string;
+  readonly audience?: string;
+  readonly enabled?: string;
+  readonly sort?: string;
+  readonly order?: 'asc' | 'desc';
 }
 
 /** A cursor page of a flag's history, newest first (KTD3): `older` and `newer` are the next pages' cursors, or null. */
@@ -88,8 +89,8 @@ export interface FlagHistoryPage {
 export interface FlagHistoryQuery {
   readonly key: string;
   readonly limit: number;
-  readonly before?: string | undefined;
-  readonly after?: string | undefined;
+  readonly before?: string;
+  readonly after?: string;
 }
 
 export interface Person {

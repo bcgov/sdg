@@ -107,5 +107,6 @@ export function clampOffset(offset: number, limit: number, total: number): numbe
 
 /** The query as a LIKE pattern matching it literally anywhere: `\`, `%` and `_` escaped (KTD4). */
 export function containsPattern(query: string): string {
-  return `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+  const escaped = query.replaceAll(/[\\%_]/g, String.raw`\$&`);
+  return `%${escaped}%`;
 }

@@ -27,9 +27,13 @@
   align-items: center;
 }
 
-/* Fixed columns, so a cursor table (no range) still puts them on the right. */
+/* Fixed columns, so a cursor table (no range) still puts them on the right. Rows per page sits on one line. */
 .footer .select {
   grid-column: 2;
+  flex-direction: row;
+  gap: var(--layout-margin-small);
+  align-items: center;
+  min-width: 0;
 }
 
 .footer .pager {
@@ -77,13 +81,6 @@
   flex-direction: column;
   gap: var(--layout-margin-hair);
   min-width: 10rem;
-}
-
-.footer .select {
-  flex-direction: row;
-  gap: var(--layout-margin-small);
-  align-items: center;
-  min-width: 0;
 }
 
 .label {
