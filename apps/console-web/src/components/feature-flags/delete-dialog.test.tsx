@@ -41,8 +41,8 @@ describe('delete a flag from its page, with confirmation (R17, R19)', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/feature-flags'));
-    expect(await screen.findByRole('row', { name: /^other_flag / })).toBeInTheDocument();
-    expect(screen.queryByRole('row', { name: /^hello_world / })).toBeNull();
+    expect(await screen.findByRole('rowheader', { name: 'other_flag' })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'hello_world' })).toBeNull();
     expect(screen.getByRole('status', { name: 'Feature flag updates' })).toHaveTextContent('Deleted hello_world.');
     expect(api.callsTo('DELETE', HELLO)).toHaveLength(1);
     expect(api.find('hello_world')).toBeUndefined();

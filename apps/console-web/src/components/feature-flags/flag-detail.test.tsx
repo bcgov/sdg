@@ -114,35 +114,3 @@ describe('a flag’s page (R16, R21)', () => {
     expect(api.callsTo('GET', HELLO).length).toBeGreaterThan(1);
   });
 });
-
-describe('a deleted flag’s page (R19, AE7)', () => {
-  it('says the flag was deleted and lists its history, with no edit, delete or override controls', async () => {
-    const api = fakeFeatureFlagsApi({
-      flags: [flag('other_flag')],
-      events: [
-        flagEvent(1, 'hello_world', 'created', { enabled: { from: null, to: false } }),
-        flagEvent(2, 'other_flag', 'created', { enabled: { from: null, to: false } }),
-        flagEvent(3, 'hello_world', 'deleted', { overridesRemoved: 2 }),
-      ],
-    });
-    renderAt('/feature-flags/hello_world');
-    expect(await screen.findByText('This flag was deleted. Its history is kept.')).toBeInTheDocument();
-    const history = await screen.findByRole('list', { name: 'Changes to hello_world, newest first' });
-    expect(
-      within(history)
-        .getAllByRole('listitem')
-        .map((item) => item.textContent),
-    ).toEqual([
-      expect.stringMatching(/: Deleted by Ada Lovelace\. 2 overrides removed$/),
-      expect.stringMatching(/: Created by Ada Lovelace\. Switch: off$/),
-    ]);
-    expect(api.calls.map((call) => call.path)).toContain(
-      '/api/v1/console/feature-flag-history?limit=20&key=hello_world',
-    );
-    expect(screen.queryByRole('region', { name: 'Flag details' })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Overrides' })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Danger zone' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Save|Delete/ })).toBeNull();
-    expect(screen.queryByRole('searchbox')).toBeNull();
-  });
-});

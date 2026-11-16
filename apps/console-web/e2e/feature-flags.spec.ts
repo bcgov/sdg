@@ -60,9 +60,8 @@ test.describe('console-web Feature Flags pages', () => {
     const requests = await mockFeatureFlagsAdmin(page, [helloWorld()]);
     await page.goto('/feature-flags');
     await expect(page.getByRole('banner').getByRole('heading', { level: 1 })).toHaveText('Feature flags');
-    const table = page.getByRole('table', { name: /Every feature flag/ });
-    await expect(table.getByRole('row')).toHaveText([
-      'KeyAudienceSwitchRolloutOverrides',
+    const table = page.getByRole('grid', { name: /Every feature flag/ });
+    await expect(table.getByRole('row').filter({ has: page.getByRole('rowheader') })).toHaveText([
       'hello_worldPortalOn50%3 on, 0 off',
     ]);
 
@@ -88,7 +87,7 @@ test.describe('console-web Feature Flags pages', () => {
   }) => {
     const requests = await mockFeatureFlagsAdmin(page, [helloWorld()]);
     await page.goto('/feature-flags');
-    // A press on the row's middle, away from the key, lands on the key's link, which covers the whole row.
+    // The whole row is the link: a press on its middle, away from the key, opens the flag.
     await page.getByRole('row').filter({ hasText: 'hello_world' }).click();
     await expect(page).toHaveURL(/\/feature-flags\/hello_world$/);
     const details = page.getByRole('region', { name: 'Flag details' });
@@ -108,7 +107,7 @@ test.describe('console-web Feature Flags pages', () => {
     expect(requests.patches).toEqual([{ rolloutPct: 80 }, { enabled: false }]);
     await updates.getByRole('link', { name: 'Review the overrides' }).click();
     await expect(page.getByRole('region', { name: 'Overrides' })).toBeFocused();
-    await expect(page.getByRole('list', { name: /Changes to hello_world/ }).getByRole('listitem')).toHaveCount(2);
+    await expect(page.getByRole('grid', { name: /Changes to hello_world/ }).getByRole('rowheader')).toHaveCount(2);
   });
 
   test("shows a deleted flag's history and nothing to change (R19, AE7)", async ({ page }) => {
@@ -131,9 +130,115 @@ test.describe('console-web Feature Flags pages', () => {
     );
     await page.goto('/feature-flags/old_flag');
     await expect(page.getByRole('main')).toContainText('This flag was deleted.');
-    const history = page.getByRole('list', { name: 'Changes to old_flag, newest first' }).getByRole('listitem');
+    const history = page
+      .getByRole('grid', { name: 'Changes to old_flag, newest first' })
+      .getByRole('row')
+      .filter({ has: page.getByRole('rowheader') });
     await expect(history).toHaveCount(2);
-    await expect(history.first()).toContainText('Deleted by Ada Lovelace. 1 override removed');
+    await expect(history.first().getByRole('gridcell')).toHaveText(['Ada Lovelace', 'Deleted', '1 override removed']);
     await expect(page.getByRole('button', { name: /Save|Delete/ })).toHaveCount(0);
+  });
+});
+
+const mockFlag = (key: string, fields: Partial<MockFlag> = {}): MockFlag => ({
+  key,
+  description: null,
+  enabled: false,
+  rolloutPct: 0,
+  audience: 'portal',
+  overrideCounts: { on: 0, off: 0 },
+  overrides: [],
+  ...fields,
+});
+
+/** The flags `manyFlags` gives the console: the console ones and `check_one`, for both apps. */
+const CONSOLE_KEYS = [
+  'check_one',
+  ...[1, 4, 7, 10, 13, 16, 19, 22, 25].map((n) => `flag_${String(n).padStart(2, '0')}`),
+];
+
+/** 25 flags `flag_01`…`flag_25`, every third for the console, with `flag_07` the most forced on; and `check_one`. */
+const manyFlags = (): MockFlag[] => [
+  ...Array.from({ length: 25 }, (_, index) =>
+    mockFlag(`flag_${String(index + 1).padStart(2, '0')}`, {
+      audience: index % 3 === 0 ? 'console' : 'portal',
+      overrideCounts: { on: index === 6 ? 9 : index % 4, off: 0 },
+    }),
+  ),
+  mockFlag('check_one', { audience: 'both' }),
+];
+
+// The flag list and history as DataTables (R5–R8, R15–R20) against mocked pages of console-api's list conventions.
+test.describe('console-web feature flag tables', () => {
+  test('pages, searches, filters and sorts the flag list in the URL, and Enter opens a row (AE1, AE3, AE6)', async ({
+    page,
+  }) => {
+    await mockFeatureFlagsAdmin(page, manyFlags());
+    await page.goto('/feature-flags');
+    const table = page.getByRole('grid', { name: /Every feature flag/ });
+    const pager = page.getByRole('navigation', { name: 'Pagination' });
+    const keys = table.getByRole('rowheader');
+    await expect(pager.getByText('Showing 1–20 of 26')).toBeVisible();
+    await expect(pager.getByText('Page 1 of 2')).toBeVisible();
+
+    await pager.getByRole('button', { name: 'Next' }).click();
+    await expect(page).toHaveURL(/\/feature-flags\?page=2$/);
+    await expect(pager.getByText('Showing 21–26 of 26')).toBeVisible();
+
+    await page.getByRole('searchbox', { name: 'Search' }).fill('check');
+    await expect(page).toHaveURL(/\/feature-flags\?q=check$/);
+    await expect(keys).toHaveText(['check_one']);
+    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(page).toHaveURL(/\/feature-flags$/);
+
+    await page.getByRole('button', { name: /Audience/ }).click();
+    await expectNoInlineStyles(page);
+    await page.getByRole('option', { name: 'Console' }).click();
+    await expect(page).toHaveURL(/\/feature-flags\?audience=console$/);
+    await expect(keys).toHaveText(CONSOLE_KEYS);
+
+    await table.getByRole('columnheader', { name: /Overrides/ }).click();
+    await expect(page).toHaveURL(/\?audience=console&sort=overridesOn&order=desc$/);
+    await expect(table.getByRole('columnheader', { name: /Overrides/ })).toHaveAttribute('aria-sort', 'descending');
+    await expect(keys.first()).toHaveText('flag_07');
+
+    await table.getByRole('row').filter({ hasText: 'flag_07' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/feature-flags\/flag_07\?audience=console&sort=overridesOn&order=desc$/);
+    await expect(page.getByRole('region', { name: 'Flag details' })).toContainText('Keyflag_07');
+  });
+
+  test('pages a flag history older and newer, from a reloaded URL, back to the newest (AE5)', async ({ page }) => {
+    const actor = { principalId: '0b6f8d0e-5c43-4a8e-9a43-2f1a3d9e7c11', name: 'Ada Lovelace' };
+    const events = Array.from({ length: 75 }, (_, index) => ({
+      id: index + 1,
+      flagKey: 'hello_world',
+      action: 'updated',
+      actor,
+      subject: null,
+      changes: { rollout_pct: { from: index, to: index + 1 } },
+      createdAt: new Date(Date.parse('2026-11-10T17:00:00.000Z') + index * 60_000).toISOString(),
+    }));
+    await mockFeatureFlagsAdmin(page, [helloWorld()], events);
+    await page.goto('/feature-flags/hello_world');
+    const history = page.getByRole('grid', { name: 'Changes to hello_world, newest first' });
+    const pager = page.getByRole('region', { name: 'History' }).getByRole('navigation', { name: 'Pagination' });
+    const firstChange = history.getByRole('row').nth(1).getByRole('gridcell').last();
+    await expect(firstChange).toHaveText('Rollout: 74% → 75%');
+
+    await pager.getByRole('button', { name: 'Older' }).click();
+    await expect(firstChange).toHaveText('Rollout: 54% → 55%');
+    await pager.getByRole('button', { name: 'Older' }).click();
+    await expect(page).toHaveURL(/\/feature-flags\/hello_world\?h\.before=36$/);
+    await page.reload();
+    await expect(firstChange).toHaveText('Rollout: 34% → 35%');
+
+    await pager.getByRole('button', { name: 'Newer' }).click();
+    await expect(firstChange).toHaveText('Rollout: 54% → 55%');
+    await pager.getByRole('button', { name: 'Newer' }).click();
+    await expect(firstChange).toHaveText('Rollout: 74% → 75%');
+    await expect(page).toHaveURL(/\/feature-flags\/hello_world$/);
+    await expect(pager.getByRole('button', { name: 'Newer' })).toBeDisabled();
+    await expect(pager.getByRole('button', { name: 'Newest' })).toBeDisabled();
   });
 });

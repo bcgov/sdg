@@ -2,17 +2,16 @@ import { createFileRoute, Outlet, useChildMatches } from '@tanstack/react-router
 
 import { FLAG_KEY_PATTERN } from '../../api/feature-flags';
 import { FeatureFlagsPage } from '../../components/feature-flags/feature-flags-page';
-
-interface FeatureFlagsSearch {
-  /** The flag just deleted from its own page, which the list confirms. */
-  deleted?: string;
-}
+import { listParams, type StringSearch } from '../../components/feature-flags/table-search';
 
 export const Route = createFileRoute('/_app/feature-flags')({
   staticData: { title: 'Feature flags' },
-  validateSearch: (search: Record<string, unknown>): FeatureFlagsSearch => {
+  // The list's search, filters, sort and page as plain strings (KTD8), and `deleted`: the flag just deleted from its
+  // own page, which the list confirms. A flag's page (the `$key` child) carries the list's params too (KTD10).
+  validateSearch: (search: Record<string, unknown>): StringSearch => {
     const { deleted } = search;
-    return typeof deleted === 'string' && FLAG_KEY_PATTERN.test(deleted) ? { deleted } : {};
+    const isKey = typeof deleted === 'string' && FLAG_KEY_PATTERN.test(deleted);
+    return { ...listParams(search), deleted: isKey ? deleted : undefined };
   },
   component: FeatureFlagsRoute,
 });

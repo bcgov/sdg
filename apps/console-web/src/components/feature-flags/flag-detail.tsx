@@ -3,6 +3,7 @@ import { Heading } from '@repo/design-system/components/heading';
 import { InlineAlert } from '@repo/design-system/components/inline-alert';
 import { Link as DesignSystemLink } from '@repo/design-system/components/link';
 import { Text } from '@repo/design-system/components/text';
+import { useSearch } from '@tanstack/react-router';
 import { type ReactNode, type RefObject, useCallback, useMemo, useRef } from 'react';
 
 import type { FlagDetail } from '../../api/feature-flags';
@@ -11,9 +12,10 @@ import { Link } from '../link';
 import { loadFailureNotice, NoticeAlert } from '../service-clients/notice';
 import { DeleteDialog } from './delete-dialog';
 import { EditFlagForm, fieldValuesOf } from './edit-flag-form';
-import { FlagHistory } from './history-list';
+import { HistoryTable } from './history-table';
 import { AUDIENCE_LABELS, onOff, people } from './labels';
 import { OverridesPanel } from './overrides-panel';
+import { listParams } from './table-search';
 import { type DetailActions, useDetailActions } from './use-detail-actions';
 import { useFlagDetail } from './use-feature-flags';
 
@@ -66,7 +68,7 @@ function Panel({ id, title, isDanger = false, children }: Readonly<PanelProps>) 
 function HistoryPanel({ flagKey }: Readonly<{ flagKey: string }>) {
   return (
     <Panel id="flag-history-heading" title="History">
-      <FlagHistory flagKey={flagKey} />
+      <HistoryTable flagKey={flagKey} />
     </Panel>
   );
 }
@@ -167,10 +169,15 @@ export function FlagDetailPage({ flagKey }: Readonly<{ flagKey: string }>) {
   const { status, notice, dismiss, offNotice, dismissOffNotice } = actions;
   const reviewOverrides = useCallback(() => overridesRef.current?.focus(), []);
   const showOffNotice = offNotice && flag !== undefined && !flag.enabled && flag.overrideCounts.on > 0;
+  // Back to the list view this flag was opened from (KTD10).
+  const search = useSearch({ from: '/_app/feature-flags/$key' });
+  const listSearch = useMemo(() => listParams(search), [search]);
 
   return (
     <>
-      <Link to="/feature-flags">All feature flags</Link>
+      <Link to="/feature-flags" search={listSearch}>
+        All feature flags
+      </Link>
       <div className={styles.notices}>
         <output className={styles.status} aria-label="Feature flag updates">
           {status && <InlineAlert variant="success" description={status} />}

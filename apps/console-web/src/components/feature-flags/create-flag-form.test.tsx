@@ -34,7 +34,8 @@ describe('create a feature flag in a dialog (R15, KTD12, KTD13)', () => {
     await userEvent.click(form.getByRole('radio', { name: 'Console' }));
     await userEvent.click(form.getByRole('button', { name: 'Create feature flag' }));
 
-    expect(await screen.findByRole('row', { name: /^new_search Console Off 0%/ })).toBeInTheDocument();
+    const row = (await screen.findByRole('rowheader', { name: 'new_search' })).closest('[role="row"]');
+    expect(row).toHaveTextContent('new_searchConsoleOff0%0 on, 0 off');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getByRole('status', { name: 'Feature flag updates' })).toHaveTextContent('Created new_search.');
     expect(api.callsTo('POST', LIST).map((call) => call.body)).toEqual([
@@ -58,7 +59,7 @@ describe('create a feature flag in a dialog (R15, KTD12, KTD13)', () => {
   it("shows the server's 409 for a duplicate key next to the field and keeps the dialog and input", async () => {
     const api = fakeFeatureFlagsApi({ flags: [flag('hello_world')] });
     renderAt('/feature-flags');
-    await screen.findByRole('row', { name: /^hello_world / });
+    await screen.findByRole('rowheader', { name: 'hello_world' });
     const { form } = await openCreate();
     const key = form.getByRole('textbox', { name: /Key/ });
     await userEvent.type(key, 'hello_world');

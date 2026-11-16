@@ -58,9 +58,38 @@ export interface FlagEvent {
   readonly createdAt: string;
 }
 
+/** A numbered page of the flag list (KTD2): `offset` is the one core-api used, the last page's when asked past it. */
+export interface FlagListPage {
+  readonly items: readonly FlagSummary[];
+  readonly total: number;
+  readonly limit: number;
+  readonly offset: number;
+}
+
+/** The flag list's search, filters (`audience` portal or console, `enabled` true or false), sort and page. */
+export interface FlagListQuery {
+  readonly limit: number;
+  readonly offset: number;
+  readonly q?: string | undefined;
+  readonly audience?: string | undefined;
+  readonly enabled?: string | undefined;
+  readonly sort?: string | undefined;
+  readonly order?: 'asc' | 'desc' | undefined;
+}
+
+/** A cursor page of a flag's history, newest first (KTD3): `older` and `newer` are the next pages' cursors, or null. */
 export interface FlagHistoryPage {
-  readonly events: readonly FlagEvent[];
-  readonly nextBefore: number | null;
+  readonly items: readonly FlagEvent[];
+  readonly older: number | null;
+  readonly newer: number | null;
+}
+
+/** At most one of `before` (older than) and `after` (newer than), each an event id from a previous page. */
+export interface FlagHistoryQuery {
+  readonly key: string;
+  readonly limit: number;
+  readonly before?: string | undefined;
+  readonly after?: string | undefined;
 }
 
 export interface Person {
@@ -79,7 +108,6 @@ export interface PeopleSearchResult {
 export const FEATURE_FLAGS_PATH = '/api/v1/console/feature-flags';
 export const FLAG_HISTORY_PATH = '/api/v1/console/feature-flag-history';
 export const PEOPLE_SEARCH_PATH = '/api/v1/console/people/search';
-export const FLAG_HISTORY_PAGE_SIZE = 20;
 
 /** KTD13's key rule, repeated here for instant feedback; core-api checks it too. */
 export const FLAG_KEY_PATTERN = /^[a-z][a-z0-9_]{1,62}$/;
@@ -137,10 +165,17 @@ function isEvent(value: unknown): value is FlagEvent {
   );
 }
 
+const isCursor = (value: unknown) => value === null || isCount(value);
+
 function isHistoryPage(value: unknown): value is FlagHistoryPage {
-  if (!isObject(value) || !Array.isArray(value['events'])) return false;
-  const { events, nextBefore } = value;
-  return events.every(isEvent) && (nextBefore === null || isCount(nextBefore));
+  if (!isObject(value) || !Array.isArray(value['items'])) return false;
+  return value['items'].every(isEvent) && isCursor(value['older']) && isCursor(value['newer']);
+}
+
+function isListPage(value: unknown): value is FlagListPage {
+  if (!isObject(value) || !Array.isArray(value['items'])) return false;
+  const { items, total, limit, offset } = value;
+  return items.every(isSummary) && isCount(total) && isCount(limit) && isCount(offset);
 }
 
 function isPerson(value: unknown): value is Person {
@@ -160,8 +195,6 @@ const isSearchResult = (value: unknown): value is PeopleSearchResult =>
   value['results'].every(isPerson) &&
   typeof value['more'] === 'boolean';
 
-const isSummaryList = (value: unknown): value is FlagSummary[] => Array.isArray(value) && value.every(isSummary);
-
 /** The body, if it has the expected shape; otherwise the answer is treated as unexpected. */
 function expectShape<T>(body: unknown, guard: (value: unknown) => value is T): T {
   if (!guard(body)) throw new ApiError('unexpected', undefined, ['console-api returned an unexpected body']);
@@ -172,8 +205,19 @@ const flagPath = (key: string) => `${FEATURE_FLAGS_PATH}/${encodeURIComponent(ke
 const overridePath = (key: string, principalId: string) =>
   `${flagPath(key)}/overrides/${encodeURIComponent(principalId)}`;
 
-export async function listFlags(): Promise<FlagSummary[]> {
-  return expectShape(await apiRequest(FEATURE_FLAGS_PATH), isSummaryList);
+/** The query string of the fields that are set, in the order given. */
+function queryString(fields: Readonly<Record<string, string | number | undefined>>): string {
+  const entries = Object.entries(fields).flatMap(([name, value]) =>
+    value === undefined ? [] : [[name, String(value)]],
+  );
+  return new URLSearchParams(entries).toString();
+}
+
+/** One page of the flags matching the search and filters, in the requested order (R15–R17). */
+export async function listFlags(query: FlagListQuery): Promise<FlagListPage> {
+  const { limit, offset, q, audience, enabled, sort, order } = query;
+  const search = queryString({ limit, offset, q, audience, enabled, sort, order });
+  return expectShape(await apiRequest(`${FEATURE_FLAGS_PATH}?${search}`), isListPage);
 }
 
 export async function fetchFlag(key: string): Promise<FlagDetail> {
@@ -201,11 +245,10 @@ export async function removeOverride(key: string, principalId: string): Promise<
   await apiRequest(overridePath(key, principalId), { method: 'DELETE' });
 }
 
-/** A page of one flag's history, newest first, deleted or not (R19). */
-export async function fetchFlagHistory(key: string, before?: number): Promise<FlagHistoryPage> {
-  const query = new URLSearchParams({ limit: String(FLAG_HISTORY_PAGE_SIZE), key });
-  if (before !== undefined) query.set('before', String(before));
-  return expectShape(await apiRequest(`${FLAG_HISTORY_PATH}?${query}`), isHistoryPage);
+/** A page of one flag's history, newest first, deleted or not (R19, R20). */
+export async function listHistory({ key, limit, before, after }: FlagHistoryQuery): Promise<FlagHistoryPage> {
+  const search = queryString({ key, limit, before, after });
+  return expectShape(await apiRequest(`${FLAG_HISTORY_PATH}?${search}`), isHistoryPage);
 }
 
 /** People who signed in to an app in `audience`, by partial name or email; the query goes in the body (KTD9). */

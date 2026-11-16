@@ -31,7 +31,8 @@ describe('overrides (R18, R21)', () => {
     expect(api.find('hello_world')?.overrideCounts).toEqual({ on: 1, off: 0 });
 
     await userEvent.click(screen.getByRole('link', { name: 'All feature flags' }));
-    expect(await screen.findByRole('row', { name: /^hello_world / })).toHaveTextContent('1 on, 0 off');
+    const row = (await screen.findByRole('rowheader', { name: 'hello_world' })).closest('[role="row"]');
+    expect(row).toHaveTextContent('1 on, 0 off');
   });
 
   it('removes an override, updating the panel and the counts', async () => {

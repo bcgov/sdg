@@ -18,6 +18,7 @@ import {
   type PersonKind,
 } from '../api/feature-flags';
 import { ADMIN, fakeConsoleApi, nestError, type FakeConsoleApi, type RecordedCall } from './fake-console-api';
+import { flagHistoryPage, flagListPage } from './fake-feature-flag-list';
 
 const T0 = Date.parse('2026-11-10T17:00:00.000Z');
 const SEARCH_LIMIT = 20;
@@ -102,7 +103,8 @@ const noContent = () => new Response(null, { status: 204 });
 /**
  * core-api's console feature-flag routes, in memory, in front of a FakeConsoleApi (which answers everything else and
  * owns the session): 409 on a duplicate key, 404 on a missing flag or override, overrides only for people in the
- * flag's audience, history newest first and kept after a delete, and people search capped at 20 with `more`.
+ * flag's audience, the list paged and the history a cursor page newest first (kept after a delete), and people search
+ * capped at 20 with `more`.
  */
 export class FakeFeatureFlagsApi {
   flags: FlagDetail[];
@@ -155,9 +157,13 @@ export class FakeFeatureFlagsApi {
 
   private route(method: string, url: URL, body: Body): Response {
     const { pathname } = url;
-    if (pathname === FEATURE_FLAGS_PATH && method === 'GET') return Response.json(this.listed());
+    if (pathname === FEATURE_FLAGS_PATH && method === 'GET') {
+      return Response.json(flagListPage(this.flags.map(summaryOf), url.searchParams));
+    }
     if (pathname === FEATURE_FLAGS_PATH && method === 'POST') return this.create(body);
-    if (pathname === FLAG_HISTORY_PATH && method === 'GET') return this.history(url.searchParams);
+    if (pathname === FLAG_HISTORY_PATH && method === 'GET') {
+      return Response.json(flagHistoryPage(this.events, url.searchParams));
+    }
     if (pathname === PEOPLE_SEARCH_PATH && method === 'POST') return this.search(body);
     const match = /^\/api\/v1\/console\/feature-flags\/([^/]+)(?:\/overrides\/([^/]+))?$/.exec(pathname);
     if (!match) return notFound(`Cannot ${method} ${pathname}`);
@@ -174,10 +180,6 @@ export class FakeFeatureFlagsApi {
     if (method === 'PUT') return this.setOverride(key, principalId, body['enabled'] === true);
     if (method === 'DELETE') return this.removeOverride(key, principalId);
     return notFound(`Cannot ${method}`);
-  }
-
-  private listed(): FlagSummary[] {
-    return this.flags.toSorted((a, b) => (a.key < b.key ? -1 : 1)).map(summaryOf);
   }
 
   private record(flagKey: string, action: FlagEventAction, changes: EventChanges, subject?: Person): void {
@@ -251,17 +253,6 @@ export class FakeFeatureFlagsApi {
     const who = this.people.find((p) => p.principalId === principalId);
     this.record(key, 'override_removed', { enabled: { from: existing.enabled, to: null } }, who);
     return noContent();
-  }
-
-  private history(query: URLSearchParams): Response {
-    const limit = Number(query.get('limit') ?? 50);
-    const before = query.has('before') ? Number(query.get('before')) : Infinity;
-    const key = query.get('key');
-    const older = this.events
-      .filter((event) => event.id < before && (key === null || event.flagKey === key))
-      .toSorted((a, b) => b.id - a.id);
-    const events = older.slice(0, limit);
-    return Response.json({ events, nextBefore: older.length > limit ? events.at(-1)!.id : null });
   }
 
   private search(body: Body): Response {

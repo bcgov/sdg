@@ -1,7 +1,8 @@
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 
 import type { FlagChanges, FlagOverride, Person } from '../../api/feature-flags';
+import { listParams } from './table-search';
 import { useDeleteFlag, useRemoveOverride, useSetOverride, useUpdateFlag } from './use-feature-flags';
 import { type FlagFeedback, useFlagFeedback } from './use-flag-feedback';
 
@@ -78,18 +79,22 @@ function useOverrideChanges(key: string, { reset, confirm, fail }: FlagFeedback)
   return { setOverride, isSettingOverride, removeOverride, busyPrincipal };
 }
 
-/** Deletes the flag once confirmed, then goes back to the list, which says so (R17). */
+/**
+ * Deletes the flag once confirmed, then goes back to the list view it was opened from, which says so (R18, KTD10);
+ * the list shows its last page if this one is now past the end (R14).
+ */
 function useDeletion(key: string, { reset, fail }: FlagFeedback) {
   const [isAskingDelete, setAsking] = useState(false);
   const { mutate, isPending } = useDeleteFlag();
   const navigate = useNavigate();
+  const search = useSearch({ from: '/_app/feature-flags/$key' });
   const confirmDelete = useCallback(() => {
     const attempt = () => {
       reset();
       mutate(key, {
         onSuccess: () => {
           setAsking(false);
-          void navigate({ to: '/feature-flags', search: { deleted: key } });
+          void navigate({ to: '/feature-flags', search: { ...listParams(search), deleted: key } });
         },
         onError: (error) => {
           setAsking(false);
@@ -98,7 +103,7 @@ function useDeletion(key: string, { reset, fail }: FlagFeedback) {
       });
     };
     attempt();
-  }, [key, mutate, navigate, reset, fail]);
+  }, [key, mutate, navigate, search, reset, fail]);
   const askDelete = useCallback(() => setAsking(true), []);
   const cancelDelete = useCallback(() => setAsking(false), []);
   return { isAskingDelete, askDelete, cancelDelete, confirmDelete, isDeleting: isPending };

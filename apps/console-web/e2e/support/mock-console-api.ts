@@ -1,5 +1,7 @@
 import type { Page, Route } from '@playwright/test';
 
+import { flagHistoryPage, flagListPage } from './mock-flag-pages';
+
 export const admin = { id: '0b6f8d0e-5c43-4a8e-9a43-2f1a3d9e7c11', name: 'Ada Lovelace', email: 'ada@gov.bc.ca' };
 
 const unauthorized = { status: 401, json: { statusCode: 401, message: 'Unauthorized' } };
@@ -164,7 +166,10 @@ function answerFlagRoute(route: Route, store: FlagStore): Promise<void> {
   if (key === '' && request.method() === 'POST') {
     return route.fulfill({ status: 201, json: summary(store.create(body)) });
   }
-  if (key === '') return route.fulfill({ json: [...store.flags.values()].map(summary) });
+  if (key === '') {
+    const query = new URL(request.url()).searchParams;
+    return route.fulfill({ json: flagListPage([...store.flags.values()].map(summary), query) });
+  }
   const current = store.flags.get(key);
   if (!current) return route.fulfill({ status: 404, json: { statusCode: 404, message: `No feature flag ${key}` } });
   if (request.method() === 'PATCH') return route.fulfill({ json: summary(store.update(current, body)) });
@@ -172,9 +177,9 @@ function answerFlagRoute(route: Route, store: FlagStore): Promise<void> {
 }
 
 /**
- * A signed-in administrator with console-api's feature-flag routes answered in memory: list, create, read, edit and
- * history (no people match a search); `events` is history for flags that may no longer exist. Returns the bodies the
- * page sent.
+ * A signed-in administrator with console-api's feature-flag routes answered in memory: the paged list, create, read,
+ * edit and the cursor-paged history (no people match a search); `events` is history for flags that may no longer
+ * exist. Returns the bodies the page sent.
  */
 export async function mockFeatureFlagsAdmin(
   page: Page,
@@ -183,11 +188,9 @@ export async function mockFeatureFlagsAdmin(
 ): Promise<FlagRequests> {
   await mockSession(page, () => true);
   const store = new FlagStore(initial, events);
-  await page.route('**/api/v1/console/feature-flag-history**', (route) => {
-    const key = new URL(route.request().url()).searchParams.get('key');
-    const matching = store.events.filter((event) => event.flagKey === key).toReversed();
-    return route.fulfill({ json: { events: matching, nextBefore: null } });
-  });
+  await page.route('**/api/v1/console/feature-flag-history**', (route) =>
+    route.fulfill({ json: flagHistoryPage(store.events, new URL(route.request().url()).searchParams) }),
+  );
   await page.route('**/api/v1/console/people/search', (route) => route.fulfill({ json: { results: [], more: false } }));
   await page.route(
     (url) => url.pathname === FLAGS_BASE || url.pathname.startsWith(`${FLAGS_BASE}/`),

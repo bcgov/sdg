@@ -93,37 +93,6 @@
   overflow-y: auto;
 }
 
-/* The key's link covers its whole row, so a press anywhere on the row opens the flag; Tab still reaches the link. */
-.flagRow {
-  position: relative;
-}
-
-.flagRow:hover {
-  background-color: var(--surface-color-background-light-gray);
-}
-
-.rowLink a::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-}
-
-.history {
-  display: flex;
-  flex-direction: column;
-  gap: var(--layout-margin-small);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font: var(--typography-regular-body);
-  color: var(--typography-color-primary);
-}
-
-.history li {
-  padding-block-end: var(--layout-padding-small);
-  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
-}
-
 /* A flag's page: one bordered panel per section, spaced apart, like the command palette's surface. */
 .panels {
   display: flex;
