@@ -3,8 +3,10 @@ import { Heading } from '@repo/design-system/components/heading';
 import { Text } from '@repo/design-system/components/text';
 import { type Ref, useCallback, useState } from 'react';
 
-import type { FlagDetail, FlagOverride, Person } from '../../api/feature-flags';
-import { KIND_LABELS, onOff, people } from './labels';
+import type { FlagDetail, Person } from '../../api/feature-flags';
+import { FormDialog } from './form-dialog';
+import { KIND_LABELS, people } from './labels';
+import { OverridesTable } from './overrides-table';
 import { PeopleSearch } from './people-search';
 import type { DetailActions } from './use-detail-actions';
 
@@ -12,67 +14,19 @@ import styles from './feature-flags.module.css';
 
 type OverrideActions = Pick<DetailActions, 'setOverride' | 'isSettingOverride' | 'removeOverride' | 'busyPrincipal'>;
 
-function OverrideRow({ override, actions }: Readonly<{ override: FlagOverride; actions: OverrideActions }>) {
-  const { removeOverride, busyPrincipal } = actions;
-  const remove = useCallback(() => removeOverride(override), [override, removeOverride]);
-  return (
-    <tr>
-      <th scope="row">{override.name}</th>
-      <td>{override.email ?? ''}</td>
-      <td>{KIND_LABELS[override.kind]}</td>
-      <td>{onOff(override.enabled)}</td>
-      <td>
-        <Button
-          size="small"
-          variant="secondary"
-          aria-label={`Remove the override for ${override.name}`}
-          isPending={busyPrincipal === override.principalId}
-          onPress={remove}
-        >
-          Remove
-        </Button>
-      </td>
-    </tr>
-  );
-}
-
-function OverrideTable({ flag, actions }: Readonly<{ flag: FlagDetail; actions: OverrideActions }>) {
-  if (flag.overrides.length === 0) return <Text elementType="p">No one has an override for {flag.key}.</Text>;
-  return (
-    <div className={styles.tableWrapper}>
-      <table className={styles.table}>
-        <caption>People {flag.key} is forced on or off for, whatever its switch and rollout</caption>
-        <thead>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Email</th>
-            <th scope="col">Kind</th>
-            <th scope="col">Override</th>
-            <th scope="col">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {flag.overrides.map((override) => (
-            <OverrideRow key={override.principalId} override={override} actions={actions} />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 interface ChosenProps {
   flagKey: string;
   person: Person;
   actions: OverrideActions;
-  onDone: () => void;
+  onSet: () => void;
+  onChooseAgain: () => void;
 }
 
-/** The person picked from the search: turn the flag on or off for them. */
-function ChosenPerson({ flagKey, person, actions, onDone }: Readonly<ChosenProps>) {
+/** The person picked from the search: turn the flag on or off for them, or go back to the search. */
+function ChosenPerson({ flagKey, person, actions, onSet, onChooseAgain }: Readonly<ChosenProps>) {
   const { setOverride, isSettingOverride } = actions;
-  const turnOn = useCallback(() => setOverride(person, true, onDone), [person, setOverride, onDone]);
-  const turnOff = useCallback(() => setOverride(person, false, onDone), [person, setOverride, onDone]);
+  const turnOn = useCallback(() => setOverride(person, true, onSet), [person, setOverride, onSet]);
+  const turnOff = useCallback(() => setOverride(person, false, onSet), [person, setOverride, onSet]);
   return (
     <div className={styles.search}>
       <Text elementType="p">
@@ -85,11 +39,44 @@ function ChosenPerson({ flagKey, person, actions, onDone }: Readonly<ChosenProps
         <Button variant="secondary" isPending={isSettingOverride} onPress={turnOff}>
           Turn off for {person.displayName}
         </Button>
-        <Button variant="tertiary" isDisabled={isSettingOverride} onPress={onDone}>
-          Cancel
+        <Button variant="tertiary" isDisabled={isSettingOverride} onPress={onChooseAgain}>
+          Choose someone else
         </Button>
       </div>
     </div>
+  );
+}
+
+interface OverrideDialogProps {
+  flag: FlagDetail;
+  actions: OverrideActions;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+/** The people search, then the on or off choice for the person picked; a set override closes the dialog. */
+function OverrideDialog({ flag, actions, isOpen, onClose }: Readonly<OverrideDialogProps>) {
+  const [chosen, setChosen] = useState<Person | null>(null);
+  const chooseAgain = useCallback(() => setChosen(null), []);
+  const close = useCallback(() => {
+    setChosen(null);
+    onClose();
+  }, [onClose]);
+  return (
+    <FormDialog title="Add or change an override" isOpen={isOpen} isPending={actions.isSettingOverride} onClose={close}>
+      {chosen ? (
+        <ChosenPerson flagKey={flag.key} person={chosen} actions={actions} onSet={close} onChooseAgain={chooseAgain} />
+      ) : (
+        <>
+          <PeopleSearch audience={flag.audience} onChoose={setChosen} />
+          <div className={styles.actions}>
+            <Button variant="secondary" onPress={close}>
+              Cancel
+            </Button>
+          </div>
+        </>
+      )}
+    </FormDialog>
   );
 }
 
@@ -100,22 +87,25 @@ interface OverridesPanelProps {
   sectionRef: Ref<HTMLElement>;
 }
 
-/** Who the flag is forced on or off for, and the search to add or change one (R18). */
+/** Who the flag is forced on or off for, and a dialog to add or change one (R18). */
 export function OverridesPanel({ flag, actions, sectionRef }: Readonly<OverridesPanelProps>) {
-  const [chosen, setChosen] = useState<Person | null>(null);
-  const clear = useCallback(() => setChosen(null), []);
+  const [isAdding, setAdding] = useState(false);
+  const open = useCallback(() => setAdding(true), []);
+  const close = useCallback(() => setAdding(false), []);
   return (
     <section ref={sectionRef} tabIndex={-1} className={styles.panel} aria-labelledby="overrides-heading">
       <Heading level={2} id="overrides-heading">
         Overrides
       </Heading>
       <Text elementType="p">
-        Forced on for {people(flag.overrideCounts.on)} and off for {people(flag.overrideCounts.off)}.
+        Forced on for {people(flag.overrideCounts.on)} and off for {people(flag.overrideCounts.off)}, whatever the
+        switch and rollout.
       </Text>
-      <OverrideTable flag={flag} actions={actions} />
-      <Heading level={3}>Add or change an override</Heading>
-      <PeopleSearch audience={flag.audience} onChoose={setChosen} />
-      {chosen && <ChosenPerson flagKey={flag.key} person={chosen} actions={actions} onDone={clear} />}
+      <div>
+        <Button onPress={open}>Add or change an override</Button>
+      </div>
+      <OverridesTable flag={flag} actions={actions} />
+      <OverrideDialog flag={flag} actions={actions} isOpen={isAdding} onClose={close} />
     </section>
   );
 }

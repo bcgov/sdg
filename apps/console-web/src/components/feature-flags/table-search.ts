@@ -1,6 +1,7 @@
 import { tableParamKeys, type TableConfig, type TableState } from '@repo/design-system/components/data-table';
 
 import type { FlagHistoryQuery, FlagListQuery } from '../../api/feature-flags';
+import { KIND_LABELS } from './labels';
 
 /** A route's search params: every value a plain string (KTD8). */
 export type StringSearch = Readonly<Record<string, string | undefined>>;
@@ -35,8 +36,38 @@ export const FLAG_LIST_CONFIG: TableConfig = {
 export const HISTORY_CONFIG: TableConfig = { mode: 'cursor', isCursor: (raw) => /^[1-9]\d{0,15}$/.test(raw) };
 export const HISTORY_PREFIX = 'h';
 
+/**
+ * A flag's overrides: all of them come with the flag, so the page searches, filters, sorts and pages them itself; its
+ * params carry the `o.` prefix. Search matches name or email.
+ */
+export const OVERRIDES_CONFIG: TableConfig = {
+  mode: 'numbered',
+  search: true,
+  filters: [
+    {
+      key: 'enabled',
+      label: 'Override',
+      options: [
+        { value: 'true', label: 'On' },
+        { value: 'false', label: 'Off' },
+      ],
+    },
+    {
+      key: 'kind',
+      label: 'Kind',
+      options: (['resident', 'console-user'] as const).map((kind) => ({ value: kind, label: KIND_LABELS[kind] })),
+    },
+  ],
+  sortable: { name: 'asc', email: 'asc', kind: 'asc', enabled: 'desc' },
+  defaultSort: { column: 'name', direction: 'asc' },
+};
+export const OVERRIDES_PREFIX = 'o';
+
 const LIST_KEYS = tableParamKeys(FLAG_LIST_CONFIG);
-const HISTORY_KEYS = tableParamKeys(HISTORY_CONFIG, HISTORY_PREFIX);
+const DETAIL_KEYS = [
+  ...tableParamKeys(OVERRIDES_CONFIG, OVERRIDES_PREFIX),
+  ...tableParamKeys(HISTORY_CONFIG, HISTORY_PREFIX),
+];
 
 /** The plain-string values in `search`, only under `keys` when given. */
 export function stringParams(search: Readonly<Record<string, unknown>>, keys?: readonly string[]) {
@@ -50,7 +81,8 @@ export function stringParams(search: Readonly<Record<string, unknown>>, keys?: r
 /** The flag list's own params, which a flag's page carries so deleting returns to the same view (R18). */
 export const listParams = (search: Readonly<Record<string, unknown>>) => stringParams(search, LIST_KEYS);
 
-export const historyParams = (search: Readonly<Record<string, unknown>>) => stringParams(search, HISTORY_KEYS);
+/** A flag page's own params: its overrides' `o.` and its history's `h.`. */
+export const detailParams = (search: Readonly<Record<string, unknown>>) => stringParams(search, DETAIL_KEYS);
 
 export function flagListQuery(state: TableState): FlagListQuery {
   return {

@@ -15,7 +15,7 @@ interface FormDialogProps {
 }
 
 /**
- * A modal dialog around a form (create). react-aria's modal traps focus inside it, closes on Escape or its Close
+ * A modal dialog around a form (create a flag, add an override). react-aria's modal traps focus inside it, closes on Escape or its Close
  * button and returns focus to the button that opened it.
  */
 export function FormDialog({ title, isOpen, isPending, onClose, children }: Readonly<FormDialogProps>) {

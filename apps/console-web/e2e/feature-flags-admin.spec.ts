@@ -9,9 +9,17 @@ const escapeRegExp = (text: string) => text.replaceAll(/[.*+?^${}()|[\]\\]/g, St
 
 const updates = (page: Page) => page.getByRole('status', { name: 'Feature flag updates' });
 
+const overrideDialog = (page: Page) => page.getByRole('dialog', { name: 'Add or change an override' });
+
+/** Opens the override dialog from the Overrides panel and searches for a person. */
 async function search(page: Page, text: string) {
-  const box = page.getByRole('region', { name: 'Overrides' }).getByRole('searchbox', { name: /Find a person/ });
-  await box.fill(text);
+  await page
+    .getByRole('region', { name: 'Overrides' })
+    .getByRole('button', { name: 'Add or change an override' })
+    .click();
+  await overrideDialog(page)
+    .getByRole('searchbox', { name: /Find a person/ })
+    .fill(text);
 }
 
 /** The signed-in administrator's own display name, which the people search finds among console users. */
@@ -50,23 +58,30 @@ test('creates a console flag, overrides it for a person found by search, then de
     .click();
   await expect(page).toHaveURL(new RegExp(`/feature-flags/${key}\\?q=${key}$`));
   await search(page, name.slice(0, Math.max(2, Math.min(name.length, 5))));
-  await page
+  await overrideDialog(page)
     .getByRole('list', { name: 'People found' })
     .getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}`) })
     .first()
     .click();
-  await page.getByRole('button', { name: `Turn on for ${name}` }).click();
+  await overrideDialog(page)
+    .getByRole('button', { name: `Turn on for ${name}` })
+    .click();
   await expect(updates(page)).toHaveText(`${key} is now on for ${name}.`);
+  await expect(overrideDialog(page)).toHaveCount(0);
   await expect(
-    page.getByRole('region', { name: 'Overrides' }).getByRole('row').filter({ hasText: name }),
+    page
+      .getByRole('grid', { name: `Overrides of ${key}` })
+      .getByRole('row')
+      .filter({ hasText: name }),
   ).toContainText('On');
 
   // Risks: the edge's WAF may refuse an apostrophe in the body. Either answer is handled; record which one came back.
   await search(page, "O'Brien");
-  const noMatch = page.getByText('No one matches that search.');
-  const blocked = page.getByRole('alert').filter({ hasText: 'The search was blocked' });
+  const noMatch = overrideDialog(page).getByText('No one matches that search.');
+  const blocked = overrideDialog(page).getByRole('alert').filter({ hasText: 'The search was blocked' });
   await expect(noMatch.or(blocked)).toBeVisible();
   test.info().annotations.push({ type: 'waf', description: (await blocked.count()) > 0 ? 'blocked' : 'allowed' });
+  await overrideDialog(page).getByRole('button', { name: 'Cancel' }).click();
 
   await page
     .getByRole('region', { name: 'Danger zone' })

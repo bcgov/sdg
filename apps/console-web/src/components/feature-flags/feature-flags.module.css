@@ -50,6 +50,16 @@
   display: block;
 }
 
+/* Read out but not shown, e.g. the people search's result count, which the results already show. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .notices {
   display: flex;
   flex-direction: column;

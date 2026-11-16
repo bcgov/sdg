@@ -123,7 +123,7 @@ export function PeopleSearch({ audience, onChoose }: Readonly<PeopleSearchProps>
       {typed.length >= MIN_QUERY_LENGTH && !isCurrent && <Text elementType="p">Searching…</Text>}
       {notice && <NoticeAlert notice={notice} />}
       {isCurrent && data && !isError && <Results result={data} onChoose={onChoose} />}
-      <output className={styles.status} aria-label="Search results">
+      <output className={styles.visuallyHidden} aria-label="Search results">
         {announcement(isError ? undefined : data, isCurrent)}
       </output>
     </div>
