@@ -1,0 +1,53 @@
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-large);
+  min-width: 0;
+}
+
+/* Scrolls sideways rather than wrapping when the tabs don't fit. */
+.tabList {
+  display: flex;
+  gap: var(--layout-margin-large);
+  overflow-x: auto;
+  border-bottom: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.tab {
+  display: inline-flex;
+  gap: var(--layout-margin-small);
+  align-items: center;
+  margin-block-end: calc(-1 * var(--layout-border-width-small));
+  padding: var(--layout-padding-small) var(--layout-padding-xsmall);
+  border-bottom: var(--layout-border-width-large) solid transparent;
+  color: var(--typography-color-secondary);
+  font: var(--typography-bold-body);
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+}
+
+.tab[data-hovered] {
+  color: var(--typography-color-primary);
+  border-bottom-color: var(--surface-color-border-medium);
+}
+
+.tab[data-selected] {
+  color: var(--surface-color-primary-default);
+  border-bottom-color: var(--surface-color-primary-default);
+}
+
+.tab[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+.tabPanel {
+  min-width: 0;
+  outline: none;
+}
+
+.tabPanel[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: var(--layout-margin-xsmall);
+}
