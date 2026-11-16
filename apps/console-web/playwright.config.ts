@@ -15,7 +15,7 @@ const consolePassword = process.env['E2E_CONSOLE_PASSWORD'] ?? '';
 const signedIn = consoleUsername !== '' && consolePassword !== '';
 /** The setup project's signed-in browser state (gitignored: playwright/.auth/). */
 const consoleAuthFile = path.resolve(import.meta.dirname, 'playwright/.auth/console.json');
-const SIGNED_IN_SPECS = 'service-clients.spec.ts';
+const SIGNED_IN_SPECS = ['service-clients.spec.ts', 'feature-flags-admin.spec.ts'];
 
 const config = definePlaywrightConfig(deployedURL ? { baseURL } : { baseURL, webServer: { command: 'pnpm preview' } });
 

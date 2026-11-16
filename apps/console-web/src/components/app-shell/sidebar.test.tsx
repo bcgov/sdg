@@ -30,7 +30,7 @@ describe('the sidebar (R6, R7, R9, R10)', () => {
 
     expect(brand).toHaveAttribute('href', '/');
     expect(brand.querySelector('img')).toHaveAttribute('alt', '');
-    expect(linkNames(mainNav)).toEqual(['Dashboard', 'Service Accounts']);
+    expect(linkNames(mainNav)).toEqual(['Dashboard', 'Service Accounts', 'Feature Flags']);
     expect(linkNames(secondaryNav)).toEqual(['Settings', 'Get help']);
     expect(precedes(brand, search) && precedes(search, mainNav) && precedes(mainNav, secondaryNav)).toBe(true);
   });
@@ -39,6 +39,12 @@ describe('the sidebar (R6, R7, R9, R10)', () => {
     const { sidebar } = await renderShell('/service-clients');
     expect(within(sidebar).getByRole('link', { name: 'Service Accounts' })).toHaveAttribute('aria-current', 'page');
     expect(within(sidebar).getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current');
+  });
+
+  it("marks Feature Flags as the current page on a flag's own page (R14)", async () => {
+    const { sidebar } = await renderShell('/feature-flags/hello_world');
+    expect(within(sidebar).getByRole('link', { name: 'Feature Flags' })).toHaveAttribute('aria-current', 'page');
+    expect(within(sidebar).getByRole('link', { name: 'Feature Flags' })).toHaveAttribute('href', '/feature-flags');
   });
 
   it('navigates client-side: the route changes and the same shell stays mounted', async () => {

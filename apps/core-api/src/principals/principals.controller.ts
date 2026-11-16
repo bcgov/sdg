@@ -56,11 +56,13 @@ export class PrincipalsController {
   @ApiForbiddenResponse({ description: 'A console-client token without the admin client role, or a service account' })
   @ApiServiceUnavailableResponse({ description: 'Keycloak’s signing keys or userinfo endpoint are unreachable' })
   async login(@CurrentCaller() caller: Caller): Promise<LoginResponse> {
+    // InternalGuard already refuses service accounts; the check narrows the kind for the sign-in marker.
+    if (caller.kind === 'service-account') throw new ForbiddenException();
     if (caller.kind === 'console-user' && !caller.isAdmin) {
       throw new ForbiddenException('The admin client role is required');
     }
     const profile = await this.profile(caller);
-    const { principalId } = await this.principals.upsertFromLogin(profile);
+    const { principalId } = await this.principals.upsertFromLogin(profile, caller.kind);
     return { principalId, name: profile.name, email: profile.email };
   }
 

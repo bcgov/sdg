@@ -4,7 +4,7 @@ import { createJwtVerifier, type AuthFetch, type JwtVerifier } from '@repo/auth'
 import { JWT_VERIFIER } from '@repo/auth/nestjs';
 
 import type { Env } from '../config/env.js';
-import { ConsoleGuard, InternalGuard, PortalGuard, SharedGuard } from './audience.guards.js';
+import { ConsoleGuard, InternalGuard, OptionalSharedGuard, PortalGuard, SharedGuard } from './audience.guards.js';
 import type { KeycloakClients } from './caller.js';
 import { acceptedClaims, KEYCLOAK_CLIENTS, PrincipalResolver } from './principal.resolver.js';
 import { UserinfoClient } from './userinfo.client.js';
@@ -47,8 +47,18 @@ const issuerUrl = (config: ConfigService<Env, true>): string => config.get('KEYC
     PortalGuard,
     ConsoleGuard,
     SharedGuard,
+    OptionalSharedGuard,
     InternalGuard,
   ],
-  exports: [KEYCLOAK_CLIENTS, PrincipalResolver, UserinfoClient, PortalGuard, ConsoleGuard, SharedGuard, InternalGuard],
+  exports: [
+    KEYCLOAK_CLIENTS,
+    PrincipalResolver,
+    UserinfoClient,
+    PortalGuard,
+    ConsoleGuard,
+    SharedGuard,
+    OptionalSharedGuard,
+    InternalGuard,
+  ],
 })
 export class AuthModule {}

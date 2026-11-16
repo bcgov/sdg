@@ -15,9 +15,11 @@ import { Route as NotAuthorizedRouteImport } from './routes/not-authorized'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSplatRouteImport } from './routes/_app/$'
 import { Route as AppAccountSettingsRouteImport } from './routes/_app/account-settings'
+import { Route as AppFeatureFlagsRouteImport } from './routes/_app/feature-flags'
 import { Route as AppHelpRouteImport } from './routes/_app/help'
 import { Route as AppServiceClientsRouteImport } from './routes/_app/service-clients'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppFeatureFlagsKeyRouteImport } from './routes/_app/feature-flags.$key'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -48,6 +50,11 @@ const AppAccountSettingsRoute = AppAccountSettingsRouteImport.update({
   path: '/account-settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFeatureFlagsRoute = AppFeatureFlagsRouteImport.update({
+  id: '/feature-flags',
+  path: '/feature-flags',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppHelpRoute = AppHelpRouteImport.update({
   id: '/help',
   path: '/help',
@@ -63,6 +70,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFeatureFlagsKeyRoute = AppFeatureFlagsKeyRouteImport.update({
+  id: '/$key',
+  path: '/$key',
+  getParentRoute: () => AppFeatureFlagsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -70,19 +82,23 @@ export interface FileRoutesByFullPath {
   '/not-authorized': typeof NotAuthorizedRoute
   '/$': typeof AppSplatRoute
   '/account-settings': typeof AppAccountSettingsRoute
+  '/feature-flags': typeof AppFeatureFlagsRouteWithChildren
   '/help': typeof AppHelpRoute
   '/service-clients': typeof AppServiceClientsRoute
   '/settings': typeof AppSettingsRoute
+  '/feature-flags/$key': typeof AppFeatureFlagsKeyRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/not-authorized': typeof NotAuthorizedRoute
   '/$': typeof AppSplatRoute
   '/account-settings': typeof AppAccountSettingsRoute
+  '/feature-flags': typeof AppFeatureFlagsRouteWithChildren
   '/help': typeof AppHelpRoute
   '/service-clients': typeof AppServiceClientsRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
+  '/feature-flags/$key': typeof AppFeatureFlagsKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -91,10 +107,12 @@ export interface FileRoutesById {
   '/not-authorized': typeof NotAuthorizedRoute
   '/_app/$': typeof AppSplatRoute
   '/_app/account-settings': typeof AppAccountSettingsRoute
+  '/_app/feature-flags': typeof AppFeatureFlagsRouteWithChildren
   '/_app/help': typeof AppHelpRoute
   '/_app/service-clients': typeof AppServiceClientsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/feature-flags/$key': typeof AppFeatureFlagsKeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -104,19 +122,23 @@ export interface FileRouteTypes {
     | '/not-authorized'
     | '/$'
     | '/account-settings'
+    | '/feature-flags'
     | '/help'
     | '/service-clients'
     | '/settings'
+    | '/feature-flags/$key'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/not-authorized'
     | '/$'
     | '/account-settings'
+    | '/feature-flags'
     | '/help'
     | '/service-clients'
     | '/settings'
     | '/'
+    | '/feature-flags/$key'
   id:
     | '__root__'
     | '/_app'
@@ -124,10 +146,12 @@ export interface FileRouteTypes {
     | '/not-authorized'
     | '/_app/$'
     | '/_app/account-settings'
+    | '/_app/feature-flags'
     | '/_app/help'
     | '/_app/service-clients'
     | '/_app/settings'
     | '/_app/'
+    | '/_app/feature-flags/$key'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -180,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/feature-flags': {
+      id: '/_app/feature-flags'
+      path: '/feature-flags'
+      fullPath: '/feature-flags'
+      preLoaderRoute: typeof AppFeatureFlagsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/help': {
       id: '/_app/help'
       path: '/help'
@@ -201,12 +232,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/feature-flags/$key': {
+      id: '/_app/feature-flags/$key'
+      path: '/$key'
+      fullPath: '/feature-flags/$key'
+      preLoaderRoute: typeof AppFeatureFlagsKeyRouteImport
+      parentRoute: typeof AppFeatureFlagsRoute
+    }
   }
 }
+
+interface AppFeatureFlagsRouteChildren {
+  AppFeatureFlagsKeyRoute: typeof AppFeatureFlagsKeyRoute
+}
+
+const AppFeatureFlagsRouteChildren: AppFeatureFlagsRouteChildren = {
+  AppFeatureFlagsKeyRoute: AppFeatureFlagsKeyRoute,
+}
+
+const AppFeatureFlagsRouteWithChildren = AppFeatureFlagsRoute._addFileChildren(
+  AppFeatureFlagsRouteChildren,
+)
 
 interface AppRouteChildren {
   AppSplatRoute: typeof AppSplatRoute
   AppAccountSettingsRoute: typeof AppAccountSettingsRoute
+  AppFeatureFlagsRoute: typeof AppFeatureFlagsRouteWithChildren
   AppHelpRoute: typeof AppHelpRoute
   AppServiceClientsRoute: typeof AppServiceClientsRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -216,6 +267,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppSplatRoute: AppSplatRoute,
   AppAccountSettingsRoute: AppAccountSettingsRoute,
+  AppFeatureFlagsRoute: AppFeatureFlagsRouteWithChildren,
   AppHelpRoute: AppHelpRoute,
   AppServiceClientsRoute: AppServiceClientsRoute,
   AppSettingsRoute: AppSettingsRoute,

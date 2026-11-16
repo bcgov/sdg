@@ -1,0 +1,346 @@
+.section {
+  margin-block: var(--layout-margin-medium) var(--layout-margin-xlarge);
+}
+
+/* A page's or panel's one action, at the end of its own line. */
+.endAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* A panel's heading with its action at the other end. */
+.panelHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  max-width: 40rem;
+}
+
+/* A polite live region (implicit role status) that holds the latest confirmed change. */
+.status {
+  display: block;
+}
+
+/* Read out but not shown, e.g. the people search's result count, which the results already show. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A result's lines inside its button: name first, then email, kind and last sign-in. */
+.person {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: start;
+}
+
+.personDetail {
+  font: var(--typography-regular-small-body);
+}
+
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  max-width: 40rem;
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  padding: var(--layout-padding-large);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* As in a panel, the gap alone spaces the dialog's title from its form. */
+.dialogBody h2 {
+  margin: 0;
+}
+
+/* A flag's page: one bordered panel per section, spaced apart, like the command palette's surface. */
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xlarge);
+  margin-block-start: var(--layout-margin-large);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  min-width: 0;
+  padding: var(--layout-padding-large);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-background-white);
+}
+
+/* Inside a panel only the gaps space things out: no heading, paragraph or list margins of their own. */
+.panel h2,
+.panel h3,
+.panel p,
+.panel dl,
+.panel dd,
+.panel ol,
+.panel ul {
+  margin: 0;
+}
+
+/* About 0.75rem under a panel's heading (the gap plus this), and a little more above a sub-heading. */
+.panel > h2 {
+  margin-block-end: var(--layout-margin-xsmall);
+}
+
+.panel > h3 {
+  margin-block-start: var(--layout-margin-small);
+}
+
+/* A tab's own content: its parts spaced by the gap alone. Focus lands on the overrides' from the R21 notice's link
+   (script only, never Tab). */
+.tabSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  min-width: 0;
+}
+
+.tabSection:focus {
+  outline: none;
+}
+
+/* A flag's page: its header, then its tabs. */
+.flagPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-large);
+  margin-block-start: var(--layout-margin-medium);
+}
+
+/* The key, state and summary at the left; edit and delete at the right, below them on a narrow screen. */
+.flagHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-medium);
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.flagTitle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+  min-width: 0;
+}
+
+.flagTitle h2,
+.flagTitle p {
+  margin: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+  align-items: center;
+}
+
+/* A key is code: the monospace face, broken anywhere rather than overflowing. */
+.flagKey {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.summary {
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-small-body);
+}
+
+/* The switch's state beside the key: green when on, gray when off. */
+.badge {
+  padding: 0 var(--layout-padding-small);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-medium);
+  border-radius: var(--layout-border-radius-large);
+  background: var(--surface-color-background-light-gray);
+  color: var(--typography-color-primary);
+  font: var(--typography-bold-small-body);
+}
+
+.badgeOn {
+  border-color: var(--support-border-color-success);
+  background: var(--support-surface-color-success);
+}
+
+/* A count beside a tab's label. */
+.count {
+  padding: 0 var(--layout-padding-small);
+  border-radius: var(--layout-border-radius-large);
+  background: var(--surface-color-background-light-gray);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-small-body);
+}
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+}
+
+/* The setting cards: four across, fewer as the page narrows. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--layout-margin-medium);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+  min-width: 0;
+  padding: var(--layout-padding-medium);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-background-white);
+}
+
+.card p {
+  margin: 0;
+}
+
+.card .cardLabel {
+  margin: 0;
+  color: var(--typography-color-secondary);
+  font: var(--typography-bold-small-body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cardValue {
+  font: var(--typography-bold-h4);
+}
+
+.cardNote {
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-small-body);
+}
+
+.valueRow {
+  display: flex;
+  gap: var(--layout-margin-small);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bar {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--layout-border-radius-small);
+  background: var(--surface-color-border-default);
+}
+
+.barFill {
+  height: 100%;
+  background: var(--surface-color-primary-default);
+}
+
+/* How a person gets the flag beside its recent changes; one above the other on a narrow screen. */
+.overviewRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-medium);
+  align-items: flex-start;
+}
+
+.decision {
+  flex: 1 1 20rem;
+}
+
+.decision ol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+  padding-inline-start: var(--layout-padding-large);
+}
+
+.recent {
+  flex: 2 1 28rem;
+}
+
+/* The overview's two panels: the cards' padding, and headings a step below the cards' values. */
+.decision,
+.recent {
+  padding: var(--layout-padding-medium);
+}
+
+.decision .panelTitle,
+.recent .panelTitle {
+  margin: 0;
+  font: var(--typography-bold-large-body);
+}
+
+/* A short table that never pages, in the DataTable's look. */
+.miniTable {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--typography-regular-small-body);
+}
+
+.miniTable th,
+.miniTable td {
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
+  border-bottom: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  text-align: start;
+  vertical-align: top;
+}
+
+.miniTable th {
+  background: var(--surface-color-background-light-gray);
+  font: var(--typography-bold-small-body);
+}
+
+.miniTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .panel {
+    padding: var(--layout-padding-medium);
+  }
+}

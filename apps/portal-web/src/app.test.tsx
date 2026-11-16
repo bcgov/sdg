@@ -1,8 +1,9 @@
+import { FLAGS_PATH } from '@repo/feature-flags';
 import { QueryClient } from '@tanstack/react-query';
 import { createMemoryHistory } from '@tanstack/react-router';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './app';
 import { createAppRouter } from './router';
@@ -10,6 +11,12 @@ import { headerQueries } from './test-support/header';
 
 // Devtools render only in dev; keep them out of jsdom.
 vi.mock('./components/devtools', () => ({ Devtools: () => null }));
+
+const HELLO_WORLD_PATH = '/api/v1/shared/hello-world';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function renderAt(path: string) {
   const queryClient = new QueryClient();
@@ -65,6 +72,30 @@ describe('portal-web app shell', () => {
       const heading = await screen.findByRole('heading', { level: 1 });
       expect(heading).toHaveTextContent('Welcome to SDG');
       expect(screen.queryByText('Page not found')).not.toBeInTheDocument();
+    });
+
+    it('Should fetch the flags once and show no hello-world when the flag list fails (R7, R8, AE8)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderAt('/');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Welcome to SDG');
+      // test-setup answers every request 401, the flag list included.
+      await waitFor(() => expect(warn).toHaveBeenCalledTimes(1));
+      const inputs = vi.mocked(fetch).mock.calls.map(([input]) => input);
+      expect(inputs.filter((input) => input === FLAGS_PATH)).toHaveLength(1);
+      expect(inputs).not.toContain(HELLO_WORLD_PATH);
+      expect(screen.queryByText('Hello, world!')).not.toBeInTheDocument();
+    });
+
+    it('Should show hello-world below the heading when the flag is on (R13, AE2)', async () => {
+      vi.mocked(fetch).mockImplementation((input) => {
+        if (input === FLAGS_PATH) return Promise.resolve(Response.json({ hello_world: true }));
+        if (input === HELLO_WORLD_PATH) return Promise.resolve(Response.json({ message: 'Hello, world!' }));
+        return Promise.resolve(Response.json({ statusCode: 401 }, { status: 401 }));
+      });
+      renderAt('/');
+      const message = await screen.findByText('Hello, world!');
+      const heading = screen.getByRole('heading', { level: 1 });
+      expect(heading.compareDocumentPosition(message)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
   });
 

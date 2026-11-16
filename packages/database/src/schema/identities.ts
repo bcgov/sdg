@@ -33,6 +33,8 @@ export type IdentitiesTable = PgTableOf<
     createdAt: TimestamptzDefaultNow;
     updatedAt: TimestamptzDefaultNow;
     lastLoginAt: TimestamptzColumn;
+    portalSignedInAt: TimestamptzColumn;
+    consoleSignedInAt: TimestamptzColumn;
   }
 >;
 
@@ -56,6 +58,9 @@ export const identities: IdentitiesTable = coreSchema.table(
       .defaultNow()
       .$onUpdate(() => new Date()),
     lastLoginAt: timestamp({ withTimezone: true }),
+    // The last sign-in through each app (KTD5): set by login, never cleared, not backfilled.
+    portalSignedInAt: timestamp({ withTimezone: true }),
+    consoleSignedInAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     uniqueIndex('identities_issuer_subject_key').on(table.issuer, table.subject),

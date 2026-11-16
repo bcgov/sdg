@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 
 import { type AuthErrorCode, parseAuthError } from '../auth/auth-error';
 import { AuthErrorNotice } from '../components/auth-error-notice';
+import { HelloWorld } from '../components/hello-world';
 
 type IndexSearch = Record<string, unknown> & { authError?: AuthErrorCode };
 
@@ -22,6 +23,7 @@ function HomePage() {
     <>
       {authError && <AuthErrorNotice code={authError} returnTo="/" onDismiss={dismiss} />}
       <Heading level={1}>Welcome to SDG</Heading>
+      <HelloWorld />
     </>
   );
 }

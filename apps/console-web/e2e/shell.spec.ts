@@ -19,7 +19,7 @@ test.describe('console-web app shell', () => {
     await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible();
     await expect(sidebar).toHaveAttribute('data-state', 'collapsed');
     // The rail still offers every destination, by its accessible name.
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link')).toHaveCount(2);
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link')).toHaveCount(3);
 
     await page.getByRole('button', { name: 'Expand sidebar' }).click();
     await expect(sidebar).toHaveAttribute('data-state', 'expanded');
@@ -34,7 +34,7 @@ test.describe('console-web app shell', () => {
     const palette = page.getByRole('dialog', { name: 'Search' });
     await expect(palette).toBeVisible();
     await expect(palette.getByRole('searchbox', { name: 'Search' })).toBeFocused();
-    await expect(palette.getByRole('menuitem')).toHaveCount(4);
+    await expect(palette.getByRole('menuitem')).toHaveCount(5);
 
     await page.keyboard.type('serv');
     await expect(palette.getByRole('menuitem')).toHaveText(['Service Accounts']);

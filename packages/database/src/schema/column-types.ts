@@ -6,6 +6,7 @@ import type {
   PgBooleanBuilderInitial,
   PgColumnBuilderBase,
   PgJsonbBuilderInitial,
+  PgSmallIntBuilderInitial,
   PgTableWithColumns,
   PgTextBuilderInitial,
   PgTimestampBuilderInitial,
@@ -15,6 +16,7 @@ import type {
 export type UuidColumn = PgUUIDBuilderInitial<''>;
 export type BigIntColumn = PgBigInt53BuilderInitial<''>;
 export type TextColumn = PgTextBuilderInitial<'', [string, ...string[]]>;
+export type SmallIntColumn = PgSmallIntBuilderInitial<''>;
 export type BooleanColumn = PgBooleanBuilderInitial<''>;
 export type JsonbColumn = PgJsonbBuilderInitial<''>;
 export type TimestamptzColumn = PgTimestampBuilderInitial<''>;

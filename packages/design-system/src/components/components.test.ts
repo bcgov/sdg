@@ -10,7 +10,9 @@ const subpaths: Record<string, Record<string, unknown>> = Object.fromEntries(
 // Components built in this package rather than re-exported from upstream.
 const custom: Record<string, string[]> = {
   avatar: ['Avatar', 'getInitials'],
+  'data-table': ['DataTable', 'dataTableColumnHelper', 'readTableState', 'tableParamKeys', 'writeTableState'],
   'nav-link': ['NavLink'],
+  tabs: ['Tab', 'TabList', 'TabPanel', 'Tabs'],
 };
 const wrapped: Record<string, Record<string, unknown>> = Object.fromEntries(
   Object.entries(subpaths).filter(([subpath]) => !(subpath in custom)),

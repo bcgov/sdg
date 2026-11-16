@@ -6,8 +6,11 @@ import { classifyPath, type Audience } from './routes.js';
 /** Upper bound for one forwarded call to core-api, response body included. */
 export const FORWARD_TIMEOUT_MS = 10_000;
 
-/** A token to forward with, or the status to answer instead (e.g. 401 with no session, 503 with the IdP down). */
-export type TokenResult = { readonly token: string } | { readonly status: number };
+/**
+ * A token to forward with, `anonymous` to forward with no Authorization (core-api then treats the caller as signed
+ * out), or the status to answer instead (e.g. 401 with no session, 503 with the IdP down).
+ */
+export type TokenResult = { readonly token: string } | { readonly anonymous: true } | { readonly status: number };
 
 /** Satisfied by Nest's `Logger`; entries follow the repo's `{ msg, error: describeError(error) }` shape. */
 export interface ForwarderLogger {
@@ -68,10 +71,10 @@ export class Forwarder<C> {
     const method = request.method.toUpperCase();
     if (this.methods !== undefined && !this.methods.has(method)) return rejected(405);
     const token = await this.options.token(context);
-    if (!('token' in token)) return rejected(token.status);
+    if ('status' in token) return rejected(token.status);
     return this.call(method, target.target, {
       ...request,
-      headers: forwardedRequestHeaders(request.headers, token.token),
+      headers: forwardedRequestHeaders(request.headers, 'token' in token ? token.token : undefined),
     });
   }
 
