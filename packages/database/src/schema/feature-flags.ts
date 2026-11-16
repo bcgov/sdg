@@ -63,8 +63,8 @@ export type FeatureFlagOverridesTable = PgTableOf<
 >;
 
 /**
- * Forces a flag on or off for one person, whatever the flag's switch and rollout say. Goes when its flag or its
- * principal is deleted.
+ * Forces a flag on or off for one person, whatever the rollout says, while the flag's switch is on; an off flag is off
+ * for everyone. Goes when its flag or its principal is deleted.
  */
 export const featureFlagOverrides: FeatureFlagOverridesTable = coreSchema.table(
   'feature_flag_overrides',

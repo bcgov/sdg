@@ -21,12 +21,19 @@ describe('isEnabled (R3)', () => {
     expect(isEnabled(KEY, id, flags({ rolloutPct }), none)).toBe(expected);
   });
 
-  it('Should return an override’s value even for a disabled or missing flag', () => {
+  it('Should return false for a disabled or missing flag whatever the override says (kill switch)', () => {
     const on = new Map([[`${KEY}:${BUCKET_44}`, true]]);
-    expect(isEnabled(KEY, BUCKET_44, flags({ enabled: false }), on)).toBe(true);
-    expect(isEnabled(KEY, BUCKET_44, new Map(), on)).toBe(true);
+    expect(isEnabled(KEY, BUCKET_44, flags({ enabled: false }), on)).toBe(false);
+    expect(isEnabled(KEY, BUCKET_44, new Map(), on)).toBe(false);
     const off = new Map([[`${KEY}:${BUCKET_44}`, false]]);
-    expect(isEnabled(KEY, BUCKET_44, flags(), off)).toBe(false);
+    expect(isEnabled(KEY, BUCKET_44, flags({ enabled: false }), off)).toBe(false);
+  });
+
+  it('Should let an override decide over the rollout while the flag is on', () => {
+    const on = new Map([[`${KEY}:${BUCKET_44}`, true]]);
+    expect(isEnabled(KEY, BUCKET_44, flags({ rolloutPct: 0 }), on)).toBe(true);
+    const off = new Map([[`${KEY}:${BUCKET_44}`, false]]);
+    expect(isEnabled(KEY, BUCKET_44, flags({ rolloutPct: 100 }), off)).toBe(false);
   });
 
   it('Should return false for a disabled flag with no override', () => {
