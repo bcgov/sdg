@@ -1,0 +1,271 @@
+/* The DataTable in the bcgov look: react-aria controls (KTD7) styled with the design tokens. Every class replaces
+   react-aria's default class name. */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  min-width: 0;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+/* The toolbar and the footer wrap onto their own lines on narrow screens (KTD13). */
+.toolbar,
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-medium);
+  align-items: flex-end;
+}
+
+.footer {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field,
+.select {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+  min-width: 12rem;
+}
+
+.footer .select {
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+
+.label {
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-label);
+}
+
+.input,
+.selectButton {
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  padding: var(--layout-padding-small) var(--layout-padding-medium);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-medium);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-forms-default);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+.input {
+  width: 100%;
+}
+
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.selectButton {
+  display: flex;
+  gap: var(--layout-margin-small);
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.input[data-focused],
+.selectButton[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: var(--layout-margin-hair);
+}
+
+.selectValue[data-placeholder] {
+  color: var(--typography-color-placeholder);
+}
+
+.chevron {
+  color: var(--typography-color-secondary);
+}
+
+.popover {
+  min-width: var(--trigger-width);
+  overflow-y: auto;
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-forms-default);
+  box-shadow: var(--surface-shadow-medium);
+}
+
+.listBox {
+  padding: var(--layout-padding-xsmall);
+  outline: none;
+}
+
+.option {
+  padding: var(--layout-padding-small);
+  border-radius: var(--layout-border-radius-small);
+  cursor: pointer;
+  outline: none;
+}
+
+.option[data-focused],
+.option[data-hovered] {
+  background-color: var(--surface-color-menus-hover);
+}
+
+.option[data-selected] {
+  font-weight: var(--typography-font-weights-bold);
+}
+
+.option[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+/* A secondary button: Clear filters, Try again and the pager. */
+.button {
+  min-height: 2.75rem;
+  padding: var(--layout-padding-small) var(--layout-padding-medium);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-dark);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-secondary-button-default);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+  cursor: pointer;
+}
+
+.button[data-hovered] {
+  background: var(--surface-color-secondary-button-hover);
+}
+
+.button[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: var(--layout-margin-hair);
+}
+
+.button[data-disabled] {
+  border-color: var(--surface-color-border-default);
+  background: var(--surface-color-secondary-button-disabled);
+  color: var(--typography-color-disabled);
+  cursor: not-allowed;
+}
+
+.caption {
+  margin: 0;
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-small-body);
+}
+
+/* The table scrolls sideways inside its frame on narrow screens (KTD13). */
+.frame {
+  overflow-x: auto;
+}
+
+.frame[aria-busy='true'] .body {
+  opacity: 0.6;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  outline: none;
+}
+
+.table[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+}
+
+.column,
+.cell {
+  padding: var(--layout-padding-small);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  text-align: start;
+  vertical-align: middle;
+  outline: none;
+}
+
+.column {
+  font: var(--typography-bold-body);
+  white-space: nowrap;
+}
+
+.column[data-allows-sorting] {
+  cursor: pointer;
+}
+
+.column[data-hovered] {
+  background-color: var(--surface-color-menus-hover);
+}
+
+.column[data-focus-visible],
+.cell[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+.columnLabel {
+  display: inline-flex;
+  gap: var(--layout-margin-xsmall);
+  align-items: center;
+}
+
+/* An unsorted sortable column shows a faint arrow; the sorted one shows its direction. */
+.sortIcon {
+  color: var(--typography-color-disabled);
+  font-size: var(--typography-font-size-label);
+}
+
+.sortIcon[data-sorted] {
+  color: var(--typography-color-primary);
+}
+
+.row {
+  outline: none;
+}
+
+.row[data-href] {
+  cursor: pointer;
+}
+
+.row[data-hovered] {
+  background-color: var(--surface-color-menus-hover);
+}
+
+.row[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+.skeleton {
+  display: block;
+  height: 1em;
+  border-radius: var(--layout-border-radius-small);
+  background: var(--surface-color-background-light-gray);
+}
+
+.message {
+  margin: 0;
+  padding: var(--layout-padding-medium) 0;
+  color: var(--typography-color-secondary);
+}
+
+.range {
+  margin: 0;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+  align-items: center;
+}
+
+.pageLabel {
+  padding: 0 var(--layout-padding-small);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
