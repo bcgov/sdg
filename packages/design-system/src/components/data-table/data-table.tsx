@@ -25,6 +25,7 @@ import {
   type TableChange,
   type TableConfig,
   type TableState,
+  hasQuery,
 } from './table-state';
 import type {
   DataTableMessages,
@@ -95,8 +96,6 @@ function viewOf(status: DataTableStatus, rowCount: number, hasQuery: boolean): V
 }
 
 const NO_ROWS: readonly never[] = [];
-
-const hasQuery = (state: TableState) => state.search !== '' || Object.keys(state.filters).length > 0;
 
 /** The TanStack table in manual mode, holding the URL's sort and page (KTD6), and react-aria's matching sort. */
 function useManualTable<TData extends RowData>(

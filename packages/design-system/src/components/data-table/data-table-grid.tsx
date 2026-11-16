@@ -5,7 +5,7 @@ import {
   type RowData,
   type TableFeatures,
 } from '@tanstack/react-table';
-import { type JSX, type ReactNode, type RefObject, useCallback, useId } from 'react';
+import { type JSX, type ReactNode, type RefObject, useCallback, useId, useMemo } from 'react';
 import { Cell, Column, Row, Table, TableBody, TableHeader, type SortDescriptor } from 'react-aria-components';
 
 import styles from './data-table.module.css';
@@ -77,6 +77,10 @@ export function DataTableGrid<TFeatures extends TableFeatures, TData extends Row
   const captionId = useId();
   const onSortChange = useCallback((descriptor: SortDescriptor) => onSort(String(descriptor.column)), [onSort]);
   const renderEmptyState = useCallback(() => <p className={styles['message']}>{emptyMessage}</p>, [emptyMessage]);
+  const body = useMemo(
+    () => (rows ? dataRows(rows, getRowHref) : skeletonRows(headers.length)),
+    [rows, getRowHref, headers.length],
+  );
   return (
     <>
       <p id={captionId} className={styles['caption']}>
@@ -109,7 +113,7 @@ export function DataTableGrid<TFeatures extends TableFeatures, TData extends Row
             ))}
           </TableHeader>
           <TableBody className={styles['body']} renderEmptyState={renderEmptyState}>
-            {rows ? dataRows(rows, getRowHref) : skeletonRows(headers.length)}
+            {body}
           </TableBody>
         </Table>
       </div>

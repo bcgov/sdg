@@ -80,7 +80,7 @@ export function tableParamKeys(config: TableConfig, prefix?: string): string[] {
   return names.map(keyFor(prefix));
 }
 
-export function defaultTableState(config: TableConfig): TableState {
+function defaultTableState(config: TableConfig): TableState {
   return { search: '', filters: {}, sort: config.defaultSort, pageSize: DEFAULT_PAGE_SIZE, page: 1, cursor: null };
 }
 
@@ -225,4 +225,9 @@ export function goToPage(state: TableState, page: number): TableChange {
 
 export function goToCursor(state: TableState, cursor: TableCursor | null): TableChange {
   return push({ ...state, cursor });
+}
+
+/** Whether a search or any filter is set. */
+export function hasQuery({ search, filters }: Pick<TableState, 'search' | 'filters'>): boolean {
+  return search !== '' || Object.keys(filters).length > 0;
 }

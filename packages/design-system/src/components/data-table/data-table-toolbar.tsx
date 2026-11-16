@@ -2,7 +2,7 @@ import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { Button, Input, Label, SearchField } from 'react-aria-components';
 
 import { TableSelect } from './data-table-select';
-import type { TableConfig, TableFilter } from './table-state';
+import { hasQuery, type TableConfig, type TableFilter } from './table-state';
 
 import styles from './data-table.module.css';
 
@@ -101,7 +101,7 @@ export function DataTableToolbar({
   onClear,
 }: Readonly<ToolbarProps>): JSX.Element {
   const { text, setText, onFocus, clear: clearText } = useSearchText(search, onSearch);
-  const isSet = search !== '' || Object.keys(filters).length > 0;
+  const isSet = hasQuery({ search, filters });
   const clear = useCallback(() => {
     clearText();
     onClear();
