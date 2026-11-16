@@ -1,35 +1,20 @@
 .section {
-  margin-block: var(--layout-margin-xlarge);
+  margin-block: var(--layout-margin-medium) var(--layout-margin-xlarge);
 }
 
-.tableWrapper {
-  overflow-x: auto;
+/* A page's or panel's one action, at the end of its own line. */
+.endAction {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font: var(--typography-regular-body);
-  color: var(--typography-color-primary);
-}
-
-.table caption {
-  text-align: start;
-  font: var(--typography-regular-small-body);
-  color: var(--typography-color-secondary);
-  padding-block-end: var(--layout-padding-small);
-}
-
-.table th,
-.table td {
-  text-align: start;
-  vertical-align: middle;
-  padding: var(--layout-padding-small);
-  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
-}
-
-.table th {
-  font: var(--typography-bold-body);
+/* A panel's heading with its action at the other end. */
+.panelHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+  align-items: center;
+  justify-content: space-between;
 }
 
 .actions {
@@ -101,6 +86,11 @@
   padding: var(--layout-padding-large);
   max-height: 80vh;
   overflow-y: auto;
+}
+
+/* As in a panel, the gap alone spaces the dialog's title from its form. */
+.dialogBody h2 {
+  margin: 0;
 }
 
 /* A flag's page: one bordered panel per section, spaced apart, like the command palette's surface. */

@@ -9,6 +9,8 @@ const SEARCH = '/api/v1/console/people/search';
 
 const overridesRegion = () => screen.findByRole('region', { name: 'Overrides' });
 const updates = () => screen.getByRole('status', { name: 'Feature flag updates' });
+/** The Flag details panel's override counts ("1 on, 0 off"). */
+const counts = () => within(screen.getByRole('region', { name: 'Flag details' })).getByText(/^\d+ on, \d+ off$/);
 const overridesGrid = async () => within(await overridesRegion()).findByRole('grid', { name: /^Overrides of / });
 const names = async () =>
   within(await overridesGrid())
@@ -37,7 +39,7 @@ describe('overrides (R18, R21)', () => {
     await waitFor(() => expect(updates()).toHaveTextContent('hello_world is now on for Grace Hopper.'));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(await rowOf('Grace Hopper')).toHaveTextContent('Grace Hoppergrace.hopper@example.testResidentOnRemove');
-    expect(await overridesRegion()).toHaveTextContent('Forced on for 1 person and off for 0 people');
+    expect(counts()).toHaveTextContent('1 on, 0 off');
     expect(api.find('hello_world')?.overrideCounts).toEqual({ on: 1, off: 0 });
 
     await userEvent.click(screen.getByRole('link', { name: 'All feature flags' }));
@@ -65,12 +67,12 @@ describe('overrides (R18, R21)', () => {
     const api = fakeFeatureFlagsApi({ flags: [flag('hello_world', { overrides: [overrideFor(ada, false)] })] });
     renderAt('/feature-flags/hello_world');
     const region = await overridesRegion();
-    expect(region).toHaveTextContent('Forced on for 0 people and off for 1 person');
+    expect(counts()).toHaveTextContent('0 on, 1 off');
     await userEvent.click(await within(region).findByRole('button', { name: 'Remove the override for Ada' }));
 
     await waitFor(() => expect(updates()).toHaveTextContent('Removed the override for Ada.'));
     expect(region).toHaveTextContent('No one has an override for hello_world.');
-    expect(region).toHaveTextContent('Forced on for 0 people and off for 0 people');
+    await waitFor(() => expect(counts()).toHaveTextContent('0 on, 0 off'));
     expect(api.find('hello_world')?.overrides).toEqual([]);
   });
 

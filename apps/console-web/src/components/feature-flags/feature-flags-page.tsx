@@ -1,7 +1,6 @@
 import { Button } from '@repo/design-system/components/button';
 import { DataTable, readTableState, type DataTableSearchChange } from '@repo/design-system/components/data-table';
 import { InlineAlert } from '@repo/design-system/components/inline-alert';
-import { Text } from '@repo/design-system/components/text';
 import { useNavigate, useRouter, useSearch } from '@tanstack/react-router';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -89,15 +88,13 @@ export function FeatureFlagsPage({ deletedKey }: Readonly<{ deletedKey?: string 
 
   return (
     <>
-      <Text elementType="p">
-        Feature flags turn parts of the portal and the console on or off without a deploy, for a share of people or for
-        named people.
-      </Text>
       <output className={styles.status} aria-label="Feature flag updates">
         {status && <InlineAlert variant="success" description={status} />}
       </output>
-      <div>
-        <Button onPress={open}>Create feature flag</Button>
+      <div className={styles.endAction}>
+        <Button size="small" onPress={open}>
+          Create feature flag
+        </Button>
       </div>
       <section className={styles.section} aria-label="Feature flags">
         <FlagList />

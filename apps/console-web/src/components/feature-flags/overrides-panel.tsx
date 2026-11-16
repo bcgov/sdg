@@ -5,7 +5,7 @@ import { type Ref, useCallback, useState } from 'react';
 
 import type { FlagDetail, Person } from '../../api/feature-flags';
 import { FormDialog } from './form-dialog';
-import { KIND_LABELS, people } from './labels';
+import { KIND_LABELS } from './labels';
 import { OverridesTable } from './overrides-table';
 import { PeopleSearch } from './people-search';
 import type { DetailActions } from './use-detail-actions';
@@ -94,15 +94,13 @@ export function OverridesPanel({ flag, actions, sectionRef }: Readonly<Overrides
   const close = useCallback(() => setAdding(false), []);
   return (
     <section ref={sectionRef} tabIndex={-1} className={styles.panel} aria-labelledby="overrides-heading">
-      <Heading level={2} id="overrides-heading">
-        Overrides
-      </Heading>
-      <Text elementType="p">
-        Forced on for {people(flag.overrideCounts.on)} and off for {people(flag.overrideCounts.off)}, whatever the
-        switch and rollout.
-      </Text>
-      <div>
-        <Button onPress={open}>Add or change an override</Button>
+      <div className={styles.panelHeader}>
+        <Heading level={2} id="overrides-heading">
+          Overrides
+        </Heading>
+        <Button size="small" onPress={open}>
+          Add or change an override
+        </Button>
       </div>
       <OverridesTable flag={flag} actions={actions} />
       <OverrideDialog flag={flag} actions={actions} isOpen={isAdding} onClose={close} />
