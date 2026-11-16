@@ -1,6 +1,7 @@
 import { Button } from '@repo/design-system/components/button';
+import { InlineAlert } from '@repo/design-system/components/inline-alert';
 import { Text } from '@repo/design-system/components/text';
-import { type Ref, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import type { FlagDetail, Person } from '../../api/feature-flags';
 import { FormDialog } from './form-dialog';
@@ -82,17 +83,24 @@ function OverrideDialog({ flag, actions, isOpen, onClose }: Readonly<OverrideDia
 interface OverridesPanelProps {
   flag: FlagDetail;
   actions: OverrideActions;
-  /** The R21 notice's link moves focus here. */
-  sectionRef: Ref<HTMLElement>;
 }
 
-/** Who the flag is forced on or off for, and a dialog to add or change one (R18); its tab names it. */
-export function OverridesPanel({ flag, actions, sectionRef }: Readonly<OverridesPanelProps>) {
+/**
+ * Who the flag is forced on or off for, and a dialog to add or change one (R18); its tab names it. While the flag is
+ * off, its overrides wait for the switch (kill switch), and the panel says so.
+ */
+export function OverridesPanel({ flag, actions }: Readonly<OverridesPanelProps>) {
   const [isAdding, setAdding] = useState(false);
   const open = useCallback(() => setAdding(true), []);
   const close = useCallback(() => setAdding(false), []);
   return (
-    <section ref={sectionRef} tabIndex={-1} className={styles.tabSection} aria-label="Overrides">
+    <section className={styles.tabSection} aria-label="Overrides">
+      {!flag.enabled && flag.overrideCounts.on + flag.overrideCounts.off > 0 && (
+        <InlineAlert
+          variant="info"
+          description={`${flag.key} is off, so its overrides have no effect until it’s turned on.`}
+        />
+      )}
       <div className={styles.endAction}>
         <Button size="small" onPress={open}>
           Add or change an override

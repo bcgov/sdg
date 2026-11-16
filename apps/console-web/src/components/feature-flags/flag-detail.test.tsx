@@ -57,10 +57,11 @@ describe('a flag’s page (R16, R21)', () => {
     const { router } = renderAt('/feature-flags/hello_world');
     const how = await card('How a person gets hello_world');
     expect(how.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Overrides come first: 1 person always gets it; 1 person never does.',
-      'The switch is on, so everyone else goes on to the rollout.',
+      'The switch is on, so overrides and then the rollout decide.',
+      'Overrides come next: 1 person is forced on; 1 person is forced off.',
       'The rollout gives it to 50% of people who sign in to the portal.',
     ]);
+    expect(await region('Switch')).toHaveTextContent('Off stops it for everyone, overrides included');
     const recent = await card('Recent changes');
     await waitFor(() => expect(recent.getAllByRole('row')).toHaveLength(4));
     expect(recent.getAllByRole('row')[1]).toHaveTextContent('Rollout: 3% → 4%');
@@ -68,6 +69,27 @@ describe('a flag’s page (R16, R21)', () => {
     await userEvent.click(recent.getByRole('link', { name: 'All history' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'history' }));
     expect(screen.getByRole('tab', { name: 'History' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('says no one gets an off flag, with its overrides waiting for the switch (kill switch)', async () => {
+    const overrides = [overrideFor(person('Ada', 'resident'), true)];
+    fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: false, rolloutPct: 50, overrides })] });
+    renderAt('/feature-flags/hello_world');
+    const how = await card('How a person gets hello_world');
+    expect(how.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'The switch is off, so no one gets it, overrides included.',
+      'Overrides apply once the switch is on: 1 person is forced on.',
+      'The rollout of 50% counts only while the switch is on.',
+    ]);
+    expect(await region('Switch')).toHaveTextContent('No one gets it; overrides wait until it’s on');
+  });
+
+  it('says only that no one gets an off flag with no overrides', async () => {
+    fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: false })] });
+    renderAt('/feature-flags/hello_world');
+    const note = await region('Switch');
+    expect(note).toHaveTextContent('No one gets it');
+    expect(note).not.toHaveTextContent('overrides');
   });
 
   it('keeps the tab in the URL, leaving it out for the overview', async () => {
@@ -127,7 +149,8 @@ describe('a flag’s page (R16, R21)', () => {
     await waitFor(() => expect(toggle).toBeChecked());
     await userEvent.click(toggle);
     const dialog = await screen.findByRole('alertdialog', { name: 'Turn hello_world off?' });
-    expect(dialog).toHaveTextContent('Everyone else stops getting hello_world.');
+    expect(dialog).toHaveTextContent('Everyone stops getting hello_world.');
+    expect(dialog).not.toHaveTextContent('override');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(toggle).toBeChecked();
@@ -138,46 +161,20 @@ describe('a flag’s page (R16, R21)', () => {
     expect(patches(api)).toEqual([{ enabled: true }, { enabled: false }]);
   });
 
-  it('names how many people still get a flag turned off, and its link opens the overrides (R21)', async () => {
+  it('tells whoever turns a flag off that its "on" overrides stop too, and only confirms the save (R21)', async () => {
     const { people, overrides } = threeOnOverrides();
     const api = fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: true, overrides })], people });
-    const { router } = renderAt('/feature-flags/hello_world');
+    renderAt('/feature-flags/hello_world');
     await userEvent.click((await card('Switch')).getByRole('switch', { name: 'On' }));
     expect(await screen.findByRole('alertdialog', { name: 'Turn hello_world off?' })).toHaveTextContent(
-      'Only the 3 people with an “on” override will still get it.',
+      'Everyone stops getting hello_world, including the 3 people with an “on” override. ' +
+        'Their overrides apply again when you turn it back on.',
     );
     await userEvent.click(screen.getByRole('button', { name: 'Turn off' }));
 
-    await waitFor(() => expect(updates()).toHaveTextContent('hello_world is off, but 3 people still get it'));
+    await waitFor(() => expect(updates()).toHaveTextContent(/^Saved hello_world\.$/));
     expect(patches(api)).toEqual([{ enabled: false }]);
-    await userEvent.click(within(updates()).getByRole('link', { name: 'Review the overrides' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'overrides' }));
-    await waitFor(() => expect(screen.getByRole('region', { name: 'Overrides' })).toHaveFocus());
-  });
-
-  it('keeps the R21 notice until dismissed, and drops it when the flag is turned back on', async () => {
-    const { people, overrides } = threeOnOverrides();
-    fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: true, overrides })], people });
-    renderAt('/feature-flags/hello_world');
-    await flip();
-    await waitFor(() => expect(updates()).toHaveTextContent('3 people still get it'));
-
-    await flip();
-    await waitFor(() => expect(updates()).toHaveTextContent('Saved hello_world.'));
-    expect(updates()).not.toHaveTextContent('still get it');
-
-    await flip();
-    await waitFor(() => expect(updates()).toHaveTextContent('3 people still get it'));
-    await userEvent.click(within(updates()).getByRole('button', { name: /close/i }));
-    expect(updates()).not.toHaveTextContent('still get it');
-  });
-
-  it('shows no R21 notice when a flag with no "on" overrides is turned off', async () => {
-    fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: true })] });
-    renderAt('/feature-flags/hello_world');
-    await flip();
-    await waitFor(() => expect(updates()).toHaveTextContent('Saved hello_world.'));
-    expect(updates()).not.toHaveTextContent('still get');
+    expect(within(updates()).queryByRole('link')).toBeNull();
   });
 
   it('says another administrator already removed the flag (404 on save) and refetches into its deleted view', async () => {

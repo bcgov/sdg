@@ -140,7 +140,6 @@ export class FeatureFlagsService {
         flag = updated ?? current;
         await recordEvent(tx, { flagKey: key, action: 'updated', changes }, actor);
       }
-      // The R21 notice needs the "on" count of a flag just turned off.
       return toSummary(flag, await countOverrides(tx, key));
     });
     this.cache.invalidate();

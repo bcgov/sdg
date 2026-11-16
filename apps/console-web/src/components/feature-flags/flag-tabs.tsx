@@ -1,5 +1,5 @@
 import { Tab, TabList, TabPanel, Tabs, type TabsProps } from '@repo/design-system/components/tabs';
-import { type RefObject, useCallback } from 'react';
+import { useCallback } from 'react';
 
 import type { FlagDetail } from '../../api/feature-flags';
 import { FlagOverview } from './flag-overview';
@@ -13,7 +13,6 @@ import styles from './feature-flags.module.css';
 interface FlagTabsProps {
   flag: FlagDetail;
   actions: DetailActions;
-  overridesRef: RefObject<HTMLElement | null>;
   tab: FlagTab;
   onShowTab: (tab: FlagTab) => void;
 }
@@ -24,7 +23,7 @@ const TAB_KEYS: ReadonlySet<Key> = new Set(FLAG_TABS);
 const isFlagTab = (key: Key): key is FlagTab => TAB_KEYS.has(key);
 
 /** The flag's overview, overrides and history, one tab each; the URL holds the tab shown (KTD10). */
-export function FlagTabs({ flag, actions, overridesRef, tab, onShowTab }: Readonly<FlagTabsProps>) {
+export function FlagTabs({ flag, actions, tab, onShowTab }: Readonly<FlagTabsProps>) {
   const select = useCallback(
     (key: Key) => {
       if (isFlagTab(key)) onShowTab(key);
@@ -45,7 +44,7 @@ export function FlagTabs({ flag, actions, overridesRef, tab, onShowTab }: Readon
         <FlagOverview flag={flag} actions={actions} />
       </TabPanel>
       <TabPanel id="overrides">
-        <OverridesPanel flag={flag} actions={actions} sectionRef={overridesRef} />
+        <OverridesPanel flag={flag} actions={actions} />
       </TabPanel>
       <TabPanel id="history">
         <HistoryTable flagKey={flag.key} hideCaption />

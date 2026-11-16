@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -30,7 +30,7 @@ async function searchFor(text: string) {
 describe('overrides (R18, R21)', () => {
   it('sets an override for a person found in the dialog, closing it and updating the table and the counts', async () => {
     const grace = person('Grace Hopper', 'resident');
-    const api = fakeFeatureFlagsApi({ flags: [flag('hello_world')], people: [grace] });
+    const api = fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: true })], people: [grace] });
     renderAt('/feature-flags/hello_world?tab=overrides');
     const dialog = await searchFor('grace');
     await userEvent.click(await within(dialog).findByRole('button', { name: /^Grace Hopper/ }));
@@ -45,6 +45,42 @@ describe('overrides (R18, R21)', () => {
     await userEvent.click(screen.getByRole('link', { name: 'All feature flags' }));
     const row = (await screen.findByRole('rowheader', { name: 'hello_world' })).closest('[role="row"]');
     expect(row).toHaveTextContent('1 on, 0 off');
+  });
+
+  it('saves an override on an off flag, saying it applies once the flag is turned on (kill switch)', async () => {
+    const grace = person('Grace Hopper', 'resident');
+    const api = fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: false })], people: [grace] });
+    renderAt('/feature-flags/hello_world?tab=overrides');
+    const dialog = await searchFor('grace');
+    await userEvent.click(await within(dialog).findByRole('button', { name: /^Grace Hopper/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Turn on for Grace Hopper' }));
+
+    await waitFor(() =>
+      expect(updates()).toHaveTextContent(
+        'Saved Grace Hopper’s “on” override. It applies once hello_world is turned on.',
+      ),
+    );
+    expect(api.find('hello_world')?.overrides).toEqual([overrideFor(grace, true)]);
+  });
+
+  it('says an off flag’s overrides have no effect until it is turned on, and only then (R21)', async () => {
+    const ada = overrideFor(person('Ada', 'resident'), true);
+    const note = 'hello_world is off, so its overrides have no effect until it’s turned on.';
+    fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: false, overrides: [ada] })] });
+    renderAt('/feature-flags/hello_world?tab=overrides');
+    expect(await overridesRegion()).toHaveTextContent(note);
+    cleanup();
+
+    fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: true, overrides: [ada] })] });
+    renderAt('/feature-flags/hello_world?tab=overrides');
+    expect(await rowOf('Ada')).toBeTruthy();
+    expect(await overridesRegion()).not.toHaveTextContent('no effect');
+    cleanup();
+
+    fakeFeatureFlagsApi({ flags: [flag('hello_world', { enabled: false })] });
+    renderAt('/feature-flags/hello_world?tab=overrides');
+    expect(await overridesRegion()).toHaveTextContent('No one has an override for hello_world.');
+    expect(await overridesRegion()).not.toHaveTextContent('no effect');
   });
 
   it('goes back to the search from a chosen person, and Cancel closes the dialog without a change', async () => {
@@ -93,7 +129,7 @@ describe('overrides (R18, R21)', () => {
   it('searches a console flag among console users only, labelled as such (AE10)', async () => {
     const cy = person('Cyrus Admin', 'console-user');
     const api = fakeFeatureFlagsApi({
-      flags: [flag('new_console', { audience: 'console', rolloutPct: 0 })],
+      flags: [flag('new_console', { audience: 'console', enabled: true, rolloutPct: 0 })],
       people: [cy, person('Cyrus Resident', 'resident')],
     });
     renderAt('/feature-flags/new_console?tab=overrides');

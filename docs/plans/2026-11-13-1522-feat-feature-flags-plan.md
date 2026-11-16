@@ -23,7 +23,7 @@ execution: code
 
 ## Product Contract
 
-**Product Contract preservation:** changed: R1, R3–R6, R8, R11–R13, R15, R16, R18, R21, AE9, AE10 and the Summary — console users and per-flag audience added at the user's direction during planning (Key Decisions on audience and console overrides). F1's trace corrected from R11 to R8. Outstanding Questions resolved into the Planning Contract (KTD1–KTD15) and removed.
+**Product Contract preservation:** changed: R1, R3–R6, R8, R11–R13, R15, R16, R18, R21, AE9, AE10 and the Summary — console users and per-flag audience added at the user's direction during planning (Key Decisions on audience and console overrides). F1's trace corrected from R11 to R8. Outstanding Questions resolved into the Planning Contract (KTD1–KTD15) and removed. Later changed: R3, R21, F3 and AE5 — a flag's switch became a kill switch (`docs/plans/2026-11-16-1450-fix-flag-kill-switch-plan.md`).
 
 ### Summary
 
@@ -47,7 +47,7 @@ That makes it risky to ship anything unfinished or uncertain. Gradual rollout, t
 - **Evaluate with the supplied `isEnabled`, keyed on the person's principal id.** The principal id is already a uuid, matching `user_id uuid`, and it stays the same when someone links another login. Governs R3.
 - **Each flag has an audience: portal, console, or both.** (session-settled: user-directed — chosen over one shared namespace evaluated everywhere and over separate per-app flag lists: each app's list holds only its own flags, so the public portal list never names a console flag.) Governs R1, R5, R6, R18.
 - **Overrides can target console users as well as residents, matching the flag's audience.** (session-settled: user-directed — chosen over residents-only overrides: a console feature can be tried on a few staff first.) Governs R18.
-- **An override beats the flag's on/off switch.** This follows the supplied `isEnabled`. Turning a flag off doesn't hide it from people with an "on" override; deleting the flag or the override does. (session-settled: user-approved — chosen over treating off as a kill switch that also silences overrides: the consequence was shown in the scoping synthesis and accepted.) Governs R3, R18, R21.
+- **Off is a kill switch: a flag that is off is off for everyone, overrides included.** While a flag is on, an override decides ahead of the rollout. Overrides are kept while a flag is off and apply again when it's turned back on. This amends the supplied `isEnabled` (`docs/plans/2026-11-16-1450-fix-flag-kill-switch-plan.md`). (session-settled: user-directed — chosen over an override beating the switch: a flag can gate an infrastructure-level feature, and an "on" override would let people use it while it isn't running.) Governs R3, R18, R21.
 - **Signed-out visitors get flag-level evaluation from one public, optionally authenticated endpoint.** (session-settled: user-directed — chosen over "everything off when signed out" and anonymous cookie bucketing: flags that are fully on should reach everyone, and one endpoint should evaluate the caller if a session exists.) Governs R4, R5.
 - **The hello-world endpoint follows the same rules as the flag list, and is public on the portal.** (session-settled: user-approved — chosen over a signed-in-only endpoint: the component and endpoint must never disagree, and the demo exercises the signed-out path.) Governs R12.
 - **Pages render immediately and only flagged parts wait for their flag.** (session-settled: user-directed — chosen over blocking the whole app until flags load, with a timeout, and over rendering with all flags off until they arrive: the portal is never blank and a flagged part never shows the wrong variant first.) This replaces the supplied `FlagProvider`'s `return null`. Governs R8, R9.
@@ -65,7 +65,7 @@ That makes it risky to ship anything unfinished or uncertain. Gradual rollout, t
 
 **Evaluation**
 
-- R3. For a signed-in resident or console user, each flag is evaluated with the supplied `isEnabled` using their principal id: an override wins, then a flag that is off is off, then the person's stable bucket is compared with the rollout percentage.
+- R3. For a signed-in resident or console user, each flag is evaluated with `isEnabled` using their principal id: a flag that is off is off, then an override wins, then the person's stable bucket is compared with the rollout percentage.
 - R4. For a signed-out portal visitor, a flag is on only when it is on and its rollout percentage is 100. Overrides and partial rollouts don't apply.
 
 **Flag lists**
@@ -95,7 +95,7 @@ That makes it risky to ship anything unfinished or uncertain. Gradual rollout, t
 - R18. Console admins can find a person by partial name or email, set an on or off override for a flag, and remove an override. The search returns only people who have signed in to an app in the flag's audience (residents for portal, console users for console, either for both), each labelled resident or console user.
 - R19. Every change to a flag or override is recorded with the admin who made it, when, and what changed. Admins can view this history in the console, and it remains after its flag is deleted.
 - R20. Only console admins can read or change flags, overrides and history, or search people.
-- R21. The console shows each flag's override count. Turning a flag off while it has "on" overrides shows a notice naming how many people still get the feature, with a link to those overrides.
+- R21. The console shows each flag's override count. Turning a flag off asks first, and when it has "on" overrides the confirmation says those people stop getting it too and that their overrides apply again when it's turned back on. While a flag is off and has overrides, its overrides panel says they have no effect until it's turned on.
 
 ### Key Flows
 
@@ -115,7 +115,7 @@ That makes it risky to ship anything unfinished or uncertain. Gradual rollout, t
   - **Trigger:** An admin wants a named person to have, or not have, a feature.
   - **Actors:** A1, A2
   - **Steps:** On the flag, the admin searches people in the flag's audience by name or email, picks one and sets the override on or off.
-  - **Outcome:** That person's result follows the override from their next page load, whatever the switch and percentage say.
+  - **Outcome:** That person's result follows the override from their next page load, whatever the percentage says, while the switch is on.
   - **Covered by:** R3, R18, R19
 
 ### Acceptance Examples
@@ -124,7 +124,7 @@ That makes it risky to ship anything unfinished or uncertain. Gradual rollout, t
 - AE2. **Covers R4, R12, R13.** Given `hello_world` is on at 100% with audience portal, when a signed-out visitor opens the home page, the component shows "Hello, world!".
 - AE3. **Covers R3, R4.** Given `hello_world` is on at 50%, a signed-out visitor never sees the component. Each signed-in resident gets the same result on every load, and about half of residents see it.
 - AE4. **Covers R3, R16.** Given `hello_world` is raised from 50% to 80%, every resident who saw it at 50% still sees it.
-- AE5. **Covers R3, R18.** Given `hello_world` is off and resident X has an "on" override, X sees the component and other residents don't.
+- AE5. **Covers R3, R18.** Given `hello_world` is on at 0% and resident X has an "on" override, X sees the component and other residents don't. When `hello_world` is turned off, X doesn't see it either.
 - AE6. **Covers R6.** Given flag `new_thing` is off and `hello_world` is on at 100%, the flag list for a signed-out visitor names `hello_world` only.
 - AE7. **Covers R17, R19.** Given `hello_world` has overrides and is deleted, no one sees the component, the overrides are gone, and the history still shows the flag's changes and its deletion.
 - AE8. **Covers R7, R9.** Given the flag list request fails, the home page still renders and the hello-world component stays hidden.
@@ -185,7 +185,7 @@ That makes it risky to ship anything unfinished or uncertain. Gradual rollout, t
 - KTD5. **Login records which app each identity signed in through, as `portal_signed_in_at` and `console_signed_in_at` on `core.identities`.** `upsertFromLogin` sets the column matching the caller kind it already knows and never clears either one. Evaluation never reads them; people search and override validation do. Existing rows are not backfilled, so someone who signed in earlier is searchable after their next sign-in. (session-settled: user-approved — chosen over backfilling from stored userinfo claims, which are unverified for telling BCSC from IDIR: the consequence was shown in the scoping synthesis and accepted.) Governs R18.
 - KTD6. **Schema follows the supplied SQL, plus an audience column and an override foreign key to principals.** `feature_flags.audience` is text, not null, default `portal`, checked against `portal`, `console` and `both`. `feature_flag_overrides.user_id` references `core.principals(id)` on delete cascade, so an override can't target an unknown id and goes when its person does. The supplied SQL's trailing comma after the `CHECK` clause is dropped. (session-settled: user-approved — chosen over the supplied SQL's unlinked `user_id`: the departure was shown in the scoping synthesis and accepted.) Governs R1, R17, R18.
 - KTD7. **History is one `core.feature_flag_events` table with no foreign keys, read through one console-wide endpoint filtered by key.** Each row records the action (`created`, `updated`, `deleted`, `override_set`, `override_removed`), the flag key, the actor's principal id and display-name snapshot, the override target's principal id, a `changes` JSON of `{field: {from, to}}`, and the time. A delete records `overridesRemoved`, not one event per cascaded override. A target's name is joined at read time, never snapshotted. Governs R19.
-- KTD8. **Flag edits are `PATCH` with only the changed fields; overrides are `PUT` and `DELETE` by principal id.** A PATCH or PUT that changes nothing records no event. An edit, override or delete on a missing flag answers 404; override writes lock the flag row first (U6), so a concurrent delete is a plain 404. The PATCH response carries the flag's current count of "on" overrides for the R21 notice. console-web's `apiRequest` method type widens to `PATCH` and `PUT`. Governs R16, R17, R18, R21.
+- KTD8. **Flag edits are `PATCH` with only the changed fields; overrides are `PUT` and `DELETE` by principal id.** A PATCH or PUT that changes nothing records no event. An edit, override or delete on a missing flag answers 404; override writes lock the flag row first (U6), so a concurrent delete is a plain 404. The PATCH response carries the flag's current override counts. console-web's `apiRequest` method type widens to `PATCH` and `PUT`. Governs R16, R17, R18, R21.
 - KTD9. **People search is `POST /api/v1/console/people/search` with the query in the body.** That keeps names and emails out of the edge's and both APIs' request logs. The trimmed query is at least 2 characters, matches display name or email by case-insensitive substring with `%`, `_` and `\` escaped, and returns at most 20 results plus a `more` flag. The audience in the request filters by KTD5's markers, and each result carries its kind and last sign-in. Governs R18, R20.
 - KTD10. **core-api caches the flag table in memory; a console create, edit or delete clears it, and it expires after 30 seconds.** Overrides are still read per request. The clear is per pod, so another replica (core-api runs one today) or a change made outside the console lags by at most the expiry. (session-settled: user-directed — chosen over no caching, Postgres LISTEN/NOTIFY across replicas, and a shared cache: the public flag list shouldn't read Postgres on every page load, and one replica makes the in-pod clear exact.) Governs R8.
 - KTD11. **A new React library `@repo/feature-flags` holds the provider and hook, built on TanStack Query.** The flags query is keyed by an exported constant, `['@repo/feature-flags', 'evaluated']`, so no app's own query keys or prefix invalidations can touch it. It uses `retry: false`, `staleTime: Infinity` and no refetch on focus or reconnect, so "once per page load" holds against both apps' QueryClient defaults. `useFlag(key)` returns `{ isLoading, isEnabled }` and throws outside a provider. Any failure, including a non-JSON or wrong-shape body, settles to all off with `isLoading` false. Governs R7–R11.
@@ -461,8 +461,8 @@ erDiagram
 **Test scenarios:**
 
 - `isEnabled` puts a pinned key and principal id in a fixed bucket, so the hash can't drift silently.
-- `isEnabled` returns an override's value even for a disabled or missing flag.
-- `isEnabled` returns false for a disabled flag with no override.
+- `isEnabled` returns false for a disabled or missing flag, whatever the override says.
+- While a flag is on, `isEnabled` returns an override's value whatever the rollout.
 - For any one key and id, `isEnabled` is monotonic in the rollout percentage.
 - Covers AE1. With `hello_world` off, a signed-in resident's list omits it and hello-world answers 404.
 - Covers AE2. With `hello_world` on at 100%, a request with no token gets `{ "hello_world": true }` and hello-world's message.
@@ -647,7 +647,7 @@ erDiagram
 
 ### U11. console-web Feature Flags page
 
-**Goal:** Give console admins the Feature Flags page: list, create, edit, delete, overrides with people search, the R21 notice, and history.
+**Goal:** Give console admins the Feature Flags page: list, create, edit, delete, overrides with people search, the R21 turn-off confirmation and overrides note, and history.
 
 **Requirements:** R14–R21; KTD8, KTD9, KTD12, KTD13; AE7, AE10.
 
@@ -662,7 +662,7 @@ erDiagram
 **Approach:**
 
 1. Mirror the service-accounts page: an API module with type guards, TanStack Query hooks under `['feature-flag-admin', …]` keys that update the cache only after the server confirms, and an actions hook with status and notices. Use `Modal` with `AlertDialog` for delete.
-2. Layout: the flag table is the landing view, with a create section above it. Selecting a flag opens its detail (a child route, `/feature-flags/$key`) with the edit form, the overrides panel and the history filtered by its key. A console-wide history panel with a key filter sits on the landing view, so a deleted flag's history stays reachable. The R21 notice renders in the detail's status region after the PATCH response and links to the overrides panel by moving focus to it. It stays until dismissed or the flag is turned back on.
+2. Layout: the flag table is the landing view, with a create section above it. Selecting a flag opens its detail (a child route, `/feature-flags/$key`) with the edit form, the overrides panel and the history filtered by its key. A console-wide history panel with a key filter sits on the landing view, so a deleted flag's history stays reachable. Turning the flag off goes through a confirmation that names the people with "on" overrides, and an off flag's overrides panel says its overrides wait for the switch (R21).
 3. The people search is a text field plus a results list (the design system has no combobox). It debounces about 300 ms and sends nothing below 2 characters. Each result shows name, email, kind and last sign-in and is a button, reachable with Tab and chosen with Enter or Space. The search has these states: a hint below 2 characters, a searching state, no matches, a "showing the first 20, refine your search" line when `more` is true, a generic failure notice, and the WAF-specific copy. A polite live region announces the result count.
 4. Add a nav entry with `faFlag`, widening the `to` union.
 
@@ -674,7 +674,7 @@ erDiagram
 - The list shows key, audience, on/off, percentage and override counts.
 - The create form starts at 0% and audience portal, rejects `Hello` before submitting, and shows the server's 409 for a duplicate.
 - Editing the percentage sends a PATCH with only that field.
-- Turning off a flag with 3 "on" overrides shows the notice naming 3 people, and its link moves focus to the overrides panel (R21).
+- Turning off a flag with 3 "on" overrides asks first, naming the 3 people who stop getting it too, and the off flag's overrides panel says they have no effect until it's turned on (R21).
 - Opening `/feature-flags/hello_world` directly shows that flag's detail. A deleted key shows a not-found state that links to its history.
 - The delete dialog names the key and its override count and says history is kept; confirming removes the row.
 - Covers AE10. Searching on a console flag sends the flag's audience, and results are labelled console user.
@@ -684,7 +684,7 @@ erDiagram
 - A one-character query sends no request and shows the hint. A query with no matches says so. A response with `more: true` shows the refine line.
 - The results can be reached with Tab and chosen with Enter, and the live region announces the count.
 - Covers AE7. The history panel shows a deleted flag's events when filtered by its key.
-- Mocked e2e (`feature-flags.spec.ts`, faked routes): list, create, edit and the R21 notice render and behave as above.
+- Mocked e2e (`feature-flags.spec.ts`, faked routes): list, create, edit and the R21 confirmation and overrides note render and behave as above.
 - Signed-in e2e through the edge (`feature-flags-admin.spec.ts`, skipped without the console test credentials, like `service-clients.spec.ts`): create a flag, set an override found by search, then delete it. Include a search for `O'Brien` to observe the WAF (Risks).
 
 **Verification:** console-web unit and e2e tests pass, and `src/csp-hashes.test.ts` passes.

@@ -30,6 +30,11 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
   const helloWorld = (fields: Partial<NewFeatureFlag> = {}) => flag('hello_world', fields);
   const override = (userId: string, enabled: boolean) =>
     t.database.db.insert(featureFlagOverrides).values({ flagKey: 'hello_world', userId, enabled });
+  /** Turns hello_world on or off as a console edit would, clearing the cache. */
+  const setEnabled = async (enabled: boolean) => {
+    await t.database.db.update(featureFlags).set({ enabled }).where(eq(featureFlags.key, 'hello_world'));
+    clearFlagCache();
+  };
 
   /** Principals with an identity for each subject at the test IdP, as a sign-in would leave them. */
   async function seed(subjects: string[]): Promise<string[]> {
@@ -112,14 +117,41 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
     expect(atEighty.size).toBeGreaterThan(atHalf.size);
   });
 
-  it('Should give an off flag to the resident with an "on" override and not to another resident (AE5)', async () => {
-    const [x] = await seed(['resident-x', 'resident-y']);
+  it('Should keep an off flag from a resident with an "on" override (R3, kill switch)', async () => {
+    const [x] = await seed(['resident-x']);
     await helloWorld({ enabled: false });
+    await override(x ?? '', true);
+    expect((await get(FLAGS, await portal('resident-x'))).body).toEqual({});
+    expect((await get(HELLO, await portal('resident-x'))).status).toBe(404);
+  });
+
+  it('Should give a flag on at 0% to the resident with an "on" override and not to another resident (AE5)', async () => {
+    const [x] = await seed(['resident-x', 'resident-y']);
+    await helloWorld({ rolloutPct: 0 });
     await override(x ?? '', true);
     expect((await get(FLAGS, await portal('resident-x'))).body).toEqual({ hello_world: true });
     expect((await get(HELLO, await portal('resident-x'))).status).toBe(200);
     expect((await get(FLAGS, await portal('resident-y'))).body).toEqual({});
     expect((await get(HELLO, await portal('resident-y'))).status).toBe(404);
+  });
+
+  it('Should keep a flag on at 100% from the resident with an "off" override and give it to another (R3)', async () => {
+    const [x] = await seed(['resident-x', 'resident-y']);
+    await helloWorld();
+    await override(x ?? '', false);
+    expect((await get(FLAGS, await portal('resident-x'))).body).toEqual({});
+    expect((await get(FLAGS, await portal('resident-y'))).body).toEqual({ hello_world: true });
+  });
+
+  it('Should restore an "on" override unchanged when its flag is turned off and back on (R3)', async () => {
+    const [x] = await seed(['resident-x']);
+    await helloWorld({ rolloutPct: 0 });
+    await override(x ?? '', true);
+    expect((await get(FLAGS, await portal('resident-x'))).body).toEqual({ hello_world: true });
+    await setEnabled(false);
+    expect((await get(FLAGS, await portal('resident-x'))).body).toEqual({});
+    await setEnabled(true);
+    expect((await get(FLAGS, await portal('resident-x'))).body).toEqual({ hello_world: true });
   });
 
   it('Should name only the flags that are on in a signed-out list (AE6, R6)', async () => {
