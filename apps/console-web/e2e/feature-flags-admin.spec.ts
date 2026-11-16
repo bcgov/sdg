@@ -67,7 +67,8 @@ test('creates a console flag, overrides it for a person found by search, then de
   await overrideDialog(page)
     .getByRole('button', { name: `Turn on for ${name}` })
     .click();
-  await expect(updates(page)).toHaveText(`${key} is now on for ${name}.`);
+  // A new flag starts off, so the override waits for the switch.
+  await expect(updates(page)).toHaveText(`Saved ${name}’s “on” override. It applies once ${key} is turned on.`);
   await expect(overrideDialog(page)).toHaveCount(0);
   await expect(
     page

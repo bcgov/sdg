@@ -47,6 +47,12 @@ function Card({ title, children }: Readonly<{ title: string; children: ReactNode
   );
 }
 
+/** What the switch means for this flag: off stops it for everyone, overrides included. */
+function switchNote({ enabled, overrideCounts: { on, off } }: FlagDetail): string {
+  if (enabled) return 'Off stops it for everyone, overrides included';
+  return on + off === 0 ? 'No one gets it' : 'No one gets it; overrides wait until it’s on';
+}
+
 /** The switch, changed right here: on at once, off once confirmed (R16, R21). */
 function SwitchCard({ flag, actions: { save, isSaving } }: Readonly<{ flag: FlagDetail; actions: SaveActions }>) {
   const [isAsking, setAsking] = useState(false);
@@ -62,9 +68,7 @@ function SwitchCard({ flag, actions: { save, isSaving } }: Readonly<{ flag: Flag
         <p className={styles.cardValue}>{onOff(flag.enabled)}</p>
         <Switch aria-label="On" isSelected={flag.enabled} isDisabled={isSaving} onChange={toggle} />
       </div>
-      <p className={styles.cardNote}>
-        {flag.enabled ? 'Off stops it for everyone without an “on” override' : 'Only “on” overrides get it'}
-      </p>
+      <p className={styles.cardNote}>{switchNote(flag)}</p>
       <SwitchOffDialog flag={flag} isOpen={isAsking} onConfirm={turnOff} onCancel={cancel} />
     </Card>
   );
@@ -108,17 +112,17 @@ function SettingCards({ flag, actions }: Readonly<{ flag: FlagDetail; actions: S
   );
 }
 
-/** "2 people always get it; 1 person never does." */
+/** "2 people are forced on". */
+const forced = (count: number, state: string) => `${people(count)} ${count === 1 ? 'is' : 'are'} forced ${state}`;
+
+/** "2 people are forced on; 1 person is forced off." */
 function overridesRule({ on, off }: FlagDetail['overrideCounts']): string {
   if (on + off === 0) return 'no one has one.';
-  const parts = [
-    ...(on > 0 ? [`${people(on)} always ${on === 1 ? 'gets' : 'get'} it`] : []),
-    ...(off > 0 ? [`${people(off)} never ${off === 1 ? 'does' : 'do'}`] : []),
-  ];
+  const parts = [...(on > 0 ? [forced(on, 'on')] : []), ...(off > 0 ? [forced(off, 'off')] : [])];
   return `${parts.join('; ')}.`;
 }
 
-/** The order core-api decides in: an override, then the switch, then the rollout (R21). */
+/** The order core-api decides in: the switch, then an override, then the rollout (R21). */
 function HowItIsDecided({ flag }: Readonly<{ flag: FlagDetail }>) {
   return (
     <section className={`${styles.panel} ${styles.decision}`} aria-labelledby="how-heading">
@@ -127,11 +131,14 @@ function HowItIsDecided({ flag }: Readonly<{ flag: FlagDetail }>) {
       </Heading>
       <ol>
         <li>
-          <strong>Overrides</strong> come first: {overridesRule(flag.overrideCounts)}
+          <strong>The switch</strong> is{' '}
+          {flag.enabled
+            ? 'on, so overrides and then the rollout decide.'
+            : 'off, so no one gets it, overrides included.'}
         </li>
         <li>
-          <strong>The switch</strong> is{' '}
-          {flag.enabled ? 'on, so everyone else goes on to the rollout.' : 'off, so no one else gets it.'}
+          <strong>Overrides</strong> {flag.enabled ? 'come next' : 'apply once the switch is on'}:{' '}
+          {overridesRule(flag.overrideCounts)}
         </li>
         <li>
           <strong>The rollout</strong>{' '}

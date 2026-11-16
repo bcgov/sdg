@@ -3,15 +3,11 @@ import { useCallback, useState } from 'react';
 
 import type { FlagChanges, FlagOverride, Person } from '../../api/feature-flags';
 import { listParams } from './table-search';
-import { useDeleteFlag, useRemoveOverride, useSetOverride, useUpdateFlag } from './use-feature-flags';
+import { useDeleteFlag, useFlagDetail, useRemoveOverride, useSetOverride, useUpdateFlag } from './use-feature-flags';
 import { type FlagFeedback, useFlagFeedback } from './use-flag-feedback';
 
-/**
- * Saves edits, then calls `onDone` (e.g. to close the dialog they came from). After core-api answers a PATCH that turned the flag off while people still have "on" overrides, the
- * off notice (R21) is raised; it stays until dismissed or a save turns the flag back on.
- */
+/** Saves edits, then calls `onDone` (e.g. to close the dialog they came from). */
 function useSave(key: string, { reset, confirm, fail }: FlagFeedback) {
-  const [offNotice, setOffNotice] = useState(false);
   const { mutate, isPending } = useUpdateFlag();
   const save = useCallback(
     (changes: FlagChanges, onDone?: () => void) => {
@@ -20,11 +16,9 @@ function useSave(key: string, { reset, confirm, fail }: FlagFeedback) {
         mutate(
           { key, changes },
           {
-            onSuccess: (summary) => {
+            onSuccess: () => {
               confirm(`Saved ${key}.`);
               onDone?.();
-              if (summary.enabled) setOffNotice(false);
-              else if (changes.enabled === false && summary.overrideCounts.on > 0) setOffNotice(true);
             },
             onError: (error) => fail(error, key, attempt),
           },
@@ -34,13 +28,14 @@ function useSave(key: string, { reset, confirm, fail }: FlagFeedback) {
     },
     [key, mutate, reset, confirm, fail],
   );
-  const dismissOffNotice = useCallback(() => setOffNotice(false), []);
-  return { save, isSaving: isPending, offNotice, dismissOffNotice };
+  return { save, isSaving: isPending };
 }
 
 function useOverrideChanges(key: string, { reset, confirm, fail }: FlagFeedback) {
   const { mutate: set, isPending: isSettingOverride } = useSetOverride();
   const { mutate: remove, isPending: isRemoving, variables: removing } = useRemoveOverride();
+  // While the flag is off, an override waits for the switch (kill switch), so don't say it's in effect.
+  const isFlagOn = useFlagDetail(key).data?.enabled ?? true;
   const setOverride = useCallback(
     (who: Person, enabled: boolean, onDone: () => void) => {
       const attempt = () => {
@@ -49,7 +44,12 @@ function useOverrideChanges(key: string, { reset, confirm, fail }: FlagFeedback)
           { key, principalId: who.principalId, enabled },
           {
             onSuccess: () => {
-              confirm(`${key} is now ${enabled ? 'on' : 'off'} for ${who.displayName}.`);
+              const state = enabled ? 'on' : 'off';
+              confirm(
+                isFlagOn
+                  ? `${key} is now ${state} for ${who.displayName}.`
+                  : `Saved ${who.displayName}’s “${state}” override. It applies once ${key} is turned on.`,
+              );
               onDone();
             },
             onError: (error) => fail(error, key, attempt),
@@ -58,7 +58,7 @@ function useOverrideChanges(key: string, { reset, confirm, fail }: FlagFeedback)
       };
       attempt();
     },
-    [key, set, reset, confirm, fail],
+    [key, set, reset, confirm, fail, isFlagOn],
   );
   const removeOverride = useCallback(
     (override: FlagOverride) => {

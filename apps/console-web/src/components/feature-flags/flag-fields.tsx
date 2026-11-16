@@ -82,7 +82,7 @@ export function FlagFields({ values, errors, onChange }: Readonly<FlagFieldsProp
       </Switch>
       <NumberField
         label="Rollout percentage"
-        description="The share of people the flag is on for while it is on; overrides come first"
+        description="The share of people the flag is on for while it is on; overrides come before it"
         minValue={0}
         maxValue={100}
         step={1}

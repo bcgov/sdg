@@ -1,9 +1,8 @@
 import { Heading } from '@repo/design-system/components/heading';
 import { InlineAlert } from '@repo/design-system/components/inline-alert';
-import { Link as DesignSystemLink } from '@repo/design-system/components/link';
 import { Text } from '@repo/design-system/components/text';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import type { FlagDetail } from '../../api/feature-flags';
 import { apiErrorKind } from '../../api/http';
@@ -14,37 +13,11 @@ import { EditFlagDialog } from './edit-flag-dialog';
 import { FlagHeader } from './flag-header';
 import { FlagTabs } from './flag-tabs';
 import { HistoryTable } from './history-table';
-import { people } from './labels';
 import { flagTab, type FlagTab, listParams, withTab } from './table-search';
 import { type DetailActions, useDetailActions } from './use-detail-actions';
 import { useFlagDetail } from './use-feature-flags';
 
 import styles from './feature-flags.module.css';
-
-interface OffNoticeProps {
-  flag: FlagDetail;
-  onReview: () => void;
-  onDismiss: () => void;
-}
-
-/** R21: the flag is off, yet its "on" overrides still give it to people (an override beats the switch). */
-function OffNotice({ flag, onReview, onDismiss }: Readonly<OffNoticeProps>) {
-  const count = flag.overrideCounts.on;
-  const buttons = useMemo(
-    () => <DesignSystemLink onPress={onReview}>Review the overrides</DesignSystemLink>,
-    [onReview],
-  );
-  return (
-    <InlineAlert
-      variant="warning"
-      title={`${flag.key} is off, but ${people(count)} still ${count === 1 ? 'gets' : 'get'} it`}
-      description={`Their "on" overrides come before the switch. Remove them to turn ${flag.key} off for everyone.`}
-      isCloseable
-      onClose={onDismiss}
-      buttons={buttons}
-    />
-  );
-}
 
 interface PanelProps {
   id: string;
@@ -75,7 +48,6 @@ function HistoryPanel({ flagKey }: Readonly<{ flagKey: string }>) {
 interface FlagPanelsProps {
   flag: FlagDetail;
   actions: DetailActions;
-  overridesRef: RefObject<HTMLElement | null>;
   tab: FlagTab;
   onShowTab: (tab: FlagTab) => void;
 }
@@ -122,11 +94,8 @@ function FlagBody({ flagKey, ...panels }: Readonly<Omit<FlagPanelsProps, 'flag'>
   return <FlagPanels flag={flag} {...panels} />;
 }
 
-/**
- * The tab the URL names, a way to show another (keeping the scroll), and the R21 notice's way to the overrides: their
- * tab, with focus on them once it shows.
- */
-function useFlagTab(overridesRef: RefObject<HTMLElement | null>) {
+/** The tab the URL names, and a way to show another (keeping the scroll). */
+function useFlagTab() {
   const search = useSearch({ from: '/_app/feature-flags/$key' });
   const navigate = useNavigate({ from: '/feature-flags/$key' });
   const tab = flagTab(search);
@@ -134,35 +103,17 @@ function useFlagTab(overridesRef: RefObject<HTMLElement | null>) {
     (next: FlagTab) => void navigate({ search: withTab(search, next), resetScroll: false }),
     [navigate, search],
   );
-  // Set by the notice's link, read once the overrides' tab shows.
-  const focusOverrides = useRef(false);
-  useEffect(() => {
-    if (!focusOverrides.current || tab !== 'overrides') return;
-    focusOverrides.current = false;
-    overridesRef.current?.focus();
-  }, [tab, overridesRef]);
-  const reviewOverrides = useCallback(() => {
-    if (tab === 'overrides') {
-      overridesRef.current?.focus();
-      return;
-    }
-    focusOverrides.current = true;
-    showTab('overrides');
-  }, [tab, showTab, overridesRef]);
-  return { search, tab, showTab, reviewOverrides };
+  return { search, tab, showTab };
 }
 
 /**
  * One flag's page (`/feature-flags/$key`): its header with the edit and delete actions, then its overview, overrides
- * and history as tabs. The status region above them confirms each change and holds the R21 notice.
+ * and history as tabs. The status region above them confirms each change.
  */
 export function FlagDetailPage({ flagKey }: Readonly<{ flagKey: string }>) {
-  const overridesRef = useRef<HTMLElement>(null);
   const actions = useDetailActions(flagKey);
-  const { data: flag } = useFlagDetail(flagKey);
-  const { status, notice, dismiss, offNotice, dismissOffNotice } = actions;
-  const { search, tab, showTab, reviewOverrides } = useFlagTab(overridesRef);
-  const showOffNotice = offNotice && flag !== undefined && !flag.enabled && flag.overrideCounts.on > 0;
+  const { status, notice, dismiss } = actions;
+  const { search, tab, showTab } = useFlagTab();
   // Back to the list view this flag was opened from (KTD10).
   const listSearch = useMemo(() => listParams(search), [search]);
 
@@ -174,11 +125,10 @@ export function FlagDetailPage({ flagKey }: Readonly<{ flagKey: string }>) {
       <div className={styles.notices}>
         <output className={styles.status} aria-label="Feature flag updates">
           {status && <InlineAlert variant="success" description={status} />}
-          {showOffNotice && <OffNotice flag={flag} onReview={reviewOverrides} onDismiss={dismissOffNotice} />}
         </output>
         {notice && <NoticeAlert notice={notice} onDismiss={dismiss} />}
       </div>
-      <FlagBody flagKey={flagKey} actions={actions} overridesRef={overridesRef} tab={tab} onShowTab={showTab} />
+      <FlagBody flagKey={flagKey} actions={actions} tab={tab} onShowTab={showTab} />
     </>
   );
 }

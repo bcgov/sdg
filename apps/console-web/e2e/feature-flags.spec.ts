@@ -105,16 +105,16 @@ test.describe('console-web Feature Flags pages', () => {
     const toggle = page.getByRole('region', { name: 'Switch' }).getByRole('switch', { name: 'On' });
     await toggle.focus();
     await page.keyboard.press('Space');
-    await page
-      .getByRole('alertdialog', { name: 'Turn hello_world off?' })
-      .getByRole('button', { name: 'Turn off' })
-      .click();
+    const turnOff = page.getByRole('alertdialog', { name: 'Turn hello_world off?' });
+    await expect(turnOff).toContainText('Everyone stops getting hello_world, including the 3 people');
+    await turnOff.getByRole('button', { name: 'Turn off' }).click();
     await expect(toggle).not.toBeChecked();
-    await expect(updates).toContainText('hello_world is off, but 3 people still get it');
+    await expect(updates).toHaveText('Saved hello_world.');
     expect(requests.patches).toEqual([{ rolloutPct: 80 }, { enabled: false }]);
-    await updates.getByRole('link', { name: 'Review the overrides' }).click();
-    await expect(page).toHaveURL(/\/feature-flags\/hello_world\?tab=overrides$/);
-    await expect(page.getByRole('region', { name: 'Overrides' })).toBeFocused();
+    await page.getByRole('tab', { name: /^Overrides/ }).click();
+    await expect(page.getByRole('region', { name: 'Overrides' })).toContainText(
+      'hello_world is off, so its overrides have no effect until it’s turned on.',
+    );
     await page.getByRole('tab', { name: 'History' }).click();
     await expect(page.getByRole('grid', { name: /Changes to hello_world/ }).getByRole('rowheader')).toHaveCount(2);
   });
