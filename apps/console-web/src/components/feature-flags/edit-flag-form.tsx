@@ -30,14 +30,15 @@ interface EditFlagFormProps {
   flag: FlagSummary;
   isPending: boolean;
   onSave: (changes: FlagChanges) => void;
+  onCancel: () => void;
 }
 
 /**
  * Edits a flag's description, audience, switch and rollout (R16); the key never changes (R2). Save sends only what
- * changed, and nothing when nothing has. (Save stays enabled: the rollout field commits its value on blur, so a press on
- * Save must still count while the field has focus.) The page remounts the form when core-api's answer changes the flag.
+ * changed, and nothing when nothing has; Cancel closes the dialog it sits in. (Save stays enabled: the rollout field commits its value on blur, so a press on
+ * Save must still count while the field has focus.)
  */
-export function EditFlagForm({ flag, isPending, onSave }: Readonly<EditFlagFormProps>) {
+export function EditFlagForm({ flag, isPending, onSave, onCancel }: Readonly<EditFlagFormProps>) {
   const [values, setValues] = useState<FlagFieldValues>(() => fieldValuesOf(flag));
   const [errors, setErrors] = useState<FlagFieldErrors>({});
   const [isUnchanged, setUnchanged] = useState(false);
@@ -64,9 +65,12 @@ export function EditFlagForm({ flag, isPending, onSave }: Readonly<EditFlagFormP
     <Form className={styles.form} validationBehavior="aria" onSubmit={submit}>
       <FlagFields values={values} errors={errors} onChange={change} />
       {isUnchanged && <Text elementType="p">Nothing to save: no field has changed.</Text>}
-      <div>
+      <div className={styles.actions}>
         <Button type="submit" isPending={isPending}>
           Save changes
+        </Button>
+        <Button variant="secondary" isDisabled={isPending} onPress={onCancel}>
+          Cancel
         </Button>
       </div>
     </Form>

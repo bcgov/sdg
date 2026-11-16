@@ -57,6 +57,7 @@ test('creates a console flag, overrides it for a person found by search, then de
     .filter({ has: page.getByRole('rowheader', { name: key, exact: true }) })
     .click();
   await expect(page).toHaveURL(new RegExp(`/feature-flags/${key}\\?q=${key}$`));
+  await page.getByRole('tab', { name: /^Overrides/ }).click();
   await search(page, name.slice(0, Math.max(2, Math.min(name.length, 5))));
   await overrideDialog(page)
     .getByRole('list', { name: 'People found' })
@@ -83,10 +84,7 @@ test('creates a console flag, overrides it for a person found by search, then de
   test.info().annotations.push({ type: 'waf', description: (await blocked.count()) > 0 ? 'blocked' : 'allowed' });
   await overrideDialog(page).getByRole('button', { name: 'Cancel' }).click();
 
-  await page
-    .getByRole('region', { name: 'Danger zone' })
-    .getByRole('button', { name: `Delete ${key}` })
-    .click();
+  await page.getByRole('button', { name: `Delete ${key}` }).click();
   await page
     .getByRole('alertdialog', { name: `Delete ${key}?` })
     .getByRole('button', { name: 'Delete' })

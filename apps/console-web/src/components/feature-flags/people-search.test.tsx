@@ -23,7 +23,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, SEARCH_DEBOUNC
 /** The flag's page with the override dialog open on its people search. */
 async function renderSearch(people = [person('Grace Hopper', 'resident'), person('Grant Wood', 'resident')]) {
   const api = fakeFeatureFlagsApi({ flags: [flag('hello_world')], people });
-  renderAt('/feature-flags/hello_world');
+  renderAt('/feature-flags/hello_world?tab=overrides');
   await userEvent.click(await screen.findByRole('button', { name: 'Add or change an override' }));
   return api;
 }

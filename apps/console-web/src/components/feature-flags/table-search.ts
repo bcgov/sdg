@@ -64,7 +64,24 @@ export const OVERRIDES_CONFIG: TableConfig = {
 export const OVERRIDES_PREFIX = 'o';
 
 const LIST_KEYS = tableParamKeys(FLAG_LIST_CONFIG);
+/** A flag page's tabs; the URL's `tab` names any but the first. */
+export const FLAG_TABS = ['overview', 'overrides', 'history'] as const;
+export type FlagTab = (typeof FLAG_TABS)[number];
+const TAB_KEY = 'tab';
+
+/** The tab `search` names, the overview for none or one that isn't a tab. */
+export function flagTab(search: StringSearch): FlagTab {
+  return FLAG_TABS.find((tab) => tab !== 'overview' && tab === search[TAB_KEY]) ?? 'overview';
+}
+
+/** `search` showing `tab`: the overview leaves the param out. */
+export function withTab(search: StringSearch, tab: FlagTab): Record<string, string> {
+  const { [TAB_KEY]: _replaced, ...rest } = stringParams(search);
+  return tab === 'overview' ? rest : { ...rest, [TAB_KEY]: tab };
+}
+
 const DETAIL_KEYS = [
+  TAB_KEY,
   ...tableParamKeys(OVERRIDES_CONFIG, OVERRIDES_PREFIX),
   ...tableParamKeys(HISTORY_CONFIG, HISTORY_PREFIX),
 ];
@@ -81,7 +98,7 @@ export function stringParams(search: Readonly<Record<string, unknown>>, keys?: r
 /** The flag list's own params, which a flag's page carries so deleting returns to the same view (R18). */
 export const listParams = (search: Readonly<Record<string, unknown>>) => stringParams(search, LIST_KEYS);
 
-/** A flag page's own params: its overrides' `o.` and its history's `h.`. */
+/** A flag page's own params: its tab, its overrides' `o.` and its history's `h.`. */
 export const detailParams = (search: Readonly<Record<string, unknown>>) => stringParams(search, DETAIL_KEYS);
 
 export function flagListQuery(state: TableState): FlagListQuery {

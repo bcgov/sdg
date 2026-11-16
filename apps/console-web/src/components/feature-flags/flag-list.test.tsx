@@ -133,7 +133,7 @@ describe('the feature flag list on the DataTable (R15–R18)', () => {
     first!.focus();
     await userEvent.keyboard('{Enter}');
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Flag details' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'flag_21' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/feature-flags/flag_21');
     expect(router.state.location.search).toEqual({ enabled: 'false', page: '2' });
   });
@@ -151,8 +151,7 @@ describe('the feature flag list on the DataTable (R15–R18)', () => {
     const api = fakeFeatureFlagsApi({ flags: numbered('flag', 25) });
     const { router } = renderAt('/feature-flags?enabled=false&page=2');
     await userEvent.click((await bodyRows())[0]!);
-    const dangerZone = await screen.findByRole('region', { name: 'Danger zone' });
-    await userEvent.click(within(dangerZone).getByRole('button', { name: 'Delete flag_21' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete flag_21' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete flag_21?' });
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 

@@ -7,14 +7,14 @@ import { useDeleteFlag, useRemoveOverride, useSetOverride, useUpdateFlag } from 
 import { type FlagFeedback, useFlagFeedback } from './use-flag-feedback';
 
 /**
- * Saves edits. After core-api answers a PATCH that turned the flag off while people still have "on" overrides, the
+ * Saves edits, then calls `onDone` (e.g. to close the dialog they came from). After core-api answers a PATCH that turned the flag off while people still have "on" overrides, the
  * off notice (R21) is raised; it stays until dismissed or a save turns the flag back on.
  */
 function useSave(key: string, { reset, confirm, fail }: FlagFeedback) {
   const [offNotice, setOffNotice] = useState(false);
   const { mutate, isPending } = useUpdateFlag();
   const save = useCallback(
-    (changes: FlagChanges) => {
+    (changes: FlagChanges, onDone?: () => void) => {
       const attempt = () => {
         reset();
         mutate(
@@ -22,6 +22,7 @@ function useSave(key: string, { reset, confirm, fail }: FlagFeedback) {
           {
             onSuccess: (summary) => {
               confirm(`Saved ${key}.`);
+              onDone?.();
               if (summary.enabled) setOffNotice(false);
               else if (changes.enabled === false && summary.overrideCounts.on > 0) setOffNotice(true);
             },

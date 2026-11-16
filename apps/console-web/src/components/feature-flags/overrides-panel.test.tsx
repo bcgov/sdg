@@ -9,8 +9,8 @@ const SEARCH = '/api/v1/console/people/search';
 
 const overridesRegion = () => screen.findByRole('region', { name: 'Overrides' });
 const updates = () => screen.getByRole('status', { name: 'Feature flag updates' });
-/** The Flag details panel's override counts ("1 on, 0 off"). */
-const counts = () => within(screen.getByRole('region', { name: 'Flag details' })).getByText(/^\d+ on, \d+ off$/);
+/** The header's override counts ("1 forced on, 0 forced off"). */
+const counts = () => screen.getByText(/\d+ forced on, \d+ forced off$/);
 const overridesGrid = async () => within(await overridesRegion()).findByRole('grid', { name: /^Overrides of / });
 const names = async () =>
   within(await overridesGrid())
@@ -31,7 +31,7 @@ describe('overrides (R18, R21)', () => {
   it('sets an override for a person found in the dialog, closing it and updating the table and the counts', async () => {
     const grace = person('Grace Hopper', 'resident');
     const api = fakeFeatureFlagsApi({ flags: [flag('hello_world')], people: [grace] });
-    renderAt('/feature-flags/hello_world');
+    renderAt('/feature-flags/hello_world?tab=overrides');
     const dialog = await searchFor('grace');
     await userEvent.click(await within(dialog).findByRole('button', { name: /^Grace Hopper/ }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Turn on for Grace Hopper' }));
@@ -39,7 +39,7 @@ describe('overrides (R18, R21)', () => {
     await waitFor(() => expect(updates()).toHaveTextContent('hello_world is now on for Grace Hopper.'));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(await rowOf('Grace Hopper')).toHaveTextContent('Grace Hoppergrace.hopper@example.testResidentOnRemove');
-    expect(counts()).toHaveTextContent('1 on, 0 off');
+    expect(counts()).toHaveTextContent('1 forced on, 0 forced off');
     expect(api.find('hello_world')?.overrideCounts).toEqual({ on: 1, off: 0 });
 
     await userEvent.click(screen.getByRole('link', { name: 'All feature flags' }));
@@ -50,7 +50,7 @@ describe('overrides (R18, R21)', () => {
   it('goes back to the search from a chosen person, and Cancel closes the dialog without a change', async () => {
     const grace = person('Grace Hopper', 'resident');
     const api = fakeFeatureFlagsApi({ flags: [flag('hello_world')], people: [grace] });
-    renderAt('/feature-flags/hello_world');
+    renderAt('/feature-flags/hello_world?tab=overrides');
     const dialog = await searchFor('grace');
     await userEvent.click(await within(dialog).findByRole('button', { name: /^Grace Hopper/ }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Choose someone else' }));
@@ -65,21 +65,21 @@ describe('overrides (R18, R21)', () => {
   it('removes an override, updating the table and the counts', async () => {
     const ada = person('Ada', 'resident');
     const api = fakeFeatureFlagsApi({ flags: [flag('hello_world', { overrides: [overrideFor(ada, false)] })] });
-    renderAt('/feature-flags/hello_world');
+    renderAt('/feature-flags/hello_world?tab=overrides');
     const region = await overridesRegion();
-    expect(counts()).toHaveTextContent('0 on, 1 off');
+    expect(counts()).toHaveTextContent('0 forced on, 1 forced off');
     await userEvent.click(await within(region).findByRole('button', { name: 'Remove the override for Ada' }));
 
     await waitFor(() => expect(updates()).toHaveTextContent('Removed the override for Ada.'));
     expect(region).toHaveTextContent('No one has an override for hello_world.');
-    await waitFor(() => expect(counts()).toHaveTextContent('0 on, 0 off'));
+    await waitFor(() => expect(counts()).toHaveTextContent('0 forced on, 0 forced off'));
     expect(api.find('hello_world')?.overrides).toEqual([]);
   });
 
   it('says another administrator removed an override already (404) and refetches', async () => {
     const ada = person('Ada', 'resident');
     const api = fakeFeatureFlagsApi({ flags: [flag('hello_world', { overrides: [overrideFor(ada, true)] })] });
-    renderAt('/feature-flags/hello_world');
+    renderAt('/feature-flags/hello_world?tab=overrides');
     const region = await overridesRegion();
     api.flags = [flag('hello_world')];
     await userEvent.click(await within(region).findByRole('button', { name: 'Remove the override for Ada' }));
@@ -96,7 +96,7 @@ describe('overrides (R18, R21)', () => {
       flags: [flag('new_console', { audience: 'console', rolloutPct: 0 })],
       people: [cy, person('Cyrus Resident', 'resident')],
     });
-    renderAt('/feature-flags/new_console');
+    renderAt('/feature-flags/new_console?tab=overrides');
     const dialog = await searchFor('cyrus');
 
     const results = await within(dialog).findByRole('list', { name: 'People found' });
@@ -126,19 +126,19 @@ const many = () =>
 describe('the overrides table (R18)', () => {
   it('pages by name 20 at a time, with the page in its o. params', async () => {
     fakeFeatureFlagsApi({ flags: [flag('hello_world', { audience: 'both', overrides: many() })] });
-    const { router } = renderAt('/feature-flags/hello_world');
+    const { router } = renderAt('/feature-flags/hello_world?tab=overrides');
     expect(await names()).toHaveLength(20);
     expect((await names())[0]).toBe('Person 01');
     await userEvent.click(within(await overridesRegion()).getByRole('button', { name: 'Next' }));
 
-    await waitFor(() => expect(router.state.location.search).toEqual({ 'o.page': '2' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'overrides', 'o.page': '2' }));
     expect(await names()).toEqual(['Person 21', 'Person 22', 'Person 23', 'Person 24', 'Person 25']);
   });
 
   it('searches, filters and sorts from the URL, beside the list and history params', async () => {
     fakeFeatureFlagsApi({ flags: [flag('hello_world', { audience: 'both', overrides: many() })] });
     renderAt(
-      '/feature-flags/hello_world?enabled=false&o.q=person%201&o.enabled=true&o.sort=name&o.order=desc&h.pageSize=10',
+      '/feature-flags/hello_world?tab=overrides&enabled=false&o.q=person%201&o.enabled=true&o.sort=name&o.order=desc&h.pageSize=10',
     );
     // Person 10–19 match "person 1"; the odd-numbered ones (index even) are on.
     expect(await names()).toEqual(['Person 19', 'Person 17', 'Person 15', 'Person 13', 'Person 11']);
@@ -146,17 +146,21 @@ describe('the overrides table (R18)', () => {
 
   it('filters by kind, and says when nothing matches', async () => {
     fakeFeatureFlagsApi({ flags: [flag('hello_world', { audience: 'both', overrides: many() })] });
-    const { router } = renderAt('/feature-flags/hello_world?o.kind=console-user');
+    const { router } = renderAt('/feature-flags/hello_world?tab=overrides&o.kind=console-user');
     expect(await names()).toEqual(['Person 05', 'Person 10', 'Person 15', 'Person 20', 'Person 25']);
 
-    await router.navigate({ to: '/feature-flags/$key', params: { key: 'hello_world' }, search: { 'o.q': 'nobody' } });
+    await router.navigate({
+      to: '/feature-flags/$key',
+      params: { key: 'hello_world' },
+      search: { tab: 'overrides', 'o.q': 'nobody' },
+    });
     expect(await within(await overridesGrid()).findByText('No overrides match the search or filters.')).toBeVisible();
   });
 
   it('replaces a page past the end with the last page (R14)', async () => {
     fakeFeatureFlagsApi({ flags: [flag('hello_world', { audience: 'both', overrides: many() })] });
-    const { router } = renderAt('/feature-flags/hello_world?o.page=9');
-    await waitFor(() => expect(router.state.location.search).toEqual({ 'o.page': '2' }));
+    const { router } = renderAt('/feature-flags/hello_world?tab=overrides&o.page=9');
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'overrides', 'o.page': '2' }));
     expect(await names()).toHaveLength(5);
   });
 });

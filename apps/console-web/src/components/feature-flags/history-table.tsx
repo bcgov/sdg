@@ -7,53 +7,11 @@ import {
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useMemo } from 'react';
 
-import { isAudience, type FieldValue, type FlagEvent, type FlagEventAction } from '../../api/feature-flags';
-import { AUDIENCE_LABELS, dateTime, onOff, plural } from './labels';
+import type { FlagEvent } from '../../api/feature-flags';
+import { action, details } from './history-format';
+import { dateTime } from './labels';
 import { HISTORY_CONFIG, HISTORY_PREFIX, historyQuery, stringParams } from './table-search';
 import { tableStatus, useFlagHistory } from './use-feature-flags';
-
-const ACTION_LABELS: Readonly<Record<FlagEventAction, string>> = {
-  created: 'Created',
-  updated: 'Updated',
-  deleted: 'Deleted',
-  override_set: 'Override set',
-  override_removed: 'Override removed',
-};
-
-/** core-api records changes under the column names. */
-const FIELD_LABELS: Readonly<Record<string, string>> = {
-  description: 'Description',
-  enabled: 'Switch',
-  rollout_pct: 'Rollout',
-  audience: 'Audience',
-};
-
-function formatValue(field: string, value: FieldValue): string {
-  if (value === null) return 'none';
-  if (typeof value === 'boolean') return onOff(value).toLowerCase();
-  if (field === 'rollout_pct') return `${value}%`;
-  if (field === 'audience' && isAudience(value)) return AUDIENCE_LABELS[value];
-  return `“${value}”`;
-}
-
-/** "Rollout: 50% → 80%", or a delete's "3 overrides removed". */
-function details(event: FlagEvent): string {
-  const isOverride = event.action === 'override_set' || event.action === 'override_removed';
-  return Object.entries(event.changes)
-    .map(([field, change]) => {
-      if (typeof change === 'number') return `${plural(change, 'override', 'overrides')} removed`;
-      const label = isOverride ? 'Override' : (FIELD_LABELS[field] ?? field);
-      const to = formatValue(field, change.to);
-      return change.from === null ? `${label}: ${to}` : `${label}: ${formatValue(field, change.from)} → ${to}`;
-    })
-    .join('; ');
-}
-
-/** "Override set for Grace Hopper". */
-function action(event: FlagEvent): string {
-  const subject = event.subject ? ` for ${event.subject.name ?? 'someone no longer known'}` : '';
-  return `${ACTION_LABELS[event.action]}${subject}`;
-}
 
 const column = dataTableColumnHelper<FlagEvent>();
 
@@ -78,7 +36,7 @@ const cursorOf = (id: number | null | undefined) => (id === null || id === undef
  * One flag's history, deleted or not, newest first, in a cursor-mode DataTable whose `h.` params sit beside the list's
  * on the flag's page (R19, R20, KTD10).
  */
-export function HistoryTable({ flagKey }: Readonly<{ flagKey: string }>) {
+export function HistoryTable({ flagKey, hideCaption = false }: Readonly<{ flagKey: string; hideCaption?: boolean }>) {
   const search = useSearch({ from: '/_app/feature-flags/$key' });
   const navigate = useNavigate({ from: '/feature-flags/$key' });
   const query = useMemo(
@@ -104,6 +62,7 @@ export function HistoryTable({ flagKey }: Readonly<{ flagKey: string }>) {
   return (
     <DataTable
       caption={`Changes to ${flagKey}, newest first`}
+      hideCaption={hideCaption}
       columns={HISTORY_COLUMNS}
       rows={data?.items ?? NO_EVENTS}
       getRowId={eventId}

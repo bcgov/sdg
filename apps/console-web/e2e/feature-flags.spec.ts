@@ -82,7 +82,7 @@ test.describe('console-web Feature Flags pages', () => {
     expect(requests.creates).toEqual([{ key: 'new_search', enabled: false, rolloutPct: 0, audience: 'portal' }]);
   });
 
-  test('opens a flag from a press on its row, edits it inline with a PATCH of the change, and shows R21', async ({
+  test('opens a flag from a press on its row, edits it in a dialog, turns it off from its overview, and shows R21', async ({
     page,
   }) => {
     const requests = await mockFeatureFlagsAdmin(page, [helloWorld()]);
@@ -90,23 +90,32 @@ test.describe('console-web Feature Flags pages', () => {
     // The whole row is the link: a press on its middle, away from the key, opens the flag.
     await page.getByRole('row').filter({ hasText: 'hello_world' }).click();
     await expect(page).toHaveURL(/\/feature-flags\/hello_world$/);
-    const details = page.getByRole('region', { name: 'Flag details' });
-    await expect(details).toContainText('Keyhello_world');
+    await expect(page.getByRole('heading', { level: 2, name: 'hello_world' })).toBeVisible();
 
-    await details.getByRole('textbox', { name: /Rollout percentage/ }).fill('80');
-    await details.getByRole('button', { name: 'Save changes' }).click();
+    await page.getByRole('button', { name: 'Edit settings' }).click();
+    const edit = page.getByRole('dialog', { name: 'Edit hello_world' });
+    await edit.getByRole('textbox', { name: /Rollout percentage/ }).fill('80');
+    await edit.getByRole('button', { name: 'Save changes' }).click();
     const updates = page.getByRole('status', { name: 'Feature flag updates' });
     await expect(updates).toHaveText('Saved hello_world.');
+    await expect(edit).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Rollout' })).toContainText('80%');
 
-    // The switch's input is visually hidden; toggle it the way a keyboard user does.
-    await details.getByRole('switch', { name: 'On' }).focus();
+    // The switch's input is visually hidden; toggle it the way a keyboard user does. Off asks first.
+    const toggle = page.getByRole('region', { name: 'Switch' }).getByRole('switch', { name: 'On' });
+    await toggle.focus();
     await page.keyboard.press('Space');
-    await expect(details.getByRole('switch', { name: 'On' })).not.toBeChecked();
-    await details.getByRole('button', { name: 'Save changes' }).click();
+    await page
+      .getByRole('alertdialog', { name: 'Turn hello_world off?' })
+      .getByRole('button', { name: 'Turn off' })
+      .click();
+    await expect(toggle).not.toBeChecked();
     await expect(updates).toContainText('hello_world is off, but 3 people still get it');
     expect(requests.patches).toEqual([{ rolloutPct: 80 }, { enabled: false }]);
     await updates.getByRole('link', { name: 'Review the overrides' }).click();
+    await expect(page).toHaveURL(/\/feature-flags\/hello_world\?tab=overrides$/);
     await expect(page.getByRole('region', { name: 'Overrides' })).toBeFocused();
+    await page.getByRole('tab', { name: 'History' }).click();
     await expect(page.getByRole('grid', { name: /Changes to hello_world/ }).getByRole('rowheader')).toHaveCount(2);
   });
 
@@ -205,7 +214,7 @@ test.describe('console-web feature flag tables', () => {
     await table.getByRole('row').filter({ hasText: 'flag_07' }).focus();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/feature-flags\/flag_07\?audience=console&sort=overridesOn&order=desc$/);
-    await expect(page.getByRole('region', { name: 'Flag details' })).toContainText('Keyflag_07');
+    await expect(page.getByRole('heading', { level: 2, name: 'flag_07' })).toBeVisible();
   });
 
   test('pages a flag history older and newer, from a reloaded URL, back to the newest (AE5)', async ({ page }) => {
@@ -220,16 +229,16 @@ test.describe('console-web feature flag tables', () => {
       createdAt: new Date(Date.parse('2026-11-10T17:00:00.000Z') + index * 60_000).toISOString(),
     }));
     await mockFeatureFlagsAdmin(page, [helloWorld()], events);
-    await page.goto('/feature-flags/hello_world');
+    await page.goto('/feature-flags/hello_world?tab=history');
     const history = page.getByRole('grid', { name: 'Changes to hello_world, newest first' });
-    const pager = page.getByRole('region', { name: 'History' }).getByRole('navigation', { name: 'Pagination' });
+    const pager = page.getByRole('tabpanel', { name: 'History' }).getByRole('navigation', { name: 'Pagination' });
     const firstChange = history.getByRole('row').nth(1).getByRole('gridcell').last();
     await expect(firstChange).toHaveText('Rollout: 74% → 75%');
 
     await pager.getByRole('button', { name: 'Older' }).click();
     await expect(firstChange).toHaveText('Rollout: 54% → 55%');
     await pager.getByRole('button', { name: 'Older' }).click();
-    await expect(page).toHaveURL(/\/feature-flags\/hello_world\?h\.before=36$/);
+    await expect(page).toHaveURL(/\/feature-flags\/hello_world\?tab=history&h\.before=36$/);
     await page.reload();
     await expect(firstChange).toHaveText('Rollout: 34% → 35%');
 
@@ -237,7 +246,7 @@ test.describe('console-web feature flag tables', () => {
     await expect(firstChange).toHaveText('Rollout: 54% → 55%');
     await pager.getByRole('button', { name: 'Newer' }).click();
     await expect(firstChange).toHaveText('Rollout: 74% → 75%');
-    await expect(page).toHaveURL(/\/feature-flags\/hello_world$/);
+    await expect(page).toHaveURL(/\/feature-flags\/hello_world\?tab=history$/);
     await expect(pager.getByRole('button', { name: 'Newer' })).toBeDisabled();
     await expect(pager.getByRole('button', { name: 'Newest' })).toBeDisabled();
   });
@@ -252,7 +261,7 @@ test.describe('console-web feature flag tables', () => {
     }));
     await mockFeatureFlagsAdmin(page, [helloWorld({ overrides, overrideCounts: { on: 13, off: 12 } })]);
     await page.setViewportSize({ width: 1280, height: 700 });
-    await page.goto('/feature-flags/hello_world');
+    await page.goto('/feature-flags/hello_world?tab=overrides');
     const region = page.getByRole('region', { name: 'Overrides' });
     const pager = region.getByRole('navigation', { name: 'Pagination' });
     await pager.scrollIntoViewIfNeeded();
@@ -260,13 +269,13 @@ test.describe('console-web feature flag tables', () => {
     expect(scrolled).toBeGreaterThan(0);
 
     await pager.getByRole('button', { name: 'Next' }).click();
-    await expect(page).toHaveURL(/\?o\.page=2$/);
+    await expect(page).toHaveURL(/\?tab=overrides&o\.page=2$/);
     await expect(region.getByRole('rowheader').first()).toHaveText('Person 21');
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 
     await region.getByRole('button', { name: /Override/ }).click();
     await page.getByRole('option', { name: 'Off' }).click();
-    await expect(page).toHaveURL(/\?o\.enabled=false$/);
+    await expect(page).toHaveURL(/\?tab=overrides&o\.enabled=false$/);
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   });
 });

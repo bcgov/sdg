@@ -9,8 +9,7 @@ import { renderAt } from '../../test-support/render';
 const HELLO = '/api/v1/console/feature-flags/hello_world';
 
 async function openDialog() {
-  const dangerZone = await screen.findByRole('region', { name: 'Danger zone' });
-  const remove = within(dangerZone).getByRole('button', { name: 'Delete hello_world' });
+  const remove = await screen.findByRole('button', { name: 'Delete hello_world' });
   await userEvent.click(remove);
   return { remove, dialog: await screen.findByRole('alertdialog', { name: 'Delete hello_world?' }) };
 }

@@ -51,7 +51,7 @@ describe('a flag’s history as a cursor DataTable (R19, R20)', () => {
         }),
       ],
     });
-    renderAt('/feature-flags/hello_world');
+    renderAt('/feature-flags/hello_world?tab=history');
     const grid = await historyGrid();
     expect(
       within(grid)
@@ -73,23 +73,23 @@ describe('a flag’s history as a cursor DataTable (R19, R20)', () => {
 
   it('Should go Older twice, survive a reload, and go Newer twice back to the newest (AE5)', async () => {
     const api = fakeFeatureFlagsApi({ flags: [flag('hello_world')], events: updates(75) });
-    const first = renderAt('/feature-flags/hello_world');
+    const first = renderAt('/feature-flags/hello_world?tab=history');
     expect((await shownIds())[0]).toBe(75);
     await userEvent.click(button('Older'));
     await waitFor(async () => expect((await shownIds())[0]).toBe(55));
     await userEvent.click(button('Older'));
     await waitFor(async () => expect((await shownIds())[0]).toBe(35));
-    expect(first.router.state.location.href).toBe('/feature-flags/hello_world?h.before=36');
+    expect(first.router.state.location.href).toBe('/feature-flags/hello_world?tab=history&h.before=36');
 
     cleanup();
-    const { router } = renderAt('/feature-flags/hello_world?h.before=36');
+    const { router } = renderAt('/feature-flags/hello_world?tab=history&h.before=36');
     expect(await shownIds()).toEqual(Array.from({ length: 20 }, (_, index) => 35 - index));
     await userEvent.click(button('Newer'));
     await waitFor(async () => expect((await shownIds())[0]).toBe(55));
     await userEvent.click(button('Newer'));
     await waitFor(async () => expect((await shownIds())[0]).toBe(75));
 
-    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'history' }));
     expect(button('Newer')).toBeDisabled();
     expect(button('Newest')).toBeDisabled();
     expect(button('Older')).toBeEnabled();
@@ -104,8 +104,8 @@ describe('a flag’s history as a cursor DataTable (R19, R20)', () => {
 
   it('Should show the full newest page for an h.after past the newest, dropping it with replace (KTD3)', async () => {
     fakeFeatureFlagsApi({ flags: [flag('hello_world')], events: updates(75) });
-    const { router } = renderAt('/feature-flags/hello_world?h.after=70');
-    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    const { router } = renderAt('/feature-flags/hello_world?tab=history&h.after=70');
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'history' }));
     expect(await shownIds()).toHaveLength(20);
     expect((await shownIds())[0]).toBe(75);
     expect(router.history.length).toBe(1);
@@ -114,18 +114,17 @@ describe('a flag’s history as a cursor DataTable (R19, R20)', () => {
   it('Should keep the carried list params beside h.before, and deleting returns to that list view (KTD10)', async () => {
     const others = Array.from({ length: 25 }, (_, index) => flag(`flag_${String(index + 1).padStart(2, '0')}`));
     fakeFeatureFlagsApi({ flags: [flag('hello_world'), ...others], events: updates(50) });
-    const { router } = renderAt('/feature-flags/hello_world?enabled=false&page=2');
+    const { router } = renderAt('/feature-flags/hello_world?enabled=false&page=2&tab=history');
     await userEvent.click(await screen.findByRole('button', { name: 'Older' }));
     await waitFor(() =>
-      expect(router.state.location.search).toEqual({ enabled: 'false', page: '2', 'h.before': '31' }),
+      expect(router.state.location.search).toEqual({ enabled: 'false', page: '2', tab: 'history', 'h.before': '31' }),
     );
     expect(screen.getByRole('link', { name: 'All feature flags' })).toHaveAttribute(
       'href',
       '/feature-flags?enabled=false&page=2',
     );
 
-    const dangerZone = screen.getByRole('region', { name: 'Danger zone' });
-    await userEvent.click(within(dangerZone).getByRole('button', { name: 'Delete hello_world' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete hello_world' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete hello_world?' });
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
@@ -149,20 +148,18 @@ describe('a flag’s history as a cursor DataTable (R19, R20)', () => {
       ['Ada Lovelace', 'Created', 'Switch: off'],
     ]);
     expect(historyCalls(api)).toContain('?key=old_flag&limit=20');
-    for (const region of ['Flag details', 'Overrides', 'Danger zone']) {
-      expect(screen.queryByRole('region', { name: region })).toBeNull();
-    }
-    expect(screen.queryByRole('button', { name: /Save|Delete/ })).toBeNull();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Save|Delete|Edit/ })).toBeNull();
     expect(screen.queryByRole('searchbox')).toBeNull();
   });
 
   it('Should add a change made on the page to the top of the history', async () => {
     fakeFeatureFlagsApi({ flags: [flag('hello_world')] });
     renderAt('/feature-flags/hello_world');
-    expect(await within(await historyGrid()).findByText('hello_world has no history.')).toBeInTheDocument();
-    const details = within(await screen.findByRole('region', { name: 'Flag details' }));
-    await userEvent.click(details.getByRole('switch', { name: 'On' }));
-    await userEvent.click(details.getByRole('button', { name: 'Save changes' }));
+    const switchCard = within(await screen.findByRole('region', { name: 'Switch' }));
+    await userEvent.click(switchCard.getByRole('switch', { name: 'On' }));
+    await waitFor(() => expect(switchCard.getByRole('switch', { name: 'On' })).toBeChecked());
+    await userEvent.click(screen.getByRole('tab', { name: 'History' }));
     await waitFor(async () => expect(await rowTexts()).toEqual([['Ada Lovelace', 'Updated', 'Switch: off → on']]));
   });
 });

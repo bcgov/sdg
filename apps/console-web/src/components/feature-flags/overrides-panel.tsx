@@ -1,5 +1,4 @@
 import { Button } from '@repo/design-system/components/button';
-import { Heading } from '@repo/design-system/components/heading';
 import { Text } from '@repo/design-system/components/text';
 import { type Ref, useCallback, useState } from 'react';
 
@@ -87,17 +86,14 @@ interface OverridesPanelProps {
   sectionRef: Ref<HTMLElement>;
 }
 
-/** Who the flag is forced on or off for, and a dialog to add or change one (R18). */
+/** Who the flag is forced on or off for, and a dialog to add or change one (R18); its tab names it. */
 export function OverridesPanel({ flag, actions, sectionRef }: Readonly<OverridesPanelProps>) {
   const [isAdding, setAdding] = useState(false);
   const open = useCallback(() => setAdding(true), []);
   const close = useCallback(() => setAdding(false), []);
   return (
-    <section ref={sectionRef} tabIndex={-1} className={styles.panel} aria-labelledby="overrides-heading">
-      <div className={styles.panelHeader}>
-        <Heading level={2} id="overrides-heading">
-          Overrides
-        </Heading>
+    <section ref={sectionRef} tabIndex={-1} className={styles.tabSection} aria-label="Overrides">
+      <div className={styles.endAction}>
         <Button size="small" onPress={open}>
           Add or change an override
         </Button>
