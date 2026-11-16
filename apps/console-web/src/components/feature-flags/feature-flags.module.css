@@ -132,17 +132,12 @@
   margin-block-start: var(--layout-margin-small);
 }
 
-/* A tab's own content: its parts spaced by the gap alone. Focus lands on the overrides' from the R21 notice's link
-   (script only, never Tab). */
+/* A tab's own content: its parts spaced by the gap alone. */
 .tabSection {
   display: flex;
   flex-direction: column;
   gap: var(--layout-margin-medium);
   min-width: 0;
-}
-
-.tabSection:focus {
-  outline: none;
 }
 
 /* A flag's page: its header, then its tabs. */
