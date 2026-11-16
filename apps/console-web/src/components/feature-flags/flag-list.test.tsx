@@ -50,7 +50,8 @@ describe('the feature flag list on the DataTable (R15–R18)', () => {
       'new_searchConsoleOff0%1 on, 0 off',
     ]);
     expect(rows[0]).toHaveAttribute('data-href', '/feature-flags/hello_world');
-    expect(pager().getByText('Showing 1–2 of 2')).toBeInTheDocument();
+    // Two flags fit on one page: no count, rows per page or pager.
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
     expect(listCalls(api)).toEqual(['?limit=20&offset=0&sort=key&order=asc']);
     expect(screen.queryByRole('dialog')).toBeNull();
   });

@@ -149,6 +149,11 @@ describe('DataTable cursor mode', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({ q: 'list' }, { replace: false });
   });
 
+  it('Should hide the cursor pager on the newest page when nothing is older and every row fits', () => {
+    renderTable({ config: cursorConfig, rows: flags(3), paging: { mode: 'cursor', older: null, newer: null } });
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+  });
+
   it('Should replace an older-than cursor with the newest page when nothing is newer, e.g. past the oldest event (R20)', () => {
     const { onSearchChange } = renderTable({
       config: cursorConfig,

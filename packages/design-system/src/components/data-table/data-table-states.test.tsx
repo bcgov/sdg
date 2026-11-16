@@ -130,6 +130,29 @@ describe('DataTable focus and announcements (R10, KTD11)', () => {
     expect(status().textContent).toBe('Showing 121–134 of 134');
   });
 
+  it('Should hide the count, rows per page and pager when every row fits on a default page, still announcing the count', () => {
+    renderTable({ rows: flags(15), paging: { mode: 'numbered', total: 15 } });
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(status().textContent).toBe('Showing 1–15 of 15');
+  });
+
+  it('Should keep the footer when a smaller page size splits the rows over pages', () => {
+    renderTable({ search: { pageSize: '10' }, rows: flags(10), paging: { mode: 'numbered', total: 15 } });
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeNull();
+  });
+
+  it('Should move focus to the first row when a larger page size fits every row and the footer goes', async () => {
+    const { rerender } = renderTable({
+      search: { pageSize: '10' },
+      rows: flags(10),
+      paging: { mode: 'numbered', total: 15 },
+    });
+    screen.getByRole('button', { name: 'Next' }).focus();
+    rerender({ search: {}, rows: flags(15), paging: { mode: 'numbered', total: 15 } });
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(document.activeElement).toBe(bodyRows()[0]);
+  });
+
   it('Should keep focus on Next while pages remain', async () => {
     const { rerender } = renderTable({ search: { page: '2' } });
     await userEvent.click(screen.getByRole('button', { name: 'Next' }));

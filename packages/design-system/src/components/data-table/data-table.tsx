@@ -8,13 +8,14 @@ import {
   type ColumnHelper,
   type RowData,
 } from '@tanstack/react-table';
-import { type JSX, useCallback, useMemo, useRef } from 'react';
+import { type JSX, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Button, type SortDescriptor } from 'react-aria-components';
 
 import { DataTableGrid } from './data-table-grid';
 import { cursorControls, DataTablePager, numberedControls } from './data-table-pager';
 import { DataTableToolbar } from './data-table-toolbar';
 import {
+  DEFAULT_PAGE_SIZE,
   goToCursor,
   goToPage,
   setFilter,
@@ -158,8 +159,28 @@ function useTableActions(state: TableState, config: TableConfig, apply: Apply) {
 const NO_HEADERS: readonly never[] = [];
 
 /**
- * A server-paged table (R1): search and filters above, the count, rows per page and pager below (R3), every setting in
- * the page URL (R7), in numbered (R5) or cursor (R6) mode.
+ * Whether every row fits on one page at the default size (and at the chosen one), which leaves the count, rows per
+ * page and pager nothing to do. A cursor table only knows that on its newest page with nothing older.
+ */
+function fitsOnOnePage(paging: DataTablePaging, state: TableState, rowCount: number): boolean {
+  const size = Math.min(state.pageSize, DEFAULT_PAGE_SIZE);
+  if (paging.mode === 'numbered') return paging.total <= size;
+  return state.cursor === null && paging.older === null && rowCount <= size;
+}
+
+/** Focus was in the footer when it went away (e.g. a larger page size fit every row): give it to the first row. */
+function useFocusWhenFooterHides(isShown: boolean, focusFirstRow: () => boolean) {
+  const wasShown = useRef(isShown);
+  useEffect(() => {
+    const lost = document.activeElement === null || document.activeElement === document.body;
+    if (wasShown.current && !isShown && lost) focusFirstRow();
+    wasShown.current = isShown;
+  }, [isShown, focusFirstRow]);
+}
+
+/**
+ * A server-paged table (R1): search and filters above, the count, rows per page and pager below (R3) unless every row
+ * fits on one page, every setting in the page URL (R7), in numbered (R5) or cursor (R6) mode.
  */
 export function DataTable<TData extends RowData>(props: Readonly<DataTableProps<TData>>): JSX.Element {
   const { caption, hideCaption, columns, rows, getRowId, config, paging, search, onSearchChange, prefix, status } =
@@ -173,6 +194,8 @@ export function DataTable<TData extends RowData>(props: Readonly<DataTableProps<
   const shown = view === 'loading' || view === 'error' || view === 'blocked' ? NO_ROWS : rows;
   const { table, sortDescriptor } = useManualTable(columns, shown, getRowId, state, paging);
   const pager = pagerProps(paging, state, rows.length, table.getPageCount(), apply);
+  const showFooter = view === 'rows' && !fitsOnOnePage(paging, state, rows.length);
+  useFocusWhenFooterHides(showFooter, focusFirstRow);
   return (
     <div className={styles['root']}>
       {view !== 'empty' && (config.search || config.filters?.length) ? (
@@ -196,7 +219,7 @@ export function DataTable<TData extends RowData>(props: Readonly<DataTableProps<
           Try again
         </Button>
       )}
-      {view === 'rows' && (
+      {showFooter && (
         <DataTablePager
           {...pager}
           isBusy={isBusy}
