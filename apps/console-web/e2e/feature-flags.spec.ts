@@ -188,7 +188,7 @@ test.describe('console-web feature flag tables', () => {
     await page.getByRole('searchbox', { name: 'Search' }).fill('check');
     await expect(page).toHaveURL(/\/feature-flags\?q=check$/);
     await expect(keys).toHaveText(['check_one']);
-    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await page.getByRole('button', { name: 'Clear search' }).click();
     await expect(page).toHaveURL(/\/feature-flags$/);
 
     await page.getByRole('button', { name: /Audience/ }).click();
@@ -240,5 +240,33 @@ test.describe('console-web feature flag tables', () => {
     await expect(page).toHaveURL(/\/feature-flags\/hello_world$/);
     await expect(pager.getByRole('button', { name: 'Newer' })).toBeDisabled();
     await expect(pager.getByRole('button', { name: 'Newest' })).toBeDisabled();
+  });
+
+  test('keeps the page scrolled to the overrides while their table changes', async ({ page }) => {
+    const overrides = Array.from({ length: 25 }, (_, index) => ({
+      principalId: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+      name: `Person ${String(index + 1).padStart(2, '0')}`,
+      email: null,
+      kind: 'resident',
+      enabled: index % 2 === 0,
+    }));
+    await mockFeatureFlagsAdmin(page, [helloWorld({ overrides, overrideCounts: { on: 13, off: 12 } })]);
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await page.goto('/feature-flags/hello_world');
+    const region = page.getByRole('region', { name: 'Overrides' });
+    const pager = region.getByRole('navigation', { name: 'Pagination' });
+    await pager.scrollIntoViewIfNeeded();
+    const scrolled = await page.evaluate(() => window.scrollY);
+    expect(scrolled).toBeGreaterThan(0);
+
+    await pager.getByRole('button', { name: 'Next' }).click();
+    await expect(page).toHaveURL(/\?o\.page=2$/);
+    await expect(region.getByRole('rowheader').first()).toHaveText('Person 21');
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+    await region.getByRole('button', { name: /Override/ }).click();
+    await page.getByRole('option', { name: 'Off' }).click();
+    await expect(page).toHaveURL(/\?o\.enabled=false$/);
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   });
 });

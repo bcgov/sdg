@@ -103,13 +103,33 @@ describe('DataTable toolbar', () => {
     expect(onSearchChange).toHaveBeenCalledWith({}, { replace: false });
   });
 
-  it('Should offer Clear filters only when a search or filter is set, and clear both (R3)', async () => {
-    const { onSearchChange, rerender } = renderTable();
+  it('Should offer Clear filters only when a filter is set, clearing the filters and keeping the search (R3)', async () => {
+    const { onSearchChange, rerender } = renderTable({ search: { q: 'check' } });
     expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
 
     rerender({ search: { q: 'check', enabled: 'true', page: '2', sort: 'key', order: 'desc', other: 'kept' } });
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(onSearchChange).toHaveBeenCalledWith({ sort: 'key', order: 'desc', other: 'kept' }, { replace: false });
+    expect(onSearchChange).toHaveBeenCalledWith(
+      { q: 'check', sort: 'key', order: 'desc', other: 'kept' },
+      { replace: false },
+    );
+    expect(searchBox()).toHaveProperty('value', 'check');
+  });
+
+  it('Should clear the search at once from its × button, keeping the filters, and show the × only with text', async () => {
+    const { onSearchChange } = renderTable({ search: { q: 'check', enabled: 'true', page: '2' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(onSearchChange).toHaveBeenCalledTimes(1);
+    expect(onSearchChange).toHaveBeenCalledWith({ enabled: 'true' }, { replace: false });
+    expect(searchBox()).toHaveProperty('value', '');
+    expect(searchBox().closest('[data-empty]')).not.toBeNull();
+  });
+
+  it('Should clear the search with Escape', async () => {
+    const { onSearchChange } = renderTable({ search: { q: 'check' } });
+    searchBox().focus();
+    await userEvent.keyboard('{Escape}');
+    expect(onSearchChange).toHaveBeenCalledWith({}, { replace: false });
   });
 
   it('Should push a new page size from page 1 (R9)', async () => {

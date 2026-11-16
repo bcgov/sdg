@@ -75,12 +75,18 @@ describe('DataTable states (R11)', () => {
     expect(pager()).toBeNull();
   });
 
-  it('Should show the no-matches message with Clear filters when a search is set (AE4)', async () => {
-    const { onSearchChange } = renderTable({ rows: [], paging: { mode: 'numbered', total: 0 }, search: { q: 'zz' } });
+  it('Should show the no-matches message with the search and filters to undo it (AE4)', async () => {
+    const { onSearchChange } = renderTable({
+      rows: [],
+      paging: { mode: 'numbered', total: 0 },
+      search: { q: 'zz', enabled: 'true' },
+    });
     expect(within(grid()).getByText(messages.noMatches)).toBeDefined();
     expect(pager()).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(onSearchChange).toHaveBeenCalledWith({}, { replace: false });
+    expect(onSearchChange).toHaveBeenCalledWith({ q: 'zz' }, { replace: false });
+    await userEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(onSearchChange).toHaveBeenLastCalledWith({ enabled: 'true' }, { replace: false });
   });
 
   it('Should replace the rows with the error message and a retry', async () => {
@@ -92,10 +98,10 @@ describe('DataTable states (R11)', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('Should show the blocked wording with Clear filters and no retry (KTD12)', () => {
+  it('Should show the blocked wording with the search clear button and no retry (KTD12)', () => {
     renderTable({ status: 'blocked', search: { q: "o'brien" } });
     expect(within(grid()).getByText(/The search was blocked/)).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Clear search' })).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
     expect(pager()).toBeNull();
   });

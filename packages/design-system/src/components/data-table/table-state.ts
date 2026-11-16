@@ -197,6 +197,11 @@ export function setSearch(state: TableState, search: string): TableChange {
   return push(firstPage({ ...state, search }));
 }
 
+/** Every filter back to Any; the search stays. */
+export function clearFilters(state: TableState): TableChange {
+  return push(firstPage({ ...state, filters: {} }));
+}
+
 export function setFilter(state: TableState, key: string, value: string | undefined): TableChange {
   const { [key]: _previous, ...rest } = state.filters;
   return push(firstPage({ ...state, filters: value === undefined ? rest : { ...rest, [key]: value } }));

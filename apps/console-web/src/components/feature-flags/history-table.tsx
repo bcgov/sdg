@@ -88,7 +88,8 @@ export function HistoryTable({ flagKey }: Readonly<{ flagKey: string }>) {
   const history = useFlagHistory(query);
   const { data, refetch } = history;
   const onSearchChange = useCallback<DataTableSearchChange>(
-    (next, { replace }) => void navigate({ search: stringParams(next), replace }),
+    // A table change keeps the page where it is: the router would otherwise scroll it back to the top.
+    (next, { replace }) => void navigate({ search: stringParams(next), replace, resetScroll: false }),
     [navigate],
   );
   const retry = useCallback(() => void refetch(), [refetch]);

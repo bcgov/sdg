@@ -114,11 +114,11 @@ describe('the feature flag list on the DataTable (R15–R18)', () => {
     expect(screen.getByRole('columnheader', { name: /Overrides/ })).toHaveAttribute('aria-sort', 'descending');
   });
 
-  it('Should say no flags match a search, and Clear filters restores the unfiltered first page (AE4)', async () => {
+  it('Should say no flags match a search, and clearing it restores the unfiltered first page (AE4)', async () => {
     const api = fakeFeatureFlagsApi({ flags: numbered('flag', 25) });
     const { router } = renderAt('/feature-flags?q=nothing&page=2');
     expect(await inGrid('No feature flags match the search or filters.')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Clear search' }));
 
     await waitFor(() => expect(router.state.location.search).toEqual({}));
     await waitFor(async () => expect(await keys()).toHaveLength(20));
@@ -183,7 +183,7 @@ describe('the feature flag list on the DataTable (R15–R18)', () => {
     api.refuseNext('GET', LIST, () => new Response('Forbidden', { status: 403 }));
     renderAt("/feature-flags?q=o'brien");
     expect(await inGrid(/The search was blocked/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear search' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
     expect(api.callsTo('GET', LIST)).toHaveLength(1);
   });

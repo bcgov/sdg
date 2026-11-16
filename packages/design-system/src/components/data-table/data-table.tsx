@@ -15,6 +15,7 @@ import { DataTableGrid } from './data-table-grid';
 import { cursorControls, DataTablePager, numberedControls } from './data-table-pager';
 import { DataTableToolbar } from './data-table-toolbar';
 import {
+  clearFilters,
   DEFAULT_PAGE_SIZE,
   goToCursor,
   goToPage,
@@ -150,7 +151,7 @@ function useTableActions(state: TableState, config: TableConfig, apply: Apply) {
     (key: string, value: string | undefined) => apply(setFilter(state, key, value)),
     [state, apply],
   );
-  const onClear = useCallback(() => apply(setSearch({ ...state, filters: {} }, '')), [state, apply]);
+  const onClear = useCallback(() => apply(clearFilters(state)), [state, apply]);
   const onSort = useCallback((column: string) => apply(setSort(state, config, column)), [state, config, apply]);
   const onPageSize = useCallback((size: PageSize) => apply(setPageSize(state, size)), [state, apply]);
   return { onSearch, onFilter, onClear, onSort, onPageSize };

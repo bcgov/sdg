@@ -2,7 +2,7 @@ import { type JSX, useCallback, useEffect, useId, useMemo, useRef, useState } fr
 import { Button, Input, Label, SearchField } from 'react-aria-components';
 
 import { TableSelect } from './data-table-select';
-import { hasQuery, type TableConfig, type TableFilter } from './table-state';
+import type { TableConfig, TableFilter } from './table-state';
 
 import styles from './data-table.module.css';
 
@@ -22,7 +22,7 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 /**
  * The search field's text, applied once typing pauses (R8). The first edit after the field gains focus pushes, as does
  * one that starts from no search; later edits while it keeps focus replace, so one search is one Back step (KTD8).
- * A search the URL changes from outside (Back, Clear filters) replaces the text.
+ * A search the URL changes from outside (Back) replaces the text. Clearing the field (its × or Escape) applies at once.
  */
 function useSearchText(search: string, onSearch: (text: string, replace: boolean) => void) {
   const [text, setText] = useState(search);
@@ -52,9 +52,11 @@ function useSearchText(search: string, onSearch: (text: string, replace: boolean
     editedSinceFocus.current = false;
   }, []);
   const clear = useCallback(() => {
-    applied.current = '';
     setText('');
-  }, []);
+    if (applied.current === '') return;
+    applied.current = '';
+    onSearch('', false);
+  }, [onSearch]);
   return { text, setText, onFocus, clear };
 }
 
@@ -91,7 +93,10 @@ interface ToolbarProps {
   onClear: () => void;
 }
 
-/** The filters (one single-choice select each) on the left, then Clear filters while any is set, and search on the right (R3). */
+/**
+ * The filters (one single-choice select each) on the left, then Clear filters while any is set, and search on the
+ * right with its own clear button (R3).
+ */
 export function DataTableToolbar({
   config,
   search,
@@ -100,12 +105,8 @@ export function DataTableToolbar({
   onFilter,
   onClear,
 }: Readonly<ToolbarProps>): JSX.Element {
-  const { text, setText, onFocus, clear: clearText } = useSearchText(search, onSearch);
-  const isSet = hasQuery({ search, filters });
-  const clear = useCallback(() => {
-    clearText();
-    onClear();
-  }, [clearText, onClear]);
+  const { text, setText, onFocus, clear } = useSearchText(search, onSearch);
+  const isFiltered = Object.keys(filters).length > 0;
   const filtersId = useId();
   return (
     <div className={styles['toolbar']}>
@@ -119,8 +120,8 @@ export function DataTableToolbar({
           ))}
         </fieldset>
       ) : null}
-      {isSet && (
-        <Button className={styles['button']} onPress={clear}>
+      {isFiltered && (
+        <Button className={styles['button']} onPress={onClear}>
           Clear filters
         </Button>
       )}
@@ -129,10 +130,16 @@ export function DataTableToolbar({
           className={`${styles['field']} ${styles['search']}`}
           value={text}
           onChange={setText}
+          onClear={clear}
           onFocus={onFocus}
         >
           <Label className={styles['label']}>Search</Label>
-          <Input className={styles['input']} />
+          <div className={styles['searchInput']}>
+            <Input className={styles['input']} />
+            <Button className={styles['clearSearch']} aria-label="Clear search">
+              <span aria-hidden="true">×</span>
+            </Button>
+          </div>
         </SearchField>
       )}
     </div>
