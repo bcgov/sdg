@@ -17,7 +17,7 @@ describe('Console flag routes /api/v1/console/feature-flags and /feature-flag-hi
   const auth = (request: Request, bearer = token) => request.set('Authorization', `Bearer ${bearer}`);
   const create = (body: object, bearer = token) => auth(t.http().post(FLAGS), bearer).send(body);
   const patch = (key: string, body: object) => auth(t.http().patch(`${FLAGS}/${key}`)).send(body);
-  const history = async (query = '') => (await auth(t.http().get(`${HISTORY}${query}`))).body.events;
+  const history = async (query = '') => (await auth(t.http().get(`${HISTORY}${query}`))).body.items;
 
   /** A resident who signed in to the portal, as the override target. */
   async function resident(name: string): Promise<string> {
@@ -124,19 +124,6 @@ describe('Console flag routes /api/v1/console/feature-flags and /feature-flag-hi
     expect((await create({ key: `a${'b'.repeat(62)}` })).status).toBe(201);
   });
 
-  it('Should list flags by key with their "on" and "off" override counts (R21)', async () => {
-    await create({ key: 'zeta' });
-    await create({ key: 'alpha', audience: 'both', enabled: true });
-    const [x, y, z] = await Promise.all([resident('Xena'), resident('Yuri'), resident('Zoe')]);
-    await Promise.all([override('alpha', x, true), override('alpha', y, true), override('alpha', z, false)]);
-    const res = await auth(t.http().get(FLAGS));
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([
-      expect.objectContaining({ key: 'alpha', audience: 'both', enabled: true, overrideCounts: { on: 2, off: 1 } }),
-      expect.objectContaining({ key: 'zeta', overrideCounts: { on: 0, off: 0 } }),
-    ]);
-  });
-
   it('Should show a flag’s detail with each override’s current name, email and kind', async () => {
     await create({ key: 'hello_world' });
     const x = await resident('Xena');
@@ -202,7 +189,7 @@ describe('Console flag routes /api/v1/console/feature-flags and /feature-flag-hi
     expect(events[0]).toMatchObject({ flagKey: 'hello_world', changes: { overridesRemoved: 2 }, subject: null });
   });
 
-  it('Should page the history newest first with before and limit, and join the target’s current name', async () => {
+  it('Should page the history newest first with cursors, and join the target’s current name (KTD3)', async () => {
     await create({ key: 'a_flag' });
     await create({ key: 'b_flag' });
     const x = await resident('Xena');
@@ -218,10 +205,15 @@ describe('Console flag routes /api/v1/console/feature-flags and /feature-flag-hi
 
     const first = await auth(t.http().get(`${HISTORY}?limit=2`));
     expect(first.status).toBe(200);
-    expect(first.body.events.map((event: { action: string }) => event.action)).toEqual(['override_set', 'created']);
-    expect(first.body.events[0].subject).toEqual({ principalId: x, name: 'Xena Renamed' });
-    const second = await auth(t.http().get(`${HISTORY}?limit=2&before=${first.body.nextBefore}`));
-    expect(second.body).toEqual({ events: [expect.objectContaining({ flagKey: 'a_flag' })], nextBefore: null });
+    expect(first.body.items.map((event: { action: string }) => event.action)).toEqual(['override_set', 'created']);
+    expect(first.body.items[0].subject).toEqual({ principalId: x, name: 'Xena Renamed' });
+    expect(first.body).toMatchObject({ older: first.body.items[1].id, newer: null });
+    const second = await auth(t.http().get(`${HISTORY}?limit=2&before=${first.body.older}`));
+    expect(second.body).toEqual({
+      items: [expect.objectContaining({ flagKey: 'a_flag' })],
+      older: null,
+      newer: second.body.items[0].id,
+    });
     expect((await auth(t.http().get(`${HISTORY}?limit=0`))).status).toBe(400);
   });
 

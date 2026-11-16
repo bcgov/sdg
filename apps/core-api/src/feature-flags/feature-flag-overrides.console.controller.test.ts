@@ -30,7 +30,7 @@ describe('Console override routes /api/v1/console/feature-flags/:key/overrides/:
   const put = (principalId: string, enabled: boolean, key?: string, bearer?: string) =>
     auth(t.http().put(path(principalId, key)), bearer).send({ enabled });
   const remove = (principalId: string, key?: string) => auth(t.http().delete(path(principalId, key)));
-  const history = async () => (await auth(t.http().get(`${HISTORY}?key=hello_world`))).body.events;
+  const history = async () => (await auth(t.http().get(`${HISTORY}?key=hello_world`))).body.items;
   const flag = (audience: FeatureFlagAudience) =>
     t.database.db.insert(featureFlags).values({ key: 'hello_world', audience, enabled: false, rolloutPct: 0 });
 

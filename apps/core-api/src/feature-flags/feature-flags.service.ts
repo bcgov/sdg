@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { featureFlagEvents, featureFlagOverrides, featureFlags, principals, type FeatureFlag } from '@repo/database';
-import { and, asc, desc, eq, lt, sql } from 'drizzle-orm';
+import { featureFlagOverrides, featureFlags, type FeatureFlag } from '@repo/database';
+import { eq, sql } from 'drizzle-orm';
 
 import { InjectDatabase, type Database } from '../database/database.module.js';
 import { personKind } from '../principals/person-kind.js';
@@ -13,16 +13,19 @@ import {
   type Transaction,
 } from './feature-flag-records.js';
 import {
-  flagChangesSchema,
   type CreateFlag,
   type FlagDetail,
   type FlagHistoryPage,
   type FlagHistoryQuery,
+  type FlagListQuery,
+  type FlagPage,
   type FlagSummary,
   type OverrideView,
   type UpdateFlag,
 } from './feature-flags.schemas.js';
 import { FlagCache } from './flag-cache.service.js';
+import { readHistory } from './flag-history.query.js';
+import { listFlags } from './flag-list.query.js';
 
 type Counts = FlagSummary['overrideCounts'];
 
@@ -77,13 +80,9 @@ export class FeatureFlagsService {
     this.cache = cache;
   }
 
-  /** Every flag by key, with its "on" and "off" override counts. */
-  async list(): Promise<FlagSummary[]> {
-    const [flags, counts] = await Promise.all([
-      this.db.select().from(featureFlags).orderBy(asc(featureFlags.key)),
-      countOverrides(this.db),
-    ]);
-    return flags.map((flag) => toSummary(flag, counts.get(flag.key) ?? NO_OVERRIDES));
+  /** A numbered page of flags with their "on" and "off" override counts, searched, filtered and sorted (R12–R17). */
+  list(query: FlagListQuery): Promise<FlagPage> {
+    return listFlags(this.db, query);
   }
 
   /** The flag with every override, each with its target's current name, email and kind; 404 when it doesn't exist. */
@@ -142,7 +141,7 @@ export class FeatureFlagsService {
         await recordEvent(tx, { flagKey: key, action: 'updated', changes }, actor);
       }
       // The R21 notice needs the "on" count of a flag just turned off.
-      return toSummary(flag, (await countOverrides(tx, key)).get(key) ?? NO_OVERRIDES);
+      return toSummary(flag, await countOverrides(tx, key));
     });
     this.cache.invalidate();
     return summary;
@@ -159,43 +158,20 @@ export class FeatureFlagsService {
     this.cache.invalidate();
   }
 
-  /** The log newest first, optionally for one key, `limit` events before the event id `before`. */
-  async history({ key, limit, before }: FlagHistoryQuery): Promise<FlagHistoryPage> {
-    const rows = await this.db
-      .select({ event: featureFlagEvents, subjectName: principals.displayName })
-      .from(featureFlagEvents)
-      .leftJoin(principals, eq(principals.id, featureFlagEvents.subjectPrincipalId))
-      .where(
-        and(
-          key === undefined ? undefined : eq(featureFlagEvents.flagKey, key),
-          before === undefined ? undefined : lt(featureFlagEvents.id, before),
-        ),
-      )
-      .orderBy(desc(featureFlagEvents.id))
-      .limit(limit + 1);
-    const events = rows.slice(0, limit).map(({ event, subjectName }) => ({
-      id: event.id,
-      flagKey: event.flagKey,
-      action: event.action,
-      actor: { principalId: event.actorPrincipalId, name: event.actorName },
-      subject: event.subjectPrincipalId === null ? null : { principalId: event.subjectPrincipalId, name: subjectName },
-      changes: flagChangesSchema.parse(event.changes),
-      createdAt: event.createdAt.toISOString(),
-    }));
-    return { events, nextBefore: rows.length > limit ? (events.at(-1)?.id ?? null) : null };
+  /** The log newest first, optionally for one key, with two-way cursors (KTD3). */
+  history(query: FlagHistoryQuery): Promise<FlagHistoryPage> {
+    return readHistory(this.db, query);
   }
 }
 
-/** Each flag's (or one flag's) "on" and "off" override counts. */
-async function countOverrides(db: Database | Transaction, key?: string): Promise<Map<string, Counts>> {
-  const rows = await db
+/** One flag's "on" and "off" override counts. */
+async function countOverrides(db: Database | Transaction, key: string): Promise<Counts> {
+  const [counts] = await db
     .select({
-      flagKey: featureFlagOverrides.flagKey,
       on: sql<number>`(count(*) filter (where ${featureFlagOverrides.enabled}))::int`,
       off: sql<number>`(count(*) filter (where not ${featureFlagOverrides.enabled}))::int`,
     })
     .from(featureFlagOverrides)
-    .where(key === undefined ? undefined : eq(featureFlagOverrides.flagKey, key))
-    .groupBy(featureFlagOverrides.flagKey);
-  return new Map(rows.map(({ flagKey, on, off }) => [flagKey, { on, off }]));
+    .where(eq(featureFlagOverrides.flagKey, key));
+  return counts ?? NO_OVERRIDES;
 }

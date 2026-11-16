@@ -23,13 +23,16 @@ import {
   flagHistoryPageSchema,
   flagHistoryQuerySchema,
   flagKeyParam,
-  flagSummaryListSchema,
+  flagListQuerySchema,
+  flagPageSchema,
   flagSummarySchema,
   updateFlagSchema,
   type CreateFlag,
   type FlagDetail,
   type FlagHistoryPage,
   type FlagHistoryQuery,
+  type FlagListQuery,
+  type FlagPage,
   type FlagSummary,
   type UpdateFlag,
 } from './feature-flags.schemas.js';
@@ -58,9 +61,10 @@ export class FeatureFlagsConsoleController {
   }
 
   @Get('feature-flags')
-  @ApiOkResponse({ description: 'Every flag by key, with its override counts', standardSchema: flagSummaryListSchema })
-  list(): Promise<FlagSummary[]> {
-    return this.flags.list();
+  @ApiOkResponse({ description: 'A page of flags with their override counts', standardSchema: flagPageSchema })
+  @ApiBadRequestResponse({ description: 'An unknown sort, order or filter value, or a limit outside 1–100' })
+  list(@Query({ schema: flagListQuerySchema }) query: FlagListQuery): Promise<FlagPage> {
+    return this.flags.list(query);
   }
 
   @Post('feature-flags')
@@ -106,7 +110,9 @@ export class FeatureFlagsConsoleController {
 
   @Get('feature-flag-history')
   @ApiOkResponse({ description: 'Every flag change, newest first', standardSchema: flagHistoryPageSchema })
-  @ApiBadRequestResponse({ description: 'A malformed key, limit outside 1–200 or a malformed cursor' })
+  @ApiBadRequestResponse({
+    description: 'A malformed key, a limit outside 1–100, a malformed cursor, or both before and after',
+  })
   history(@Query({ schema: flagHistoryQuerySchema }) query: FlagHistoryQuery): Promise<FlagHistoryPage> {
     return this.flags.history(query);
   }

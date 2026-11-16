@@ -1,6 +1,7 @@
 import { FEATURE_FLAG_AUDIENCES, FEATURE_FLAG_EVENT_ACTIONS } from '@repo/database';
 import { z } from 'zod';
 
+import { cursorPageSchema, cursorQuerySchema, numberedPageSchema, numberedQuerySchema } from '../common/list-query.js';
 import { personKindSchema } from '../principals/principals.schemas.js';
 
 export { personKindSchema };
@@ -57,7 +58,28 @@ export const flagSummarySchema = z.object({
 });
 export type FlagSummary = z.infer<typeof flagSummarySchema>;
 
-export const flagSummaryListSchema = z.array(flagSummarySchema);
+/**
+ * GET /api/v1/console/feature-flags (KTD2, R15, R16): search by key or description; `audience` is the app a flag
+ * affects (portal or console, each including `both`); `enabled` the switch. Every column sorts, key ascending by
+ * default; numbers start descending (R4), and `overridesOn` sorts by the "on" override count.
+ */
+export const flagListQuerySchema = numberedQuerySchema({
+  sort: { key: 'asc', audience: 'asc', enabled: 'desc', rolloutPct: 'desc', overridesOn: 'desc' },
+  defaultSort: 'key',
+  filters: {
+    audience: z.enum(['portal', 'console']).optional(),
+    enabled: z
+      .enum(['true', 'false'])
+      .transform((value) => value === 'true')
+      .optional(),
+  },
+});
+export type FlagListQuery = z.output<typeof flagListQuerySchema>;
+export type FlagSortColumn = FlagListQuery['sort'];
+
+/** A page of flags by the requested order, key breaking ties (R12). */
+export const flagPageSchema = numberedPageSchema(flagSummarySchema);
+export type FlagPage = z.infer<typeof flagPageSchema>;
 
 /** PUT /api/v1/console/feature-flags/:key/overrides/:principalId */
 export const setOverrideSchema = z.object({ enabled: z.boolean() });
@@ -97,20 +119,10 @@ export const flagEventSchema = z.object({
 });
 export type FlagEventView = z.infer<typeof flagEventSchema>;
 
-export const FLAG_HISTORY_DEFAULT_LIMIT = 50;
-export const FLAG_HISTORY_MAX_LIMIT = 200;
+/** GET /api/v1/console/feature-flag-history?key=&limit=&before=|after= (KTD3): ids from a page's `older` or `newer`. */
+export const flagHistoryQuerySchema = cursorQuerySchema({ key: flagKeySchema.optional() });
+export type FlagHistoryQuery = z.output<typeof flagHistoryQuerySchema>;
 
-/** GET /api/v1/console/feature-flag-history?key=&limit=&before= (before: an event id from `nextBefore`). */
-export const flagHistoryQuerySchema = z.object({
-  key: flagKeySchema.optional(),
-  limit: z.coerce.number().int().min(1).max(FLAG_HISTORY_MAX_LIMIT).default(FLAG_HISTORY_DEFAULT_LIMIT),
-  before: z.coerce.number().int().positive().optional(),
-});
-export type FlagHistoryQuery = z.infer<typeof flagHistoryQuerySchema>;
-
-/** The history newest first; pass `nextBefore` as `before` for the next page, null when there is none. */
-export const flagHistoryPageSchema = z.object({
-  events: z.array(flagEventSchema),
-  nextBefore: z.int().positive().nullable(),
-});
+/** The history newest first, with the cursors for the next older and newer pages, null at either end (KTD3). */
+export const flagHistoryPageSchema = cursorPageSchema(flagEventSchema);
 export type FlagHistoryPage = z.infer<typeof flagHistoryPageSchema>;
