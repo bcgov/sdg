@@ -13,8 +13,9 @@ import styles from './data-table.module.css';
 const SKELETON_ROWS = 5;
 
 interface GridProps<TFeatures extends TableFeatures, TData extends RowData> {
-  /** Names the table, shown above it. */
+  /** Names the table, shown above it unless `hideCaption`. */
   caption: string;
+  hideCaption: boolean | undefined;
   /** Marks the frame busy while a load runs (KTD11). */
   isBusy: boolean;
   headers: readonly Header<TFeatures, TData>[];
@@ -73,7 +74,19 @@ function dataRows<TFeatures extends TableFeatures, TData extends RowData>(
 export function DataTableGrid<TFeatures extends TableFeatures, TData extends RowData>(
   props: Readonly<GridProps<TFeatures, TData>>,
 ): JSX.Element {
-  const { caption, isBusy, headers, rows, sortable, sortDescriptor, onSort, getRowHref, emptyMessage, gridRef } = props;
+  const {
+    caption,
+    hideCaption,
+    isBusy,
+    headers,
+    rows,
+    sortable,
+    sortDescriptor,
+    onSort,
+    getRowHref,
+    emptyMessage,
+    gridRef,
+  } = props;
   const captionId = useId();
   const onSortChange = useCallback((descriptor: SortDescriptor) => onSort(String(descriptor.column)), [onSort]);
   const renderEmptyState = useCallback(() => <p className={styles['message']}>{emptyMessage}</p>, [emptyMessage]);
@@ -83,7 +96,7 @@ export function DataTableGrid<TFeatures extends TableFeatures, TData extends Row
   );
   return (
     <>
-      <p id={captionId} className={styles['caption']}>
+      <p id={captionId} className={styles[hideCaption ? 'visuallyHidden' : 'caption']}>
         {caption}
       </p>
       <div className={styles['frame']} aria-busy={isBusy}>

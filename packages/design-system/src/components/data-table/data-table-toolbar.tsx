@@ -1,4 +1,4 @@
-import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type JSX, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Button, Input, Label, SearchField } from 'react-aria-components';
 
 import { TableSelect } from './data-table-select';
@@ -91,7 +91,7 @@ interface ToolbarProps {
   onClear: () => void;
 }
 
-/** Search and one single-choice select per filter, with Clear filters while any is set (R3). */
+/** The filters (one single-choice select each) on the left, then Clear filters while any is set, and search on the right (R3). */
 export function DataTableToolbar({
   config,
   search,
@@ -106,21 +106,34 @@ export function DataTableToolbar({
     clearText();
     onClear();
   }, [clearText, onClear]);
+  const filtersId = useId();
   return (
     <div className={styles['toolbar']}>
-      {config.search && (
-        <SearchField className={styles['field']} value={text} onChange={setText} onFocus={onFocus}>
-          <Label className={styles['label']}>Search</Label>
-          <Input className={styles['input']} />
-        </SearchField>
-      )}
-      {config.filters?.map((filter) => (
-        <FilterSelect key={filter.key} filter={filter} value={filters[filter.key]} onChange={onFilter} />
-      ))}
+      {config.filters?.length ? (
+        <fieldset aria-labelledby={filtersId} className={styles['filters']}>
+          <span id={filtersId} className={styles['filtersLabel']}>
+            Filters
+          </span>
+          {config.filters.map((filter) => (
+            <FilterSelect key={filter.key} filter={filter} value={filters[filter.key]} onChange={onFilter} />
+          ))}
+        </fieldset>
+      ) : null}
       {isSet && (
         <Button className={styles['button']} onPress={clear}>
           Clear filters
         </Button>
+      )}
+      {config.search && (
+        <SearchField
+          className={`${styles['field']} ${styles['search']}`}
+          value={text}
+          onChange={setText}
+          onFocus={onFocus}
+        >
+          <Label className={styles['label']}>Search</Label>
+          <Input className={styles['input']} />
+        </SearchField>
       )}
     </div>
   );

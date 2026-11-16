@@ -53,7 +53,8 @@ function FlagList() {
   );
   return (
     <DataTable
-      caption="Every feature flag; select one to change it, its overrides or see its history"
+      caption="Feature flags"
+      hideCaption
       columns={FLAG_COLUMNS}
       rows={data?.items ?? NO_FLAGS}
       getRowId={flagId}

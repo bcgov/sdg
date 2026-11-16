@@ -60,7 +60,7 @@ test.describe('console-web Feature Flags pages', () => {
     const requests = await mockFeatureFlagsAdmin(page, [helloWorld()]);
     await page.goto('/feature-flags');
     await expect(page.getByRole('banner').getByRole('heading', { level: 1 })).toHaveText('Feature flags');
-    const table = page.getByRole('grid', { name: /Every feature flag/ });
+    const table = page.getByRole('grid', { name: 'Feature flags' });
     await expect(table.getByRole('row').filter({ has: page.getByRole('rowheader') })).toHaveText([
       'hello_worldPortalOn50%3 on, 0 off',
     ]);
@@ -175,7 +175,7 @@ test.describe('console-web feature flag tables', () => {
   }) => {
     await mockFeatureFlagsAdmin(page, manyFlags());
     await page.goto('/feature-flags');
-    const table = page.getByRole('grid', { name: /Every feature flag/ });
+    const table = page.getByRole('grid', { name: 'Feature flags' });
     const pager = page.getByRole('navigation', { name: 'Pagination' });
     const keys = table.getByRole('rowheader');
     await expect(pager.getByText('Showing 1–20 of 26')).toBeVisible();

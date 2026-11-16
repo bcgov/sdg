@@ -1,6 +1,7 @@
 /* The DataTable in the bcgov look: react-aria controls (KTD7) styled with the design tokens. Every class replaces
    react-aria's default class name. */
 .root {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--layout-margin-medium);
@@ -9,49 +10,97 @@
   font: var(--typography-regular-body);
 }
 
-/* The toolbar and the footer wrap onto their own lines on narrow screens (KTD13). */
-.toolbar,
-.footer {
+/* The toolbar wraps onto more lines on narrow screens (KTD13). */
+.toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: var(--layout-margin-medium);
   align-items: flex-end;
 }
 
+/* The footer: the range, then rows per page and the pager at the right end. A narrow table keeps rows per page beside
+   the range and gives the pager its own line. */
 .footer {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--layout-margin-medium);
   align-items: center;
-  justify-content: space-between;
+}
+
+/* Fixed columns, so a cursor table (no range) still puts them on the right. */
+.footer .select {
+  grid-column: 2;
+}
+
+.footer .pager {
+  grid-column: 3;
+}
+
+@container (width < 48rem) {
+  .footer {
+    grid-template-columns: 1fr auto;
+  }
+
+  .footer .pager {
+    grid-column: 1 / -1;
+  }
+}
+
+/* "Filters", then each filter's select, on the left of the toolbar. */
+.filters {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+  align-items: flex-end;
+}
+
+.filtersLabel {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  font: var(--typography-bold-small-body);
+}
+
+/* Search sits at the right end of the toolbar, still on the right when it wraps onto its own line. */
+.search {
+  min-width: 16rem;
+  margin-inline-start: auto;
 }
 
 .field,
 .select {
   display: flex;
   flex-direction: column;
-  gap: var(--layout-margin-xsmall);
-  min-width: 12rem;
+  gap: var(--layout-margin-hair);
+  min-width: 10rem;
 }
 
 .footer .select {
   flex-direction: row;
+  gap: var(--layout-margin-small);
   align-items: center;
   min-width: 0;
 }
 
 .label {
   color: var(--typography-color-primary);
-  font: var(--typography-regular-label);
+  font: var(--typography-regular-small-body);
 }
 
 .input,
 .selectButton {
   box-sizing: border-box;
-  min-height: 2.75rem;
-  padding: var(--layout-padding-small) var(--layout-padding-medium);
+  min-height: 2rem;
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
   border: var(--layout-border-width-small) solid var(--surface-color-border-medium);
   border-radius: var(--layout-border-radius-medium);
   background: var(--surface-color-forms-default);
   color: var(--typography-color-primary);
-  font: var(--typography-regular-body);
+  font: var(--typography-regular-small-body);
 }
 
 .input {
@@ -99,8 +148,9 @@
 }
 
 .option {
-  padding: var(--layout-padding-small);
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
   border-radius: var(--layout-border-radius-small);
+  font: var(--typography-regular-small-body);
   cursor: pointer;
   outline: none;
 }
@@ -121,13 +171,13 @@
 
 /* A secondary button: Clear filters, Try again and the pager. */
 .button {
-  min-height: 2.75rem;
-  padding: var(--layout-padding-small) var(--layout-padding-medium);
+  min-height: 2rem;
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
   border: var(--layout-border-width-small) solid var(--surface-color-border-dark);
   border-radius: var(--layout-border-radius-medium);
   background: var(--surface-color-secondary-button-default);
   color: var(--typography-color-primary);
-  font: var(--typography-regular-body);
+  font: var(--typography-regular-small-body);
   cursor: pointer;
 }
 
@@ -153,9 +203,11 @@
   font: var(--typography-regular-small-body);
 }
 
-/* The table scrolls sideways inside its frame on narrow screens (KTD13). */
+/* The table scrolls sideways inside its bordered frame on narrow screens (KTD13). */
 .frame {
   overflow-x: auto;
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
 }
 
 .frame[aria-busy='true'] .body {
@@ -181,7 +233,18 @@
   outline: none;
 }
 
+/* Lines between the columns, and none under the last row, whose line the frame draws. */
+.column + .column,
+.cell + .cell {
+  border-inline-start: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.row:last-child .cell {
+  border-block-end: none;
+}
+
 .column {
+  background: var(--surface-color-background-light-gray);
   font: var(--typography-bold-body);
   white-space: nowrap;
 }
@@ -253,7 +316,7 @@
 .pager {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--layout-margin-small);
+  gap: var(--layout-margin-xsmall);
   align-items: center;
 }
 

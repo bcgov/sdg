@@ -55,8 +55,9 @@ export function dataTableColumnHelper<TData extends RowData>(): ColumnHelper<Dat
 }
 
 export interface DataTableProps<TData extends RowData> {
-  /** Names the table, shown above it. */
+  /** Names the table, shown above it unless `hideCaption` (when the page's heading already says what it is). */
   caption: string;
+  hideCaption?: boolean;
   /** The first column is the row header. */
   columns: readonly DataTableColumn<TData>[];
   /** The current page's rows; keep the previous page's while refreshing (KTD11). */
@@ -89,10 +90,10 @@ const DEFAULT_MESSAGES: DataTableMessages = {
 
 type View = 'loading' | 'rows' | 'empty' | 'noMatches' | 'error' | 'blocked';
 
-function viewOf(status: DataTableStatus, rowCount: number, hasQuery: boolean): View {
+function viewOf(status: DataTableStatus, rowCount: number, queried: boolean): View {
   if (status === 'loading' || status === 'error' || status === 'blocked') return status;
   if (rowCount > 0) return 'rows';
-  return hasQuery ? 'noMatches' : 'empty';
+  return queried ? 'noMatches' : 'empty';
 }
 
 const NO_ROWS: readonly never[] = [];
@@ -161,7 +162,8 @@ const NO_HEADERS: readonly never[] = [];
  * the page URL (R7), in numbered (R5) or cursor (R6) mode.
  */
 export function DataTable<TData extends RowData>(props: Readonly<DataTableProps<TData>>): JSX.Element {
-  const { caption, columns, rows, getRowId, config, paging, search, onSearchChange, prefix, status } = props;
+  const { caption, hideCaption, columns, rows, getRowId, config, paging, search, onSearchChange, prefix, status } =
+    props;
   const { state, apply } = useTableUrl({ search, config, prefix, onSearchChange, status, paging });
   const actions = useTableActions(state, config, apply);
   const messages = { ...DEFAULT_MESSAGES, ...props.messages };
@@ -178,6 +180,7 @@ export function DataTable<TData extends RowData>(props: Readonly<DataTableProps<
       ) : null}
       <DataTableGrid
         caption={caption}
+        hideCaption={hideCaption}
         isBusy={isBusy}
         headers={table.getHeaderGroups().at(-1)?.headers ?? NO_HEADERS}
         rows={view === 'loading' ? null : table.getRowModel().rows}

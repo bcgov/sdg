@@ -41,7 +41,7 @@ test('creates a console flag, overrides it for a person found by search, then de
   await expect(updates(page)).toHaveText(`Created ${key}.`);
 
   // The list pages through the server: search for the new key, then open its row.
-  const flags = page.getByRole('grid', { name: /Every feature flag/ });
+  const flags = page.getByRole('grid', { name: 'Feature flags' });
   await page.getByRole('searchbox', { name: 'Search' }).fill(key);
   await expect(page).toHaveURL(new RegExp(`/feature-flags\\?q=${key}$`));
   await flags

@@ -9,7 +9,7 @@ const LIST = '/api/v1/console/feature-flags';
 
 /** The table once a load has settled: no longer busy. */
 async function grid() {
-  const table = await screen.findByRole('grid', { name: /Every feature flag/ });
+  const table = await screen.findByRole('grid', { name: 'Feature flags' });
   await waitFor(() => expect(table.closest('[aria-busy="true"]')).toBeNull());
   return table;
 }
@@ -158,6 +158,7 @@ describe('the feature flag list on the DataTable (R15–R18)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/feature-flags'));
     expect(router.state.location.search).toEqual({ enabled: 'false', page: '2', deleted: 'flag_21' });
     expect(screen.getByRole('status', { name: 'Feature flag updates' })).toHaveTextContent('Deleted flag_21.');
+    expect(screen.queryByRole('rowheader', { name: 'flag_21' })).toBeNull();
     await waitFor(async () => expect(await keys()).toEqual(['flag_22', 'flag_23', 'flag_24', 'flag_25']));
     expect(api.find('flag_21')).toBeUndefined();
   });
