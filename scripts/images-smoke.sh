@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Smoke test for the production images (DEVELOPER.md, Production Images).
-# Builds database, core-api, portal-api, console-api, gateway-api, portal-web, console-web and the edge, then runs them
-# the way OpenShift's restricted SCC does (arbitrary UID in group 0, no capabilities, no privilege escalation) against
-# the compose postgis.
+# Builds database, core-api, portal-api, console-api, gateway-api, portal-web, console-web, shared-ui and the edge, then
+# runs them the way OpenShift's restricted SCC does (arbitrary UID in group 0, no capabilities, no privilege escalation)
+# against the compose postgis.
 #
 # Usage: scripts/images-smoke.sh [--no-build]
 #   --no-build  reuse images built by an earlier run
@@ -30,7 +30,7 @@ done
 cd "$(dirname "$0")/.."
 TMP="$(mktemp -d)"
 cleanup() {
-  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-console" "$PREFIX-gateway" "$PREFIX-web" "$PREFIX-console-web" "$PREFIX-edge" >/dev/null 2>&1 || true
+  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-console" "$PREFIX-gateway" "$PREFIX-web" "$PREFIX-console-web" "$PREFIX-shared-ui" "$PREFIX-edge" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -54,6 +54,7 @@ if $BUILD; then
   "$ENGINE" build -q -t "$(image gateway-api)" -f apps/gateway-api/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image portal-web)" -f apps/portal-web/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image console-web)" -f apps/console-web/Dockerfile . >/dev/null
+  "$ENGINE" build -q -t "$(image shared-ui)" -f packages/shared-ui/Dockerfile . >/dev/null
   "$ENGINE" build -q -t "$(image edge)" apps/portal-web/caddy >/dev/null
 fi
 
@@ -73,7 +74,7 @@ check "database ships dist/migrate.js and the migrations" node_in database \
   "const fs = require('fs'); process.exit(fs.existsSync('dist/migrate.js') && fs.existsSync('migrations/meta/_journal.json') ? 0 : 1)"
 check "no .env files in the Node images" bash -c "! for i in core-api portal-api console-api gateway-api database; do \
   $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" find / -xdev -name '.env*' -not -name '.env.example'; done | grep -q ."
-check "no package manager in the final images" bash -c "for i in core-api portal-api console-api gateway-api database portal-web console-web edge; do \
+check "no package manager in the final images" bash -c "for i in core-api portal-api console-api gateway-api database portal-web console-web shared-ui edge; do \
   ! $ENGINE run --rm \"localhost/$PREFIX/\$i:latest\" sh -c 'command -v apk || command -v npm || command -v pnpm' || exit 1; done"
 
 echo "Waiting for compose postgis"
@@ -296,6 +297,24 @@ check "/.env is blocked by the WAF" test "$(status "$EDGE/.env")" = 403
 # A table's search lives in the page URL; the injection rules (1001, 1005) only log it, so a reload still loads.
 check "the console host's page URL with an SQL-looking search loads" \
   test "$(status -H 'Host: console.smoke.test' "$EDGE/feature-flags?q=%27%20or%201%3D1--%20")" = 200
+
+echo "shared-ui"
+# Under OCP's dropped capabilities, so Caddy starting at all shows its binary carries no file capability.
+"$ENGINE" run -d --name "$PREFIX-shared-ui" "${OCP[@]}" -p 127.0.0.1::8080 "$(image shared-ui)" >/dev/null
+SHARED_UI="http://$("$ENGINE" port "$PREFIX-shared-ui" 8080 | head -n 1)"
+deadline=$((SECONDS + 30))
+until curl -sf -o /dev/null "$SHARED_UI/healthz" || ((SECONDS > deadline)); do sleep 1; done
+check "/healthz is 200 under an arbitrary UID with no capabilities" test "$(status "$SHARED_UI/healthz")" = 200
+HEADER_JS="$SHARED_UI/header/v1/sdg-header.js"
+check "/header/v1/sdg-header.js is 200" \
+  test "$("${CURL[@]}" -D "$TMP/shared-ui.headers" -o /dev/null -w '%{http_code}' "$HEADER_JS")" = 200
+check "the header script revalidates (Cache-Control: no-cache)" \
+  test "$(header Cache-Control "$TMP/shared-ui.headers")" = no-cache
+check "the header script is served as JavaScript" grep -qi '^content-type: text/javascript' "$TMP/shared-ui.headers"
+ETAG="$(header ETag "$TMP/shared-ui.headers")"
+check "the header script has an ETag" test -n "$ETAG"
+check "a request with its ETag in If-None-Match is 304" test "$(status -H "If-None-Match: $ETAG" "$HEADER_JS")" = 304
+check "an unknown path is 404 (no fallback)" test "$(status "$SHARED_UI/header/v1/missing.js")" = 404
 
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null || true
 echo
