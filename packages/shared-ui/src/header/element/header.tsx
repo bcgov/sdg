@@ -1,6 +1,7 @@
 import type { JSX } from 'preact';
 
 import { BcLogo } from './logo.js';
+import { Nav } from './nav.js';
 
 export interface HeaderProps {
   siteTitle: string;
@@ -48,8 +49,7 @@ export function Header({ siteTitle, ...auth }: HeaderProps): JSX.Element {
         <span class="title" data-part="title">
           {siteTitle}
         </span>
-        {/* U3 puts the nav landmark, its slot and the narrow-screen menu here. */}
-        <div class="nav" data-part="nav" />
+        <Nav />
       </div>
     </header>
   );

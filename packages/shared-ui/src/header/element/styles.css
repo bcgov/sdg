@@ -89,6 +89,7 @@
 
 /* Main row: 56px, white: logo, separator, site title, then the nav area on the right (R1, R2). */
 .main {
+  position: relative;
   height: 56px;
   background-color: var(--surface-color-background-white, #ffffff);
   border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
@@ -120,5 +121,73 @@
 .nav {
   display: flex;
   align-self: stretch;
+  align-items: center;
   margin-left: auto;
+}
+
+/* Nav panel: holds the one nav slot; an inline row on wide screens (KTD10). */
+.nav-panel {
+  display: flex;
+  align-self: stretch;
+}
+
+.nav-panel[hidden] {
+  display: none;
+}
+
+/*
+ * Slotted links stay the host's own elements: these base rules are normal, so host link rules can still adjust
+ * spacing and colour (R7). The transparent bottom border reserves the selected border's 2px.
+ */
+::slotted(a) {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--layout-padding-none, 0) var(--layout-padding-medium, 1rem);
+  border-bottom: var(--layout-border-width-medium, 2px) solid transparent;
+  color: var(--typography-color-link, #255a90);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+::slotted(a:hover) {
+  text-decoration: underline;
+}
+
+::slotted(a:focus-visible) {
+  outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
+  outline-offset: -2px;
+}
+
+/*
+ * Selected (R5, R11): outer-document rules beat ::slotted rules whatever their specificity, so only !important holds
+ * this look against host link styles (KTD5). Bold is faux bold: a text-shadow does not change the text's width.
+ */
+::slotted([aria-current='page']) {
+  border-bottom: var(--layout-border-width-medium, 2px) solid var(--typography-color-link, #255a90) !important;
+  background-color: var(--surface-color-background-light-blue, #f1f8fe) !important;
+  text-shadow:
+    0 0 0.6px currentColor,
+    0 0 0.6px currentColor !important;
+}
+
+/*
+ * Narrow (below 768px, tracked by the element): a menu button on the main row, and the panel as a stacked list that
+ * overlays the page under the main row, so the header's reserved 104px never changes (R6, KTD10).
+ */
+.nav-narrow .nav-panel {
+  position: absolute;
+  top: calc(100% + var(--layout-border-width-small, 1px));
+  right: 0;
+  left: 0;
+  z-index: 1000;
+  flex-direction: column;
+  padding: var(--layout-padding-xsmall, 0.25rem) var(--layout-padding-none, 0);
+  background-color: var(--surface-color-background-white, #ffffff);
+  border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
+  box-shadow: var(--surface-shadow-medium, 0 1.2px 3.6px 0 #0000001a, 0 6.4px 14.4px 0 #00000021);
+}
+
+.nav-narrow ::slotted(a) {
+  display: flex;
+  padding: var(--layout-padding-small, 0.5rem) var(--layout-padding-medium, 1rem);
 }
