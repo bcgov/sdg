@@ -1,0 +1,292 @@
+<mxfile host="app.diagrams.net" pages="2">
+  <diagram name="SDG Target Architecture" id="sdg">
+    <mxGraphModel dx="1481" dy="907" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="2086" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="hdr" parent="1" style="rounded=0;html=1;whiteSpace=wrap;fillColor=#003366;strokeColor=none;fontColor=#FFFFFF;align=left;verticalAlign=middle;spacingLeft=24;" value="&lt;b style=&quot;font-size:26px&quot;&gt;Single Digital Gateway (SDG) — Target Architecture&lt;/b&gt; &lt;span style=&quot;font-size:16px&quot;&gt;(name to be confirmed)&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Connected Services Foundations · Direction going forward&lt;/span&gt;" vertex="1">
+          <mxGeometry height="90" width="2000" as="geometry" />
+        </mxCell>
+        <mxCell id="hdrbar" parent="1" style="rounded=0;html=1;fillColor=#FCBA19;strokeColor=none;" value="" vertex="1">
+          <mxGeometry height="6" width="2000" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="u1" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=center;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Citizens and businesses&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Prove who I am once · tell government once&lt;/span&gt;" vertex="1">
+          <mxGeometry height="64" width="420" x="530" y="126" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=center;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Delegates&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Act for another person or business&lt;/span&gt;" vertex="1">
+          <mxGeometry height="64" width="420" x="1050" y="126" as="geometry" />
+        </mxCell>
+        <mxCell id="ch" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#F7F9FC;strokeColor=#003366;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&#39;font-size:18px;color:#003366&#39;&gt;Channels&lt;/b&gt;&lt;span style=&#39;font-size:12px;color:#444444&#39;&gt;  —  one front door, several ways in&lt;/span&gt;" vertex="1">
+          <mxGeometry height="152" width="980" x="510" y="236" as="geometry" />
+        </mxCell>
+        <mxCell id="ch1" parent="ch" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;SDG on the web (name to be confirmed)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Single entry point · domain to be confirmed&lt;/span&gt;" vertex="1">
+          <mxGeometry height="76" width="458" x="24" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="ch2" parent="ch" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;BC Services Card app (new name to be confirmed)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;SDG as an extension of the app · DN needed&lt;/span&gt;" vertex="1">
+          <mxGeometry height="76" width="458" x="498" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="xp" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#E8F0FA;strokeColor=#003366;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&quot;font-size: 18px; color: rgb(0, 51, 102);&quot;&gt;SDG (Tell Us Once) Experience Layer&lt;/b&gt;" vertex="1">
+          <mxGeometry height="398" width="980" x="510" y="448" as="geometry" />
+        </mxCell>
+        <mxCell id="f1" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Find services&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Life and business events&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="222.5" x="24" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f2" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Profile&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;View only — see my profile information&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="222.5" x="260.5" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f3" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Notifications&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;In-app feed built in SDG &lt;span style=&quot;white-space:nowrap&quot;&gt;(ARD-CS-005)&lt;/span&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="222.5" x="497" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f4" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;My documents&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Permits, licences, letters&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="222.5" x="733.5" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f5" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Eligibility discovery&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Guidance only — no decisions&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="222.5" x="24" y="142" as="geometry" />
+        </mxCell>
+        <mxCell id="f6" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Delegated access&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;View and manage who acts for me&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="222.5" x="260.5" y="142" as="geometry" />
+        </mxCell>
+        <mxCell id="f7" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Data-use transparency&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;See where and when my data was re-used&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="222.5" x="497" y="142" as="geometry" />
+        </mxCell>
+        <mxCell id="f8" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Preferences&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Built in SDG&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="222.5" x="733.5" y="142" as="geometry" />
+        </mxCell>
+        <mxCell id="bff" parent="xp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;SDG backend (BFF + APIs)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Reads status and outcomes via APS P2P · nightly gov.bc.ca content sync · partner notices by CITZ-zone ID only (ARD-CS-005)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="62" width="932" x="24" y="236" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="xp" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFF4D6;strokeColor=#C99A06;fontColor=#5A4300;align=left;verticalAlign=middle;spacingLeft=16;" value="&lt;b style=&#39;font-size:13px&#39;&gt;SDG does:&lt;/b&gt; &lt;span style=&#39;font-size:12px&#39;&gt;discovery · guidance · referral · notifications · show program information · show permissions and data use&lt;/span&gt;&lt;br&gt;&lt;b style=&#39;font-size:13px&#39;&gt;SDG does not:&lt;/b&gt; &lt;span style=&#39;font-size:12px&#39;&gt;host forms · take submissions · make decisions · store authoritative data&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="932" x="24" y="312" as="geometry" />
+        </mxCell>
+        <mxCell id="pp" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#EEF6EE;strokeColor=#2E8540;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&#39;font-size:18px;color:#003366&#39;&gt;Program products&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px;color:#444444&#39;&gt;each owns its front end, forms, workflow, rules and decisions&lt;/span&gt;" vertex="1">
+          <mxGeometry height="256" width="560" x="510" y="906" as="geometry" />
+        </mxCell>
+        <mxCell id="ac" parent="pp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E8540;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Address Change&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;First product · LOA 3 · prefilled through Silent SSO&lt;/span&gt;" vertex="1">
+          <mxGeometry height="164" width="250" x="24" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="fs" parent="pp" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E8540;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Future connected services&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Onboard to P2P · issue credentials for approvals, licences and permits&lt;/span&gt;" vertex="1">
+          <mxGeometry height="164" width="250" x="286" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="cc" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#FFFFFF;strokeColor=#003366;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&#39;font-size:15px;color:#003366&#39;&gt;Reusable common components&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px;color:#444444&#39;&gt;shared services products and SDG reuse&lt;/span&gt;" vertex="1">
+          <mxGeometry height="256" width="396" x="1094" y="906" as="geometry" />
+        </mxCell>
+        <mxCell id="notify" parent="cc" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:13px;color:#003366&#39;&gt;Notify&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Common Notify · early&lt;/span&gt;" vertex="1">
+          <mxGeometry height="54" width="364" x="16" y="62" as="geometry" />
+        </mxCell>
+        <mxCell id="docgen" parent="cc" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:13px;color:#003366&#39;&gt;Document generation&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;CDOGS&lt;/span&gt;" vertex="1">
+          <mxGeometry height="54" width="177" x="16" y="124" as="geometry" />
+        </mxCell>
+        <mxCell id="files" parent="cc" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:13px;color:#003366&#39;&gt;File storage&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;COMS and BCBox&lt;/span&gt;" vertex="1">
+          <mxGeometry height="54" width="177" x="203" y="124" as="geometry" />
+        </mxCell>
+        <mxCell id="ai" parent="cc" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:13px;color:#003366&#39;&gt;Generative AI&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;AI Services Hub&lt;/span&gt;" vertex="1">
+          <mxGeometry height="54" width="177" x="16" y="186" as="geometry" />
+        </mxCell>
+        <mxCell id="pay" parent="cc" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;dashed=1;dashPattern=4 3;" value="&lt;b style=&#39;font-size:13px;color:#003366&#39;&gt;Payments&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Service to confirm&lt;/span&gt;" vertex="1">
+          <mxGeometry height="54" width="177" x="203" y="186" as="geometry" />
+        </mxCell>
+        <mxCell id="p2p" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#FDF1E6;strokeColor=#B35C00;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&#39;font-size:18px;color:#003366&#39;&gt;Interoperability platform — APS P2P&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px;color:#444444&#39;&gt;peer-to-peer · not a central store of personal information · reference implementation experimental — production readiness to confirm · not MVP&lt;/span&gt;" vertex="1">
+          <mxGeometry height="304" width="980" x="510" y="1222" as="geometry" />
+        </mxCell>
+        <mxCell id="api" parent="p2p" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;API gateway&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;APS API Gateway · established · single path to Connected Services APIs&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="222.5" x="24" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="wid" parent="p2p" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Participant and workload identity&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Requesting and providing systems verified&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="222.5" x="260.5" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="pep" parent="p2p" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Policy enforcement&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Applies decisions on permission, purpose and authority&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="222.5" x="497" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="tev" parent="p2p" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Transaction evidence and audit&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Time-stamped, traceable · feeds the data-use log&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="222.5" x="733.5" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ztx" parent="p2p" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Identity translation&lt;/b&gt;&lt;br&gt;&lt;b style=&#39;font-size:11px;color:#B07A00&#39;&gt;● Proposed · ARD-CS-005&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Privacy zone hop · only P2P sees both IDs · no IDs in payloads&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="222.5" x="24" y="184" as="geometry" />
+        </mxCell>
+        <mxCell id="evt" parent="p2p" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;dashed=1;dashPattern=4 3;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Event distribution&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;No shared event broker · low priority, deferred · transport not decided&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="222.5" x="260.5" y="184" as="geometry" />
+        </mxCell>
+        <mxCell id="cat" parent="p2p" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;API and service catalogue&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;API Services Portal · established · OpenAPI specs, access requests&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="222.5" x="497" y="184" as="geometry" />
+        </mxCell>
+        <mxCell id="sem" parent="p2p" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;dashed=1;dashPattern=4 3;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Schema and semantic validation&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Shared definitions, code sets and provenance&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="222.5" x="733.5" y="184" as="geometry" />
+        </mxCell>
+        <mxCell id="si" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#F2EEF8;strokeColor=#5B3F8C;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&#39;font-size:18px;color:#003366&#39;&gt;Sign-in and identity&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px;color:#444444&#39;&gt;people, delegates and systems&lt;/span&gt;" vertex="1">
+          <mxGeometry height="1078" width="430" x="40" y="448" as="geometry" />
+        </mxCell>
+        <mxCell id="sso" parent="si" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Pathfinder SSO (Keycloak)&lt;/b&gt;&lt;br&gt;&lt;b style=&#39;font-size:11px;color:#2E8540&#39;&gt;● Accepted · ADR-CS-003&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Single integration point · standard realm · one client per product · no personal info in Keycloak&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="bcsc" parent="si" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;BC Services Card (new name to be confirmed)&lt;/b&gt;&lt;br&gt;&lt;b style=&#39;font-size:11px;color:#2E8540&#39;&gt;● Accepted · ADR-CS-003&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Holds the session (Option B) · LOA 3 first release · confirm once per product · step-up: re-login&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="244.4" as="geometry" />
+        </mxCell>
+        <mxCell id="bus" parent="si" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Business sign-in&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Business BCeID closed to new clients · replacement business identity not decided · not MVP&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="418.8" as="geometry" />
+        </mxCell>
+        <mxCell id="silent" parent="si" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Silent SSO hand-off&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Agreed, being built (BCSC, Digital Trust) · high complexity · needed by 1 Feb 2027&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="593.2" as="geometry" />
+        </mxCell>
+        <mxCell id="ias" parent="si" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Identity Assurance Service (IAS)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Identity record · PPID mapper (pairwise IDs per zone)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="767.6" as="geometry" />
+        </mxCell>
+        <mxCell id="svc" parent="si" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Service accounts&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Client credentials for system-to-system calls · no user session · no subject in token&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="942" as="geometry" />
+        </mxCell>
+        <mxCell id="tr" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#F4F0FB;strokeColor=#5B3F8C;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&#39;font-size:17px;color:#003366&#39;&gt;Trust, permission and transparency&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px;color:#444444&#39;&gt;services behind the delegation, transparency and preference screens&lt;/span&gt;" vertex="1">
+          <mxGeometry height="1078" width="430" x="1530" y="448" as="geometry" />
+        </mxCell>
+        <mxCell id="dele" parent="tr" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#5B3F8C;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Person delegation and representation&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;No existing service · high complexity&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="log" parent="tr" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#5B3F8C;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Data-use audit and transparency log&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Not confirmed · needs P2P and BCSC records by API&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="506" as="geometry" />
+        </mxCell>
+        <mxCell id="npref" parent="tr" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#5B3F8C;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Notification preferences&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;Channels and opt-ins · used by Notify&lt;/span&gt;" vertex="1">
+          <mxGeometry height="112" width="382" x="24" y="942" as="geometry" />
+        </mxCell>
+        <mxCell id="ds" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#FFFFFF;strokeColor=#B35C00;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&#39;font-size:18px;color:#003366&#39;&gt;Authoritative data sources&lt;/b&gt;&lt;span style=&#39;font-size:12px;color:#444444&#39;&gt;  —  distributed · program systems are the data stewards and systems of record · each sits in its own privacy zone&lt;/span&gt;" vertex="1">
+          <mxGeometry height="164" width="1920" x="40" y="1586" as="geometry" />
+        </mxCell>
+        <mxCell id="d1" parent="ds" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;BC Services Card (new name to be confirmed)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Person and identity · Identity Assurance Service (IAS)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="928" x="24" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="d2" parent="ds" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B35C00;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Other authoritative data sources&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px&#39;&gt;Program systems of record · added as services onboard · each in its own privacy zone&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="928" x="968" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pl" parent="1" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#EEF1F4;strokeColor=#555555;strokeWidth=2;align=left;verticalAlign=top;spacingLeft=16;spacingTop=10;" value="&lt;b style=&#39;font-size:18px;color:#003366&#39;&gt;Platform and standards&lt;/b&gt;" vertex="1">
+          <mxGeometry height="188" width="1920" x="40" y="1810" as="geometry" />
+        </mxCell>
+        <mxCell id="hosting" parent="pl" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Hosting&lt;/b&gt;&lt;br&gt;&lt;b style=&#39;font-size:11px;color:#1E5189&#39;&gt;● Current platform&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;OpenShift Gold · product namespaces · CrunchyDB PostgreSQL (platform backlog)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="104" width="456" x="24" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="stack" parent="pl" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Standard stack&lt;/b&gt;&lt;br&gt;&lt;b style=&#39;font-size:11px;color:#2E8540&#39;&gt;● Accepted · ADR-CS-001&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;TypeScript · Node.js (NestJS preferred) · React + Vite on Caddy with WAF · PostgreSQL HA · BC Design System tokens · GitHub Actions&lt;/span&gt;" vertex="1">
+          <mxGeometry height="104" width="456" x="496" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pipe" parent="pl" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Pipeline checks&lt;/b&gt;&lt;br&gt;&lt;b style=&#39;font-size:11px;color:#2E8540&#39;&gt;● Accepted · ADR-CS-002&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;CodeQL · Trivy · OWASP ZAP · 80% unit coverage · load and recovery tests · Coraza WAF · Renovate&lt;/span&gt;" vertex="1">
+          <mxGeometry height="104" width="456" x="968" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="obs" parent="pl" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#003366;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;" value="&lt;b style=&#39;font-size:14px;color:#003366&#39;&gt;Observability&lt;/b&gt;&lt;br&gt;&lt;b style=&#39;font-size:11px;color:#B07A00&#39;&gt;● Draft · ARD-CS-004&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px&#39;&gt;OpenTelemetry · SIEM via HIVE · SDG ADR 0001 (Proposed): self-hosted Grafana LGTM · not MVP&lt;/span&gt;" vertex="1">
+          <mxGeometry height="104" width="456" x="1440" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="foot" parent="1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontColor=#444444;" value="&lt;span style=&#39;font-size:12px&#39;&gt;&lt;b style=&#39;color:#2E8540&#39;&gt;●&lt;/b&gt; Accepted &amp;nbsp; &lt;b style=&#39;color:#B07A00&#39;&gt;●&lt;/b&gt; Draft, proposed or in progress &amp;nbsp; &lt;b style=&#39;color:#1E5189&#39;&gt;●&lt;/b&gt; Current &amp;nbsp; · &amp;nbsp; dashed box = future or not yet designed &amp;nbsp; · &amp;nbsp; Sources: ADR-CS-001/002/003 (Accepted) · ARD-CS-004 (Draft) · ARD-CS-005 (Proposed) · SDG ADR 0001 (Proposed) · SDG shared services and dependencies matrix&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="1920" x="40" y="2022" as="geometry" />
+        </mxCell>
+        <mxCell id="e_u1" edge="1" parent="1" source="u1" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.234694;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="ch" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_u2" edge="1" parent="1" source="u2" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.765306;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="ch" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ch_xp" edge="1" parent="1" source="ch" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="xp" value="HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_xp_pp" edge="1" parent="1" source="xp" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0.357143;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.625;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="pp" value="Referral and seamless hand-off">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_xp_cc" edge="1" parent="1" source="xp" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0.797959;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="cc" value="Send">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pp_cc" edge="1" parent="1" source="pp" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=1;exitY=0.585938;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.585938;entryDx=0;entryDy=0;entryPerimeter=0;" target="cc" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pp_p2p" edge="1" parent="1" source="pp" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0.625;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.357143;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;startArrow=classic;startFill=1;startSize=6;" target="p2p" value="Request data · publish status and outcomes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_xp_si" edge="1" parent="1" source="xp" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0;exitY=0.276382;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.357143;entryDx=0;entryDy=0;entryPerimeter=0;startArrow=classic;startFill=1;startSize=6;" target="sso" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pp_si" edge="1" parent="1" source="pp" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0;exitY=0.742969;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.491071;entryDx=0;entryDy=0;entryPerimeter=0;" target="silent" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_xp_tr" edge="1" parent="1" source="xp" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=1;exitY=0.276382;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.357143;entryDx=0;entryDy=0;entryPerimeter=0;startArrow=classic;startFill=1;startSize=6;" target="dele" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p2p_ds" edge="1" parent="1" source="p2p" style="html=1;rounded=1;arcSize=12;strokeColor=#555555;strokeWidth=2;fontSize=12;fontStyle=2;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;endSize=6;dashed=1;dashPattern=6 4;flowAnimation=1;edgeStyle=none;exitX=0.255102;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.375;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;startArrow=classic;startFill=1;startSize=6;" target="ds" value="Verified, peer-to-peer exchange">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp" parent="0" value="MVP" />
+        <mxCell id="mvp-ch1-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="962" y="275" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-f1-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="726.5" y="483" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-f2-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="963" y="483" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-bff-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="1436" y="669" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-ac-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="754" y="959" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-sso-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="416" y="503" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-bcsc-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="416" y="677.4" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-silent-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="416" y="1026.2" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-silent-dep" parent="mvp" style="shape=rhombus;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;fillColor=#FCBA19;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#003366;fontStyle=1;fontSize=14;shadow=1;" value="!" vertex="1">
+          <mxGeometry height="30" width="30" x="378" y="1024.2" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-hosting-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="490" y="1855" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-stack-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="962" y="1855" as="geometry" />
+        </mxCell>
+        <mxCell id="mvp-pipe-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="1434" y="1855" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-m" parent="mvp" style="shape=ellipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;fillColor=#1A8C80;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontStyle=1;fontSize=13;shadow=1;" value="M" vertex="1">
+          <mxGeometry height="26" width="26" x="1560" y="18" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-m-t" parent="mvp" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontColor=#FFFFFF;" value="&lt;b style=&quot;font-size:13px&quot;&gt;MVP component&lt;/b&gt;" vertex="1">
+          <mxGeometry height="40" width="380" x="1594" y="11" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-dep" parent="mvp" style="shape=rhombus;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;fillColor=#FCBA19;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#003366;fontStyle=1;fontSize=14;shadow=1;" value="!" vertex="1">
+          <mxGeometry height="30" width="30" x="1558" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-dep-t" parent="mvp" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontColor=#FFFFFF;" value="&lt;b style=&quot;font-size:13px&quot;&gt;MVP dependency — not yet secured&lt;/b&gt;" vertex="1">
+          <mxGeometry height="40" width="380" x="1594" y="45" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="v19 change log" id="changes">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="868" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cl-h" parent="1" style="rounded=0;html=1;whiteSpace=wrap;fillColor=#003366;strokeColor=none;fontColor=#FFFFFF;align=left;verticalAlign=middle;spacingLeft=24;" value="&lt;b style=&quot;font-size:24px&quot;&gt;What changed in v19&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Compared with v11 · review changes from 14 Nov 2026 (v12 to v19) · statuses and MVP flags from the CSBC Foundational Architecture library&lt;/span&gt;" vertex="1">
+          <mxGeometry x="0" y="0" width="1400" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cl-hb" parent="1" style="rounded=0;html=1;fillColor=#FCBA19;strokeColor=none;" value="" vertex="1">
+          <mxGeometry x="0" y="80" width="1400" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="cl0" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;spacingLeft=8;" value="&lt;b style=&#39;font-size:15px;color:#003366&#39;&gt;Names to be confirmed&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px&#39;&gt;• SDG: name to be confirmed (title, SDG on the web channel)&lt;br&gt;• BC Services Card: new name to be confirmed (channel, sign-in and data source)&lt;/span&gt;" vertex="1">
+          <mxGeometry x="40" y="116" width="1320" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="cl1" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;spacingLeft=8;" value="&lt;b style=&#39;font-size:15px;color:#003366&#39;&gt;Removed&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px&#39;&gt;• Service BC office (assisted) channel&lt;br&gt;• Address Change write-back to IAS (card text and the gold dependency line)&lt;br&gt;• Token exchange from the sign-in column, and its link from identity translation&lt;br&gt;• &amp;quot;AI never decides&amp;quot; from the SDG does not note in the experience layer&lt;br&gt;• Permission and purpose registry, policy decision service and credential trust registry from the trust column&lt;br&gt;• Business domains in authoritative data sources (business, address, property, income, program participation, credentials, partner privacy zones)&lt;br&gt;• Governance and onboarding layer, including the collection notice MVP dependency marker&lt;br&gt;• Digital credentials box (issuers, holder wallet, verifiers) (v16)&lt;br&gt;• Eligibility factor verification from program products (v18)&lt;/span&gt;" vertex="1">
+          <mxGeometry x="40" y="208" width="1320" height="188" as="geometry" />
+        </mxCell>
+        <mxCell id="cl2" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;spacingLeft=8;" value="&lt;b style=&#39;font-size:15px;color:#003366&#39;&gt;Text tidied (v13 to v15)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px&#39;&gt;• &amp;quot;After MVP&amp;quot; text removed throughout: the MVP marker already shows what is in MVP&lt;br&gt;• SDG on the web: &amp;quot;takes over specific id.gov.bc.ca pages&amp;quot; removed&lt;br&gt;• BC Services Card app: &amp;quot;Tech Direction decision&amp;quot; removed&lt;br&gt;• Workflow (hosted n8n) removed from reusable common components; Notify now spans the top row&lt;br&gt;• Service management removed from the bottom layer, now titled Platform and standards&lt;br&gt;• &amp;quot;Not MVP&amp;quot; removed from the trust, permission and transparency cards (delegation and transparency log)&lt;/span&gt;" vertex="1">
+          <mxGeometry x="40" y="412" width="1320" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="cl3" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;spacingLeft=8;" value="&lt;b style=&#39;font-size:15px;color:#003366&#39;&gt;Re-laid out&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px&#39;&gt;• Trust, permission and transparency now runs the full height beside the experience layer, program products and P2P, matching the sign-in column (v17)&lt;br&gt;• Authoritative data sources is generic: BC Services Card plus other authoritative data sources&lt;/span&gt;" vertex="1">
+          <mxGeometry x="40" y="568" width="1320" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="cl4" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;spacingLeft=8;" value="&lt;b style=&#39;font-size:15px;color:#003366&#39;&gt;MVP markers (v19)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px&#39;&gt;• Address Change now carries the MVP marker: SDG and Address Change MVP target is 31 Mar 2027 (team decision; not yet flagged in the dependency matrix)&lt;/span&gt;" vertex="1">
+          <mxGeometry x="40" y="660" width="1320" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cl5" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9DB4D3;fontColor=#222222;align=left;verticalAlign=top;spacing=8;spacingTop=6;spacingLeft=8;" value="&lt;b style=&#39;font-size:15px;color:#003366&#39;&gt;Still open&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px&#39;&gt;• Silent SSO by 1 Feb 2027 · collection notice owner (no longer shown on the diagram)&lt;br&gt;• P2P production readiness · event broker and carriage mechanism for ARD-CS-005&lt;br&gt;• Observability: platform-supported stack or SDG self-hosting · replacement business identity · payments service&lt;/span&gt;" vertex="1">
+          <mxGeometry x="40" y="736" width="1320" height="92" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
