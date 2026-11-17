@@ -1,0 +1,55 @@
+{
+  "name": "@repo/shared-ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared UI served to any website from the edge: the <sdg-header> web component, built with Preact.",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/header/index.js",
+    "./dist/header/react/index.js",
+    "./dist/header/preload.css",
+    "./dist/cdn/**"
+  ],
+  "exports": {
+    "./header": {
+      "types": "./dist/header/index.d.ts",
+      "import": "./dist/header/index.js"
+    },
+    "./header/react": {
+      "types": "./dist/header/react/index.d.ts",
+      "import": "./dist/header/react/index.js"
+    },
+    "./header/preload.css": "./dist/header/preload.css"
+  },
+  "scripts": {
+    "build": "vite build && vite build --mode cdn && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "preact": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@repo/vite-config": "workspace:*",
+    "@repo/vitest-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

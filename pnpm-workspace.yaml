@@ -85,6 +85,7 @@ catalog:
   pino: ^10.4.0
   pino-http: ^11.0.0
   pino-pretty: ^13.2.0
+  preact: ^11.2.0
   react: ^19.3.1
   react-dom: ^19.3.1
   # Exactly the version @bcgov/design-system-react-components depends on: the two copies move together, since
