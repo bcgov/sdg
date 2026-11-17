@@ -44,8 +44,8 @@ function AccountButton({ user, label }: Readonly<{ user: CurrentUser; label: str
 }
 
 /**
- * The account button at the foot of the sidebar and its menu (R11): the profile block, Account settings and Log out, as in
- * `<sdg-header>`'s account menu. Items navigate with `onAction` (KTD8): a bcgov MenuItem `href` would reload the page.
+ * The account button at the foot of the sidebar and its menu (R11): the profile block, Account settings and Log out.
+ * Items navigate with `onAction` (KTD8): a bcgov MenuItem `href` would reload the page.
  */
 export function AccountMenu() {
   const { data: user } = useCurrentUser();

@@ -7,7 +7,6 @@ packages:
 catalog:
   '@bcgov/bc-sans': ^2.1.2
   '@bcgov/design-system-react-components': ^0.9.0
-  '@bcgov/design-tokens': ^5.0.0
   '@electric-sql/pglite': ^0.5.10
   '@fortawesome/fontawesome-svg-core': ^7.3.1
   '@fortawesome/free-regular-svg-icons': ^7.3.1
@@ -75,7 +74,6 @@ catalog:
   jose: 6.2.17
   jsdom: ^31.0.0
   lefthook: ^2.2.2
-  lit: ^3.3.3
   nestjs-pino: ^5.3.1
   openid-client: ^6.8.8
   oxfmt: ^0.78.0

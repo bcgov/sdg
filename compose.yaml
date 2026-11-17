@@ -33,7 +33,6 @@ x-workspace: &workspace
     - nm-design-system:/app/packages/design-system/node_modules
     - nm-feature-flags:/app/packages/feature-flags/node_modules
     - nm-database:/app/packages/database/node_modules
-    - nm-sdg-header:/app/packages/sdg-header/node_modules
     - nm-server-core:/app/packages/server-core/node_modules
     - nm-shared-ui:/app/packages/shared-ui/node_modules
     - nm-playwright-config:/app/tooling/playwright-config/node_modules
@@ -312,7 +311,7 @@ services:
     depends_on:
       deps:
         condition: service_healthy
-    # Healthy once Vite serves, i.e. after turbo has built design-system and sdg-header; console-web waits for that.
+    # Healthy once Vite serves, i.e. after turbo has built design-system; console-web waits for that.
     healthcheck:
       test:
         - CMD
@@ -421,7 +420,6 @@ volumes:
   nm-design-system:
   nm-feature-flags:
   nm-database:
-  nm-sdg-header:
   nm-server-core:
   nm-shared-ui:
   nm-playwright-config:
