@@ -74,11 +74,11 @@ Then handle the logout event (see [Events](#events)) if visitors can sign in.
 
 ## Attributes
 
-| Attribute    | Meaning                                                                            |
-| ------------ | ---------------------------------------------------------------------------------- |
-| `site-title` | The site title shown after the logo.                                               |
-| `user-name`  | The signed-in visitor's name. When set, the header shows it with a Log Out button. |
-| `login-href` | Where Log In links to. Shown only when `user-name` is not set.                     |
+| Attribute    | Meaning                                                                                                              |
+| ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `site-title` | The site title shown after the logo.                                                                                 |
+| `user-name`  | The signed-in visitor's name. When set, the header shows it with a Log Out button.                                   |
+| `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input. |
 
 The header shows one of three auth states:
 

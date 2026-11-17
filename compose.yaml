@@ -346,8 +346,9 @@ services:
         condition: service_healthy
 
   # The header script (packages/shared-ui): its dev script rebuilds the CDN bundle on change and serves dist/cdn on
-  # port 5180, at https://sdg.localhost/shared-ui/ through Caddy. No host port. Its turbo run builds nothing (shared-ui
-  # depends on no built workspace package), so it never overlaps another service's build.
+  # port 5180, at https://sdg.localhost/shared-ui/ through Caddy. No host port. portal-web's dev task also builds
+  # @repo/shared-ui (it imports the React wrapper), which briefly empties dist/cdn at startup: the script can 404 until
+  # this watcher's next build lands.
   shared-ui:
     <<: *workspace
     environment: *workspace-env
