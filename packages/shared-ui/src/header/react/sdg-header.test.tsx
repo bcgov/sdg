@@ -37,6 +37,16 @@ describe('SdgHeader', () => {
     expect(element.getAttribute('site-title')).toBe('X');
     expect(element.getAttribute('login-href')).toBe('/login');
     expect(element.hasAttribute('user-name')).toBe(false);
+    expect(element.hasAttribute('fluid')).toBe(false);
+  });
+
+  it('sets the boolean fluid attribute only when fluid is true', async () => {
+    const { SdgHeader } = await freshWrapper();
+    const { container, rerender } = render(<SdgHeader fluid />);
+    expect(headerElement(container).getAttribute('fluid')).toBe('');
+
+    rerender(<SdgHeader fluid={false} />);
+    expect(headerElement(container).hasAttribute('fluid')).toBe(false);
   });
 
   it('renders children as light-DOM children of the element', async () => {

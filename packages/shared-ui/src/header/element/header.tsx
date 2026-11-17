@@ -5,6 +5,8 @@ import { Nav } from './nav.js';
 
 export interface HeaderProps {
   siteTitle: string;
+  /** Full-width contents instead of the responsive max-width container. */
+  fluid: boolean;
   userName: string;
   loginHref: string;
   /** The Log In link's click; decides whether to dispatch `sdg-login`. */
@@ -37,19 +39,26 @@ function Auth({ userName, loginHref, onLoginClick, onLogoutClick }: AuthProps): 
   return null;
 }
 
-export function Header({ siteTitle, ...auth }: HeaderProps): JSX.Element {
+// Each row keeps its full-width background and border; its contents sit in a container that is capped at the
+// Bootstrap 5 container widths, or spans the full width when the host sets `fluid`.
+export function Header({ siteTitle, fluid, ...auth }: HeaderProps): JSX.Element {
+  const container = fluid ? 'container container-fluid' : 'container';
   return (
     <header class="header">
       <div class="row utility" data-part="utility">
-        <Auth {...auth} />
+        <div class={container} data-part="container">
+          <Auth {...auth} />
+        </div>
       </div>
       <div class="row main" data-part="main">
-        <BcLogo />
-        <span class="separator" data-part="separator" aria-hidden="true" />
-        <span class="title" data-part="title">
-          {siteTitle}
-        </span>
-        <Nav />
+        <div class={container} data-part="container">
+          <BcLogo />
+          <span class="separator" data-part="separator" aria-hidden="true" />
+          <span class="title" data-part="title">
+            {siteTitle}
+          </span>
+          <Nav />
+        </div>
       </div>
     </header>
   );

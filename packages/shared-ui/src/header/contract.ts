@@ -13,6 +13,8 @@ export const HEADER_ATTRIBUTES = {
   siteTitle: 'site-title',
   userName: 'user-name',
   loginHref: 'login-href',
+  /** Boolean: present means the rows' contents span the full width instead of the responsive max-width container. */
+  fluid: 'fluid',
 } as const;
 
 export const HEADER_EVENTS = {

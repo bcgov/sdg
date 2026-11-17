@@ -64,6 +64,7 @@ export class SdgHeaderElement extends HTMLElement {
     render(
       h(Header, {
         siteTitle: this.getAttribute(HEADER_ATTRIBUTES.siteTitle) ?? '',
+        fluid: this.hasAttribute(HEADER_ATTRIBUTES.fluid),
         userName: this.getAttribute(HEADER_ATTRIBUTES.userName) ?? '',
         loginHref: this.getAttribute(HEADER_ATTRIBUTES.loginHref) ?? '',
         onLoginClick: this.#onLoginClick,

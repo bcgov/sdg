@@ -11,6 +11,8 @@ export interface SdgHeaderProps {
   /** The signed-in user's name; leave undefined when signed out or still checking the session. */
   userName?: string;
   loginHref?: string;
+  /** Full-width contents instead of the responsive max-width container. */
+  fluid?: boolean;
   /** Called on a plain Log In click; call `event.preventDefault()` to handle sign-in instead of following the link. */
   onLogin?: (event: SdgLoginEvent) => void;
   /** Called on Log Out. Required in practice for signed-in visitors: the header does not sign anyone out itself. */
@@ -42,6 +44,7 @@ export function SdgHeader({
   siteTitle,
   userName,
   loginHref,
+  fluid = false,
   onLogin,
   onLogout,
   src = DEFAULT_HEADER_SRC,
@@ -64,6 +67,8 @@ export function SdgHeader({
     'site-title': siteTitle,
     'user-name': userName,
     'login-href': loginHref,
+    // A boolean attribute: present when true, absent (undefined) when false.
+    fluid: fluid ? '' : undefined,
   };
 
   return (

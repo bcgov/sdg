@@ -12,7 +12,12 @@ describe('header contract', () => {
 
   it('keeps the documented tag, attribute and event names', () => {
     expect(HEADER_TAG).toBe('sdg-header');
-    expect(HEADER_ATTRIBUTES).toEqual({ siteTitle: 'site-title', userName: 'user-name', loginHref: 'login-href' });
+    expect(HEADER_ATTRIBUTES).toEqual({
+      siteTitle: 'site-title',
+      userName: 'user-name',
+      loginHref: 'login-href',
+      fluid: 'fluid',
+    });
     expect(HEADER_EVENTS).toEqual({ login: 'sdg-login', logout: 'sdg-logout' });
   });
 });

@@ -93,6 +93,10 @@ The SDG header has to look and behave the same across a mix of sites: this monor
 
 - R24. The header is a labelled navigation landmark; the narrow-screen menu button is a real button that announces whether the menu is open, and the menu opens by click, Enter or Space and closes on Escape (returning focus to the button), on an outside click and on selecting an item; collapsed items are out of the tab order; every control shows a visible focus indicator.
 
+**Width**
+
+- R25. Each row's background and border span the page while its contents sit in a centered container that stops at 1100px (portal-web's content width) and shrinks with the viewport below that; a boolean `fluid` attribute makes the contents full width.
+
 ### Key Flows
 
 - F1. Vanilla embed

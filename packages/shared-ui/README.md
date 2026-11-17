@@ -79,6 +79,7 @@ Then handle the logout event (see [Events](#events)) if visitors can sign in.
 | `site-title` | The site title shown after the logo.                                                                                 |
 | `user-name`  | The signed-in visitor's name. When set, the header shows it with a Log Out button.                                   |
 | `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input. |
+| `fluid`      | Boolean: present (any value) makes the contents full width. Without it, see below.                                   |
 
 The header shows one of three auth states:
 
@@ -88,6 +89,17 @@ The header shows one of three auth states:
   height and shows no control, so nothing moves when you set one of them.
 
 Change the attributes at any time; the header re-renders.
+
+### Width
+
+The grey and white rows always span the page. Their contents (Log In, logo, title, nav) sit in a centered container
+that stops at 1100px and shrinks with the screen below that.
+
+Add `fluid` to make the contents full width at every size:
+
+```html
+<sdg-header site-title="My Service" fluid></sdg-header>
+```
 
 ## Nav items
 
@@ -150,12 +162,13 @@ import { SdgHeader } from '@repo/shared-ui/header/react';
 TanStack Router's `Link` sets `aria-current="page"` on itself while its route is active, so the header shows it as
 selected with no extra props.
 
-| Prop                                 | Maps to                                                             |
-| ------------------------------------ | ------------------------------------------------------------------- |
-| `siteTitle`, `userName`, `loginHref` | The attributes above; `undefined` leaves the attribute off.         |
-| `onLogin`                            | `sdg-login`; receives the event, so it can call `preventDefault()`. |
-| `onLogout`                           | `sdg-logout`.                                                       |
-| `src`                                | Overrides the script URL.                                           |
+| Prop                                 | Maps to                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------- |
+| `siteTitle`, `userName`, `loginHref` | The attributes above; `undefined` leaves the attribute off.                  |
+| `onLogin`                            | `sdg-login`; receives the event, so it can call `preventDefault()`.          |
+| `onLogout`                           | `sdg-logout`.                                                                |
+| `fluid`                              | The `fluid` attribute: set when `true`, left off when `false` (the default). |
+| `src`                                | Overrides the script URL.                                                    |
 
 Using `<sdg-header>` directly in React JSX is typed too, through the package's JSX types for the element. Event types
 are on `HTMLElementEventMap`, so `addEventListener('sdg-logout', …)` is typed.

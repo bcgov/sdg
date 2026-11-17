@@ -44,6 +44,38 @@ test.describe('portal-web shared header', () => {
     await expect(other).toHaveCSS('text-shadow', 'none');
   });
 
+  test('caps the contents at 1100px, centered and in line with the page, and spans the page with fluid', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 800 });
+    await signedOut(page);
+    await page.goto('/');
+    const header = page.locator('sdg-header');
+    const containers = header.locator('[data-part="container"]');
+    await expect(containers).toHaveCount(2);
+
+    // Rows span the page; their contents stop at 1100px, centered, with the same edges as the page's content column.
+    const rows = await Promise.all(
+      ['utility', 'main'].map((part) => header.locator(`[data-part="${part}"]`).boundingBox()),
+    );
+    expect(rows.map((box) => box?.width)).toEqual([1440, 1440]);
+    for (const box of await Promise.all([containers.nth(0).boundingBox(), containers.nth(1).boundingBox()])) {
+      // 1100px of content plus 16px of padding on each side.
+      expect(box?.width).toBe(1132);
+      expect(box?.x).toBe(154);
+    }
+    // Same box and same 1rem side padding as the page's content column, so the content edges line up.
+    const column = await page.locator('#main-content > div').boundingBox();
+    const headerBox = await containers.nth(1).boundingBox();
+    expect({ x: headerBox?.x, width: headerBox?.width }).toEqual({ x: column?.x, width: column?.width });
+
+    await header.evaluate((element) => element.setAttribute('fluid', ''));
+    await expect(containers.first()).toHaveClass(/container-fluid/);
+    for (const box of await Promise.all([containers.nth(0).boundingBox(), containers.nth(1).boundingBox()])) {
+      expect(box?.width).toBe(1440);
+    }
+  });
+
   test('opens, walks and closes the narrow-screen menu with the keyboard (AE6)', async ({ page, browserName }) => {
     // WebKit, like Safari's default, tabs only to form controls; Alt+Tab moves through links as well.
     const tab = browserName === 'webkit' ? 'Alt+Tab' : 'Tab';

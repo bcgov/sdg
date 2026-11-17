@@ -9,6 +9,8 @@ export interface SdgHeaderAttributes {
   'user-name'?: string;
   /** Where Log In links to. Shown only when `user-name` is not set. */
   'login-href'?: string;
+  /** Boolean: present (any value) makes the rows' contents full width instead of the responsive max-width container. */
+  fluid?: boolean | '';
 }
 
 /** `sdg-login`: cancelable; `preventDefault()` stops the Log In link from navigating. */

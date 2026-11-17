@@ -24,16 +24,32 @@
 }
 
 .row {
+  display: block;
+}
+
+/*
+ * Each row's contents: a centered container that stops at 1100px (portal-web's content column, so the edges line up)
+ * and shrinks with the viewport below that, while the row's background and border stay full width. `fluid` removes
+ * the cap (R25).
+ */
+.container {
   display: flex;
   align-items: center;
   gap: var(--layout-padding-medium, 1rem);
+  width: 100%;
+  /* 1100px of content plus the side padding, like portal-web's column, so the content edges line up. */
+  max-width: calc(1100px + 2 * var(--layout-padding-medium, 1rem));
+  height: 100%;
+  margin-inline: auto;
   padding: var(--layout-padding-none, 0) var(--layout-padding-medium, 1rem);
 }
 
-/* Utility row: 48px, light grey; its control sits on the right and the row keeps its height when empty (R1, R3). */
+.container-fluid {
+  max-width: none;
+}
+
 .utility {
   height: 48px;
-  justify-content: flex-end;
   background-color: var(--surface-color-background-light-gray, #faf9f8);
   border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
 }
@@ -85,6 +101,10 @@
 .button:focus-visible {
   outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
   outline-offset: 2px;
+}
+
+.utility .container {
+  justify-content: flex-end;
 }
 
 /* Main row: 56px, white: logo, separator, site title, then the nav area on the right (R1, R2). */

@@ -21,6 +21,10 @@ function utilityRow(element: SdgHeaderElement): HTMLElement {
   return row;
 }
 
+function containers(element: SdgHeaderElement): HTMLElement[] {
+  return [...shadow(element).querySelectorAll<HTMLElement>('[data-part="container"]')];
+}
+
 function loginLink(element: SdgHeaderElement): HTMLAnchorElement | null {
   return utilityRow(element).querySelector('a');
 }
@@ -104,6 +108,29 @@ describe('<sdg-header> main row', () => {
 
   it('is a banner landmark', () => {
     expect(shadow(mount({})).querySelector('header')).not.toBeNull();
+  });
+});
+
+describe('<sdg-header> container', () => {
+  it("wraps each row's contents in a max-width container by default", () => {
+    const element = mount({ 'site-title': 'My Service', 'login-href': '/login' });
+    const [utility, main] = containers(element);
+    expect(containers(element)).toHaveLength(2);
+    expect(utility?.parentElement?.dataset['part']).toBe('utility');
+    expect(main?.parentElement?.dataset['part']).toBe('main');
+    expect(utility?.contains(loginLink(element))).toBe(true);
+    expect(main?.querySelector('[data-part="title"]')?.textContent).toBe('My Service');
+    for (const container of containers(element)) expect(container.classList.contains('container-fluid')).toBe(false);
+  });
+
+  it('makes both containers full width with the fluid attribute, and switches back when it is removed', () => {
+    const element = mount({ fluid: '' });
+    const fluidStates = (): boolean[] => containers(element).map((c) => c.classList.contains('container-fluid'));
+    expect(fluidStates()).toEqual([true, true]);
+    element.removeAttribute('fluid');
+    expect(fluidStates()).toEqual([false, false]);
+    element.setAttribute('fluid', '');
+    expect(fluidStates()).toEqual([true, true]);
   });
 });
 
