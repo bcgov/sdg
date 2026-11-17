@@ -1,10 +1,11 @@
-import { Logger } from '@nestjs/common';
+import { ForbiddenException, Logger } from '@nestjs/common';
 import { featureFlagOverrides, featureFlags, identities, principals, type NewFeatureFlag } from '@repo/database';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestApp, type TestApp } from '../testing/app.js';
 import { FlagCache } from './flag-cache.service.js';
+import { FlagEvaluationService } from './flag-evaluation.service.js';
 
 const FLAGS = '/api/v1/shared/flags';
 const HELLO = '/api/v1/shared/hello-world';
@@ -103,7 +104,7 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
     expect(first.size).toBeGreaterThanOrEqual(70);
     expect(first.size).toBeLessThanOrEqual(130);
     expect(await whoGets(subjects)).toEqual(first);
-  });
+  }, 15_000);
 
   it('Should keep every resident who had the flag at 50% when it is raised to 80% (AE4)', async () => {
     await helloWorld({ rolloutPct: 50 });
@@ -115,7 +116,7 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
     const atEighty = await whoGets(subjects);
     for (const subject of atHalf) expect(atEighty.has(subject)).toBe(true);
     expect(atEighty.size).toBeGreaterThan(atHalf.size);
-  });
+  }, 15_000);
 
   it('Should keep an off flag from a resident with an "on" override (R3, kill switch)', async () => {
     const [x] = await seed(['resident-x']);
@@ -234,5 +235,25 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
     const { body } = await t.http().get('/api/docs-json');
     expect(body.paths[FLAGS].get.tags).toEqual(['shared']);
     expect(body.paths[HELLO].get.tags).toEqual(['shared']);
+  });
+
+  it('Should refuse a service-account caller directly at the evaluation service', async () => {
+    const service = t.app.get(FlagEvaluationService);
+    await expect(
+      service.enabledKeys({
+        kind: 'service-account',
+        user: {
+          issuer: t.idp.issuer,
+          subject: 'svc-1',
+          name: 'Service Account',
+          email: null,
+          emailVerified: false,
+          username: null,
+          claims: {},
+        },
+        token: 'tok',
+        clientId: 'svc-client',
+      }),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

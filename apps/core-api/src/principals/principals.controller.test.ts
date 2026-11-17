@@ -1,7 +1,11 @@
+import { ForbiddenException } from '@nestjs/common';
 import { identities, principals } from '@repo/database';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Caller } from '../auth/caller.js';
+import { UserinfoClient } from '../auth/userinfo.client.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
+import { PrincipalsController } from './principals.controller.js';
 
 const LOGIN = '/internal/principals/login';
 
@@ -126,5 +130,46 @@ describe('POST /internal/principals/login (KTD5, KTD6)', () => {
           .set('Authorization', `Bearer ${await t.idp.portalToken()}`)
       ).status,
     ).toBe(404);
+  });
+
+  it('Should throw ForbiddenException directly when caller is a service account', async () => {
+    const controller = t.app.get(PrincipalsController);
+    const serviceAccountCaller: Caller = {
+      kind: 'service-account',
+      user: {
+        issuer: t.idp.issuer,
+        subject: 'svc-1',
+        name: 'Service',
+        email: 'svc@example.com',
+        emailVerified: false,
+        username: 'service-account',
+        claims: {},
+      },
+      token: 'service-token',
+      clientId: 'service-client',
+    };
+    await expect(controller.login(serviceAccountCaller)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('Should re-throw when profile lookup fails with an error that is not a UserinfoError', async () => {
+    const controller = t.app.get(PrincipalsController);
+    const userinfo = t.app.get(UserinfoClient);
+    const unexpectedError = new Error('unexpected userinfo failure');
+    vi.spyOn(userinfo, 'profile').mockRejectedValueOnce(unexpectedError);
+
+    const portalCaller: Caller = {
+      kind: 'portal-user',
+      user: {
+        issuer: t.idp.issuer,
+        subject: 'resident-1',
+        name: 'Ada Lovelace',
+        email: 'ada@example.com',
+        emailVerified: true,
+        username: 'ada@bcsc',
+        claims: {},
+      },
+      token: 'portal-token',
+    };
+    await expect(controller.login(portalCaller)).rejects.toThrow('unexpected userinfo failure');
   });
 });
