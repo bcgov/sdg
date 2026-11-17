@@ -26,6 +26,7 @@
   },
   "scripts": {
     "build": "vite build && vite build --mode cdn && tsc -p tsconfig.build.json",
+    "dev": "node scripts/dev.ts",
     "typecheck": "tsc -b",
     "test": "vitest run"
   },
