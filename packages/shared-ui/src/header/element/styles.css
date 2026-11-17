@@ -1,0 +1,124 @@
+/*
+ * The header's only stylesheet, adopted into its shadow root as a constructed sheet (KTD7). Colours and spacing are
+ * @bcgov/design-tokens values written as var(--token, value), so a page that loads the tokens stays in step and any
+ * other page gets the same values.
+ */
+
+/* Stop the page's inherited styles (font size, letter spacing, text transform, ...) from leaking in (R7). */
+:host {
+  all: initial;
+  display: block;
+  font-family:
+    var(--typography-font-families-bc-sans, 'BC Sans'), 'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--typography-font-size-body, 1rem);
+  font-weight: var(--typography-font-weights-regular, 400);
+  line-height: 1.5;
+  color: var(--typography-color-primary, #2d2d2d);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-padding-medium, 1rem);
+  padding: var(--layout-padding-none, 0) var(--layout-padding-medium, 1rem);
+}
+
+/* Utility row: 48px, light grey; its control sits on the right and the row keeps its height when empty (R1, R3). */
+.utility {
+  height: 48px;
+  justify-content: flex-end;
+  background-color: var(--surface-color-background-light-gray, #faf9f8);
+  border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
+}
+
+.user-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--typography-font-size-small-body, 0.875rem);
+}
+
+.button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 32px;
+  margin: 0;
+  padding: var(--layout-padding-none, 0) var(--layout-padding-medium, 1rem);
+  border: var(--layout-border-width-small, 1px) solid transparent;
+  border-radius: var(--layout-border-radius-medium, 4px);
+  font: inherit;
+  font-size: var(--typography-font-size-small-body, 0.875rem);
+  font-weight: var(--typography-font-weights-bold, 700);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button-primary {
+  background-color: var(--surface-color-primary-button-default, #013366);
+  color: var(--typography-color-primary-invert, #ffffff);
+}
+
+.button-primary:hover {
+  background-color: var(--surface-color-primary-button-hover, #1e5189);
+}
+
+.button-secondary {
+  background-color: var(--surface-color-secondary-button-default, #ffffff);
+  border-color: var(--surface-color-border-medium, #898785);
+  color: var(--typography-color-primary, #2d2d2d);
+}
+
+.button-secondary:hover {
+  background-color: var(--surface-color-secondary-button-hover, #edebe9);
+}
+
+.button:focus-visible {
+  outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
+  outline-offset: 2px;
+}
+
+/* Main row: 56px, white: logo, separator, site title, then the nav area on the right (R1, R2). */
+.main {
+  height: 56px;
+  background-color: var(--surface-color-background-white, #ffffff);
+  border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
+}
+
+.logo {
+  display: block;
+  flex-shrink: 0;
+  height: 44px;
+  width: auto;
+}
+
+.separator {
+  flex-shrink: 0;
+  width: var(--layout-border-width-small, 1px);
+  height: 32px;
+  background-color: var(--surface-color-border-default, #d8d8d8);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--typography-font-size-large-body, 1.125rem);
+  font-weight: var(--typography-font-weights-bold, 700);
+}
+
+.nav {
+  display: flex;
+  align-self: stretch;
+  margin-left: auto;
+}

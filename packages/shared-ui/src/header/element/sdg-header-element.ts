@@ -1,0 +1,80 @@
+import { h, render } from 'preact';
+
+import { HEADER_ATTRIBUTES, HEADER_EVENTS, HEADER_TAG } from '../contract.js';
+import { Header } from './header.js';
+
+import css from './styles.css?inline';
+
+let sheet: CSSStyleSheet | undefined;
+
+// One constructed sheet shared by every instance. Constructed sheets are not governed by style-src, so neither the
+// edge CSP nor implementers' CSPs need a style allowance (KTD7).
+function adoptStyles(root: ShadowRoot): void {
+  // jsdom has no adoptedStyleSheets; tests assert DOM state only and e2e proves the styles.
+  if (!('adoptedStyleSheets' in root)) return;
+  if (!sheet) {
+    sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+  }
+  root.adoptedStyleSheets = [sheet];
+}
+
+function isPlainPrimaryClick(event: MouseEvent): boolean {
+  return event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+}
+
+/** `<sdg-header>`: renders the Preact header into an open shadow root and dispatches its events from the host. */
+export class SdgHeaderElement extends HTMLElement {
+  static readonly observedAttributes: readonly string[] = Object.values(HEADER_ATTRIBUTES);
+
+  readonly #root: ShadowRoot;
+
+  constructor() {
+    super();
+    this.#root = this.attachShadow({ mode: 'open' });
+    adoptStyles(this.#root);
+  }
+
+  connectedCallback(): void {
+    this.#render();
+  }
+
+  attributeChangedCallback(): void {
+    if (this.isConnected) this.#render();
+  }
+
+  disconnectedCallback(): void {
+    render(null, this.#root);
+  }
+
+  // Log In stays a real link: modified clicks (new tab, window) are the browser's, and a plain click navigates unless
+  // a listener cancels sdg-login (KTD9).
+  readonly #onLoginClick = (event: MouseEvent): void => {
+    if (!isPlainPrimaryClick(event)) return;
+    const login = new CustomEvent(HEADER_EVENTS.login, { bubbles: true, composed: true, cancelable: true });
+    if (!this.dispatchEvent(login)) event.preventDefault();
+  };
+
+  // Log Out only tells the host: signing out is an action the host performs (for example, a POST), not a URL.
+  readonly #onLogoutClick = (): void => {
+    this.dispatchEvent(new CustomEvent(HEADER_EVENTS.logout, { bubbles: true, composed: true }));
+  };
+
+  #render(): void {
+    render(
+      h(Header, {
+        siteTitle: this.getAttribute(HEADER_ATTRIBUTES.siteTitle) ?? '',
+        userName: this.getAttribute(HEADER_ATTRIBUTES.userName) ?? '',
+        loginHref: this.getAttribute(HEADER_ATTRIBUTES.loginHref) ?? '',
+        onLoginClick: this.#onLoginClick,
+        onLogoutClick: this.#onLogoutClick,
+      }),
+      this.#root,
+    );
+  }
+}
+
+/** Registers `<sdg-header>`. Safe to call more than once, e.g. when a page loads the script twice. */
+export function defineSdgHeader(): void {
+  if (!customElements.get(HEADER_TAG)) customElements.define(HEADER_TAG, SdgHeaderElement);
+}
