@@ -14,9 +14,9 @@ const configFile = fileURLToPath(new URL('../vite.config.ts', import.meta.url));
 
 // Bind-mount file events don't reliably cross the Podman VM; compose sets CHOKIDAR_USEPOLLING to poll instead. Vite 8
 // derives rolldown's `watcher` options from `chokidar` (overwriting any `watcher` given), which rolldown's type omits.
-const pollingWatch = {
+const pollingWatch: Rolldown.WatcherOptions & { chokidar: { usePolling: boolean } } = {
   chokidar: { usePolling: process.env['CHOKIDAR_USEPOLLING'] === 'true' },
-} as Rolldown.WatcherOptions;
+};
 
 /** Starts the watch build and resolves once its first build has finished (or failed: the watcher keeps going). */
 async function watchCdnBundle(): Promise<Rolldown.RolldownWatcher> {
