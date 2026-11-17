@@ -55,3 +55,6 @@ lefthook-local.yml
 
 # E2E authentication files
 **/client-auth.json
+
+#AI tooling
+.codebase-memory
