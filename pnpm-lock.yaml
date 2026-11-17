@@ -992,9 +992,9 @@ importers:
       '@repo/feature-flags':
         specifier: workspace:*
         version: link:../../packages/feature-flags
-      '@repo/sdg-header':
+      '@repo/shared-ui':
         specifier: workspace:*
-        version: link:../../packages/sdg-header
+        version: link:../../packages/shared-ui
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.105.1(@types/react@19.3.0)(react@19.3.1)

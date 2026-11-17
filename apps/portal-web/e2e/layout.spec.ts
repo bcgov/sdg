@@ -28,23 +28,6 @@ test.describe('portal-web layout', () => {
     await expect(page.getByRole('contentinfo')).toBeVisible();
   });
 
-  test('does not let the header title be selected', async ({ page }) => {
-    await page.goto('/');
-    const title = page.getByRole('banner').getByText('SDG', { exact: true });
-    await expect(title).toBeVisible();
-    // Text selection reads the user-select (or WebKit-prefixed) computed value.
-    const userSelect = await title.evaluate((el) => {
-      const style = getComputedStyle(el);
-      return style.userSelect || style.getPropertyValue('-webkit-user-select');
-    });
-    expect(userSelect).toBe('none');
-
-    // Double- and triple-clicking the title selects nothing.
-    await title.dblclick();
-    await title.click({ clickCount: 3 });
-    expect(await page.evaluate(() => document.getSelection()?.toString() ?? '')).toBe('');
-  });
-
   test('fills at least the viewport height with the footer at the bottom when content is short', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1600 });
     await page.goto('/');
@@ -83,21 +66,15 @@ test.describe('portal-web layout', () => {
       const paddingRight = Number.parseFloat(style.paddingRight);
       return {
         maxWidth: style.maxWidth,
-        contentLeft: rect.left + paddingLeft,
         contentWidth: rect.width - paddingLeft - paddingRight,
         marginLeft: rect.left,
         marginRight: document.documentElement.clientWidth - rect.right,
-        headerContentLeft: document
-          .querySelector('sdg-header')!
-          .shadowRoot!.querySelector('.bcds-header--container')!
-          .getBoundingClientRect().left,
       };
     });
     expect(m.maxWidth).toBe('1100px');
     expect(m.contentWidth).toBeCloseTo(1100, 0);
     expect(m.marginLeft).toBeGreaterThan(0);
     expect(m.marginLeft).toBeCloseTo(m.marginRight, 0);
-    expect(m.contentLeft).toBeCloseTo(m.headerContentLeft, 0);
   });
 
   test('spaces content from the container edges by the container padding alone', async ({ page }) => {

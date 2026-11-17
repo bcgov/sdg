@@ -20,7 +20,7 @@ test.describe('portal-web feature flags', () => {
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1 })).toHaveText('Welcome to SDG');
     await expect(main.getByText('Hello, world!')).toBeVisible();
-    await expect(page.getByRole('banner').getByRole('link', { name: 'Sign in' })).toBeVisible();
+    await expect(page.getByRole('banner').getByRole('link', { name: 'Log In' })).toBeVisible();
   });
 
   test('Should render the home page without hello-world when the flag list fails (AE8)', async ({ page }) => {

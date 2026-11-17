@@ -18,7 +18,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm fetch --store-dir /
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
   pnpm install --offline --frozen-lockfile --store-dir /pnpm/store --filter "portal-web..."
-# pnpm builds the workspace packages portal-web imports (design-system, sdg-header) first, in topological order.
+# pnpm builds the workspace packages portal-web imports (design-system, shared-ui, ...) first, in topological order.
 RUN pnpm --filter "portal-web..." run build
 
 # Strip the binary's cap_net_bind_service file capability in a throwaway stage: OpenShift drops every capability,

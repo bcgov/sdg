@@ -4,6 +4,23 @@
   min-height: 100dvh;
 }
 
+/* Off-screen until focused, then over the top-left of the header; out of the layout flow either way. */
+.skipLink {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1001;
+  padding: var(--layout-padding-small) var(--layout-padding-medium);
+  background-color: var(--surface-color-background-white);
+  color: var(--typography-color-link);
+  transform: translateY(-100%);
+}
+
+.skipLink:focus {
+  transform: none;
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+}
+
 .main {
   flex: 1 0 auto;
 }

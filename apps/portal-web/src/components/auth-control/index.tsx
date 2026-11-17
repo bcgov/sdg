@@ -1,4 +1,3 @@
-import type { HeaderUser } from '@repo/sdg-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from '@tanstack/react-router';
 import { useCallback, useEffect } from 'react';
@@ -6,16 +5,16 @@ import { useCallback, useEffect } from 'react';
 import { loginHref, logout } from '../../auth/api';
 import { currentUserQueryKey, useCurrentUser } from '../../auth/use-current-user';
 
-/** The `<sdg-header>` account inputs. */
+/** The `<SdgHeader>` auth props: at most one of `userName` (signed in) and `loginHref` (signed out). */
 export interface HeaderAuth {
-  user?: HeaderUser;
-  signInHref?: string;
-  signOutFn?: () => void;
+  userName?: string;
+  loginHref?: string;
+  onLogout?: () => void;
 }
 
 /**
- * Header account state: empty while loading (so the header doesn't flash), a Sign in link when signed out or when
- * the API is unreachable, and the profile with a sign-out function otherwise.
+ * Header auth state: neither attribute while the session check is pending (the header shows no control, so Log In
+ * doesn't flash), Log In when signed out or when the API is unreachable, and the user's name with Log Out otherwise.
  */
 export function useHeaderAuth(): HeaderAuth {
   const queryClient = useQueryClient();
@@ -26,12 +25,13 @@ export function useHeaderAuth(): HeaderAuth {
     if (isError) console.error('portal-web: could not load the current user', error);
   }, [isError, error]);
 
-  const signOutFn = useCallback(() => {
+  // The header's sdg-logout event: end the BFF session with its origin-checked POST, then follow its redirect (F3).
+  const onLogout = useCallback(() => {
     void logout(() => queryClient.setQueryData(currentUserQueryKey, null));
   }, [queryClient]);
 
   if (isPending) return {};
-  if (user) return { user: { name: user.name, email: user.email }, signOutFn };
+  if (user) return { userName: user.name, onLogout };
   // Signing in is a full-page navigation through portal-api to Keycloak.
-  return { signInHref: loginHref(href) };
+  return { loginHref: loginHref(href) };
 }

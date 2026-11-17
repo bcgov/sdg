@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { createMemoryHistory } from '@tanstack/react-router';
-import { render, waitFor, within } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,56 +34,57 @@ afterEach(() => {
 
 describe('useHeaderAuth', () => {
   describe('states', () => {
-    it('Should render no account control while loading', { timeout: 30_000 }, async () => {
+    it('Should render no auth control while the session check is pending', { timeout: 30_000 }, async () => {
       renderWith(() => new Promise<Response>(() => {}));
       const header = await headerQueries();
       expect(header.getByRole('banner')).toBeTruthy();
-      expect(header.queryByRole('link', { name: 'Sign in' })).toBeNull();
-      expect(header.queryByRole('button', { name: /Account menu/ })).toBeNull();
+      expect(header.queryByRole('link', { name: 'Log In' })).toBeNull();
+      expect(header.queryByRole('button', { name: 'Log Out' })).toBeNull();
+      expect(document.querySelector('sdg-header')).not.toHaveAttribute('login-href');
+      expect(document.querySelector('sdg-header')).not.toHaveAttribute('user-name');
       expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({ credentials: 'same-origin' }));
     });
 
-    it('Should render a Sign in nav link when signed out', async () => {
+    it('Should render Log In linking to the BFF login when signed out', async () => {
       renderWith(signedOut, '/?tab=1');
       const header = await headerQueries();
-      const link = await header.findByRole('link', { name: 'Sign in' });
+      const link = await header.findByRole('link', { name: 'Log In' });
       expect(link).toHaveAttribute('href', '/api/auth/login?returnTo=%2F%3Ftab%3D1');
-      expect(link).toHaveClass('nav-link');
-      expect(header.queryByRole('button', { name: /Account menu/ })).toBeNull();
+      expect(header.queryByRole('button', { name: 'Log Out' })).toBeNull();
     });
 
-    it('Should render the account menu when signed in, and logs out from it', async () => {
+    it("Should render the user's name and Log Out when signed in, and log out from it", async () => {
       const logout = vi.spyOn(api, 'logout').mockResolvedValue();
       renderWith(signedIn);
       const header = await headerQueries();
-      await userEvent.click(await header.findByRole('button', { name: 'Account menu for Ada Lovelace' }));
-      const menu = await header.findByRole('menu');
-      expect(within(menu).getByText('ada@example.com')).toBeTruthy();
-      await userEvent.click(within(menu).getByRole('menuitem', { name: 'Log out' }));
+      const logOut = await header.findByRole('button', { name: 'Log Out' });
+      expect(header.getByText('Ada Lovelace')).toBeInTheDocument();
+      expect(header.queryByRole('link', { name: 'Log In' })).toBeNull();
+      await userEvent.click(logOut);
       expect(logout).toHaveBeenCalledTimes(1);
-      expect(header.queryByRole('link', { name: 'Sign in' })).toBeNull();
     });
 
-    it('Should clear the current user in query cache when logged out', async () => {
+    it('Should post the logout and clear the current user in the query cache (F3)', async () => {
       const logout = vi.spyOn(api, 'logout').mockImplementation(async (onSignedOut) => {
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
         onSignedOut();
       });
       const { queryClient } = renderWith(signedIn);
       const header = await headerQueries();
-      await userEvent.click(await header.findByRole('button', { name: 'Account menu for Ada Lovelace' }));
-      const menu = await header.findByRole('menu');
-      await userEvent.click(within(menu).getByRole('menuitem', { name: 'Log out' }));
+      await userEvent.click(await header.findByRole('button', { name: 'Log Out' }));
       expect(logout).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST' }));
       expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull();
-      expect(await header.findByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+      expect(await header.findByRole('link', { name: 'Log In' })).toBeInTheDocument();
+      expect(header.queryByRole('button', { name: 'Log Out' })).toBeNull();
     });
 
-    it('Should render Sign in when the API errors', async () => {
+    it('Should render Log In when the API errors, and log the error with context', async () => {
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
       vi.spyOn(console, 'warn').mockImplementation(() => {});
       renderWith(() => Promise.resolve(new Response('Bad gateway', { status: 502 })));
       const header = await headerQueries();
-      expect(await header.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      expect(await header.findByRole('link', { name: 'Log In' })).toHaveAttribute(
         'href',
         '/api/auth/login?returnTo=%2F',
       );
@@ -93,35 +94,14 @@ describe('useHeaderAuth', () => {
     });
   });
 
-  describe('narrow screens', () => {
-    it('Should collapse Sign in behind the Menu button', async () => {
-      vi.stubGlobal('matchMedia', (media: string) => ({
-        matches: true,
-        media,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-      }));
-      renderWith(signedOut);
-      const header = await headerQueries();
-      const toggle = await header.findByRole('button', { name: 'Menu' });
-      await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'false'));
-      expect(header.queryByRole('link', { name: 'Sign in' })).toBeNull();
-      await userEvent.click(toggle);
-      expect(await header.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
-        'href',
-        '/api/auth/login?returnTo=%2F',
-      );
-    });
-  });
-
   describe('header', () => {
-    it('Should sit inside the single banner landmark', async () => {
+    it('Should be the single banner landmark, with a labelled nav landmark', async () => {
       renderWith(signedIn);
       const header = await headerQueries();
       const banners = header.getAllByRole('banner');
       expect(banners).toHaveLength(1);
-      const trigger = await header.findByRole('button', { name: 'Account menu for Ada Lovelace' });
-      expect(banners[0]!.querySelector('.bcds-header--container')).toContainElement(trigger);
+      expect(banners[0]).toContainElement(await header.findByRole('button', { name: 'Log Out' }));
+      expect(await header.findByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     });
   });
 });

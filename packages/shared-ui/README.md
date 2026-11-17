@@ -141,11 +141,14 @@ import '@repo/shared-ui/header/preload.css';
 import { SdgHeader } from '@repo/shared-ui/header/react';
 
 <SdgHeader siteTitle="My Service" userName={user?.name} loginHref="/login" onLogout={signOut}>
-  <Link slot="nav" to="/" activeProps={{ 'aria-current': 'page' }}>
+  <Link slot="nav" to="/">
     Home
   </Link>
 </SdgHeader>;
 ```
+
+TanStack Router's `Link` sets `aria-current="page"` on itself while its route is active, so the header shows it as
+selected with no extra props.
 
 | Prop                                 | Maps to                                                             |
 | ------------------------------------ | ------------------------------------------------------------------- |
