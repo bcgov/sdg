@@ -1,0 +1,10 @@
+apiVersion: v2
+name: shared-ui
+description: 'shared-ui: the edge-served header script on a Caddy static server, behind the edge at /shared-ui/ on the portal host.'
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+dependencies:
+  - name: common
+    version: 0.1.0
+    repository: file://../common

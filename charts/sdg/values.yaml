@@ -73,13 +73,19 @@ core-api:
     # Required: console-api's client id (console-api.keycloak.clientId above); empty, no console-client token is accepted
     consoleClientId: ''
 
+# The header script for every site (packages/shared-ui), at /shared-ui/ on the portal host.
+shared-ui:
+  enabled: true
+
 edge:
   enabled: true
-  # The console host: /api to console-api, everything else to console-web. The gateway host: /api to gateway-api.
+  # The console host: /api to console-api, everything else to console-web. The gateway host: /api to gateway-api. The
+  # portal host's /shared-ui/ to shared-ui.
   upstreams:
     consoleApi: 'http://{{ .Release.Name }}-console-api:3000'
     consoleWeb: 'http://{{ .Release.Name }}-console-web:8080'
     gatewayApi: 'http://{{ .Release.Name }}-gateway-api:3000'
+    sharedUi: 'http://{{ .Release.Name }}-shared-ui:8080'
 
 postgres:
   enabled: true

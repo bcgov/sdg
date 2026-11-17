@@ -30,7 +30,7 @@ done
 cd "$(dirname "$0")/.."
 TMP="$(mktemp -d)"
 cleanup() {
-  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-console" "$PREFIX-gateway" "$PREFIX-web" "$PREFIX-console-web" "$PREFIX-shared-ui" "$PREFIX-edge" >/dev/null 2>&1 || true
+  "$ENGINE" rm -f "$PREFIX-core" "$PREFIX-api" "$PREFIX-console" "$PREFIX-gateway" "$PREFIX-web" "$PREFIX-console-web" "$PREFIX-shared-ui" "$PREFIX-edge" "$PREFIX-edge-bare" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -235,6 +235,28 @@ check "core-api logged the forwarded gateway call" bash -c \
 check "logs are JSON lines (NODE_ENV=production, no pino-pretty)" bash -c \
   "$ENGINE logs $PREFIX-gateway 2>&1 | head -n 1 | node -e 'JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"))'"
 
+CURL=(curl -sS --max-time 15)
+status() { "${CURL[@]}" -o /dev/null -w '%{http_code}' "$@"; }
+header() { grep -i "^$1:" "$2" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
+
+echo "shared-ui"
+# Under OCP's dropped capabilities, so Caddy starting at all shows its binary carries no file capability.
+"$ENGINE" run -d --name "$PREFIX-shared-ui" "${OCP[@]}" -p 127.0.0.1::8080 "$(image shared-ui)" >/dev/null
+SHARED_UI="http://$("$ENGINE" port "$PREFIX-shared-ui" 8080 | head -n 1)"
+deadline=$((SECONDS + 30))
+until curl -sf -o /dev/null "$SHARED_UI/healthz" || ((SECONDS > deadline)); do sleep 1; done
+check "/healthz is 200 under an arbitrary UID with no capabilities" test "$(status "$SHARED_UI/healthz")" = 200
+HEADER_JS="$SHARED_UI/header/v1/sdg-header.js"
+check "/header/v1/sdg-header.js is 200" \
+  test "$("${CURL[@]}" -D "$TMP/shared-ui.headers" -o /dev/null -w '%{http_code}' "$HEADER_JS")" = 200
+check "the header script revalidates (Cache-Control: no-cache)" \
+  test "$(header Cache-Control "$TMP/shared-ui.headers")" = no-cache
+check "the header script is served as JavaScript" grep -qi '^content-type: text/javascript' "$TMP/shared-ui.headers"
+ETAG="$(header ETag "$TMP/shared-ui.headers")"
+check "the header script has an ETag" test -n "$ETAG"
+check "a request with its ETag in If-None-Match is 304" test "$(status -H "If-None-Match: $ETAG" "$HEADER_JS")" = 304
+check "an unknown path is 404 (no fallback)" test "$(status "$SHARED_UI/header/v1/missing.js")" = 404
+
 echo "portal-web, console-web and edge"
 "$ENGINE" run -d --name "$PREFIX-web" "${OCP[@]}" "$(image portal-web)" >/dev/null
 "$ENGINE" run -d --name "$PREFIX-console-web" "${OCP[@]}" "$(image console-web)" >/dev/null
@@ -243,13 +265,11 @@ echo "portal-web, console-web and edge"
   -e CONSOLE_HOST=console.smoke.test -e "CONSOLE_API_URL=http://$PREFIX-console:3000" \
   -e "CONSOLE_WEB_URL=http://$PREFIX-console-web:8080" \
   -e GATEWAY_HOST=gateway.smoke.test -e "GATEWAY_API_URL=http://$PREFIX-gateway:3000" \
+  -e "SHARED_UI_URL=http://$PREFIX-shared-ui:8080" \
   "$(image edge)" >/dev/null
 EDGE="http://$("$ENGINE" port "$PREFIX-edge" 3000 | head -n 1)"
 deadline=$((SECONDS + 30))
 until curl -sf -o /dev/null "$EDGE/" || ((SECONDS > deadline)); do sleep 1; done
-CURL=(curl -sS --max-time 15)
-status() { "${CURL[@]}" -o /dev/null -w '%{http_code}' "$@"; }
-header() { grep -i "^$1:" "$2" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
 
 "${CURL[@]}" -D "$TMP/index.headers" -o "$TMP/index.html" "$EDGE/"
 check "GET / serves the SPA shell through the edge" grep -q '<div id="root">' "$TMP/index.html"
@@ -298,23 +318,38 @@ check "/.env is blocked by the WAF" test "$(status "$EDGE/.env")" = 403
 check "the console host's page URL with an SQL-looking search loads" \
   test "$(status -H 'Host: console.smoke.test' "$EDGE/feature-flags?q=%27%20or%201%3D1--%20")" = 200
 
-echo "shared-ui"
-# Under OCP's dropped capabilities, so Caddy starting at all shows its binary carries no file capability.
-"$ENGINE" run -d --name "$PREFIX-shared-ui" "${OCP[@]}" -p 127.0.0.1::8080 "$(image shared-ui)" >/dev/null
-SHARED_UI="http://$("$ENGINE" port "$PREFIX-shared-ui" 8080 | head -n 1)"
+echo "Edge cross-origin headers (shared-ui only)"
+EDGE_JS="$EDGE/shared-ui/header/v1/sdg-header.js"
+check "/shared-ui/header/v1/sdg-header.js is 200 through the edge" \
+  test "$("${CURL[@]}" -D "$TMP/edge-shared-ui.headers" -o /dev/null -w '%{http_code}' "$EDGE_JS")" = 200
+check "the header script allows any origin (Access-Control-Allow-Origin: *)" \
+  test "$(header Access-Control-Allow-Origin "$TMP/edge-shared-ui.headers")" = '*'
+check "the header script is cross-origin readable (Cross-Origin-Resource-Policy: cross-origin)" \
+  test "$(header Cross-Origin-Resource-Policy "$TMP/edge-shared-ui.headers")" = cross-origin
+check "the header script never allows credentials" \
+  bash -c "! grep -qi '^access-control-allow-credentials:' '$TMP/edge-shared-ui.headers'"
+check "the header script keeps shared-ui's Cache-Control: no-cache" \
+  test "$(header Cache-Control "$TMP/edge-shared-ui.headers")" = no-cache
+check "OPTIONS on the header script is 405 (WAF rule 1009)" test "$(status -X OPTIONS "$EDGE_JS")" = 405
+"${CURL[@]}" -D "$TMP/gateway.headers" -o /dev/null -H 'Host: gateway.smoke.test' "$EDGE/api/v1/gateway/me"
+# same_origin_only <label> <headers file>: CORP same-origin and no Access-Control-Allow-Origin
+same_origin_only() {
+  check "$1 keeps Cross-Origin-Resource-Policy: same-origin" \
+    test "$(header Cross-Origin-Resource-Policy "$2")" = same-origin
+  check "$1 sends no Access-Control-Allow-Origin" bash -c "! grep -qi '^access-control-allow-origin:' '$2'"
+}
+same_origin_only "/api/auth/me" "$TMP/api.headers"
+same_origin_only "portal-web's /" "$TMP/index.headers"
+same_origin_only "the console host's /" "$TMP/console.headers"
+same_origin_only "the gateway host's /api" "$TMP/gateway.headers"
+"$ENGINE" run -d --name "$PREFIX-edge-bare" "${OCP[@]}" -p 127.0.0.1::3000 \
+  -e "PORTAL_API_URL=http://$PREFIX-api:3000" -e "PORTAL_WEB_URL=http://$PREFIX-web:8080" \
+  "$(image edge)" >/dev/null
+EDGE_BARE="http://$("$ENGINE" port "$PREFIX-edge-bare" 3000 | head -n 1)"
 deadline=$((SECONDS + 30))
-until curl -sf -o /dev/null "$SHARED_UI/healthz" || ((SECONDS > deadline)); do sleep 1; done
-check "/healthz is 200 under an arbitrary UID with no capabilities" test "$(status "$SHARED_UI/healthz")" = 200
-HEADER_JS="$SHARED_UI/header/v1/sdg-header.js"
-check "/header/v1/sdg-header.js is 200" \
-  test "$("${CURL[@]}" -D "$TMP/shared-ui.headers" -o /dev/null -w '%{http_code}' "$HEADER_JS")" = 200
-check "the header script revalidates (Cache-Control: no-cache)" \
-  test "$(header Cache-Control "$TMP/shared-ui.headers")" = no-cache
-check "the header script is served as JavaScript" grep -qi '^content-type: text/javascript' "$TMP/shared-ui.headers"
-ETAG="$(header ETag "$TMP/shared-ui.headers")"
-check "the header script has an ETag" test -n "$ETAG"
-check "a request with its ETag in If-None-Match is 304" test "$(status -H "If-None-Match: $ETAG" "$HEADER_JS")" = 304
-check "an unknown path is 404 (no fallback)" test "$(status "$SHARED_UI/header/v1/missing.js")" = 404
+until curl -sf -o /dev/null "$EDGE_BARE/" || ((SECONDS > deadline)); do sleep 1; done
+check "without SHARED_UI_URL, /shared-ui/ answers 503" \
+  test "$(status "$EDGE_BARE/shared-ui/header/v1/sdg-header.js")" = 503
 
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null || true
 echo

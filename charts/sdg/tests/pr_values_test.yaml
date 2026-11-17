@@ -143,3 +143,16 @@ tests:
           path: spec.strategy
           value:
             type: Recreate
+
+  - it: runs shared-ui at its PR-level default requests and recreates it on rollout
+    template: charts/shared-ui/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 64Mi }
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate

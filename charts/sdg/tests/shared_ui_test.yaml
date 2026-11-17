@@ -1,0 +1,60 @@
+suite: sdg umbrella (shared-ui)
+release:
+  name: sdg-12
+set:
+  global.image.registry: ghcr.io/acme/sdg
+  global.image.tag: pr-12
+  global.host: sdg-12.apps.example.com
+  global.consoleHost: sdg-12-console.apps.example.com
+  global.gatewayHost: sdg-12-gateway.apps.example.com
+  portal-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  portal-api.keycloak.clientId: portal
+  portal-api.vault.role: abc123-nonprod
+  portal-api.vault.secretPath: abc123-nonprod/portal-api
+  portal-api.vault.serviceAccountName: abc123-vault
+  core-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  core-api.keycloak.portalClientId: portal
+  core-api.keycloak.consoleClientId: sdg-console
+  console-api.keycloak.issuerUrl: https://keycloak.example.com/realms/portal
+  console-api.keycloak.clientId: sdg-console
+  console-api.vault.role: abc123-nonprod
+  console-api.vault.secretPath: abc123-nonprod/console-api
+  console-api.vault.serviceAccountName: abc123-vault
+tests:
+  - it: global image settings reach shared-ui
+    template: charts/shared-ui/templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/acme/sdg/shared-ui:pr-12
+
+  - it: the edge sends the portal host's /shared-ui/ to the release's shared-ui Service
+    template: charts/edge/templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED_UI_URL
+            value: http://sdg-12-shared-ui:8080
+
+  - it: shared-ui's Service carries the name the edge calls
+    template: charts/shared-ui/templates/service.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-shared-ui
+
+  - it: only the edge reaches shared-ui
+    template: charts/shared-ui/templates/networkpolicy.yaml
+    asserts:
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: edge
+                      app.kubernetes.io/instance: sdg-12
+              ports:
+                - port: 8080
+                  protocol: TCP

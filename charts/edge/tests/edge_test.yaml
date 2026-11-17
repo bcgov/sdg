@@ -50,7 +50,7 @@ tests:
             name: PORTAL_WEB_URL
             value: http://web.other:8080
 
-  - it: leaves the console and gateway hosts and upstreams unset by default (Caddy then never selects those hosts)
+  - it: leaves the console and gateway hosts and the optional upstreams unset by default (Caddy then never selects those hosts)
     template: templates/deployment.yaml
     asserts:
       - notContains:
@@ -78,6 +78,11 @@ tests:
           any: true
           content:
             name: GATEWAY_API_URL
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: SHARED_UI_URL
 
   # Hosts without their apps yet: the edge routes them and answers 503 (console) or 404 (gateway outside /api).
   - it: gives Caddy the console and gateway hosts, without upstreams until those apps are set
@@ -120,12 +125,13 @@ tests:
             name: GATEWAY_HOST
             value: api.gov.bc.ca
 
-  - it: renders the console and gateway upstreams with the release name
+  - it: renders the console, gateway and shared-ui upstreams with the release name
     template: templates/deployment.yaml
     set:
       upstreams.consoleApi: 'http://{{ .Release.Name }}-console-api:3000'
       upstreams.consoleWeb: 'http://{{ .Release.Name }}-console-web:8080'
       upstreams.gatewayApi: 'http://{{ .Release.Name }}-gateway-api:3000'
+      upstreams.sharedUi: 'http://{{ .Release.Name }}-shared-ui:8080'
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -142,6 +148,11 @@ tests:
           content:
             name: GATEWAY_API_URL
             value: http://sdg-gateway-api:3000
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED_UI_URL
+            value: http://sdg-shared-ui:8080
 
   - it: listens on http 3000 and metrics 3003 and probes the http socket
     template: templates/deployment.yaml
