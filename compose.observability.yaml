@@ -77,7 +77,7 @@ services:
       - tempo-data:/var/tempo
 
   grafana:
-    image: docker.io/grafana/grafana:13.3.0
+    image: docker.io/grafana/grafana:13.3.1
     environment:
       <<: *stack-urls
       GF_SERVER_ROOT_URL: https://grafana.sdg.localhost
