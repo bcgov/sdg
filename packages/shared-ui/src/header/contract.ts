@@ -23,7 +23,7 @@ export const HEADER_EVENTS = {
 export type HeaderAttributeName = (typeof HEADER_ATTRIBUTES)[keyof typeof HEADER_ATTRIBUTES];
 export type HeaderEventName = (typeof HEADER_EVENTS)[keyof typeof HEADER_EVENTS];
 
-/** The CDN bundle's path for a major, relative to the shared-ui root (the build's output folder uses it too). */
-export function headerCdnPath(major: number = HEADER_MAJOR): string {
-  return `header/v${major}/sdg-header.js`;
+/** The CDN bundle's path, relative to the shared-ui root (the build's output folder uses it too). */
+export function headerCdnPath(): string {
+  return `header/v${HEADER_MAJOR}/sdg-header.js`;
 }

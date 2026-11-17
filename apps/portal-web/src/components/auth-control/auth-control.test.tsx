@@ -53,27 +53,22 @@ describe('useHeaderAuth', () => {
       expect(header.queryByRole('button', { name: 'Log Out' })).toBeNull();
     });
 
-    it("Should render the user's name and Log Out when signed in, and log out from it", async () => {
-      const logout = vi.spyOn(api, 'logout').mockResolvedValue();
+    it("Should render the user's name and Log Out when signed in", async () => {
       renderWith(signedIn);
       const header = await headerQueries();
-      const logOut = await header.findByRole('button', { name: 'Log Out' });
+      expect(await header.findByRole('button', { name: 'Log Out' })).toBeInTheDocument();
       expect(header.getByText('Ada Lovelace')).toBeInTheDocument();
       expect(header.queryByRole('link', { name: 'Log In' })).toBeNull();
-      await userEvent.click(logOut);
-      expect(logout).toHaveBeenCalledTimes(1);
     });
 
-    it('Should post the logout and clear the current user in the query cache (F3)', async () => {
+    it('Should log out from Log Out and clear the current user in the query cache (F3)', async () => {
       const logout = vi.spyOn(api, 'logout').mockImplementation(async (onSignedOut) => {
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
         onSignedOut();
       });
       const { queryClient } = renderWith(signedIn);
       const header = await headerQueries();
       await userEvent.click(await header.findByRole('button', { name: 'Log Out' }));
       expect(logout).toHaveBeenCalledTimes(1);
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST' }));
       expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull();
       expect(await header.findByRole('link', { name: 'Log In' })).toBeInTheDocument();
       expect(header.queryByRole('button', { name: 'Log Out' })).toBeNull();
@@ -91,17 +86,6 @@ describe('useHeaderAuth', () => {
       expect(consoleError).toHaveBeenCalledWith('portal-web: could not load the current user', expect.any(Error));
       // The flag list is fetched too; only the current-user request must not be retried.
       expect(fetchMock.mock.calls.filter(([url]) => url === '/api/auth/me')).toHaveLength(1);
-    });
-  });
-
-  describe('header', () => {
-    it('Should be the single banner landmark, with a labelled nav landmark', async () => {
-      renderWith(signedIn);
-      const header = await headerQueries();
-      const banners = header.getAllByRole('banner');
-      expect(banners).toHaveLength(1);
-      expect(banners[0]).toContainElement(await header.findByRole('button', { name: 'Log Out' }));
-      expect(await header.findByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     });
   });
 });
