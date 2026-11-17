@@ -17,6 +17,14 @@ on:
         description: Gateway host URL (reusable-deploy.yml's gateway_url output)
         default: ''
         type: string
+      playwright-client-username:
+        description: Username for portal-web login
+        required: true
+        type: string
+    secrets:
+      playwright-client-password:
+        description: Password for portal-web login
+        required: true
 
 permissions: {}
 
@@ -25,8 +33,19 @@ jobs:
   smoke:
     name: Smoke
     runs-on: ubuntu-26.04
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - name: Install dependencies
+        run: |
+          npm install -g "pnpm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+          pnpm install --frozen-lockfile
+          pnpm --filter tests-load exec playwright install --with-deps chromium
       - name: Wait for portal-web and portal-api
         env:
           BASE_URL: ${{ inputs.url }}
@@ -43,6 +62,26 @@ jobs:
           done
           echo "ERROR: ${BASE_URL} did not become healthy in time."
           exit 1
+      # 2. Run the authentication setup script
+      - name: Run Pre-load Test Script
+        env:
+          E2E_BASE_URL: ${{ inputs.url }}/
+          PLAYWRIGHT_CLIENT_USERNAME: ${{ inputs.playwright-client-username }}
+          PLAYWRIGHT_CLIENT_PASSWORD: ${{ secrets.playwright-client-password }}
+          CI: 'true'
+        run: pnpm --filter tests-load exec playwright test --project=load-setup
+      - name: Install k6
+        uses: grafana/k6-action@v0.4.0
+        with:
+          flags: --version
+      - name: Run Load Tests
+        env:
+          BASE_URL: ${{ inputs.url }}
+          LOAD_PROFILE: smoke
+        run: pnpm test:load
+      - name: Cleanup Load Auth File
+        if: always()
+        run: rm -f tests/load/utils/client-auth.json
 
       # The edge routes by Host. /telemetry.json is answered by the edge itself, so 200 there shows the console host's
       # Route reaches it; console-web serves / (its title tells it from portal-web) and console-api answers /api/auth/me
@@ -118,8 +157,28 @@ jobs:
         env:
           APP: ${{ matrix.app }}
           E2E_BASE_URL: ${{ matrix.url }}/
+          PLAYWRIGHT_HTML_REPORT: playwright-report/unauthenticated
           CI: 'true'
         run: pnpm --filter "$APP" exec playwright test --project=chromium --reporter=html
+
+      - name: Run Client Setup Script
+        if: matrix.url != '' && matrix.app == 'portal-web'
+        env:
+          E2E_BASE_URL: ${{ matrix.url }}/
+          PLAYWRIGHT_CLIENT_USERNAME: ${{ inputs.playwright-client-username }}
+          PLAYWRIGHT_CLIENT_PASSWORD: ${{ secrets.playwright-client-password }}
+          CI: 'true'
+        run: pnpm --filter portal-web exec playwright test --project=client-setup
+      - name: Run Client Tests
+        if: matrix.url != '' && matrix.app == 'portal-web'
+        env:
+          E2E_BASE_URL: ${{ matrix.url }}/
+          PLAYWRIGHT_HTML_REPORT: playwright-report/authenticated
+          CI: 'true'
+        run: pnpm --filter portal-web exec playwright test --project=client-tests --reporter=html
+      - name: Cleanup Client Auth File
+        if: always() && matrix.app == 'portal-web'
+        run: rm -f apps/portal-web/e2e/setup/client-auth.json
 
       - uses: actions/upload-artifact@v7
         if: (! cancelled()) && matrix.url != ''

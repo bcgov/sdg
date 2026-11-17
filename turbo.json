@@ -25,6 +25,11 @@
       "dependsOn": ["^build"],
       "outputs": ["playwright-report/**", "test-results/**"],
       "passThroughEnv": ["CI", "E2E_BASE_URL", "E2E_CONSOLE_*", "PLAYWRIGHT_*"]
+    },
+    "test:pre-load": {
+      "dependsOn": ["^build"],
+      "outputs": ["playwright-report/**", "test-results/**"],
+      "passThroughEnv": ["CI", "E2E_BASE_URL", "PLAYWRIGHT_*"]
     }
   }
 }

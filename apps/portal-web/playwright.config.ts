@@ -7,8 +7,8 @@ dotenv.config({ path: path.resolve(import.meta.dirname, '.env') });
 
 // CI points E2E_BASE_URL at a deployed PR environment; locally Playwright serves the built app.
 const deployedURL = process.env['E2E_BASE_URL'];
-const clientUsername = process.env['E2E_CLIENT_USERNAME'];
-const clientPassword = process.env['E2E_CLIENT_PASSWORD'];
+const clientUsername = process.env['PLAYWRIGHT_CLIENT_USERNAME'];
+const clientPassword = process.env['PLAYWRIGHT_CLIENT_PASSWORD'];
 
 const config = deployedURL
   ? definePlaywrightConfig({
