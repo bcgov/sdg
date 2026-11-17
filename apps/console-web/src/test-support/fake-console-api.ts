@@ -5,6 +5,8 @@ import type { ServiceClient, ServiceClientAction, ServiceClientEvent } from '../
 export const ADMIN = { id: '0b6f8d0e-5c43-4a8e-9a43-2f1a3d9e7c11', name: 'Ada Lovelace', email: 'ada@gov.bc.ca' };
 
 const BASE = '/api/v1/console/service-clients';
+const FLAGS = '/api/v1/shared/flags';
+const HELLO_WORLD = '/api/v1/shared/hello-world';
 const T0 = Date.parse('2026-11-01T17:00:00.000Z');
 
 export function serviceClient(clientId: string, overrides: Partial<ServiceClient> = {}): ServiceClient {
@@ -31,13 +33,15 @@ function requestUrl(input: RequestInfo | URL): string {
 
 /**
  * An in-memory console-api behind a stubbed `fetch`: the session, the registry and its history behave like
- * core-api's (409 on a duplicate, 404 on a missing client, history newest first with `nextBefore`). `refuseNext`
- * makes the next matching call answer something else, e.g. a 503, without touching the registry.
+ * core-api's (409 on a duplicate, 404 on a missing client, history newest first with `nextBefore`). `flags` are the
+ * evaluated flags `shared/flags` lists, and `shared/hello-world` answers 404 unless `hello_world` is among them.
+ * `refuseNext` makes the next matching call answer something else, e.g. a 503, without touching the registry.
  */
 export class FakeConsoleApi {
   signedIn: boolean;
   clients: ServiceClient[];
   events: ServiceClientEvent[];
+  flags: Record<string, true>;
   readonly calls: RecordedCall[] = [];
   readonly fetch = vi.fn<typeof fetch>((input, init) => this.handle(input, init));
   private readonly refusals: Refusal[] = [];
@@ -47,10 +51,12 @@ export class FakeConsoleApi {
     signedIn = true,
     clients = [],
     events = [],
-  }: Partial<Pick<FakeConsoleApi, 'signedIn' | 'clients' | 'events'>> = {}) {
+    flags = {},
+  }: Partial<Pick<FakeConsoleApi, 'signedIn' | 'clients' | 'events' | 'flags'>> = {}) {
     this.signedIn = signedIn;
     this.clients = [...clients];
     this.events = [...events];
+    this.flags = { ...flags };
     vi.stubGlobal('fetch', this.fetch);
   }
 
@@ -85,6 +91,8 @@ export class FakeConsoleApi {
     const auth = this.authRoute(method, url.pathname);
     if (auth) return auth;
     if (!this.signedIn) return nestError(401, 'Unauthorized');
+    const shared = this.sharedRoute(method, url.pathname);
+    if (shared) return shared;
     if (url.pathname === BASE && method === 'GET') return Response.json(this.clients);
     if (url.pathname === `${BASE}/history` && method === 'GET') return this.history(url.searchParams);
     if (url.pathname === BASE && method === 'POST') return this.add(body);
@@ -101,6 +109,14 @@ export class FakeConsoleApi {
       return Response.json({ redirectUrl: '/' });
     }
     return undefined;
+  }
+
+  /** core-api's `shared` routes, which console-api forwards for a signed-in administrator. */
+  private sharedRoute(method: string, pathname: string): Response | undefined {
+    if (method !== 'GET') return undefined;
+    if (pathname === FLAGS) return Response.json(this.flags);
+    if (pathname !== HELLO_WORLD) return undefined;
+    return this.flags['hello_world'] ? Response.json({ message: 'Hello, world!' }) : nestError(404, 'Not Found');
   }
 
   /** `/service-clients/:clientId` (DELETE) and `/service-clients/:clientId/disable|enable` (POST). */

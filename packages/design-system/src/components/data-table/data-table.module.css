@@ -1,0 +1,369 @@
+/* The DataTable in the bcgov look: react-aria controls (KTD7) styled with the design tokens. Every class replaces
+   react-aria's default class name. */
+.root {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  min-width: 0;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+/* The toolbar wraps onto more lines on narrow screens (KTD13). */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-medium);
+  align-items: flex-end;
+}
+
+/* The footer: the range, then rows per page and the pager at the right end. A narrow table keeps rows per page beside
+   the range and gives the pager its own line. */
+.footer {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--layout-margin-medium);
+  align-items: center;
+}
+
+/* Fixed columns, so a cursor table (no range) still puts them on the right. Rows per page sits on one line. */
+.footer .select {
+  grid-column: 2;
+  flex-direction: row;
+  gap: var(--layout-margin-small);
+  align-items: center;
+  min-width: 0;
+}
+
+.footer .pager {
+  grid-column: 3;
+}
+
+@container (width < 48rem) {
+  .footer {
+    grid-template-columns: 1fr auto;
+  }
+
+  .footer .pager {
+    grid-column: 1 / -1;
+  }
+}
+
+/* "Filters", then each filter's select, on the left of the toolbar. */
+.filters {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+  align-items: flex-end;
+}
+
+.filtersLabel {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  font: var(--typography-bold-small-body);
+}
+
+/* Search sits at the right end of the toolbar, still on the right when it wraps onto its own line. */
+.search {
+  min-width: 16rem;
+  margin-inline-start: auto;
+}
+
+.field,
+.select {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-hair);
+  min-width: 10rem;
+}
+
+.label {
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-small-body);
+}
+
+.input,
+.selectButton {
+  box-sizing: border-box;
+  min-height: 2rem;
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-medium);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-forms-default);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-small-body);
+}
+
+.input {
+  width: 100%;
+}
+
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* The search's own clear button (×) sits inside the field's end, shown only while it holds text. */
+.searchInput {
+  position: relative;
+}
+
+.searchInput .input {
+  padding-inline-end: 2rem;
+}
+
+.clearSearch {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--layout-padding-small);
+  border: 0;
+  border-radius: var(--layout-border-radius-medium);
+  background: transparent;
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-body);
+  cursor: pointer;
+}
+
+.clearSearch[data-hovered] {
+  color: var(--typography-color-primary);
+}
+
+.clearSearch[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+.search[data-empty] .clearSearch {
+  display: none;
+}
+
+.selectButton {
+  display: flex;
+  gap: var(--layout-margin-small);
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.input[data-focused],
+.selectButton[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: var(--layout-margin-hair);
+}
+
+.selectValue[data-placeholder] {
+  color: var(--typography-color-placeholder);
+}
+
+.chevron {
+  color: var(--typography-color-secondary);
+}
+
+.popover {
+  min-width: var(--trigger-width);
+  overflow-y: auto;
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-forms-default);
+  box-shadow: var(--surface-shadow-medium);
+}
+
+.listBox {
+  padding: var(--layout-padding-xsmall);
+  outline: none;
+}
+
+.option {
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
+  border-radius: var(--layout-border-radius-small);
+  font: var(--typography-regular-small-body);
+  cursor: pointer;
+  outline: none;
+}
+
+.option[data-focused],
+.option[data-hovered] {
+  background-color: var(--surface-color-menus-hover);
+}
+
+.option[data-selected] {
+  font-weight: var(--typography-font-weights-bold);
+}
+
+.option[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+/* A secondary button: Clear filters, Try again and the pager. */
+.button {
+  min-height: 2rem;
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-dark);
+  border-radius: var(--layout-border-radius-medium);
+  background: var(--surface-color-secondary-button-default);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-small-body);
+  cursor: pointer;
+}
+
+.button[data-hovered] {
+  background: var(--surface-color-secondary-button-hover);
+}
+
+.button[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: var(--layout-margin-hair);
+}
+
+.button[data-disabled] {
+  border-color: var(--surface-color-border-default);
+  background: var(--surface-color-secondary-button-disabled);
+  color: var(--typography-color-disabled);
+  cursor: not-allowed;
+}
+
+.caption {
+  margin: 0;
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-small-body);
+}
+
+/* The table scrolls sideways inside its bordered frame on narrow screens (KTD13). */
+.frame {
+  overflow-x: auto;
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+}
+
+.frame[aria-busy='true'] .body {
+  opacity: 0.6;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  outline: none;
+}
+
+.table[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+}
+
+.column,
+.cell {
+  padding: var(--layout-padding-small);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  text-align: start;
+  vertical-align: middle;
+  outline: none;
+}
+
+/* Lines between the columns, and none under the last row, whose line the frame draws. */
+.column + .column,
+.cell + .cell {
+  border-inline-start: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.row:last-child .cell {
+  border-block-end: none;
+}
+
+.column {
+  background: var(--surface-color-background-light-gray);
+  font: var(--typography-bold-body);
+  white-space: nowrap;
+}
+
+.column[data-allows-sorting] {
+  cursor: pointer;
+}
+
+.column[data-hovered] {
+  background-color: var(--surface-color-menus-hover);
+}
+
+.column[data-focus-visible],
+.cell[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+.columnLabel {
+  display: inline-flex;
+  gap: var(--layout-margin-xsmall);
+  align-items: center;
+}
+
+/* An unsorted sortable column shows a faint arrow; the sorted one shows its direction. */
+.sortIcon {
+  color: var(--typography-color-disabled);
+  font-size: var(--typography-font-size-label);
+}
+
+.sortIcon[data-sorted] {
+  color: var(--typography-color-primary);
+}
+
+.row {
+  outline: none;
+}
+
+.row[data-href] {
+  cursor: pointer;
+}
+
+.row[data-hovered] {
+  background-color: var(--surface-color-menus-hover);
+}
+
+.row[data-focus-visible] {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: calc(-1 * var(--layout-border-width-medium));
+}
+
+.skeleton {
+  display: block;
+  height: 1em;
+  border-radius: var(--layout-border-radius-small);
+  background: var(--surface-color-background-light-gray);
+}
+
+/* The body's empty, no-matches and error text, indented like the cells. */
+.message {
+  margin: 0;
+  padding: var(--layout-padding-medium) var(--layout-padding-small);
+  color: var(--typography-color-secondary);
+}
+
+.range {
+  margin: 0;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-xsmall);
+  align-items: center;
+}
+
+.pageLabel {
+  padding: 0 var(--layout-padding-small);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

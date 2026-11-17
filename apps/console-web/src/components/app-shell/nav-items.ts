@@ -1,9 +1,9 @@
-import { faCircleQuestion, faGauge, faGear, faKey, type IconDefinition } from '@repo/design-system/icons';
+import { faCircleQuestion, faFlag, faGauge, faGear, faKey, type IconDefinition } from '@repo/design-system/icons';
 
 /** A sidebar destination: one of the console's signed-in pages. */
 export interface NavItem {
   readonly label: string;
-  readonly to: '/' | '/service-clients' | '/settings' | '/help';
+  readonly to: '/' | '/service-clients' | '/feature-flags' | '/settings' | '/help';
   readonly icon: IconDefinition;
 }
 
@@ -11,6 +11,7 @@ export interface NavItem {
 export const MAIN_NAV: readonly NavItem[] = [
   { label: 'Dashboard', to: '/', icon: faGauge },
   { label: 'Service Accounts', to: '/service-clients', icon: faKey },
+  { label: 'Feature Flags', to: '/feature-flags', icon: faFlag },
 ];
 
 /** The sidebar's Secondary navigation, at its bottom (R10). */

@@ -76,7 +76,7 @@ async function readBody(response: Response): Promise<unknown> {
 }
 
 export interface ApiRequest {
-  readonly method?: 'GET' | 'POST' | 'DELETE';
+  readonly method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   readonly body?: unknown;
 }
 

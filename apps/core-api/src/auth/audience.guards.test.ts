@@ -1,10 +1,24 @@
-import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
-import { claimsToAuthUser } from '@repo/auth';
-import { describe, expect, it } from 'vitest';
+import {
+  ForbiddenException,
+  Logger,
+  ServiceUnavailableException,
+  UnauthorizedException,
+  type ExecutionContext,
+} from '@nestjs/common';
+import { AuthError, claimsToAuthUser, type AuthUser, type JwtVerifier } from '@repo/auth';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConsoleGuard, InternalGuard, PortalGuard, SharedGuard, type AudienceGuard } from './audience.guards.js';
+import {
+  ConsoleGuard,
+  InternalGuard,
+  OptionalSharedGuard,
+  PortalGuard,
+  SharedGuard,
+  type AudienceGuard,
+} from './audience.guards.js';
 import type { Caller, CallerRequest } from './caller.js';
-import type { PrincipalResolver } from './principal.resolver.js';
+import { optionalCaller } from './optional-caller.decorator.js';
+import { PrincipalResolver } from './principal.resolver.js';
 
 const user = claimsToAuthUser({ iss: 'https://idp.test', sub: 'someone' });
 const callers = {
@@ -80,5 +94,88 @@ describe('Audience guards (R9)', () => {
     const request: CallerRequest = { headers: {} };
     await new PortalGuard(resolverFor(callers.portal)).canActivate(context(request));
     expect(request.caller).toBe(callers.portal);
+  });
+});
+
+const CLIENTS = { portal: 'sdg-portal', console: 'sdg-console' };
+const ISS = 'https://idp.test';
+
+/** A real resolver over a verifier that returns `claims`, or rejects with `error`. */
+function guardVerifying(outcome: { claims: Record<string, unknown> } | { error: unknown }): {
+  guard: OptionalSharedGuard;
+  verify: ReturnType<typeof vi.fn>;
+} {
+  const verify = vi.fn<(token: string) => Promise<AuthUser>>();
+  if ('claims' in outcome) verify.mockResolvedValue(claimsToAuthUser(outcome.claims));
+  else verify.mockRejectedValue(outcome.error);
+  const verifier: JwtVerifier = { verify };
+  return { guard: new OptionalSharedGuard(new PrincipalResolver(verifier, CLIENTS)), verify };
+}
+
+const withAuthorization = (authorization: string): CallerRequest => ({ headers: { authorization } });
+
+describe('OptionalSharedGuard (KTD3, R5, R12)', () => {
+  beforeEach(() => {
+    vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('Should admit a request without an Authorization header as anonymous, without verifying', async () => {
+    const { guard, verify } = guardVerifying({ claims: { iss: ISS, sub: 'resident-1', azp: 'sdg-portal' } });
+    const request: CallerRequest = { headers: {} };
+    await expect(guard.canActivate(context(request))).resolves.toBe(true);
+    expect(verify).not.toHaveBeenCalled();
+    expect(optionalCaller(context(request))).toBeUndefined();
+  });
+
+  it('Should admit a valid portal token with a portal-user caller', async () => {
+    const { guard } = guardVerifying({ claims: { iss: ISS, sub: 'resident-1', azp: 'sdg-portal' } });
+    const request = withAuthorization('Bearer a.b.c');
+    await expect(guard.canActivate(context(request))).resolves.toBe(true);
+    expect(optionalCaller(context(request))).toMatchObject({
+      kind: 'portal-user',
+      token: 'a.b.c',
+      user: { subject: 'resident-1' },
+    });
+  });
+
+  it('Should admit a valid console token with a console-user caller, admin role or not', async () => {
+    const { guard } = guardVerifying({ claims: { iss: ISS, sub: 'idir-1', azp: 'sdg-console', client_roles: [] } });
+    const request = withAuthorization('Bearer a.b.c');
+    await expect(guard.canActivate(context(request))).resolves.toBe(true);
+    expect(optionalCaller(context(request))).toMatchObject({ kind: 'console-user', isAdmin: false });
+  });
+
+  it('Should answer 403 to a service-account token', async () => {
+    const { guard } = guardVerifying({
+      claims: { iss: ISS, sub: 'svc-1', azp: 'partner-client', client_id: 'partner-client' },
+    });
+    await expect(guard.canActivate(context(withAuthorization('Bearer a.b.c')))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('Should answer 401 to a non-Bearer Authorization header', async () => {
+    const { guard, verify } = guardVerifying({ claims: { iss: ISS, sub: 'resident-1', azp: 'sdg-portal' } });
+    await expect(guard.canActivate(context(withAuthorization('Basic dXNlcjpwYXNz')))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(verify).not.toHaveBeenCalled();
+  });
+
+  it('Should answer 401 to an invalid token', async () => {
+    const { guard } = guardVerifying({ error: new AuthError('invalid_token') });
+    await expect(guard.canActivate(context(withAuthorization('Bearer a.b.c')))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('Should answer 503 when the signing keys cannot be fetched', async () => {
+    const { guard } = guardVerifying({ error: new AuthError('verifier_unavailable') });
+    await expect(guard.canActivate(context(withAuthorization('Bearer a.b.c')))).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
   });
 });

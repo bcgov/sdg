@@ -4,6 +4,7 @@ import { HealthModule, LoggingModule } from '@repo/server-core/nestjs';
 import { AuthModule } from './auth/auth.module.js';
 import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
+import { FeatureFlagsModule } from './feature-flags/feature-flags.module.js';
 import { readiness } from './health/readiness.js';
 import { PrincipalsModule } from './principals/principals.module.js';
 import { RegistryModule } from './registry/registry.module.js';
@@ -19,6 +20,7 @@ export const UNPREFIXED_ROUTES: readonly string[] = ['internal/{*path}'];
     AuthModule,
     PrincipalsModule,
     RegistryModule,
+    FeatureFlagsModule,
     HealthModule.forRootAsync(readiness),
   ],
 })

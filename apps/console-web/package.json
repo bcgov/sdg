@@ -17,6 +17,7 @@
     "@grafana/faro-web-sdk": "catalog:",
     "@grafana/faro-web-tracing": "catalog:",
     "@repo/design-system": "workspace:*",
+    "@repo/feature-flags": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "react": "catalog:",

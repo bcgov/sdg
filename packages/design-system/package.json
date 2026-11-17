@@ -33,7 +33,9 @@
     "@fortawesome/fontawesome-svg-core": "catalog:",
     "@fortawesome/free-regular-svg-icons": "catalog:",
     "@fortawesome/free-solid-svg-icons": "catalog:",
-    "@fortawesome/react-fontawesome": "catalog:"
+    "@fortawesome/react-fontawesome": "catalog:",
+    "@tanstack/react-table": "catalog:",
+    "react-aria-components": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

@@ -293,6 +293,9 @@ check "the gateway host's / is 404 (gateway-api serves /api only)" \
 check "the gateway host's /api/v1/gateway/me without a token is 401 from gateway-api" \
   test "$(status -H 'Host: gateway.smoke.test' "$EDGE/api/v1/gateway/me")" = 401
 check "/.env is blocked by the WAF" test "$(status "$EDGE/.env")" = 403
+# A table's search lives in the page URL; the injection rules (1001, 1005) only log it, so a reload still loads.
+check "the console host's page URL with an SQL-looking search loads" \
+  test "$(status -H 'Host: console.smoke.test' "$EDGE/feature-flags?q=%27%20or%201%3D1--%20")" = 200
 
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null || true
 echo

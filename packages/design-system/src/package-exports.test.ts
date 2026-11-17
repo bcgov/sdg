@@ -50,7 +50,7 @@ describe('package.json', () => {
     expect(manifest.sideEffects).toEqual(['**/*.css']);
   });
 
-  it('peers react, depends on the design system and Font Awesome Free via the catalog', () => {
+  it('peers react, depends on the design system, Font Awesome Free, react-aria and TanStack Table via the catalog', () => {
     expect(manifest.peerDependencies).toEqual({
       react: 'catalog:',
       'react-dom': 'catalog:',
@@ -62,6 +62,8 @@ describe('package.json', () => {
       '@fortawesome/free-regular-svg-icons': 'catalog:',
       '@fortawesome/free-solid-svg-icons': 'catalog:',
       '@fortawesome/react-fontawesome': 'catalog:',
+      '@tanstack/react-table': 'catalog:',
+      'react-aria-components': 'catalog:',
     });
     expect(Object.keys(manifest.dependencies).some((name) => name.includes('pro-'))).toBe(false);
   });
@@ -104,6 +106,11 @@ describe('build output', () => {
     const iconsJs = readFileSync(join(outDir, 'icons/index.js'), 'utf8');
     expect(iconsJs).toContain('@fortawesome/free-solid-svg-icons');
     expect(statSync(join(outDir, 'icons/index.js')).size).toBeLessThan(2_000);
+    // The DataTable shares the app's react-aria copy (KTD7) instead of bundling its own.
+    const dataTable = readFileSync(join(outDir, 'components/data-table/index.js'), 'utf8');
+    expect(dataTable).toMatch(/from ['"]react-aria-components['"]/);
+    expect(dataTable).toMatch(/from ['"]@tanstack\/react-table['"]/);
+    expect(dataTable).not.toContain('useSelectableCollection');
   });
 
   it('extracts custom component CSS into styles.css and keeps it out of the JS', () => {
@@ -118,6 +125,7 @@ describe('build output', () => {
   it('declares the custom component props', () => {
     expect(readFileSync(join(outDir, 'components/avatar/index.d.ts'), 'utf8')).toMatch(/AvatarProps/);
     expect(readFileSync(join(outDir, 'components/nav-link/index.d.ts'), 'utf8')).toMatch(/NavLinkProps/);
+    expect(readFileSync(join(outDir, 'components/data-table/index.d.ts'), 'utf8')).toMatch(/DataTableProps/);
   });
 
   it('emits Props type aliases in the component declarations', () => {

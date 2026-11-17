@@ -44,7 +44,12 @@ describe('database package', () => {
         import: './dist/testing/index.js',
       });
       expect(Object.keys(schemaEntry).toSorted()).toEqual([
+        'FEATURE_FLAG_AUDIENCES',
+        'FEATURE_FLAG_EVENT_ACTIONS',
         'SERVICE_CLIENT_ACTIONS',
+        'featureFlagEvents',
+        'featureFlagOverrides',
+        'featureFlags',
         'identities',
         'principals',
         'serviceClientEvents',
@@ -129,6 +134,9 @@ describe('database package', () => {
       const db = createDatabase(DATABASE_URL, options);
       try {
         expect(Object.keys(db.query).toSorted()).toEqual([
+          'featureFlagEvents',
+          'featureFlagOverrides',
+          'featureFlags',
           'identities',
           'principals',
           'serviceClientEvents',

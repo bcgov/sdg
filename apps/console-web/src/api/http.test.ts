@@ -47,6 +47,30 @@ describe('apiRequest', () => {
       expect(init?.body).toBe('{"clientId":"a","displayName":"A"}');
     });
 
+    it.each(['PATCH', 'PUT'] as const)('Should send a %s with its JSON body (KTD8)', async (method) => {
+      fetchMock.mockResolvedValue(Response.json({ key: 'hello_world', enabled: true }));
+      await expect(
+        apiRequest('/api/v1/console/feature-flags/hello_world', { method, body: { enabled: true } }),
+      ).resolves.toEqual({ key: 'hello_world', enabled: true });
+      const [, init] = fetchMock.mock.calls[0]!;
+      expect(init).toMatchObject({
+        method,
+        credentials: 'same-origin',
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body: '{"enabled":true}',
+      });
+    });
+
+    it.each([
+      ['PATCH', 404, 'not-found'],
+      ['PUT', 400, 'invalid'],
+    ] as const)('Should read a refused %s (%i) as %s (KTD8)', async (method, status, kind) => {
+      fetchMock.mockResolvedValue(Response.json({ statusCode: status, message: 'why' }, { status }));
+      const error: unknown = await apiRequest('/x', { method, body: {} }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error).toMatchObject({ kind, status, reasons: ['why'] });
+    });
+
     it('resolves undefined for a 204 and reads every body', async () => {
       const response = new Response(null, { status: 204 });
       fetchMock.mockResolvedValue(response);

@@ -31,6 +31,7 @@ x-workspace: &workspace
     - nm-auth:/app/packages/auth/node_modules
     - nm-bff-core:/app/packages/bff-core/node_modules
     - nm-design-system:/app/packages/design-system/node_modules
+    - nm-feature-flags:/app/packages/feature-flags/node_modules
     - nm-database:/app/packages/database/node_modules
     - nm-sdg-header:/app/packages/sdg-header/node_modules
     - nm-server-core:/app/packages/server-core/node_modules
@@ -390,6 +391,7 @@ volumes:
   nm-auth:
   nm-bff-core:
   nm-design-system:
+  nm-feature-flags:
   nm-database:
   nm-sdg-header:
   nm-server-core:

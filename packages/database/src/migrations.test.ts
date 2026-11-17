@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 import { PGlite } from '@electric-sql/pglite';
 import { generateDrizzleJson, generateMigration, type DrizzleSnapshotJSON } from 'drizzle-kit/api';
-import { eq, sql } from 'drizzle-orm';
+import { eq, is, sql } from 'drizzle-orm';
 import { CasingCache } from 'drizzle-orm/casing';
-import { getTableConfig } from 'drizzle-orm/pg-core';
+import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 import { drizzle, type PgliteDatabase } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -49,7 +49,8 @@ function readLatestSnapshot(): DrizzleSnapshotJSON {
 /** `table.column:notNull` and index names as the schema declares them (snake_case, like the client). */
 function describeSchema(): { columns: string[]; indexes: string[] } {
   const casing = new CasingCache('snake_case');
-  const configs = [principals, identities, serviceClients, serviceClientEvents].map((table) => getTableConfig(table));
+  const tables = Object.values(schema).flatMap((value) => (is(value, PgTable) ? [value] : []));
+  const configs = tables.map((table) => getTableConfig(table));
   return {
     columns: configs.flatMap((config) =>
       config.columns.map((column) => `${config.name}.${casing.getColumnCasing(column)}:${column.notNull}`),
@@ -87,6 +88,9 @@ describe('database migrations', () => {
       );
       expect(tables.rows).toEqual([
         { table_schema: 'core', table_name: '__drizzle_migrations' },
+        { table_schema: 'core', table_name: 'feature_flag_events' },
+        { table_schema: 'core', table_name: 'feature_flag_overrides' },
+        { table_schema: 'core', table_name: 'feature_flags' },
         { table_schema: 'core', table_name: 'identities' },
         { table_schema: 'core', table_name: 'principals' },
         { table_schema: 'core', table_name: 'service_client_events' },
@@ -96,7 +100,11 @@ describe('database migrations', () => {
 
     it('records the journal in core.__drizzle_migrations', async () => {
       expect(migrationsSchema).toBe('core');
-      expect(readJournal().entries.map((entry) => entry.tag)).toEqual(['0000_baseline', '0001_service_registry']);
+      expect(readJournal().entries.map((entry) => entry.tag)).toEqual([
+        '0000_baseline',
+        '0001_service_registry',
+        '0002_feature_flags',
+      ]);
       expect(await appliedCount()).toBe(readJournal().entries.length);
     });
 
