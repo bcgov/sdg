@@ -41,7 +41,7 @@ spec:
               value: {{ . | quote }}
             {{- end }}
             {{- end }}
-            {{- range $name, $value := dict "CONSOLE_API_URL" .Values.upstreams.consoleApi "CONSOLE_WEB_URL" .Values.upstreams.consoleWeb "GATEWAY_API_URL" .Values.upstreams.gatewayApi }}
+            {{- range $name, $value := dict "CONSOLE_API_URL" .Values.upstreams.consoleApi "CONSOLE_WEB_URL" .Values.upstreams.consoleWeb "GATEWAY_API_URL" .Values.upstreams.gatewayApi "SHARED_UI_URL" .Values.upstreams.sharedUi }}
             {{- with $value }}
             - name: {{ $name }}
               value: {{ include "common.tplvalue" (dict "value" . "context" $) | quote }}

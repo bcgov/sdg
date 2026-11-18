@@ -33,8 +33,8 @@ x-workspace: &workspace
     - nm-design-system:/app/packages/design-system/node_modules
     - nm-feature-flags:/app/packages/feature-flags/node_modules
     - nm-database:/app/packages/database/node_modules
-    - nm-sdg-header:/app/packages/sdg-header/node_modules
     - nm-server-core:/app/packages/server-core/node_modules
+    - nm-shared-ui:/app/packages/shared-ui/node_modules
     - nm-playwright-config:/app/tooling/playwright-config/node_modules
     - nm-typescript-config:/app/tooling/typescript-config/node_modules
     - nm-vite-config:/app/tooling/vite-config/node_modules
@@ -311,7 +311,7 @@ services:
     depends_on:
       deps:
         condition: service_healthy
-    # Healthy once Vite serves, i.e. after turbo has built design-system and sdg-header; console-web waits for that.
+    # Healthy once Vite serves, i.e. after turbo has built design-system; console-web waits for that.
     healthcheck:
       test:
         - CMD
@@ -345,6 +345,30 @@ services:
       portal-web:
         condition: service_healthy
 
+  # The header script (packages/shared-ui): its dev script rebuilds the CDN bundle on change and serves dist/cdn on
+  # port 5180, at https://sdg.localhost/shared-ui/ through Caddy. No host port. portal-web's dev task also builds
+  # @repo/shared-ui (it imports the React wrapper), which briefly empties dist/cdn at startup: the script can 404 until
+  # this watcher's next build lands.
+  shared-ui:
+    <<: *workspace
+    environment: *workspace-env
+    command:
+      [
+        'pnpm',
+        'turbo',
+        'run',
+        'dev',
+        '--filter=@repo/shared-ui',
+        '--ui=stream',
+        '--env-mode=loose',
+        '--',
+        '--host',
+        '0.0.0.0',
+      ]
+    depends_on:
+      deps:
+        condition: service_healthy
+
   caddy:
     build: apps/portal-web/caddy
     command: ['caddy', 'run', '--adapter', 'caddyfile', '--config', '/etc/caddy/Caddyfile.dev']
@@ -358,6 +382,8 @@ services:
       CONSOLE_WEB_URL: http://console-web:5174
       # The gateway host's /api (Caddyfile.dev's gateway.sdg.localhost); 502 until gateway-api listens.
       GATEWAY_API_URL: http://gateway-api:3000
+      # The portal host's /shared-ui/ (Caddyfile.dev); 502 until the shared-ui service has built and listens.
+      SHARED_UI_URL: http://shared-ui:5180
     ports:
       - '443:8443'
     volumes:
@@ -374,6 +400,8 @@ services:
       portal-web:
         condition: service_started
       console-web:
+        condition: service_started
+      shared-ui:
         condition: service_started
 
 volumes:
@@ -393,8 +421,8 @@ volumes:
   nm-design-system:
   nm-feature-flags:
   nm-database:
-  nm-sdg-header:
   nm-server-core:
+  nm-shared-ui:
   nm-playwright-config:
   nm-typescript-config:
   nm-vite-config:

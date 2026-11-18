@@ -1,6 +1,7 @@
 # edge: Caddy + Coraza WAF (apps/portal-web/caddy), the only component exposed outside the namespace.
 # Routes by Host: the console host to console-api (/api*) and console-web, the gateway host to gateway-api (/api* only, else
-# 404), and every other host to portal-api (/api*) and portal-web. TLS terminates at the ingress controller.
+# 404), and every other host to portal-api (/api*), shared-ui (/shared-ui/*) and portal-web. TLS terminates at the
+# ingress controller.
 global:
   image:
     # Registry path shared by the app images, e.g. ghcr.io/<owner>/sdg. Required here or in image.registry.
@@ -37,11 +38,12 @@ logLevel: INFO
 upstreams:
   portalApi: 'http://{{ .Release.Name }}-portal-api:3000'
   portalWeb: 'http://{{ .Release.Name }}-portal-web:8080'
-  # Empty: the app isn't deployed, and the edge answers 503 where it would proxy to it (the console host, and /api on
-  # the gateway host).
+  # Empty: the app isn't deployed, and the edge answers 503 where it would proxy to it (the console host, /api on the
+  # gateway host, and /shared-ui/ on the portal host).
   consoleApi: ''
   consoleWeb: ''
   gatewayApi: ''
+  sharedUi: ''
 
 ingress:
   enabled: true

@@ -1,5 +1,7 @@
 import '@repo/design-system/fonts.css';
 import '@repo/design-system/styles.css';
+// Reserves the header's height until the edge-served <sdg-header> script defines the element (R20).
+import '@repo/shared-ui/header/preload.css';
 import './styles.css';
 import { QueryClient } from '@tanstack/react-query';
 import { StrictMode } from 'react';

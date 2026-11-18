@@ -24,7 +24,7 @@ jobs:
           - package: portal-web
             build_context: .
             build_file: apps/portal-web/Dockerfile
-            triggers: ('apps/portal-web/' 'packages/design-system/' 'packages/feature-flags/' 'packages/sdg-header/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+            triggers: ('apps/portal-web/' 'packages/design-system/' 'packages/feature-flags/' 'packages/shared-ui/src/header/react/' 'packages/shared-ui/src/header/contract.ts' 'packages/shared-ui/src/header/types.ts' 'packages/shared-ui/src/header/preload.css' 'packages/shared-ui/package.json' 'packages/shared-ui/tsconfig' 'packages/shared-ui/vite.config.ts' 'packages/shared-ui/src/vite-env.d.ts' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
           - package: portal-api
             build_context: .
             build_file: apps/portal-api/Dockerfile
@@ -45,6 +45,11 @@ jobs:
             build_context: .
             build_file: apps/core-api/Dockerfile
             triggers: ('apps/core-api/' 'packages/auth/' 'packages/database/' 'packages/server-core/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
+          # The header script alone: a header change rebuilds only this image (portal-web loads it from the edge)
+          - package: shared-ui
+            build_context: .
+            build_file: packages/shared-ui/Dockerfile
+            triggers: ('packages/shared-ui/' 'tooling/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' '.github/workflows/pr-open.yml')
           - package: database
             build_context: .
             build_file: packages/database/Dockerfile

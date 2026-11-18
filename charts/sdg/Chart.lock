@@ -17,11 +17,14 @@ dependencies:
 - name: core-api
   repository: file://../core-api
   version: 0.1.0
+- name: shared-ui
+  repository: file://../shared-ui
+  version: 0.1.0
 - name: edge
   repository: file://../edge
   version: 0.1.0
 - name: postgres
   repository: file://../postgres
   version: 0.1.0
-digest: sha256:53fc1b9d5cd7bcc50a4afbbcfe3fc46be6479801c942400b0d1120c36a94b2d8
-generated: "2026-11-12T09:05:29.611616-07:00"
+digest: sha256:173ec61fc8c2e1c531e47c37ded16437952f85236b736a4b5832cadba32ba989
+generated: "2026-11-17T14:46:47.603174-07:00"

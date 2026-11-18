@@ -1,5 +1,6 @@
 # Production edge: routes the portal, console and gateway hosts to their apps (/api to each host's API, everything else
-# to its web app; portal-web is its own static-file image).
+# to its web app; portal-web is its own static-file image). The portal host also serves the shared header script from
+# shared-ui at /shared-ui/.
 # TLS terminates at the OpenShift route.
 {
 	metrics
@@ -58,6 +59,20 @@ import common.caddy
 	handle {
 		import collect_{$TELEMETRY:off}
 		import api_proxy {$PORTAL_API_URL}
+		# The header script any site loads with a classic <script src> (packages/shared-ui), prefix stripped. Unset
+		# SHARED_UI_URL: 503, like the other upstreams.
+		handle_path /shared-ui/* {
+			reverse_proxy {$SHARED_UI_URL}
+		}
+		# Other origins may load and read only these static files: no credentials, and simple GETs never preflight (WAF
+		# rule 1009 keeps OPTIONS at 405). Deferred and path-matched, Caddy runs this block outside security_headers'
+		# deferred one, so these two values are applied last and win for this path alone; /api*, portal-web and the
+		# other hosts keep Cross-Origin-Resource-Policy: same-origin (images-smoke.sh checks both).
+		header /shared-ui/* {
+			Access-Control-Allow-Origin "*"
+			Cross-Origin-Resource-Policy "cross-origin"
+			defer
+		}
 		reverse_proxy {$PORTAL_WEB_URL}
 		import security_headers "" "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='"
 	}

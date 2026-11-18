@@ -44,6 +44,33 @@ jobs:
           echo "ERROR: ${BASE_URL} did not become healthy in time."
           exit 1
 
+      # The header script any site loads (shared-ui behind the edge): the only path other origins may read, revalidated
+      # on every load. Everything else, /api/auth/me included, stays same-origin with no CORS header.
+      - name: Header script
+        env:
+          BASE_URL: ${{ inputs.url }}
+        run: |
+          header() { grep -i "^$1:" "$2" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
+          url="${BASE_URL}/shared-ui/header/v1/sdg-header.js"
+          for i in {1..30}; do
+            code=$(curl --connect-timeout 5 --max-time 10 -s -D js.headers -o /dev/null -w "%{http_code}" "$url" || true)
+            [ "$code" = 200 ] && break
+            echo "Waiting (${url} HTTP ${code}; want 200), retrying in 10s... ($i/30)"
+            sleep 10
+          done
+          curl --connect-timeout 5 --max-time 10 -s -D api.headers -o /dev/null "${BASE_URL}/api/auth/me" || true
+          failed=0
+          expect() {
+            if [ "$2" = "$3" ]; then echo "OK: $1 ($2)"; else echo "::error::$1: got '$2', want '$3'"; failed=1; fi
+          }
+          expect "header script status" "$code" 200
+          expect "header script Cache-Control" "$(header Cache-Control js.headers)" no-cache
+          expect "header script Access-Control-Allow-Origin" "$(header Access-Control-Allow-Origin js.headers)" '*'
+          expect "header script Cross-Origin-Resource-Policy" "$(header Cross-Origin-Resource-Policy js.headers)" cross-origin
+          expect "/api/auth/me Cross-Origin-Resource-Policy" "$(header Cross-Origin-Resource-Policy api.headers)" same-origin
+          expect "/api/auth/me Access-Control-Allow-Origin" "$(header Access-Control-Allow-Origin api.headers)" ''
+          exit "$failed"
+
       # The edge routes by Host. /telemetry.json is answered by the edge itself, so 200 there shows the console host's
       # Route reaches it; console-web serves / (its title tells it from portal-web) and console-api answers /api/auth/me
       # signed out with 401, like the portal above; the gateway host serves only /api, so / is 404 (portal-web would
