@@ -56,7 +56,7 @@ export function SdgHeader({
   src = DEFAULT_HEADER_SRC,
   className,
   children,
-}: SdgHeaderProps): ReactNode {
+}: Readonly<SdgHeaderProps>): ReactNode {
   const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {

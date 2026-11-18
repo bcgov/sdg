@@ -73,7 +73,7 @@ interface MenuNavProps {
 
 // The WAI-ARIA disclosure navigation pattern: one panel holds the slot, an inline row when wide and a menu when
 // narrow, so slotted links never move between slots. The panel is hidden only while narrow and closed (R24).
-function MenuNav({ children }: MenuNavProps): JSX.Element {
+function MenuNav({ children }: Readonly<MenuNavProps>): JSX.Element {
   const wide = useWide();
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
@@ -87,12 +87,12 @@ function MenuNav({ children }: MenuNavProps): JSX.Element {
   useCloseOnLeave(menuOpen, navRef, buttonRef, close);
 
   return (
-    <nav ref={navRef} class={wide ? 'nav' : 'nav nav-narrow'} data-part="nav" aria-label="Main">
+    <nav ref={navRef} className={wide ? 'nav' : 'nav nav-narrow'} data-part="nav" aria-label="Main">
       {!wide && (
         <button
           ref={buttonRef}
           type="button"
-          class="button button-secondary button-icon menu-button"
+          className="button button-secondary button-icon menu-button"
           aria-label="Menu"
           aria-expanded={menuOpen ? 'true' : 'false'}
           aria-controls={PANEL_ID}
@@ -101,7 +101,7 @@ function MenuNav({ children }: MenuNavProps): JSX.Element {
           <Icon icon={faBars} />
         </button>
       )}
-      <div class="nav-panel" id={PANEL_ID} data-part="nav-panel" hidden={!wide && !menuOpen}>
+      <div className="nav-panel" id={PANEL_ID} data-part="nav-panel" hidden={!wide && !menuOpen}>
         {children}
       </div>
     </nav>
@@ -128,7 +128,7 @@ export function Nav(): JSX.Element {
   const slot = <slot ref={slotRef} name="nav" />;
   if (!hasLinks) {
     return (
-      <div class="nav" data-part="nav">
+      <div className="nav" data-part="nav">
         {slot}
       </div>
     );

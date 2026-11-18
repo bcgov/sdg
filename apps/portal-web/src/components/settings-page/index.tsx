@@ -10,7 +10,7 @@ interface SettingsSectionProps {
   description: string;
 }
 
-function SettingsSection({ title, description }: SettingsSectionProps) {
+function SettingsSection({ title, description }: Readonly<SettingsSectionProps>) {
   const headingId = useId();
   return (
     <section className={styles.section} aria-labelledby={headingId}>

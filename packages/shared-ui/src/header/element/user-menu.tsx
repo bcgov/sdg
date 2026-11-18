@@ -27,7 +27,7 @@ function menuItems(menu: HTMLElement | null): HTMLElement[] {
 /** Arrow, Home and End keys move focus between items, wrapping at the ends (WAI-ARIA menu pattern). */
 function moveFocus(menu: HTMLElement, from: EventTarget | null, key: string): boolean {
   const items = menuItems(menu);
-  const current = items.findIndex((item) => item === from);
+  const current = from instanceof HTMLElement ? items.indexOf(from) : -1;
   const last = items.length - 1;
   const next: Record<string, number> = {
     ArrowDown: current >= last ? 0 : current + 1,
@@ -56,7 +56,7 @@ function useMenuBehaviour(
     const button = buttonRef.current;
     if (!openFocus || !menu || !button || !hostOf(menu)) return undefined;
     const items = menuItems(menu);
-    (openFocus === 'first' ? items[0] : items[items.length - 1])?.focus();
+    (openFocus === 'first' ? items[0] : items.at(-1))?.focus();
 
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
@@ -84,7 +84,12 @@ function useMenuBehaviour(
 
 // The WAI-ARIA menu button pattern: a primary button with the user's name opens a menu of Settings (a link, so
 // modified clicks open it in a new tab) and Log Out (a button: signing out is the host's action, not a URL).
-export function UserMenu({ userName, settingsHref, onSettingsClick, onLogoutClick }: UserMenuProps): JSX.Element {
+export function UserMenu({
+  userName,
+  settingsHref,
+  onSettingsClick,
+  onLogoutClick,
+}: Readonly<UserMenuProps>): JSX.Element {
   const [openFocus, setOpenFocus] = useState<OpenFocus | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -109,12 +114,12 @@ export function UserMenu({ userName, settingsHref, onSettingsClick, onLogoutClic
   };
 
   return (
-    <div class="user-menu" data-part="user-menu">
+    <div className="user-menu" data-part="user-menu">
       <button
         ref={buttonRef}
         id={BUTTON_ID}
         type="button"
-        class="button button-primary button-icon button-collapsible user-menu-button"
+        className="button button-primary button-icon button-collapsible user-menu-button"
         aria-haspopup="menu"
         aria-expanded={open ? 'true' : 'false'}
         aria-controls={MENU_ID}
@@ -122,15 +127,15 @@ export function UserMenu({ userName, settingsHref, onSettingsClick, onLogoutClic
         onKeyDown={onButtonKeyDown}
       >
         <Icon icon={faCircleUser} />
-        <span class="user-name button-label">{userName}</span>
-        <Icon icon={faAngleDown} class="button-caret" />
+        <span className="user-name button-label">{userName}</span>
+        <Icon icon={faAngleDown} className="button-caret" />
       </button>
-      <div ref={menuRef} id={MENU_ID} class="menu" role="menu" aria-labelledby={BUTTON_ID} hidden={!open}>
-        <a class="menu-item" role="menuitem" tabIndex={-1} href={settingsHref} onClick={onSettings}>
+      <div ref={menuRef} id={MENU_ID} className="menu" role="menu" aria-labelledby={BUTTON_ID} hidden={!open}>
+        <a className="menu-item" role="menuitem" tabIndex={-1} href={settingsHref} onClick={onSettings}>
           <Icon icon={faGear} />
           Settings
         </a>
-        <button type="button" class="menu-item menu-item-danger" role="menuitem" tabIndex={-1} onClick={onLogout}>
+        <button type="button" className="menu-item menu-item-danger" role="menuitem" tabIndex={-1} onClick={onLogout}>
           <Icon icon={faRightFromBracket} />
           Log Out
         </button>

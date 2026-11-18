@@ -65,7 +65,9 @@ process.on('unhandledRejection', (reason) => {
   process.exit(1);
 });
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   console.error('shared-ui dev server failed to start', error);
   process.exit(1);
-});
+}

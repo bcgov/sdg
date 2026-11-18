@@ -58,9 +58,10 @@
  * links never move when the selection changes.
  */
 ::slotted([aria-current='page']) {
+  /* NOSONAR: a ::slotted rule can't win on specificity against the page's own CSS, so this needs !important. */
   text-shadow:
     0 0 0.6px currentColor,
-    0 0 0.6px currentColor !important;
+    0 0 0.6px currentColor !important; /* NOSONAR */
 }
 
 /*

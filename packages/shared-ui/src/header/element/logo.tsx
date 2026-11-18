@@ -102,14 +102,14 @@ function LogoSvg({
   part,
   viewBox,
   children,
-}: {
+}: Readonly<{
   part: string;
   viewBox: string;
   children: ComponentChildren;
-}): JSX.Element {
+}>): JSX.Element {
   return (
     <svg
-      class={`logo logo-${part}`}
+      className={`logo logo-${part}`}
       data-part={`logo-${part}`}
       xmlns="http://www.w3.org/2000/svg"
       viewBox={viewBox}

@@ -25,13 +25,13 @@ type AuthProps = Omit<HeaderProps, 'siteTitle' | 'fluid'>;
 
 // Signed in (a user name), signed out (a login-href only), or unknown (neither: the host is still checking the
 // session), which renders no control so nobody clicks Log In for a session that turns out to exist (R3, R4).
-function Auth({ userName, loginHref, onLoginClick, ...menu }: AuthProps): JSX.Element | null {
+function Auth({ userName, loginHref, onLoginClick, ...menu }: Readonly<AuthProps>): JSX.Element | null {
   if (userName) return <UserMenu userName={userName} {...menu} />;
   if (loginHref) {
     return (
-      <a class="button button-secondary button-icon button-collapsible" href={loginHref} onClick={onLoginClick}>
+      <a className="button button-secondary button-icon button-collapsible" href={loginHref} onClick={onLoginClick}>
         <Icon icon={faArrowRightToBracket} />
-        <span class="button-label">Log In</span>
+        <span className="button-label">Log In</span>
       </a>
     );
   }
@@ -41,27 +41,27 @@ function Auth({ userName, loginHref, onLoginClick, ...menu }: AuthProps): JSX.El
 // Each row keeps its full-width background and border; its contents sit in a container that is capped at the
 // Bootstrap 5 container widths, or spans the full width when the host sets `fluid`. "SDG" is fixed; the host's own
 // title follows it after a divider on the main row, and on small screens moves to a row of its own under the header.
-export function Header({ siteTitle, fluid, ...auth }: HeaderProps): JSX.Element {
+export function Header({ siteTitle, fluid, ...auth }: Readonly<HeaderProps>): JSX.Element {
   const container = fluid ? 'container container-fluid' : 'container';
   return (
-    <header class="header">
-      <div class="row utility" data-part="utility">
-        <div class={container} data-part="container">
+    <header className="header">
+      <div className="row utility" data-part="utility">
+        <div className={container} data-part="container">
           <Auth {...auth} />
         </div>
       </div>
-      <div class="row main" data-part="main">
-        <div class={container} data-part="container">
-          <span class="lockup" data-part="lockup">
+      <div className="row main" data-part="main">
+        <div className={container} data-part="container">
+          <span className="lockup" data-part="lockup">
             <BcLogo />
-            <span class="brand" data-part="brand">
+            <span className="brand" data-part="brand">
               SDG
             </span>
           </span>
           {siteTitle && (
             <>
-              <span class="separator" data-part="separator" aria-hidden="true" />
-              <span class="title" data-part="title">
+              <span className="separator" data-part="separator" aria-hidden="true" />
+              <span className="title" data-part="title">
                 {siteTitle}
               </span>
             </>
@@ -70,9 +70,9 @@ export function Header({ siteTitle, fluid, ...auth }: HeaderProps): JSX.Element 
         </div>
       </div>
       {siteTitle && (
-        <div class="row title-row" data-part="title-row">
-          <div class={container} data-part="container">
-            <span class="title" data-part="title-row-title">
+        <div className="row title-row" data-part="title-row">
+          <div className={container} data-part="container">
+            <span className="title" data-part="title-row-title">
               {siteTitle}
             </span>
           </div>
