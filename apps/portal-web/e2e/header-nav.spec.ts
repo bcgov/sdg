@@ -87,14 +87,21 @@ test.describe('portal-web header nav', () => {
     await expect(help).toBeHidden();
   });
 
-  test('keeps the name and Log Out in the utility row on narrow screens when signed in', async ({ page }) => {
+  test('keeps the account menu in the utility row on narrow screens when signed in', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await mockCurrentUser(page, true);
     await page.goto('/');
     const header = page.locator('sdg-header');
     await expect(header.getByRole('button', { name: 'Menu' })).toBeVisible();
-    await expect(header.getByText('Ada Lovelace')).toBeVisible();
-    await expect(header.getByRole('button', { name: 'Log Out' })).toBeVisible();
+    // Collapsed to a square avatar button, which keeps the user's name as its accessible name.
+    const account = header.getByRole('button', { name: 'Ada Lovelace' });
+    await expect(account).toBeVisible();
+    const accountBox = (await account.boundingBox())!;
+    expect(accountBox.width).toBe(accountBox.height);
+    await expect(header.getByText('Ada Lovelace')).toHaveCSS('clip-path', 'inset(50%)');
+    await expect(header.locator('.button-caret')).toBeHidden();
+    await account.click();
+    await expect(header.getByRole('menuitem', { name: 'Log Out' })).toBeVisible();
   });
 
   test('switches back to the inline nav when the screen widens', async ({ page }) => {

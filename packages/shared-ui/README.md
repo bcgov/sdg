@@ -34,13 +34,20 @@ need nothing.
 
 ### 2. Add the pre-load CSS rule
 
-Until the script has defined the element, this rule reserves the header's full height (104px at every screen width)
-and hides the raw nav links, so nothing on the page moves when the header appears. Copy it into your own stylesheet:
+Until the script has defined the element, this rule reserves the header's full height and hides the raw nav links, so
+nothing on the page moves when the header appears. The header is 104px tall, or 142px on screens narrower than 576px
+when you set `site-title` (the title moves to its own row there). Copy it into your own stylesheet:
 
 ```css
 sdg-header:not(:defined) {
   display: block;
   height: 104px;
+}
+
+@media (max-width: 575.98px) {
+  sdg-header[site-title]:not([site-title='']):not(:defined) {
+    height: 142px;
+  }
 }
 
 sdg-header:not(:defined) > * {
@@ -74,17 +81,19 @@ Then handle the logout event (see [Events](#events)) if visitors can sign in.
 
 ## Attributes
 
-| Attribute    | Meaning                                                                                                              |
-| ------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `site-title` | The site title shown after the logo.                                                                                 |
-| `user-name`  | The signed-in visitor's name. When set, the header shows it with a Log Out button.                                   |
-| `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input. |
-| `fluid`      | Boolean: present (any value) makes the contents full width. Without it, see below.                                   |
+| Attribute    | Meaning                                                                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `site-title` | Your site's title, shown after "SDG" and a divider, cut off with an ellipsis when it doesn't fit. Below 576px it moves to its own row under the header. |
+| `user-name`  | The signed-in visitor's name. When set, the header shows a menu button with the name, opening Settings and Log Out.                                     |
+| `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input.                                    |
+| `fluid`      | Boolean: present (any value) makes the contents full width. Without it, see below.                                                                      |
 
 The header shows one of three auth states:
 
 - **Signed out:** `login-href` set, no `user-name`. The grey row shows Log In.
-- **Signed in:** `user-name` set. The grey row shows the name and Log Out.
+- **Signed in:** `user-name` set. The grey row shows a menu button with the name; it opens Settings and Log Out.
+  Settings always links to the SDG settings page: the header reads SDG's address from where its own script was
+  served, so it points at the same environment (PR, test or production) as the script you load.
 - **Unknown:** neither set, for example while your site is still checking the session. The grey row keeps its
   height and shows no control, so nothing moves when you set one of them.
 
@@ -92,7 +101,7 @@ Change the attributes at any time; the header re-renders.
 
 ### Width
 
-The grey and white rows always span the page. Their contents (Log In, logo, title, nav) sit in a centered container
+The grey and white rows always span the page. Their contents (Log In, logo, SDG, your title, nav) sit in a centered container
 that stops at 1100px and shrinks with the screen below that.
 
 Add `fluid` to make the contents full width at every size:
@@ -100,6 +109,12 @@ Add `fluid` to make the contents full width at every size:
 ```html
 <sdg-header site-title="My Service" fluid></sdg-header>
 ```
+
+### Small screens
+
+Below 576px the logo shrinks to the B.C. sun and mountains, and your `site-title` (if set) leaves the main row for a
+38px row of its own under the header, so the header is 142px tall there instead of 104px. The pre-load rule above
+reserves the right height either way.
 
 ## Nav items
 
@@ -113,12 +128,13 @@ move behind a menu button.
 
 ## Events
 
-Both events bubble, cross the shadow boundary (`composed`) and are dispatched on the `<sdg-header>` element.
+All events bubble, cross the shadow boundary (`composed`) and are dispatched on the `<sdg-header>` element.
 
-| Event        | When                          | What your site does                                                                                                                                                                                                    |
-| ------------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sdg-login`  | A plain left click on Log In. | Nothing, and the link goes to `login-href`. Or call `event.preventDefault()` to stop the navigation and handle sign-in yourself. Modified clicks (new tab, middle click) are left to the browser and dispatch nothing. |
-| `sdg-logout` | A click on Log Out.           | **Required:** sign the visitor out, for example with a POST to your session endpoint. The header does nothing else: Log Out is a button with no URL, so no other site can link a visitor into a sign-out.              |
+| Event          | When                            | What your site does                                                                                                                                                                                                    |
+| -------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sdg-login`    | A plain left click on Log In.   | Nothing, and the link goes to `login-href`. Or call `event.preventDefault()` to stop the navigation and handle sign-in yourself. Modified clicks (new tab, middle click) are left to the browser and dispatch nothing. |
+| `sdg-settings` | A plain left click on Settings. | Nothing, and the link goes to the SDG settings page. On SDG itself, call `event.preventDefault()` to route there client-side. Modified clicks are left to the browser and dispatch nothing.                            |
+| `sdg-logout`   | A click on Log Out.             | **Required:** sign the visitor out, for example with a POST to your session endpoint. The header does nothing else: Log Out is a button with no URL, so no other site can link a visitor into a sign-out.              |
 
 ```js
 const header = document.querySelector('sdg-header');
@@ -131,7 +147,7 @@ header.addEventListener('sdg-logout', async () => {
 ## What visitors see if the script fails to load
 
 No header. If the script cannot be loaded (the header host is down, blocked by a network filter or missing from your
-CSP), visitors see the empty band the pre-load rule reserves and no Log In or Log Out control. This is the accepted
+CSP), visitors see the empty band the pre-load rule reserves and no Log In or user menu. This is the accepted
 cost of one delivery path for every site; make sure your site stays usable without the header.
 
 ## Trust

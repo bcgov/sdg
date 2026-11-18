@@ -1,19 +1,13 @@
+import { faBars } from '@fortawesome/free-solid-svg-icons';
 import type { ComponentChildren, JSX, RefObject } from 'preact';
 import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
+
+import { Icon } from './icon.js';
+import { hostOf, isInside } from './shadow.js';
 
 /** The wide layout: links inline in the main row. Below it they sit behind the menu button (KTD10). */
 const WIDE_QUERY = '(min-width: 768px)';
 const PANEL_ID = 'nav-panel';
-
-/** The shadow host the nav renders in, so outside clicks and focus moves can be checked against the whole header. */
-function hostOf(node: Node | null): Element | null {
-  const root = node?.getRootNode();
-  return root instanceof ShadowRoot ? root.host : null;
-}
-
-function isInside(host: Element | null, node: Node): boolean {
-  return host !== null && (host.contains(node) || (host.shadowRoot?.contains(node) ?? false));
-}
 
 /** Tracks the wide-layout media query. Only called once links exist, so a header without nav never queries it. */
 function useWide(): boolean {
@@ -98,12 +92,13 @@ function MenuNav({ children }: MenuNavProps): JSX.Element {
         <button
           ref={buttonRef}
           type="button"
-          class="button button-secondary menu-button"
+          class="button button-secondary button-icon menu-button"
+          aria-label="Menu"
           aria-expanded={menuOpen ? 'true' : 'false'}
           aria-controls={PANEL_ID}
           onClick={() => setOpen(!open)}
         >
-          Menu
+          <Icon icon={faBars} />
         </button>
       )}
       <div class="nav-panel" id={PANEL_ID} data-part="nav-panel" hidden={!wide && !menuOpen}>

@@ -22,7 +22,7 @@ describe('README', () => {
 
   it('names no attribute or event the contract does not export', () => {
     const documented = new Set(
-      [...readme.matchAll(/`((?:site|user|login|logout)-[a-z]+|sdg-[a-z]+)`/g)].map((m) => m[1]),
+      [...readme.matchAll(/`((?:site|user|login|logout|settings)-[a-z]+|sdg-[a-z]+)`/g)].map((m) => m[1]),
     );
     const exported = new Set<string>([
       HEADER_TAG,

@@ -1,12 +1,18 @@
 /*
  * Pre-load rule for <sdg-header> (R20). Until the header script defines the element, reserve the header's full height
- * (both rows: 48px + 56px, the same at every breakpoint) and hide the raw nav links, so nothing shifts when the header
- * appears. If the script never loads, the page keeps this empty band and shows no header (R21). This rule is part of
- * the major's contract: it stays valid for the life of v1.
+ * (48px + 56px rows, plus the 38px title row on small screens when there is a site-title) and hide the raw nav links,
+ * so nothing shifts when the header appears. If the script never loads, the page keeps this empty band and shows no
+ * header (R21). This rule is part of the major's contract: it stays valid for the life of v1.
  */
 sdg-header:not(:defined) {
   display: block;
   height: 104px;
+}
+
+@media (max-width: 575.98px) {
+  sdg-header[site-title]:not([site-title='']):not(:defined) {
+    height: 142px;
+  }
 }
 
 sdg-header:not(:defined) > * {

@@ -2,8 +2,12 @@ import { h, render } from 'preact';
 
 import { HEADER_ATTRIBUTES, HEADER_EVENTS, HEADER_TAG } from '../contract.js';
 import { Header } from './header.js';
+import { SETTINGS_HREF } from './sdg-origin.js';
+import { isPlainPrimaryClick } from './shadow.js';
 
+import navCss from './nav.css?inline';
 import css from './styles.css?inline';
+import userMenuCss from './user-menu.css?inline';
 
 let sheet: CSSStyleSheet | undefined;
 
@@ -14,13 +18,10 @@ function adoptStyles(root: ShadowRoot): void {
   if (!('adoptedStyleSheets' in root)) return;
   if (!sheet) {
     sheet = new CSSStyleSheet();
-    sheet.replaceSync(css);
+    // One sheet in a fixed order: later files' rules win ties with the base styles.
+    sheet.replaceSync([css, userMenuCss, navCss].join('\n'));
   }
   root.adoptedStyleSheets = [sheet];
-}
-
-function isPlainPrimaryClick(event: MouseEvent): boolean {
-  return event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
 }
 
 /** `<sdg-header>`: renders the Preact header into an open shadow root and dispatches its events from the host. */
@@ -47,13 +48,18 @@ export class SdgHeaderElement extends HTMLElement {
     render(null, this.#root);
   }
 
-  // Log In stays a real link: modified clicks (new tab, window) are the browser's, and a plain click navigates unless
-  // a listener cancels sdg-login (KTD9).
-  readonly #onLoginClick = (event: MouseEvent): void => {
-    if (!isPlainPrimaryClick(event)) return;
-    const login = new CustomEvent(HEADER_EVENTS.login, { bubbles: true, composed: true, cancelable: true });
-    if (!this.dispatchEvent(login)) event.preventDefault();
-  };
+  // Log In and Settings stay real links: modified clicks (new tab, window) are the browser's, and a plain click
+  // navigates unless a listener cancels the event, e.g. to route client-side (KTD9).
+  #linkClick(type: string): (event: MouseEvent) => void {
+    return (event) => {
+      if (!isPlainPrimaryClick(event)) return;
+      const linkEvent = new CustomEvent(type, { bubbles: true, composed: true, cancelable: true });
+      if (!this.dispatchEvent(linkEvent)) event.preventDefault();
+    };
+  }
+
+  readonly #onLoginClick = this.#linkClick(HEADER_EVENTS.login);
+  readonly #onSettingsClick = this.#linkClick(HEADER_EVENTS.settings);
 
   // Log Out only tells the host: signing out is an action the host performs (for example, a POST), not a URL.
   readonly #onLogoutClick = (): void => {
@@ -67,7 +73,9 @@ export class SdgHeaderElement extends HTMLElement {
         fluid: this.hasAttribute(HEADER_ATTRIBUTES.fluid),
         userName: this.getAttribute(HEADER_ATTRIBUTES.userName) ?? '',
         loginHref: this.getAttribute(HEADER_ATTRIBUTES.loginHref) ?? '',
+        settingsHref: SETTINGS_HREF,
         onLoginClick: this.#onLoginClick,
+        onSettingsClick: this.#onSettingsClick,
         onLogoutClick: this.#onLogoutClick,
       }),
       this.#root,

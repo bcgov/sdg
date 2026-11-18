@@ -3,7 +3,7 @@ import { cleanup, render } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SdgLoginEvent, SdgLogoutEvent } from '../types.js';
+import type { SdgLoginEvent, SdgLogoutEvent, SdgSettingsEvent } from '../types.js';
 
 type Wrapper = typeof import('./sdg-header.js');
 
@@ -76,6 +76,18 @@ describe('SdgHeader', () => {
     unmount();
     element.dispatchEvent(new CustomEvent('sdg-logout', { bubbles: true, composed: true }));
     expect(onLogout).toHaveBeenCalledOnce();
+  });
+
+  it('passes sdg-settings to onSettings, which can cancel it', async () => {
+    const { SdgHeader } = await freshWrapper();
+    const onSettings = vi.fn<(event: SdgSettingsEvent) => void>((event) => event.preventDefault());
+    const { container } = render(<SdgHeader userName="Ada" onSettings={onSettings} />);
+    const element = headerElement(container);
+
+    const settings = new CustomEvent('sdg-settings', { bubbles: true, composed: true, cancelable: true });
+    element.dispatchEvent(settings);
+    expect(onSettings).toHaveBeenCalledOnce();
+    expect(settings.defaultPrevented).toBe(true);
   });
 
   it('passes the sdg-login event to onLogin, which can cancel it', async () => {

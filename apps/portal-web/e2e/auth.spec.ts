@@ -19,7 +19,7 @@ test.describe('portal-web auth', () => {
 
     const logIn = page.getByRole('banner').getByRole('link', { name: 'Log In' });
     await expect(logIn).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Log Out' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Ada Lovelace' })).toHaveCount(0);
 
     const loginRequest = page.waitForRequest('**/api/auth/login**');
     await logIn.click();
@@ -28,22 +28,54 @@ test.describe('portal-web auth', () => {
     expect(url.searchParams.get('returnTo')).toBe('/?tab=reports');
   });
 
-  test("shows the user's name and Log Out in the utility row when signed in", async ({ page }) => {
+  test("shows the user's name as an account menu in the utility row when signed in", async ({ page }) => {
     await mockCurrentUser(page, () => true);
     await page.goto('/');
 
     const header = page.locator('sdg-header');
     const banner = header.getByRole('banner');
-    const logOut = banner.getByRole('button', { name: 'Log Out' });
-    await expect(logOut).toBeVisible();
-    await expect(banner.getByText('Ada Lovelace')).toBeVisible();
+    const account = banner.getByRole('button', { name: 'Ada Lovelace' });
+    await expect(account).toBeVisible();
+    await expect(account).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
-    // Both sit on the right of the header's top row, above the nav.
-    const [bannerBox, logOutBox, helpBox] = await Promise.all(
-      [banner, logOut, header.getByRole('link', { name: 'Help' })].map((l) => l.boundingBox()),
+    // It sits on the right of the header's top row, above the nav.
+    const [bannerBox, accountBox, helpBox] = await Promise.all(
+      [banner, account, header.getByRole('link', { name: 'Help' })].map((l) => l.boundingBox()),
     );
-    expect(logOutBox!.x + logOutBox!.width).toBeGreaterThan(bannerBox!.x + bannerBox!.width * 0.75);
-    expect(logOutBox!.y + logOutBox!.height).toBeLessThanOrEqual(helpBox!.y);
+    expect(accountBox!.x + accountBox!.width).toBeGreaterThan(bannerBox!.x + bannerBox!.width * 0.75);
+    expect(accountBox!.y + accountBox!.height).toBeLessThanOrEqual(helpBox!.y);
+
+    await account.click();
+    await expect(account).toHaveAttribute('aria-expanded', 'true');
+    await expect(banner.getByRole('menuitem', { name: 'Settings' })).toBeFocused();
+    await expect(banner.getByRole('menuitem', { name: 'Log Out' })).toBeVisible();
+  });
+
+  test('opens Settings client-side from the account menu', async ({ page }) => {
+    await mockCurrentUser(page, () => true);
+    await page.goto('/');
+    await page.evaluate(() => Object.assign(window, { notReloaded: true }));
+
+    const banner = page.locator('sdg-header').getByRole('banner');
+    await banner.getByRole('button', { name: 'Ada Lovelace' }).click();
+    await banner.getByRole('menuitem', { name: 'Settings' }).click();
+
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Settings');
+    expect(new URL(page.url()).pathname).toBe('/settings');
+    expect(await page.evaluate(() => 'notReloaded' in window)).toBe(true);
+    await expect(banner.getByRole('menu')).toBeHidden();
+  });
+
+  test('sends a signed-out visitor from /settings to the BFF login, returning to Settings', async ({ page }) => {
+    await mockCurrentUser(page, () => false);
+    await page.route('**/api/auth/login**', (route) => route.fulfill({ body: 'login', contentType: 'text/plain' }));
+
+    const loginRequest = page.waitForRequest('**/api/auth/login**');
+    await page.goto('/settings?tab=profile');
+    const url = new URL((await loginRequest).url());
+    expect(url.pathname).toBe('/api/auth/login');
+    expect(url.searchParams.get('returnTo')).toBe('/settings?tab=profile');
+    await expect(page).toHaveURL(/\/api\/auth\/login/);
   });
 
   test('logs out through the BFF and returns to Log In (F3)', async ({ page }) => {
@@ -56,11 +88,12 @@ test.describe('portal-web auth', () => {
     await page.goto('/help');
 
     const logoutRequest = page.waitForRequest('**/api/auth/logout');
-    await page.getByRole('banner').getByRole('button', { name: 'Log Out' }).click();
+    await page.getByRole('banner').getByRole('button', { name: 'Ada Lovelace' }).click();
+    await page.getByRole('banner').getByRole('menuitem', { name: 'Log Out' }).click();
     expect((await logoutRequest).method()).toBe('POST');
 
     await expect(page.getByRole('banner').getByRole('link', { name: 'Log In' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Log Out' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Ada Lovelace' })).toHaveCount(0);
     expect(new URL(page.url()).pathname).toBe('/');
   });
 

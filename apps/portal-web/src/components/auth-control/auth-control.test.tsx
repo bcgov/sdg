@@ -39,7 +39,7 @@ describe('useHeaderAuth', () => {
       const header = await headerQueries();
       expect(header.getByRole('banner')).toBeTruthy();
       expect(header.queryByRole('link', { name: 'Log In' })).toBeNull();
-      expect(header.queryByRole('button', { name: 'Log Out' })).toBeNull();
+      expect(header.queryByRole('menuitem', { name: 'Log Out', hidden: true })).toBeNull();
       expect(document.querySelector('sdg-header')).not.toHaveAttribute('login-href');
       expect(document.querySelector('sdg-header')).not.toHaveAttribute('user-name');
       expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({ credentials: 'same-origin' }));
@@ -50,14 +50,18 @@ describe('useHeaderAuth', () => {
       const header = await headerQueries();
       const link = await header.findByRole('link', { name: 'Log In' });
       expect(link).toHaveAttribute('href', '/api/auth/login?returnTo=%2F%3Ftab%3D1');
-      expect(header.queryByRole('button', { name: 'Log Out' })).toBeNull();
+      expect(header.queryByRole('menuitem', { name: 'Log Out', hidden: true })).toBeNull();
     });
 
-    it("Should render the user's name and Log Out when signed in", async () => {
+    it("Should render the user's name as the account menu button, with Settings and Log Out, when signed in", async () => {
       renderWith(signedIn);
       const header = await headerQueries();
-      expect(await header.findByRole('button', { name: 'Log Out' })).toBeInTheDocument();
-      expect(header.getByText('Ada Lovelace')).toBeInTheDocument();
+      await userEvent.click(await header.findByRole('button', { name: 'Ada Lovelace' }));
+      expect(header.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute(
+        'href',
+        `${window.location.origin}/settings`,
+      );
+      expect(header.getByRole('menuitem', { name: 'Log Out' })).toBeInTheDocument();
       expect(header.queryByRole('link', { name: 'Log In' })).toBeNull();
     });
 
@@ -67,11 +71,12 @@ describe('useHeaderAuth', () => {
       });
       const { queryClient } = renderWith(signedIn);
       const header = await headerQueries();
-      await userEvent.click(await header.findByRole('button', { name: 'Log Out' }));
+      await userEvent.click(await header.findByRole('button', { name: 'Ada Lovelace' }));
+      await userEvent.click(header.getByRole('menuitem', { name: 'Log Out' }));
       expect(logout).toHaveBeenCalledTimes(1);
       expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull();
       expect(await header.findByRole('link', { name: 'Log In' })).toBeInTheDocument();
-      expect(header.queryByRole('button', { name: 'Log Out' })).toBeNull();
+      expect(header.queryByRole('menuitem', { name: 'Log Out', hidden: true })).toBeNull();
     });
 
     it('Should render Log In when the API errors, and log the error with context', async () => {

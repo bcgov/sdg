@@ -18,6 +18,6 @@ describe('header contract', () => {
       loginHref: 'login-href',
       fluid: 'fluid',
     });
-    expect(HEADER_EVENTS).toEqual({ login: 'sdg-login', logout: 'sdg-logout' });
+    expect(HEADER_EVENTS).toEqual({ login: 'sdg-login', logout: 'sdg-logout', settings: 'sdg-settings' });
   });
 });

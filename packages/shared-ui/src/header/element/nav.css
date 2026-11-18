@@ -1,0 +1,88 @@
+/*
+ * The nav slot, its tertiary-button links and the narrow-screen menu panel. Part of the header's one constructed
+ * stylesheet, appended after styles.css and user-menu.css (sdg-header-element.ts).
+ */
+
+.nav {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* Nav panel: holds the one nav slot; an inline row on wide screens (KTD10). */
+.nav-panel {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  gap: var(--layout-margin-xsmall, 0.25rem);
+}
+
+.nav-panel[hidden] {
+  display: none;
+}
+
+/*
+ * Slotted links stay the host's own elements: these base rules are normal, so host link rules can still adjust
+ * spacing and colour (R7). They look like the B.C. Design System's tertiary button: transparent, then a grey
+ * background on hover and a darker one while pressed.
+ */
+::slotted(a) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: var(--layout-padding-none, 0) var(--layout-padding-medium, 1rem);
+  border-radius: var(--layout-border-radius-medium, 4px);
+  background-color: var(--surface-color-tertiary-button-default, rgba(255, 255, 255, 0));
+  color: var(--typography-color-primary, #2d2d2d);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+::slotted(a:hover) {
+  background-color: var(--surface-color-tertiary-button-hover, #eceae8);
+}
+
+::slotted(a:active) {
+  background-color: var(--surface-color-tertiary-pressed, #e0dedc);
+}
+
+::slotted(a:focus-visible) {
+  outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
+  outline-offset: var(--layout-margin-hair, 0.125rem);
+}
+
+/*
+ * Selected (R5, R11): bold. Outer-document rules beat ::slotted rules whatever their specificity, so only !important
+ * holds it against host link styles (KTD5). Bold is faux bold: a text-shadow does not change the text's width, so the
+ * links never move when the selection changes.
+ */
+::slotted([aria-current='page']) {
+  text-shadow:
+    0 0 0.6px currentColor,
+    0 0 0.6px currentColor !important;
+}
+
+/*
+ * Narrow (below 768px, tracked by the element): a menu button on the main row, and the panel as a stacked list that
+ * overlays the page under the main row, so the header's reserved 104px never changes (R6, KTD10).
+ */
+.nav-narrow .nav-panel {
+  position: absolute;
+  top: calc(100% + var(--layout-border-width-small, 1px));
+  right: 0;
+  left: 0;
+  z-index: 1000;
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--layout-padding-xsmall, 0.25rem) var(--layout-padding-none, 0);
+  background-color: var(--surface-color-background-white, #ffffff);
+  border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
+  box-shadow: var(--surface-shadow-medium, 0 1.2px 3.6px 0 #0000001a, 0 6.4px 14.4px 0 #00000021);
+}
+
+.nav-narrow ::slotted(a) {
+  display: flex;
+  margin: var(--layout-margin-none, 0) var(--layout-margin-xsmall, 0.25rem);
+  padding: var(--layout-padding-small, 0.5rem) var(--layout-padding-medium, 1rem);
+}

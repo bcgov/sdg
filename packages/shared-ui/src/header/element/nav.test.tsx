@@ -6,7 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { defineSdgHeader, SdgHeaderElement } from './sdg-header-element.js';
 
 // Read from disk: Vitest does not process CSS, so a ?inline or ?raw import is empty here.
-const css = readFileSync(join(import.meta.dirname, 'styles.css'), 'utf8');
+const css = readFileSync(join(import.meta.dirname, 'nav.css'), 'utf8');
 
 type ChangeListener = (event: { matches: boolean }) => void;
 
@@ -99,7 +99,7 @@ describe('<sdg-header> nav', () => {
     stubViewport(true);
   });
 
-  it('marks only the aria-current link as selected, with !important rules that do not change width', async () => {
+  it('marks only the aria-current link as selected, bold by an !important rule that does not change width', async () => {
     const links = [link('Home'), link('Services', true), link('Help')];
     const element = await mount(links);
 
@@ -108,9 +108,8 @@ describe('<sdg-header> nav', () => {
     expect(links.map((anchor) => anchor.matches('[aria-current="page"]'))).toEqual([false, true, false]);
 
     const selected = /::slotted\(\[aria-current='page'\]\)\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    expect(selected).toMatch(/border-bottom:[^;]*solid[^;]*!important/);
-    expect(selected).toMatch(/background-color:[^;]*!important/);
     expect(selected).toMatch(/text-shadow:[^;]*!important/);
+    expect(selected).not.toMatch(/border|background/);
     expect(selected).not.toMatch(/font-weight/);
   });
 
@@ -168,6 +167,10 @@ describe('<sdg-header> narrow-screen menu', () => {
     const button = requireButton(element);
 
     expect(button.type).toBe('button');
+    // A bars icon, named "Menu" for assistive technology since it shows no text.
+    expect(button.getAttribute('aria-label')).toBe('Menu');
+    expect(button.textContent).toBe('');
+    expect(button.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     expect(button.getAttribute('aria-controls')).toBe(panel(element).id);
     expect(button.getAttribute('aria-expanded')).toBe('false');
     expect(panel(element).hidden).toBe(true);

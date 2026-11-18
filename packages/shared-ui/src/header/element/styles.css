@@ -1,5 +1,6 @@
 /*
- * The header's only stylesheet, adopted into its shadow root as a constructed sheet (KTD7). Colours and spacing are
+ * The header's base styles, joined with user-menu.css and nav.css into its one stylesheet, which is adopted into its
+ * shadow root as a constructed sheet (KTD7). Colours and spacing are
  * @bcgov/design-tokens values written as var(--token, value), so a page that loads the tokens stays in step and any
  * other page gets the same values.
  */
@@ -54,12 +55,11 @@
   border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
 }
 
-.user-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--typography-font-size-small-body, 0.875rem);
+/* Font Awesome icons (icon.tsx): fixed width, like FA's `fa-fw`, so labels after them line up. */
+.icon {
+  flex-shrink: 0;
+  width: 1.25em;
+  height: 1em;
 }
 
 .button {
@@ -98,6 +98,19 @@
   background-color: var(--surface-color-secondary-button-hover, #edebe9);
 }
 
+.button-icon {
+  gap: var(--layout-margin-xsmall, 0.25rem);
+  padding: var(--layout-padding-none, 0) 0.75rem;
+  font-weight: var(--typography-font-weights-regular, 400);
+}
+
+/* Icon-only (the narrow-screen Menu button): a square as tall as the other buttons. */
+.menu-button {
+  justify-content: center;
+  width: 32px;
+  padding: var(--layout-padding-none, 0);
+}
+
 .button:focus-visible {
   outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
   outline-offset: 2px;
@@ -122,6 +135,27 @@
   width: auto;
 }
 
+/* The mark alone replaces the full logo on small screens (below), at the full logo's height and scale. */
+.logo-mark {
+  display: none;
+}
+
+/* The logo and "SDG" sit closer together than the row's other items: half its gap. */
+.lockup {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: calc(var(--layout-padding-medium, 1rem) / 2);
+}
+
+/* "SDG": fixed, bold, never shrinks. */
+.brand {
+  flex-shrink: 0;
+  font-size: var(--typography-font-size-large-body, 1.125rem);
+  font-weight: var(--typography-font-weights-bold, 700);
+  white-space: nowrap;
+}
+
 .separator {
   flex-shrink: 0;
   width: var(--layout-border-width-small, 1px);
@@ -129,85 +163,63 @@
   background-color: var(--surface-color-border-default, #d8d8d8);
 }
 
+/* The host's title: one line, cut off with an ellipsis instead of wrapping. */
 .title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--typography-font-size-large-body, 1.125rem);
-  font-weight: var(--typography-font-weights-bold, 700);
+  font-weight: var(--typography-font-weights-regular, 400);
 }
 
-.nav {
-  display: flex;
-  align-self: stretch;
-  align-items: center;
-  margin-left: auto;
-}
-
-/* Nav panel: holds the one nav slot; an inline row on wide screens (KTD10). */
-.nav-panel {
-  display: flex;
-  align-self: stretch;
-}
-
-.nav-panel[hidden] {
+/* Small screens' row for the title, under the main row; hidden at wider widths, where the title is inline. */
+.title-row {
   display: none;
-}
-
-/*
- * Slotted links stay the host's own elements: these base rules are normal, so host link rules can still adjust
- * spacing and colour (R7). The transparent bottom border reserves the selected border's 2px.
- */
-::slotted(a) {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--layout-padding-none, 0) var(--layout-padding-medium, 1rem);
-  border-bottom: var(--layout-border-width-medium, 2px) solid transparent;
-  color: var(--typography-color-link, #255a90);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-::slotted(a:hover) {
-  text-decoration: underline;
-}
-
-::slotted(a:focus-visible) {
-  outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
-  outline-offset: -2px;
-}
-
-/*
- * Selected (R5, R11): outer-document rules beat ::slotted rules whatever their specificity, so only !important holds
- * this look against host link styles (KTD5). Bold is faux bold: a text-shadow does not change the text's width.
- */
-::slotted([aria-current='page']) {
-  border-bottom: var(--layout-border-width-medium, 2px) solid var(--typography-color-link, #255a90) !important;
-  background-color: var(--surface-color-background-light-blue, #f1f8fe) !important;
-  text-shadow:
-    0 0 0.6px currentColor,
-    0 0 0.6px currentColor !important;
-}
-
-/*
- * Narrow (below 768px, tracked by the element): a menu button on the main row, and the panel as a stacked list that
- * overlays the page under the main row, so the header's reserved 104px never changes (R6, KTD10).
- */
-.nav-narrow .nav-panel {
-  position: absolute;
-  top: calc(100% + var(--layout-border-width-small, 1px));
-  right: 0;
-  left: 0;
-  z-index: 1000;
-  flex-direction: column;
-  padding: var(--layout-padding-xsmall, 0.25rem) var(--layout-padding-none, 0);
+  height: 38px;
   background-color: var(--surface-color-background-white, #ffffff);
   border-bottom: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
-  box-shadow: var(--surface-shadow-medium, 0 1.2px 3.6px 0 #0000001a, 0 6.4px 14.4px 0 #00000021);
 }
 
-.nav-narrow ::slotted(a) {
-  display: flex;
-  padding: var(--layout-padding-small, 0.5rem) var(--layout-padding-medium, 1rem);
+/*
+ * Small (below 576px, Bootstrap's sm): the logo shrinks to its mark and the title leaves the main row for its own
+ * 38px row, so the header is 142px with a title and 104px without. preload.css reserves the same heights.
+ */
+@media (max-width: 575.98px) {
+  .logo-full,
+  .main .separator,
+  .main .title {
+    display: none;
+  }
+
+  .logo-mark,
+  .title-row {
+    display: block;
+  }
+}
+
+/*
+ * Small screens: Log In and the account menu button collapse to a 32px square showing only their leading icon. The
+ * label stays in the accessibility tree (visually hidden, not display: none), so the button keeps its name.
+ */
+@media (max-width: 575.98px) {
+  .button-collapsible {
+    position: relative;
+    justify-content: center;
+    width: 32px;
+    padding: var(--layout-padding-none, 0);
+  }
+
+  .button-collapsible .button-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .button-collapsible .button-caret {
+    display: none;
+  }
 }

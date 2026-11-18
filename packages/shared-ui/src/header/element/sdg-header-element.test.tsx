@@ -29,8 +29,8 @@ function loginLink(element: SdgHeaderElement): HTMLAnchorElement | null {
   return utilityRow(element).querySelector('a');
 }
 
-function logoutButton(element: SdgHeaderElement): HTMLButtonElement | null {
-  return utilityRow(element).querySelector('button');
+function menuButton(element: SdgHeaderElement): HTMLButtonElement | null {
+  return utilityRow(element).querySelector('button[aria-haspopup="menu"]');
 }
 
 /**
@@ -63,16 +63,15 @@ describe('<sdg-header> auth states', () => {
 
     expect(loginLink(element)?.textContent).toBe('Log In');
     expect(loginLink(element)?.getAttribute('href')).toBe('/auth/login');
-    expect(logoutButton(element)).toBeNull();
+    expect(menuButton(element)).toBeNull();
   });
 
-  it('shows the user name and a Log Out button, and no Log In, when a user is signed in', () => {
+  it('shows a user menu button with the name, and no Log In, when a user is signed in', () => {
     const element = mount({ 'login-href': '/auth/login', 'user-name': 'Jane Doe' });
 
-    expect(utilityRow(element).textContent).toContain('Jane Doe');
-    expect(logoutButton(element)?.textContent).toBe('Log Out');
-    expect(logoutButton(element)?.type).toBe('button');
-    expect(loginLink(element)).toBeNull();
+    expect(menuButton(element)?.textContent).toBe('Jane Doe');
+    expect(menuButton(element)?.type).toBe('button');
+    expect(utilityRow(element).querySelector('a[href="/auth/login"]')).toBeNull();
   });
 
   it('renders the utility row with no control while the session is unknown', () => {
@@ -88,22 +87,48 @@ describe('<sdg-header> auth states', () => {
 
     expect(document.querySelector(HEADER_TAG)).toBe(element);
     expect(loginLink(element)?.textContent).toBe('Log In');
-    expect(logoutButton(element)).toBeNull();
+    expect(menuButton(element)).toBeNull();
     expect(utilityRow(element).textContent).not.toContain('Jane Doe');
   });
 });
 
 describe('<sdg-header> main row', () => {
-  it('shows the logo, a separator and the site title, and updates the title', () => {
-    const element = mount({ 'site-title': 'Service Portal' });
-    const main = shadow(element).querySelector('[data-part="main"]');
+  it('shows the full logo, its mark for small screens and the fixed "SDG", with no divider or title by default', () => {
+    const root = shadow(mount({}));
+    const main = root.querySelector('[data-part="main"]');
 
-    expect(main?.querySelector('svg[aria-label="Government of British Columbia"]')).not.toBeNull();
-    expect(main?.querySelector('[data-part="separator"]')).not.toBeNull();
-    expect(main?.querySelector('[data-part="title"]')?.textContent).toBe('Service Portal');
+    expect(main?.querySelector('[data-part="logo-full"]')?.getAttribute('aria-label')).toBe(
+      'Government of British Columbia',
+    );
+    expect(main?.querySelector('[data-part="logo-mark"]')?.getAttribute('aria-label')).toBe(
+      'Government of British Columbia',
+    );
+    expect(main?.querySelector('[data-part="brand"]')?.textContent).toBe('SDG');
+    expect(main?.querySelector('[data-part="separator"]')).toBeNull();
+    expect(main?.querySelector('[data-part="title"]')).toBeNull();
+    expect(root.querySelector('[data-part="title-row"]')).toBeNull();
+  });
+
+  it('shows the site title after SDG and a divider, and in the small-screen title row, and updates both', () => {
+    const element = mount({ 'site-title': 'Service Portal' });
+    const root = shadow(element);
+    const titles = (): (string | null | undefined)[] => [
+      root.querySelector('[data-part="main"] [data-part="title"]')?.textContent,
+      root.querySelector('[data-part="title-row"] [data-part="title-row-title"]')?.textContent,
+    ];
+
+    const parts = [...(root.querySelector('[data-part="main"] [data-part="container"]')?.children ?? [])].map((child) =>
+      child.getAttribute('data-part'),
+    );
+    expect(parts).toEqual(['lockup', 'separator', 'title', 'nav']);
+    expect(titles()).toEqual(['Service Portal', 'Service Portal']);
 
     element.setAttribute('site-title', 'Another Service');
-    expect(main?.querySelector('[data-part="title"]')?.textContent).toBe('Another Service');
+    expect(titles()).toEqual(['Another Service', 'Another Service']);
+
+    element.removeAttribute('site-title');
+    expect(root.querySelector('[data-part="separator"]')).toBeNull();
+    expect(root.querySelector('[data-part="title-row"]')).toBeNull();
   });
 
   it('is a banner landmark', () => {
@@ -114,12 +139,13 @@ describe('<sdg-header> main row', () => {
 describe('<sdg-header> container', () => {
   it("wraps each row's contents in a max-width container by default", () => {
     const element = mount({ 'site-title': 'My Service', 'login-href': '/login' });
-    const [utility, main] = containers(element);
-    expect(containers(element)).toHaveLength(2);
+    const [utility, main, titleRow] = containers(element);
+    expect(containers(element)).toHaveLength(3);
     expect(utility?.parentElement?.dataset['part']).toBe('utility');
     expect(main?.parentElement?.dataset['part']).toBe('main');
     expect(utility?.contains(loginLink(element))).toBe(true);
     expect(main?.querySelector('[data-part="title"]')?.textContent).toBe('My Service');
+    expect(titleRow?.parentElement?.dataset['part']).toBe('title-row');
     for (const container of containers(element)) expect(container.classList.contains('container-fluid')).toBe(false);
   });
 
@@ -171,20 +197,6 @@ describe('<sdg-header> events', () => {
     if (!link) throw new Error('no Log In link');
     click(link, init);
     expect(onLogin).not.toHaveBeenCalled();
-  });
-
-  it('dispatches one sdg-logout that bubbles to document on a Log Out click', () => {
-    const element = mount({ 'user-name': 'Jane Doe' });
-    const onLogout = vi.fn<(event: Event) => void>();
-    document.addEventListener(HEADER_EVENTS.logout, onLogout);
-
-    const button = logoutButton(element);
-    if (!button) throw new Error('no Log Out button');
-    click(button);
-    document.removeEventListener(HEADER_EVENTS.logout, onLogout);
-
-    expect(onLogout).toHaveBeenCalledOnce();
-    expect(onLogout.mock.calls[0]?.[0]?.target).toBe(element);
   });
 });
 

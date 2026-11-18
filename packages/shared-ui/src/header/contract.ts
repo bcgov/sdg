@@ -20,6 +20,7 @@ export const HEADER_ATTRIBUTES = {
 export const HEADER_EVENTS = {
   login: 'sdg-login',
   logout: 'sdg-logout',
+  settings: 'sdg-settings',
 } as const;
 
 export type HeaderAttributeName = (typeof HEADER_ATTRIBUTES)[keyof typeof HEADER_ATTRIBUTES];

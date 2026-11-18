@@ -5,7 +5,7 @@
 export interface SdgHeaderAttributes {
   /** The site title shown after the logo. */
   'site-title'?: string;
-  /** The signed-in user's name. When set, the header shows it with a Log Out button instead of Log In. */
+  /** The signed-in user's name. When set, the header shows a user menu (Settings, Log Out) instead of Log In. */
   'user-name'?: string;
   /** Where Log In links to. Shown only when `user-name` is not set. */
   'login-href'?: string;
@@ -19,9 +19,13 @@ export type SdgLoginEvent = CustomEvent<null>;
 /** `sdg-logout`: the host must sign the visitor out (for example, with a POST); the header does nothing else. */
 export type SdgLogoutEvent = CustomEvent<null>;
 
+/** `sdg-settings`: cancelable; `preventDefault()` stops the Settings link (SDG's `/settings`) from navigating. */
+export type SdgSettingsEvent = CustomEvent<null>;
+
 declare global {
   interface HTMLElementEventMap {
     'sdg-login': SdgLoginEvent;
     'sdg-logout': SdgLogoutEvent;
+    'sdg-settings': SdgSettingsEvent;
   }
 }
