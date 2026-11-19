@@ -2,7 +2,7 @@ import { Link } from '@repo/design-system/components/link';
 import { faArrowUpRightFromSquare, FontAwesomeIcon } from '@repo/design-system/icons';
 
 /** BC Services Card's page for changing the personal information on a card. */
-export const CHANGE_PERSONAL_INFORMATION_URL =
+const CHANGE_PERSONAL_INFORMATION_URL =
   'https://www2.gov.bc.ca/gov/content/governments/government-id/bc-services-card/your-card/change-personal-information';
 
 interface ChangeLinkProps {

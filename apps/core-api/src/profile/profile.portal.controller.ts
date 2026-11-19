@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Inject,
-  Logger,
-  ServiceUnavailableException,
-  UnauthorizedException,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Inject, Logger, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -15,14 +7,13 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { AuthUser } from '@repo/auth';
-import { describeError } from '@repo/server-core';
 
 import { PortalGuard } from '../auth/audience.guards.js';
+import { readCallerProfile } from '../auth/caller-profile.js';
 import type { Caller } from '../auth/caller.js';
 import { CurrentCaller } from '../auth/current-caller.decorator.js';
 import { warnOnTokenProfileClaims } from '../auth/profile-claims.js';
-import { UserinfoClient, UserinfoError } from '../auth/userinfo.client.js';
+import { UserinfoClient } from '../auth/userinfo.client.js';
 import { profileView } from './profile-view.js';
 import { profileSchema, type ProfileResponse } from './profile.schemas.js';
 
@@ -46,21 +37,7 @@ export class ProfilePortalController {
   @ApiServiceUnavailableResponse({ description: 'Keycloak’s userinfo endpoint is unreachable or answered badly' })
   async profile(@CurrentCaller() caller: Caller): Promise<ProfileResponse> {
     warnOnTokenProfileClaims(this.logger, caller.user.claims);
-    return profileView((await this.readUserinfo(caller)).claims);
-  }
-
-  /** Maps userinfo failures as sign-in does (KTD3); logs the error only, never the claims. */
-  private async readUserinfo(caller: Caller): Promise<AuthUser> {
-    try {
-      return await this.userinfo.profile(caller.token, caller.user);
-    } catch (error) {
-      if (!(error instanceof UserinfoError)) throw error;
-      if (error.reason === 'rejected') {
-        this.logger.warn({ msg: 'Keycloak refused a verified token at userinfo', error: describeError(error) });
-        throw new UnauthorizedException();
-      }
-      this.logger.error({ msg: 'Could not read the caller’s profile from userinfo', error: describeError(error) });
-      throw new ServiceUnavailableException('Your profile is temporarily unavailable');
-    }
+    const user = await readCallerProfile(this.userinfo, caller, this.logger, 'Your profile is temporarily unavailable');
+    return profileView(user.claims);
   }
 }
