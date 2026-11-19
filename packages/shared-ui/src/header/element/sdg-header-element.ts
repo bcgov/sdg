@@ -1,6 +1,7 @@
 import { h, render } from 'preact';
 
 import { HEADER_ATTRIBUTES, HEADER_EVENTS, HEADER_TAG } from '../contract.js';
+import { backToSdgHref } from './back-to-sdg.js';
 import { Header } from './header.js';
 import { SETTINGS_HREF } from './sdg-origin.js';
 import { isPlainPrimaryClick } from './shadow.js';
@@ -29,6 +30,7 @@ export class SdgHeaderElement extends HTMLElement {
   static readonly observedAttributes: readonly string[] = Object.values(HEADER_ATTRIBUTES);
 
   readonly #root: ShadowRoot;
+  #returnHref: string | null = null;
 
   constructor() {
     super();
@@ -37,6 +39,8 @@ export class SdgHeaderElement extends HTMLElement {
   }
 
   connectedCallback(): void {
+    // Read on connect, when the page's URL still carries `return-to` from the link the visitor followed.
+    this.#returnHref = backToSdgHref();
     this.#render();
   }
 
@@ -71,6 +75,7 @@ export class SdgHeaderElement extends HTMLElement {
       h(Header, {
         siteTitle: this.getAttribute(HEADER_ATTRIBUTES.siteTitle) ?? '',
         fluid: this.hasAttribute(HEADER_ATTRIBUTES.fluid),
+        returnHref: this.#returnHref ?? '',
         userName: this.getAttribute(HEADER_ATTRIBUTES.userName) ?? '',
         loginHref: this.getAttribute(HEADER_ATTRIBUTES.loginHref) ?? '',
         settingsHref: SETTINGS_HREF,

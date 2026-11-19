@@ -99,6 +99,19 @@ The header shows one of three auth states:
 
 Change the attributes at any time; the header re-renders.
 
+### Back to SDG
+
+When a visitor reaches your site from SDG, the grey row shows "← Back to SDG" at its start, linking to the SDG page
+they came from. Your site does nothing: SDG adds `return-to` (the SDG page's path) to its links to your site, and the
+header reads it. The header remembers that page in your site's session storage, so the link stays as the visitor
+moves around your site and goes away when they close the tab. A visitor who follows an SDG link without `return-to`
+gets a link to SDG's home page instead.
+
+The link only ever points at the SDG that served the header's script: `return-to` must be a path on that SDG, so a
+crafted link cannot send visitors elsewhere. `return-to` stays in your page's address; the header never changes your
+URL. If you redirect a visitor's first page (for example to sign them in), keep `return-to` on the page they land on,
+or the header falls back to the referrer or shows no link.
+
 ### Width
 
 The grey and white rows always span the page. Their contents (Log In, logo, SDG, your title, nav) sit in a centered container

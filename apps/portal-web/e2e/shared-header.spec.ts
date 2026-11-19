@@ -1,5 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import { serveExternalSite } from './external-site';
+
 const HEADER_SCRIPT = '/shared-ui/header/v1/sdg-header.js';
 
 async function signedOut(page: Page) {
@@ -215,28 +217,7 @@ test.describe('portal-web shared header', () => {
     baseURL,
     browserName,
   }) => {
-    const scriptURL = new URL(HEADER_SCRIPT, baseURL).href;
-    // The local dev server's http base URL needs two concessions a real external site (public, https) never meets:
-    // Chromium lets only a granted secure origin reach localhost (Local Network Access), and WebKit treats an
-    // http://localhost script on an https page as mixed content.
-    const insecureBase = scriptURL.startsWith('http:');
-    const external =
-      insecureBase && browserName === 'webkit' ? 'http://external.example/' : 'https://external.example/';
-    if (insecureBase && browserName === 'chromium') {
-      await context.grantPermissions(['local-network-access'], { origin: external });
-    }
-    await page.route(external, (route) =>
-      route.fulfill({
-        contentType: 'text/html',
-        body: `<!doctype html>
-<html lang="en">
-  <head><title>External</title><script src="${scriptURL}"></script></head>
-  <body>
-    <sdg-header site-title="External Service" login-href="/x"><a slot="nav" href="/">Start</a></sdg-header>
-  </body>
-</html>`,
-      }),
-    );
+    const external = await serveExternalSite({ page, context, baseURL, browserName });
     await page.goto(external);
 
     const header = page.locator('sdg-header');
