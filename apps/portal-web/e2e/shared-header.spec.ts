@@ -13,8 +13,8 @@ async function navBoxes(page: Page, path: string) {
   await page.goto(path);
   // Slotted links are the element's light-DOM children, outside the shadow <header>'s DOM subtree.
   const nav = page.locator('sdg-header');
-  const links = [nav.getByRole('link', { name: 'Home' }), nav.getByRole('link', { name: 'Help' })];
-  await expect(links[1]!).toBeVisible();
+  const links = ['Home', 'Services', 'Help', 'Contact us'].map((name) => nav.getByRole('link', { name }));
+  await expect(links[3]!).toBeVisible();
   await page.evaluate(async () => {
     await document.fonts.ready;
   });
@@ -29,13 +29,17 @@ test.describe('portal-web shared header', () => {
     const none = await navBoxes(page, '/does-not-exist');
     await expect(page.locator('sdg-header [aria-current="page"]')).toHaveCount(0);
     const home = await navBoxes(page, '/');
+    const services = await navBoxes(page, '/services');
     const help = await navBoxes(page, '/help');
+    const contactUs = await navBoxes(page, '/contact-us');
     expect(home).toEqual(none);
+    expect(services).toEqual(none);
     expect(help).toEqual(none);
+    expect(contactUs).toEqual(none);
 
     // Links look like tertiary buttons; only the selected one is bold (faux bold) (R5).
     const nav = page.locator('sdg-header');
-    const selected = nav.getByRole('link', { name: 'Help' });
+    const selected = nav.getByRole('link', { name: 'Contact us' });
     const other = nav.getByRole('link', { name: 'Home' });
     await expect(selected).not.toHaveCSS('text-shadow', 'none');
     await expect(other).toHaveCSS('text-shadow', 'none');
@@ -114,12 +118,16 @@ test.describe('portal-web shared header', () => {
     await page.keyboard.press(tab);
     await expect(header.getByRole('link', { name: 'Home' })).toBeFocused();
     await page.keyboard.press(tab);
+    await expect(header.getByRole('link', { name: 'Services' })).toBeFocused();
+    await page.keyboard.press(tab);
     await expect(header.getByRole('link', { name: 'Help' })).toBeFocused();
+    await page.keyboard.press(tab);
+    await expect(header.getByRole('link', { name: 'Contact us' })).toBeFocused();
 
     await page.keyboard.press('Escape');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(toggle).toBeFocused();
-    await expect(header.getByRole('link', { name: 'Help' })).toBeHidden();
+    await expect(header.getByRole('link', { name: 'Contact us' })).toBeHidden();
   });
 
   test('shows SDG, a divider and the site title inline, cut off with an ellipsis, on wide screens', async ({
@@ -150,7 +158,7 @@ test.describe('portal-web shared header', () => {
     // One line, cut short rather than wrapped, and the nav keeps its place on the row.
     expect(await title.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
     expect((await title.boundingBox())!.height).toBeLessThan(32);
-    await expect(header.getByRole('link', { name: 'Help' })).toBeVisible();
+    await expect(header.getByRole('link', { name: 'Contact us' })).toBeVisible();
     expect((await page.getByRole('main').boundingBox())!.y).toBe(104);
   });
 
@@ -204,7 +212,7 @@ test.describe('portal-web shared header', () => {
     const header = page.locator('sdg-header');
     expect(await header.evaluate((el) => el.matches(':defined'))).toBe(false);
     expect((await page.getByRole('main').boundingBox())!.y).toBe(104);
-    await expect(header.locator('a[slot="nav"]')).toHaveCount(2);
+    await expect(header.locator('a[slot="nav"]')).toHaveCount(4);
     await expect(header.locator('a[slot="nav"]:visible')).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
   });
@@ -246,12 +254,12 @@ test.describe('portal-web shared header', () => {
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeVisible();
     await expect(header.getByRole('link', { name: 'Start' })).toBeVisible();
 
-    // Signed in, Settings links back to the SDG that served the script, not to the partner's own origin.
+    // Signed in, Account Settings links back to the SDG that served the script, not to the partner's own origin.
     await header.evaluate((el) => el.setAttribute('user-name', 'Ada Lovelace'));
     await header.getByRole('button', { name: 'Ada Lovelace' }).click();
-    await expect(header.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute(
+    await expect(header.getByRole('menuitem', { name: 'Account Settings' })).toHaveAttribute(
       'href',
-      new URL('/settings', baseURL).href,
+      new URL('/account-settings', baseURL).href,
     );
   });
 });

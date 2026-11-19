@@ -84,15 +84,15 @@ Then handle the logout event (see [Events](#events)) if visitors can sign in.
 | Attribute    | Meaning                                                                                                                                                 |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `site-title` | Your site's title, shown after "SDG" and a divider, cut off with an ellipsis when it doesn't fit. Below 576px it moves to its own row under the header. |
-| `user-name`  | The signed-in visitor's name. When set, the header shows a menu button with the name, opening Settings and Log Out.                                     |
+| `user-name`  | The signed-in visitor's name. When set, the header shows a menu button with the name, opening Account Settings and Log Out.                             |
 | `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input.                                    |
 | `fluid`      | Boolean: present (any value) makes the contents full width. Without it, see below.                                                                      |
 
 The header shows one of three auth states:
 
 - **Signed out:** `login-href` set, no `user-name`. The grey row shows Log In.
-- **Signed in:** `user-name` set. The grey row shows a menu button with the name; it opens Settings and Log Out.
-  Settings always links to the SDG settings page: the header reads SDG's address from where its own script was
+- **Signed in:** `user-name` set. The grey row shows a menu button with the name; it opens Account Settings and Log Out.
+  Account Settings always links to the SDG account settings page: the header reads SDG's address from where its own script was
   served, so it points at the same environment (PR, test or production) as the script you load.
 - **Unknown:** neither set, for example while your site is still checking the session. The grey row keeps its
   height and shows no control, so nothing moves when you set one of them.
@@ -130,11 +130,11 @@ move behind a menu button.
 
 All events bubble, cross the shadow boundary (`composed`) and are dispatched on the `<sdg-header>` element.
 
-| Event          | When                            | What your site does                                                                                                                                                                                                    |
-| -------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sdg-login`    | A plain left click on Log In.   | Nothing, and the link goes to `login-href`. Or call `event.preventDefault()` to stop the navigation and handle sign-in yourself. Modified clicks (new tab, middle click) are left to the browser and dispatch nothing. |
-| `sdg-settings` | A plain left click on Settings. | Nothing, and the link goes to the SDG settings page. On SDG itself, call `event.preventDefault()` to route there client-side. Modified clicks are left to the browser and dispatch nothing.                            |
-| `sdg-logout`   | A click on Log Out.             | **Required:** sign the visitor out, for example with a POST to your session endpoint. The header does nothing else: Log Out is a button with no URL, so no other site can link a visitor into a sign-out.              |
+| Event          | When                                    | What your site does                                                                                                                                                                                                    |
+| -------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sdg-login`    | A plain left click on Log In.           | Nothing, and the link goes to `login-href`. Or call `event.preventDefault()` to stop the navigation and handle sign-in yourself. Modified clicks (new tab, middle click) are left to the browser and dispatch nothing. |
+| `sdg-settings` | A plain left click on Account Settings. | Nothing, and the link goes to the SDG account settings page. On SDG itself, call `event.preventDefault()` to route there client-side. Modified clicks are left to the browser and dispatch nothing.                    |
+| `sdg-logout`   | A click on Log Out.                     | **Required:** sign the visitor out, for example with a POST to your session endpoint. The header does nothing else: Log Out is a button with no URL, so no other site can link a visitor into a sign-out.              |
 
 ```js
 const header = document.querySelector('sdg-header');
