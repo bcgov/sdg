@@ -24,6 +24,7 @@ import { describeError } from '@repo/server-core';
 import { InternalGuard } from '../auth/audience.guards.js';
 import type { Caller } from '../auth/caller.js';
 import { CurrentCaller } from '../auth/current-caller.decorator.js';
+import { warnOnTokenProfileClaims } from '../auth/profile-claims.js';
 import { UserinfoClient, UserinfoError } from '../auth/userinfo.client.js';
 import { loginResponseSchema, type LoginResponse } from './principals.schemas.js';
 import { PrincipalsService } from './principals.service.js';
@@ -61,6 +62,7 @@ export class PrincipalsController {
     if (caller.kind === 'console-user' && !caller.isAdmin) {
       throw new ForbiddenException('The admin client role is required');
     }
+    warnOnTokenProfileClaims(this.logger, caller.user.claims);
     const profile = await this.profile(caller);
     const { principalId } = await this.principals.upsertFromLogin(profile, caller.kind);
     return { principalId, name: profile.name, email: profile.email };

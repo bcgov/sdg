@@ -4,6 +4,7 @@ import { identities, principals, type IdentityClaims } from '@repo/database';
 import { and, eq } from 'drizzle-orm';
 
 import type { CallerKind } from '../auth/caller.js';
+import { PROFILE_CLAIMS } from '../auth/profile-claims.js';
 import { InjectDatabase, type Database } from '../database/database.module.js';
 
 /** Claims that must never be persisted, even if an IdP echoes them into its profile claims. */
@@ -22,8 +23,11 @@ export type SignInKind = Exclude<CallerKind, 'service-account'>;
 /** The identity column recording the last sign-in through each app (KTD5). */
 const SIGNED_IN_AT = { 'portal-user': 'portalSignedInAt', 'console-user': 'consoleSignedInAt' } as const;
 
+/** The claims sign-in stores: everything but tokens and the profile claims Settings reads live (R19). */
 export function persistableClaims(claims: Readonly<Record<string, unknown>>): IdentityClaims {
-  return Object.fromEntries(Object.entries(claims).filter(([key]) => !TOKEN_CLAIMS.has(key)));
+  return Object.fromEntries(
+    Object.entries(claims).filter(([key]) => !TOKEN_CLAIMS.has(key) && !PROFILE_CLAIMS.has(key)),
+  );
 }
 
 @Injectable()
