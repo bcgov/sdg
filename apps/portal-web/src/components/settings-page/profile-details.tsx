@@ -7,14 +7,22 @@ import { ChangeLink } from './change-link';
 
 import styles from './settings-page.module.css';
 
+/** Keys each line by its text and how often that text has appeared so far, so repeated lines stay unique. */
+function keyedLines(lines: readonly string[]) {
+  const seen = new Map<string, number>();
+  return lines.map((line) => {
+    const occurrence = (seen.get(line) ?? 0) + 1;
+    seen.set(line, occurrence);
+    return { key: `${occurrence}:${line}`, line };
+  });
+}
+
 function addressValue(address: string[] | null) {
   if (address === null) return NOT_PROVIDED;
   return (
     <span className={styles['lines']}>
-      {address.map((line, index) => (
-        // Lines can repeat and never reorder, so the index keeps keys unique.
-        // oxlint-disable-next-line react/no-array-index-key
-        <span key={index}>{line}</span>
+      {keyedLines(address).map(({ key, line }) => (
+        <span key={key}>{line}</span>
       ))}
     </span>
   );

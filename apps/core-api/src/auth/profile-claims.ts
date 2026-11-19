@@ -21,7 +21,7 @@ export function warnOnTokenProfileClaims(
 ): void {
   const present = Object.keys(claims)
     .filter((key) => PROFILE_CLAIMS.has(key))
-    .toSorted();
+    .toSorted((a, b) => a.localeCompare(b));
   if (present.length === 0) return;
   logger.warn({
     msg: 'A verified token carries profile claims; set the Keycloak mappers to userinfo only',
