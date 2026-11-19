@@ -1,0 +1,66 @@
+import {
+  Controller,
+  Get,
+  Inject,
+  Logger,
+  ServiceUnavailableException,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiOkResponse,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import type { AuthUser } from '@repo/auth';
+import { describeError } from '@repo/server-core';
+
+import { PortalGuard } from '../auth/audience.guards.js';
+import type { Caller } from '../auth/caller.js';
+import { CurrentCaller } from '../auth/current-caller.decorator.js';
+import { warnOnTokenProfileClaims } from '../auth/profile-claims.js';
+import { UserinfoClient, UserinfoError } from '../auth/userinfo.client.js';
+import { profileView } from './profile-view.js';
+import { profileSchema, type ProfileResponse } from './profile.schemas.js';
+
+/** The resident's profile for the portal's Settings page, read live from Keycloak userinfo and never stored (R17). */
+@ApiTags('portal')
+@ApiBearerAuth()
+@Controller({ path: 'portal/profile', version: '1' })
+@UseGuards(PortalGuard)
+export class ProfilePortalController {
+  private readonly logger = new Logger(ProfilePortalController.name);
+  private readonly userinfo: UserinfoClient;
+
+  constructor(@Inject(UserinfoClient) userinfo: UserinfoClient) {
+    this.userinfo = userinfo;
+  }
+
+  @Get()
+  @ApiOkResponse({ description: 'The caller’s profile from userinfo', standardSchema: profileSchema })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token, or Keycloak refused it at userinfo' })
+  @ApiForbiddenResponse({ description: 'Not a portal-client person token' })
+  @ApiServiceUnavailableResponse({ description: 'Keycloak’s userinfo endpoint is unreachable or answered badly' })
+  async profile(@CurrentCaller() caller: Caller): Promise<ProfileResponse> {
+    warnOnTokenProfileClaims(this.logger, caller.user.claims);
+    return profileView((await this.readUserinfo(caller)).claims);
+  }
+
+  /** Maps userinfo failures as sign-in does (KTD3); logs the error only, never the claims. */
+  private async readUserinfo(caller: Caller): Promise<AuthUser> {
+    try {
+      return await this.userinfo.profile(caller.token, caller.user);
+    } catch (error) {
+      if (!(error instanceof UserinfoError)) throw error;
+      if (error.reason === 'rejected') {
+        this.logger.warn({ msg: 'Keycloak refused a verified token at userinfo', error: describeError(error) });
+        throw new UnauthorizedException();
+      }
+      this.logger.error({ msg: 'Could not read the caller’s profile from userinfo', error: describeError(error) });
+      throw new ServiceUnavailableException('Your profile is temporarily unavailable');
+    }
+  }
+}
