@@ -19,14 +19,16 @@ async function openMenu(page: Page) {
 }
 
 test.describe('portal-web header nav', () => {
-  test('shows Home and Help inline with no menu button on wide screens, Help selected on /help', async ({ page }) => {
+  test('shows Home, Services, Help and Contact us inline with no menu button on wide screens, Contact us selected on /contact-us', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await mockCurrentUser(page, false);
-    await page.goto('/help');
+    await page.goto('/contact-us');
     const header = page.locator('sdg-header');
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeVisible();
-    await expect(header.locator('a[slot="nav"]')).toHaveText(['Home', 'Help']);
-    await expect(header.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page');
+    await expect(header.locator('a[slot="nav"]')).toHaveText(['Home', 'Services', 'Help', 'Contact us']);
+    await expect(header.getByRole('link', { name: 'Contact us' })).toHaveAttribute('aria-current', 'page');
     await expect(header.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
     await expect(header.getByRole('button', { name: 'Menu' })).toHaveCount(0);
 
@@ -51,9 +53,9 @@ test.describe('portal-web header nav', () => {
     // A full reload would drop this marker.
     await page.evaluate(() => Object.assign(window, { stayedOnPage: true }));
 
-    await header.getByRole('link', { name: 'Help' }).click();
-    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Help');
-    await expect(header.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page');
+    await header.getByRole('link', { name: 'Contact us' }).click();
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Contact us');
+    await expect(header.getByRole('link', { name: 'Contact us' })).toHaveAttribute('aria-current', 'page');
     await expect(header.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
     expect(await page.evaluate(() => 'stayedOnPage' in window)).toBe(true);
   });
@@ -70,21 +72,21 @@ test.describe('portal-web header nav', () => {
 
     await openMenu(page);
     const home = header.getByRole('link', { name: 'Home' });
-    const help = header.getByRole('link', { name: 'Help' });
+    const contactUs = header.getByRole('link', { name: 'Contact us' });
     await expect(home).toBeVisible();
     await expect(home).toHaveAttribute('aria-current', 'page');
     // A stacked list under the header that overlays the page instead of pushing it down.
-    const [homeBox, helpBox, mainBox] = await Promise.all(
-      [home, help, page.getByRole('main')].map((l) => l.boundingBox()),
+    const [homeBox, contactUsBox, mainBox] = await Promise.all(
+      [home, contactUs, page.getByRole('main')].map((l) => l.boundingBox()),
     );
-    expect(helpBox!.y).toBeGreaterThan(homeBox!.y);
+    expect(contactUsBox!.y).toBeGreaterThan(homeBox!.y);
     expect(homeBox!.y).toBeGreaterThanOrEqual(mainBox!.y);
     expect(mainBox!.y).toBeCloseTo(104, 0);
 
-    await help.click();
-    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Help');
+    await contactUs.click();
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Contact us');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(help).toBeHidden();
+    await expect(contactUs).toBeHidden();
   });
 
   test('keeps the account menu in the utility row on narrow screens when signed in', async ({ page }) => {
@@ -112,6 +114,6 @@ test.describe('portal-web header nav', () => {
 
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.getByRole('button', { name: 'Menu' })).toHaveCount(0);
-    await expect(page.locator('sdg-header').getByRole('link', { name: 'Help' })).toBeVisible();
+    await expect(page.locator('sdg-header').getByRole('link', { name: 'Contact us' })).toBeVisible();
   });
 });

@@ -10,7 +10,7 @@ const exactMatch = { exact: true } as const;
 /**
  * The edge-served `<sdg-header>` wired to the router and the BFF session. The nav items are router links, so they
  * navigate client-side; an active `Link` sets `aria-current="page"` itself, which the header styles as selected.
- * The user menu's Settings is the header's own link to this site's /settings, so the router takes it over too.
+ * The user menu's Account Settings is the header's own link to this site's /account-settings, so the router takes it over too.
  */
 export function SiteHeader() {
   const auth = useHeaderAuth();
@@ -18,7 +18,7 @@ export function SiteHeader() {
   const onSettings = useCallback(
     (event: SdgSettingsEvent) => {
       event.preventDefault();
-      void navigate({ to: '/settings' });
+      void navigate({ to: '/account-settings' });
     },
     [navigate],
   );
@@ -28,8 +28,14 @@ export function SiteHeader() {
       <Link slot="nav" to="/" activeOptions={exactMatch}>
         Home
       </Link>
+      <Link slot="nav" to="/services">
+        Services
+      </Link>
       <Link slot="nav" to="/help">
         Help
+      </Link>
+      <Link slot="nav" to="/contact-us">
+        Contact us
       </Link>
     </SdgHeader>
   );

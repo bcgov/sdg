@@ -87,19 +87,19 @@ describe('<sdg-header> user menu', () => {
     expect(menu(element).hidden).toBe(true);
   });
 
-  it("opens on click with Settings (a link to SDG's /settings) then Log Out, focusing the first item", async () => {
+  it("opens on click with Account Settings (a link to SDG's /account-settings) then Log Out, focusing the first item", async () => {
     const element = mount(signedIn);
     await openByClick(element);
 
     expect(button(element).getAttribute('aria-expanded')).toBe('true');
     expect(menu(element).hidden).toBe(false);
     expect([...menu(element).querySelectorAll('[role="menuitem"]')].map((i) => i.textContent)).toEqual([
-      'Settings',
+      'Account Settings',
       'Log Out',
     ]);
     // The module build has no current script, so SDG is the page's own origin.
-    expect(item(element, 'Settings').getAttribute('href')).toBe(`${window.location.origin}/settings`);
-    expect(focused(element)).toBe('Settings');
+    expect(item(element, 'Account Settings').getAttribute('href')).toBe(`${window.location.origin}/account-settings`);
+    expect(focused(element)).toBe('Account Settings');
   });
 
   it('closes on a second button click', async () => {
@@ -115,7 +115,7 @@ describe('<sdg-header> user menu', () => {
     const down = mount(signedIn);
     key(button(down), 'ArrowDown');
     await settle();
-    expect(focused(down)).toBe('Settings');
+    expect(focused(down)).toBe('Account Settings');
 
     const up = mount(signedIn);
     key(button(up), 'ArrowUp');
@@ -129,9 +129,9 @@ describe('<sdg-header> user menu', () => {
 
     const steps: [string, string][] = [
       ['ArrowDown', 'Log Out'],
-      ['ArrowDown', 'Settings'],
+      ['ArrowDown', 'Account Settings'],
       ['ArrowUp', 'Log Out'],
-      ['Home', 'Settings'],
+      ['Home', 'Account Settings'],
       ['End', 'Log Out'],
     ];
     for (const [name, expected] of steps) {
@@ -143,7 +143,7 @@ describe('<sdg-header> user menu', () => {
   it('closes on Escape and returns focus to the button', async () => {
     const element = mount(signedIn);
     await openByClick(element);
-    key(item(element, 'Settings'), 'Escape');
+    key(item(element, 'Account Settings'), 'Escape');
     await settle();
 
     expect(menu(element).hidden).toBe(true);
@@ -154,7 +154,7 @@ describe('<sdg-header> user menu', () => {
     const element = mount(signedIn);
     await openByClick(element);
 
-    item(element, 'Settings').dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+    item(element, 'Account Settings').dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
     await settle();
     expect(menu(element).hidden).toBe(false);
 
@@ -177,13 +177,13 @@ describe('<sdg-header> user menu', () => {
     expect(menu(element).hidden).toBe(true);
   });
 
-  it('dispatches a cancelable sdg-settings on a Settings click and lets the link navigate', async () => {
+  it('dispatches a cancelable sdg-settings on an Account Settings click and lets the link navigate', async () => {
     const element = mount(signedIn);
     const onSettings = vi.fn<(event: Event) => void>();
     element.addEventListener(HEADER_EVENTS.settings, onSettings);
     await openByClick(element);
 
-    expect(click(item(element, 'Settings'))).toBe(false);
+    expect(click(item(element, 'Account Settings'))).toBe(false);
     expect(onSettings).toHaveBeenCalledOnce();
     expect(onSettings.mock.calls[0]?.[0]).toMatchObject({ bubbles: true, composed: true, cancelable: true });
   });
@@ -193,7 +193,7 @@ describe('<sdg-header> user menu', () => {
     element.addEventListener(HEADER_EVENTS.settings, (event) => event.preventDefault());
     await openByClick(element);
 
-    expect(click(item(element, 'Settings'))).toBe(true);
+    expect(click(item(element, 'Account Settings'))).toBe(true);
   });
 
   it('dispatches no sdg-settings on a modified click', async () => {
@@ -202,7 +202,7 @@ describe('<sdg-header> user menu', () => {
     element.addEventListener(HEADER_EVENTS.settings, onSettings);
     await openByClick(element);
 
-    expect(click(item(element, 'Settings'), { ctrlKey: true })).toBe(false);
+    expect(click(item(element, 'Account Settings'), { ctrlKey: true })).toBe(false);
     expect(onSettings).not.toHaveBeenCalled();
   });
 });

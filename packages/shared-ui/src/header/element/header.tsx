@@ -18,7 +18,7 @@ export interface HeaderProps {
   settingsHref: string;
   /** The Log In link's click; decides whether to dispatch `sdg-login`. */
   onLoginClick: (event: MouseEvent) => void;
-  /** The Settings link's click; decides whether to dispatch `sdg-settings`. */
+  /** The Account Settings link's click; decides whether to dispatch `sdg-settings`. */
   onSettingsClick: (event: MouseEvent) => void;
   onLogoutClick: () => void;
 }
