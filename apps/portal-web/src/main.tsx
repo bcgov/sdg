@@ -8,8 +8,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './app';
+import { setUpFontAwesome } from './font-awesome';
 import { createAppRouter } from './router';
 import { startTelemetry } from './telemetry';
+
+setUpFontAwesome();
 
 // Browser telemetry, only when the edge's /telemetry.json enables it; never blocks or breaks rendering.
 void startTelemetry();

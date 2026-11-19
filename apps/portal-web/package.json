@@ -13,6 +13,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "catalog:",
     "@grafana/faro-web-sdk": "catalog:",
     "@grafana/faro-web-tracing": "catalog:",
     "@repo/design-system": "workspace:*",
