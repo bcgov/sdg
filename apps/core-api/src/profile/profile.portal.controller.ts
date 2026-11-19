@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Logger, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Inject, Logger, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -31,6 +31,8 @@ export class ProfilePortalController {
   }
 
   @Get()
+  // Per-resident PII: never kept by a browser or shared cache, whatever sits in front of core-api.
+  @Header('Cache-Control', 'private, no-store')
   @ApiOkResponse({ description: 'The caller’s profile from userinfo', standardSchema: profileSchema })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token, or Keycloak refused it at userinfo' })
   @ApiForbiddenResponse({ description: 'Not a portal-client person token' })

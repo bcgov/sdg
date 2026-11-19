@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SettingsPage } from '.';
@@ -41,12 +41,14 @@ function stubProfile(respond: () => Promise<Response>): () => number {
   return () => requests;
 }
 
-function renderPage() {
+function renderPage(): QueryClient {
+  const queryClient = new QueryClient();
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <SettingsPage />
     </QueryClientProvider>,
   );
+  return queryClient;
 }
 
 /** The value cell (first dd) of the row labelled `label` within `section`. */
@@ -135,6 +137,36 @@ describe('SettingsPage', () => {
     expect(requests()).toBe(1);
     expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Data & Privacy' })).toHaveTextContent('At tellus nunc nisl aliquam');
+  });
+
+  it.each([
+    ['a non-string name', () => Response.json({ ...fullProfile, name: 5 })],
+    ['a non-string address line', () => Response.json({ ...fullProfile, address: [1] })],
+    ['a body that is not JSON', () => new Response('<html>gateway</html>', { status: 200 })],
+  ])('treats a profile answer with %s as a failed load', async (_case, answer) => {
+    stubProfile(() => Promise.resolve(answer()));
+    renderPage();
+    const profile = screen.getByRole('region', { name: 'Profile' });
+    expect(await within(profile).findByText('We couldn’t load your details')).toBeInTheDocument();
+  });
+
+  it('keeps showing loaded details when a later refetch fails', async () => {
+    let fail = false;
+    stubProfile(() =>
+      Promise.resolve(fail ? Response.json({ statusCode: 503 }, { status: 503 }) : Response.json(fullProfile)),
+    );
+    const queryClient = renderPage();
+    const profile = screen.getByRole('region', { name: 'Profile' });
+    await within(profile).findByText('Ada Lovelace');
+
+    fail = true;
+    await act(() => queryClient.refetchQueries());
+    expect(queryClient.getQueryState(['portal', 'profile'])?.status).toBe('error');
+    // React Query notifies observers on a later tick; let the page re-render before asserting.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    expect(within(profile).getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.queryByText('We couldn’t load your details')).toBeNull();
   });
 
   it('shows a loading indicator, and never Not provided, while the profile loads (R20)', () => {

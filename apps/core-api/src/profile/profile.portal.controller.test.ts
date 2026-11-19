@@ -48,6 +48,7 @@ describe('GET /api/v1/portal/profile (R17, KTD1, KTD3, KTD8)', () => {
       address: ['12 St James Sq', 'London SW1Y 4JH'],
     });
     expect(t.idp.userinfoRequests).toBe(1);
+    expect(res.headers['cache-control']).toBe('private, no-store');
   });
 
   it('Should answer null for the profile claims userinfo does not release', async () => {

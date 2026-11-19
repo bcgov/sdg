@@ -11,11 +11,14 @@ interface ProfileQueryStateProps {
   children: (profile: Profile) => ReactNode;
 }
 
-/** A loading indicator while the profile loads (R20), a contained error if it fails (R14), else the content. */
+/**
+ * The content once the profile has loaded, a loading indicator until then (R20), and a contained error when the first
+ * load fails (R14). A failed background refetch keeps the details already shown rather than replacing them.
+ */
 export function ProfileQueryState({ query, children }: Readonly<ProfileQueryStateProps>) {
-  if (query.isPending) return <ProgressCircle isIndeterminate aria-label="Loading your details" />;
+  if (query.data !== undefined) return children(query.data);
   if (query.isError) {
     return <InlineAlert variant="danger" title="We couldn’t load your details" description="Please try again later." />;
   }
-  return children(query.data);
+  return <ProgressCircle isIndeterminate aria-label="Loading your details" />;
 }
