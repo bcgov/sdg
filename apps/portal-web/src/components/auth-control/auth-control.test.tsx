@@ -53,13 +53,13 @@ describe('useHeaderAuth', () => {
       expect(header.queryByRole('menuitem', { name: 'Log Out', hidden: true })).toBeNull();
     });
 
-    it("Should render the user's name as the account menu button, with Settings and Log Out, when signed in", async () => {
+    it("Should render the user's name as the account menu button, with Account Settings and Log Out, when signed in", async () => {
       renderWith(signedIn);
       const header = await headerQueries();
       await userEvent.click(await header.findByRole('button', { name: 'Ada Lovelace' }));
-      expect(header.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute(
+      expect(header.getByRole('menuitem', { name: 'Account Settings' })).toHaveAttribute(
         'href',
-        `${window.location.origin}/settings`,
+        `${window.location.origin}/account-settings`,
       );
       expect(header.getByRole('menuitem', { name: 'Log Out' })).toBeInTheDocument();
       expect(header.queryByRole('link', { name: 'Log In' })).toBeNull();

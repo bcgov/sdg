@@ -48,7 +48,7 @@ export class SdgHeaderElement extends HTMLElement {
     render(null, this.#root);
   }
 
-  // Log In and Settings stay real links: modified clicks (new tab, window) are the browser's, and a plain click
+  // Log In and Account Settings stay real links: modified clicks (new tab, window) are the browser's, and a plain click
   // navigates unless a listener cancels the event, e.g. to route client-side (KTD9).
   #linkClick(type: string): (event: MouseEvent) => void {
     return (event) => {

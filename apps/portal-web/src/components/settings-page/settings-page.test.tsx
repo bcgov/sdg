@@ -66,7 +66,7 @@ describe('SettingsPage', () => {
     const profile = screen.getByRole('region', { name: 'Profile' });
     await within(profile).findByText('Ada Lovelace');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Account Settings' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
       'Profile',
       'Communication',
@@ -135,7 +135,7 @@ describe('SettingsPage', () => {
     expect(within(communication).getByText('We couldn’t load your details')).toBeInTheDocument();
     expect(profile.querySelector('dl')).toBeNull();
     expect(requests()).toBe(1);
-    expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Account Settings' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Data & Privacy' })).toHaveTextContent('At tellus nunc nisl aliquam');
   });
 
