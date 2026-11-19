@@ -1,0 +1,38 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-large);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+}
+
+/* The section owns spacing through its gaps, so headings, paragraphs and children drop their own margins. */
+.section > *,
+.header > * {
+  margin: 0;
+}
+
+.bar {
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin-bottom: var(--layout-margin-small);
+  background-color: var(--theme-primary-gold);
+}
+
+.title {
+  color: var(--typography-color-primary);
+  font: var(--typography-bold-h5);
+}
+
+/* No design token is exactly 18px/30px (regular-large-body is 30.6px), so the type is set explicitly. */
+.description {
+  color: var(--typography-color-secondary);
+  font:
+    400 1.125rem/1.875rem 'BC Sans',
+    sans-serif;
+}

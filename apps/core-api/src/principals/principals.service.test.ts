@@ -142,6 +142,26 @@ describe('PrincipalsService Unit Test Suite', () => {
       expect(identity?.claims).toEqual({ sub: 'sub-123', locale: 'en' });
       expect(JSON.stringify(identity?.claims)).not.toMatch(/access_token|refresh_token|id_token/);
     });
+
+    it('Should store claims without the profile claims Settings reads live (R19)', async () => {
+      await service.upsertFromLogin(
+        user({
+          claims: {
+            sub: 'sub-123',
+            email: 'ada@example.com',
+            locale: 'en',
+            birthdate: '1815-12-10',
+            gender: 'female',
+            address: { formatted: '12 St James Sq' },
+            phone_number: '+1 250 555 0100',
+            phone_number_verified: true,
+          },
+        }),
+        PORTAL,
+      );
+      const [identity] = await database.db.select().from(identities);
+      expect(identity?.claims).toEqual({ sub: 'sub-123', email: 'ada@example.com', locale: 'en' });
+    });
   });
 
   describe('returning login', () => {

@@ -2,6 +2,10 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 
+import { setUpFontAwesome } from './font-awesome';
+
+setUpFontAwesome();
+
 // The header script comes from the edge in the browser; here the element module defines <sdg-header> directly, so the
 // SdgHeader wrapper finds it defined and injects no <script> (KTD13). Node-environment tests have no HTMLElement to
 // extend, so they skip it.

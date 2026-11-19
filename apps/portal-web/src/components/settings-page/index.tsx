@@ -1,37 +1,28 @@
 import { Heading } from '@repo/design-system/components/heading';
+import { Section } from '@repo/design-system/components/section';
 import { Separator } from '@repo/design-system/components/separator';
-import { Text } from '@repo/design-system/components/text';
-import { useId } from 'react';
+
+import { useProfile } from '../../profile/use-profile';
+import { CommunicationDetails, ProfileDetails } from './profile-details';
+import { ProfileQueryState } from './profile-query-state';
 
 import styles from './settings-page.module.css';
 
-interface SettingsSectionProps {
-  title: string;
-  description: string;
-}
-
-function SettingsSection({ title, description }: Readonly<SettingsSectionProps>) {
-  const headingId = useId();
-  return (
-    <section className={styles.section} aria-labelledby={headingId}>
-      <Heading level={2} id={headingId}>
-        {title}
-      </Heading>
-      <Text elementType="p" color="secondary">
-        {description}
-      </Text>
-    </section>
-  );
-}
-
 export function SettingsPage() {
+  const profile = useProfile();
   return (
-    <div className={styles.page}>
-      <Heading level={1}>Settings</Heading>
+    <div className={styles['page']}>
+      <Heading level={1} className={styles['title']}>
+        Settings
+      </Heading>
       <Separator />
-      <SettingsSection title="Profile" description="Habitant sit ut scelerisque a metus BC Services Card." />
-      <SettingsSection title="Communication" description="At vitae blandit habitant purus." />
-      <SettingsSection title="Data & Privacy" description="At tellus nunc nisl aliquam" />
+      <Section title="Profile" description="Habitant sit ut scelerisque a metus BC Services Card.">
+        <ProfileQueryState query={profile}>{(data) => <ProfileDetails profile={data} />}</ProfileQueryState>
+      </Section>
+      <Section title="Communication" description="At vitae blandit habitant purus.">
+        <ProfileQueryState query={profile}>{(data) => <CommunicationDetails profile={data} />}</ProfileQueryState>
+      </Section>
+      <Section title="Data & Privacy" description="At tellus nunc nisl aliquam" />
     </div>
   );
 }
