@@ -10,7 +10,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../charts"
-LEAF_CHARTS=(portal-web portal-api console-web console-api gateway-api core-api edge postgres)
+LEAF_CHARTS=(portal-web portal-api console-web console-api gateway-api core-api shared-ui edge postgres)
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.31.0}"
 
@@ -68,11 +68,13 @@ done
 helm unittest --strict "${LEAF_CHARTS[@]}" sdg observability
 
 # helm-unittest can't select a disabled subchart's templates, so the umbrella condition is checked here.
-# shellcheck disable=SC2046
-if helm template sdg sdg $(umbrella_values) --set portal-web.enabled=false | grep -q 'app.kubernetes.io/name: portal-web'; then
-  echo "FAIL: sdg with portal-web.enabled=false still renders portal-web resources" >&2
-  exit 1
-fi
+for chart in portal-web shared-ui; do
+  # shellcheck disable=SC2046
+  if helm template sdg sdg $(umbrella_values) --set "${chart}.enabled=false" | grep -q "app.kubernetes.io/name: ${chart}"; then
+    echo "FAIL: sdg with ${chart}.enabled=false still renders ${chart} resources" >&2
+    exit 1
+  fi
+done
 echo "PASS: a disabled subchart renders nothing"
 
 validate() {
@@ -122,6 +124,8 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" "agent-inject-secret-console-api.env: \"?example-(non)?prod/console-api\"?$" "reads console-api's secrets from <role>/console-api"
   expect_rendered "$env" "$manifests" "value: \"?http://${release}-console-api:3000\"?$" "sends the console host's /api to console-api"
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/gateway-api:0123abc" "deploys gateway-api"
+  expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/shared-ui:0123abc" "deploys shared-ui"
+  expect_rendered "$env" "$manifests" "value: \"?http://${release}-shared-ui:8080\"?$" "sends the portal host's /shared-ui/ to shared-ui"
   expect_rendered "$env" "$manifests" "value: \"?http://${release}-gateway-api:3000\"?$" "sends the gateway host's /api to gateway-api"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
   expect_rendered "$env" "$manifests" "host: \"?${release}-console\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-console.<apps domain>"

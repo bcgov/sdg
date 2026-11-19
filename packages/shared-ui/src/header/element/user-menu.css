@@ -1,0 +1,80 @@
+/*
+ * The signed-in account menu button and its menu. Part of the header's one constructed stylesheet, appended after
+ * styles.css (sdg-header-element.ts).
+ */
+
+/*
+ * Signed in: a primary menu button (avatar, name, caret) opening a menu of Account Settings and Log Out, which overlays the
+ * page under the utility row, right-aligned with the button.
+ */
+.user-menu {
+  position: relative;
+  min-width: 0;
+}
+
+.user-menu-button {
+  max-width: 100%;
+}
+
+.user-name {
+  min-width: 0;
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--layout-margin-xsmall, 0.25rem));
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  min-width: max(100%, 12rem);
+  padding: var(--layout-padding-xsmall, 0.25rem) var(--layout-padding-none, 0);
+  background-color: var(--surface-color-background-white, #ffffff);
+  border: var(--layout-border-width-small, 1px) solid var(--surface-color-border-default, #d8d8d8);
+  border-radius: var(--layout-border-radius-medium, 4px);
+  box-shadow: var(--surface-shadow-medium, 0 1.2px 3.6px 0 #0000001a, 0 6.4px 14.4px 0 #00000021);
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-small, 0.5rem);
+  width: 100%;
+  margin: 0;
+  padding: var(--layout-padding-small, 0.5rem) var(--layout-padding-medium, 1rem);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--typography-font-size-small-body, 0.875rem);
+  color: var(--typography-color-primary, #2d2d2d);
+  text-align: start;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background-color: var(--surface-color-secondary-button-hover, #edebe9);
+}
+
+.menu-item:focus-visible {
+  outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
+  outline-offset: -2px;
+}
+
+.menu-item-danger {
+  color: var(--typography-color-danger, #ce3e39);
+}
+
+.menu-item-danger:hover,
+.menu-item-danger:focus-visible {
+  background-color: var(--support-surface-color-danger, #f4e1e2);
+}

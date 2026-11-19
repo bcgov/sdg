@@ -9,7 +9,7 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - Pull Request-based pipeline
 - Sandboxed development environments: a full, throwaway stack per pull request
 - Gated/controlled production deployments (optional)
-- Container publishing (ghcr.io) of eight images: `portal-web`, `portal-api`, `console-web`, `console-api`, `gateway-api`, `core-api`, `database` (the migrator) and `edge`
+- Container publishing (ghcr.io) of nine images: `portal-web`, `portal-api`, `console-web`, `console-api`, `gateway-api`, `core-api`, `shared-ui` (the header script), `database` (the migrator) and `edge`
 - Helm charts (`charts/`) with an `sdg` umbrella chart, deployed with Helm from GitHub Actions
 - Secrets from Vault, injected by the Vault Agent sidecar; database and cache credentials generated in-cluster
 - Security, vulnerability, infrastructure, and container scan tools
@@ -29,11 +29,11 @@ This repository deploys the SDG portal, a modern web application stack, to OpenS
 - **Sample application stack** (pnpm + Turborepo monorepo):
   - Database: PostgreSQL 17 + PostGIS 3.5 (Crunchy PGO), Drizzle; each service has its own login and schema (`core`, `portal`, `console`); portal-api keeps the express-session store (encrypted at rest; pg_cron deletes expired sessions every 15 minutes)
   - Frontend: `portal-web`, React + Vite with TanStack Router, served by Caddy
-  - Edge: Caddy with Coraza WAF, routing by host: the portal host sends `/api*` to portal-api and everything else to portal-web; the console host (`<release>-console`) sends `/api*` to console-api and everything else to console-web; the gateway host (`<release>-gateway`) sends `/api*` to gateway-api and answers everything else with 404
+  - Edge: Caddy with Coraza WAF, routing by host: the portal host sends `/api*` to portal-api, `/shared-ui/*` to shared-ui (the header script, the only path other origins may read) and everything else to portal-web; the console host (`<release>-console`) sends `/api*` to console-api and everything else to console-web; the gateway host (`<release>-gateway`) sends `/api*` to gateway-api and answers everything else with 404
   - Backend: `portal-api`, a thin NestJS backend-for-frontend on `@repo/bff-core` (Keycloak OIDC sign-in, sessions) that forwards `/api` calls to `core-api`, which owns the principals and the `core` schema
   - Console: `console-web` (React: a sign-in card, then a sidebar app shell built from `design-system` around the service-account registry) and `console-api`, a second backend-for-frontend on `@repo/bff-core` that signs privileged government users in with IDIR (cookie `console.sid`, `console` schema) and forwards to `core-api`; a sign-in without the `admin` client role is ended at Keycloak and lands on `/not-authorized`
   - Service accounts: `gateway-api`, a NestJS forwarder on `@repo/server-core` only (no login, session or database). It forwards `GET /api/v1/gateway/…` with the caller's client-credentials Bearer token to core-api, which verifies it and checks the client against the registry (403 when it is not registered and enabled). gateway-api answers 401 itself to a missing or non-Bearer `Authorization`, 405 to any method other than GET, and 404 outside the gateway routes, without calling core-api
-  - Shared packages: `design-system`, the `<sdg-header>` web component, `auth`, `bff-core`, `server-core`, `database`
+  - Shared packages: `design-system`, `shared-ui` (the `<sdg-header>` web component every site loads from the edge), `auth`, `bff-core`, `server-core`, `database`
   - Diagrams: C4 context, container, component and deployment views in [`docs/architecture.md`](./docs/architecture.md)
 
 # Setup
@@ -364,7 +364,7 @@ If `@testing-library/user-event` is flagged but exported from `test-utils.tsx`:
 
 ### Packages
 
-Packages are available from your repository (link on right). New packages are private until a person makes them public, so do it after the first pull request's build. All eight (`portal-web`, `portal-api`, `console-web`, `console-api`, `gateway-api`, `core-api`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
+Packages are available from your repository (link on right). New packages are private until a person makes them public, so do it after the first pull request's build. All nine (`portal-web`, `portal-api`, `console-web`, `console-api`, `gateway-api`, `core-api`, `shared-ui`, `database`, `edge`) should have visibility set to public for the workflows to run successfully.
 
 E.g. `https://github.com/<owner>/<repo>/packages`
 
@@ -476,16 +476,17 @@ Grafana is at **https://grafana.sdg.localhost** (anonymous admin, local only), w
 
 Multi-stage Dockerfiles for OpenShift. The app images build from the repository root:
 
-| Image         | Build                                            | Runs                                                                                                                   |
-| ------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `portal-web`  | `podman build -f apps/portal-web/Dockerfile .`   | Caddy serving the built SPA on `:8080` (cluster-internal)                                                              |
-| `portal-api`  | `podman build -f apps/portal-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                     |
-| `console-web` | `podman build -f apps/console-web/Dockerfile .`  | Caddy serving the built console SPA on `:8080` (cluster-internal)                                                      |
-| `console-api` | `podman build -f apps/console-api/Dockerfile .`  | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                     |
-| `gateway-api` | `podman build -f apps/gateway-api/Dockerfile .`  | `node dist/main.js` on `:3000`: GET `/api/v1/gateway/*` forwarded to core-api; no database or secrets                  |
-| `core-api`    | `podman build -f apps/core-api/Dockerfile .`     | `node dist/main.js` on `:3000` (internal; the forwarders call it)                                                      |
-| `database`    | `podman build -f packages/database/Dockerfile .` | `node dist/migrate.js` as core-api's initContainer (needs `DATABASE_URL`, core login)                                  |
-| edge          | `podman build apps/portal-web/caddy`             | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL`; console and gateway hosts likewise |
+| Image         | Build                                             | Runs                                                                                                                   |
+| ------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `portal-web`  | `podman build -f apps/portal-web/Dockerfile .`    | Caddy serving the built SPA on `:8080` (cluster-internal)                                                              |
+| `portal-api`  | `podman build -f apps/portal-api/Dockerfile .`    | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                     |
+| `console-web` | `podman build -f apps/console-web/Dockerfile .`   | Caddy serving the built console SPA on `:8080` (cluster-internal)                                                      |
+| `console-api` | `podman build -f apps/console-api/Dockerfile .`   | `node dist/main.js` on `:3000`; `node dist/migrate.js` (sessions) as initContainer                                     |
+| `gateway-api` | `podman build -f apps/gateway-api/Dockerfile .`   | `node dist/main.js` on `:3000`: GET `/api/v1/gateway/*` forwarded to core-api; no database or secrets                  |
+| `core-api`    | `podman build -f apps/core-api/Dockerfile .`      | `node dist/main.js` on `:3000` (internal; the forwarders call it)                                                      |
+| `shared-ui`   | `podman build -f packages/shared-ui/Dockerfile .` | Caddy serving the header script on `:8080` (cluster-internal; the edge's `/shared-ui/*` → `SHARED_UI_URL`)             |
+| `database`    | `podman build -f packages/database/Dockerfile .`  | `node dist/migrate.js` as core-api's initContainer (needs `DATABASE_URL`, core login)                                  |
+| edge          | `podman build apps/portal-web/caddy`              | Caddy + Coraza WAF on `:3000`: `/api*` → `PORTAL_API_URL`, `/*` → `PORTAL_WEB_URL`; console and gateway hosts likewise |
 
 All run on Alpine without a package manager, as an arbitrary UID in group 0 with every capability dropped. `scripts/images-smoke.sh` builds them and checks them that way against the compose `postgis` (migrations, health, SPA routing and caching, edge headers, WAF).
 
@@ -576,7 +577,7 @@ Runs on pull request submission.
 - Build action pushes to GitHub Container Registry (ghcr.io)
 - Build triggers select new builds vs reusing builds
 - Deploy only when changes are made
-- Builds `portal-web`, `portal-api`, `console-web`, `console-api`, `gateway-api`, `core-api`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
+- Builds `portal-web`, `portal-api`, `console-web`, `console-api`, `gateway-api`, `core-api`, `shared-ui`, `database` and `edge`; deploys the `charts/sdg` Helm release `<repo>-<pr>` to `<plate>-dev`
 - Smoke checks through the edge and Playwright E2E (chromium) when changes are made
 - Posts sticky comment with deployment links when deployments occur
 - Other checks and updates as required

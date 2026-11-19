@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-/** Below 768px the sidebar is the slide-over panel: the same breakpoint as `<sdg-header>`'s collapsed layout. */
+/** Below 768px the sidebar is the slide-over panel: the same breakpoint as the portal header's narrow layout. */
 export const MOBILE_QUERY = '(max-width: 767.98px)';
 
 /** Where the desktop sidebar's expanded/collapsed choice is kept, so it survives a reload (R12). */

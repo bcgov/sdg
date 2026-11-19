@@ -32,8 +32,7 @@ describe('portal-web app shell', () => {
       const header = await headerQueries();
       const banners = header.getAllByRole('banner');
       expect(banners).toHaveLength(1);
-      expect(banners[0]).toHaveClass('bcds-header');
-      expect(within(banners[0]!).getByText('SDG')).toHaveClass('bcds-header--title');
+      expect(within(banners[0]!).getByText('SDG')).toBeInTheDocument();
       // The header's banner lives in its shadow root; the page itself adds none.
       expect(screen.queryAllByRole('banner')).toHaveLength(0);
     });
@@ -56,13 +55,13 @@ describe('portal-web app shell', () => {
       expect(footers[0]!.compareDocumentPosition(screen.getByRole('main'))).toBe(Node.DOCUMENT_POSITION_PRECEDING);
     });
 
-    it('links the header logo to "/" and provides a skip link to #main-content', async () => {
+    it('provides a skip link to #main-content before the header', async () => {
       renderAt('/');
-      const header = await headerQueries();
-      const logoLink = header.getByTitle('Government of British Columbia');
-      expect(logoLink.tagName).toBe('A');
-      expect(logoLink).toHaveAttribute('href', '/');
-      expect(header.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main-content');
+      const skipLink = await screen.findByRole('link', { name: 'Skip to main content' });
+      expect(skipLink).toHaveAttribute('href', '#main-content');
+      expect(skipLink.compareDocumentPosition(document.querySelector('sdg-header')!)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
     });
   });
 
@@ -99,26 +98,63 @@ describe('portal-web app shell', () => {
     });
   });
 
+  describe('services route', () => {
+    it('renders the Services page at "/services" and marks its nav item current', async () => {
+      renderAt('/services');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
+      await headerQueries();
+      const nav = within(document.querySelector('sdg-header')!);
+      await waitFor(() => expect(nav.getByRole('link', { name: 'Services' })).toHaveAttribute('aria-current', 'page'));
+      expect(nav.getByRole('link', { name: 'Services' })).toHaveAttribute('href', '/services');
+      expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    });
+  });
+
   describe('help route', () => {
-    it('renders the help page at "/help" and marks the Help nav item current', async () => {
+    it('renders the Help page at "/help" and marks its nav item current', async () => {
       renderAt('/help');
       expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Help');
-      const nav = (await headerQueries()).getByRole('navigation', { name: 'Main' });
+      await headerQueries();
+      const nav = within(document.querySelector('sdg-header')!);
+      await waitFor(() => expect(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page'));
+      expect(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
+      expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('lists the nav items in order: Home, Services, Help, Contact us', async () => {
+      renderAt('/');
+      await headerQueries();
+      const links = [...document.querySelectorAll('sdg-header a[slot="nav"]')].map((a) => a.textContent);
+      expect(links).toEqual(['Home', 'Services', 'Help', 'Contact us']);
+    });
+  });
+
+  describe('contact us route', () => {
+    it('renders the Contact us page at "/contact-us" and marks its nav item current', async () => {
+      renderAt('/contact-us');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Contact us');
+      expect((await headerQueries()).getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
+      // Nav items are the app's own links, slotted into the header from the light DOM.
+      const nav = within(document.querySelector('sdg-header')!);
       await waitFor(() =>
-        expect(within(nav).getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page'),
+        expect(nav.getByRole('link', { name: 'Contact us' })).toHaveAttribute('aria-current', 'page'),
       );
-      expect(within(nav).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
-      expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+      expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+      expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+      expect(nav.getByRole('link', { name: 'Contact us' })).toHaveAttribute('slot', 'nav');
     });
 
     it('navigates client-side from the header nav and moves the current item', async () => {
       const { router } = renderAt('/');
       expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Welcome to SDG');
-      const header = await headerQueries();
-      await userEvent.click(header.getByRole('link', { name: 'Help' }));
-      expect(await screen.findByRole('heading', { level: 1, name: 'Help' })).toBeInTheDocument();
-      expect(router.state.location.pathname).toBe('/help');
-      await waitFor(() => expect(header.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page'));
+      await headerQueries();
+      const header = within(document.querySelector('sdg-header')!);
+      await userEvent.click(header.getByRole('link', { name: 'Contact us' }));
+      expect(await screen.findByRole('heading', { level: 1, name: 'Contact us' })).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/contact-us');
+      await waitFor(() =>
+        expect(header.getByRole('link', { name: 'Contact us' })).toHaveAttribute('aria-current', 'page'),
+      );
       expect(header.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
     });
   });

@@ -6,7 +6,7 @@ setup('authenticate', async ({ page, clientURL, clientUsername, clientPassword }
   await page.goto(clientURL);
 
   const headerSection = page.locator('header');
-  await headerSection.getByRole('link', { name: 'Sign in' }).click();
+  await headerSection.getByRole('link', { name: 'Log In' }).click();
 
   await page.getByRole('button', { name: 'Test with username and password' }).click();
 

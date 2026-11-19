@@ -5,8 +5,6 @@ import {
   Inject,
   Logger,
   Post,
-  ServiceUnavailableException,
-  UnauthorizedException,
   UseGuards,
   VERSION_NEUTRAL,
 } from '@nestjs/common';
@@ -18,13 +16,13 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { AuthUser } from '@repo/auth';
-import { describeError } from '@repo/server-core';
 
 import { InternalGuard } from '../auth/audience.guards.js';
+import { readCallerProfile } from '../auth/caller-profile.js';
 import type { Caller } from '../auth/caller.js';
 import { CurrentCaller } from '../auth/current-caller.decorator.js';
-import { UserinfoClient, UserinfoError } from '../auth/userinfo.client.js';
+import { warnOnTokenProfileClaims } from '../auth/profile-claims.js';
+import { UserinfoClient } from '../auth/userinfo.client.js';
 import { loginResponseSchema, type LoginResponse } from './principals.schemas.js';
 import { PrincipalsService } from './principals.service.js';
 
@@ -61,23 +59,9 @@ export class PrincipalsController {
     if (caller.kind === 'console-user' && !caller.isAdmin) {
       throw new ForbiddenException('The admin client role is required');
     }
-    const profile = await this.profile(caller);
+    warnOnTokenProfileClaims(this.logger, caller.user.claims);
+    const profile = await readCallerProfile(this.userinfo, caller, this.logger, 'Sign-in is temporarily unavailable');
     const { principalId } = await this.principals.upsertFromLogin(profile, caller.kind);
     return { principalId, name: profile.name, email: profile.email };
-  }
-
-  /** The caller's profile from userinfo; its failures become 401 (Keycloak refused the token) or 503. */
-  private async profile(caller: Caller): Promise<AuthUser> {
-    try {
-      return await this.userinfo.profile(caller.token, caller.user);
-    } catch (error) {
-      if (!(error instanceof UserinfoError)) throw error;
-      if (error.reason === 'rejected') {
-        this.logger.warn({ msg: 'Keycloak refused a verified token at userinfo', error: describeError(error) });
-        throw new UnauthorizedException();
-      }
-      this.logger.error({ msg: 'Could not read the caller’s profile from userinfo', error: describeError(error) });
-      throw new ServiceUnavailableException('Sign-in is temporarily unavailable');
-    }
   }
 }

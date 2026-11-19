@@ -1,0 +1,26 @@
+# shared-ui production static server (packages/shared-ui/Dockerfile): the header's CDN bundle from /srv, at
+# /header/v<major>/sdg-header.js. Cluster-internal only: the edge (apps/portal-web/caddy) adds the WAF, security headers
+# and compression, and serves this at /shared-ui/.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	log {
+		output stdout
+		format console
+		level {$LOG_LEVEL:INFO}
+	}
+
+	respond /healthz 200
+
+	# One URL per major always serves the latest release in it: browsers revalidate with the ETag on every load, so a
+	# release or rollback reaches visitors on their next page load.
+	header /header/*/sdg-header.js Cache-Control "no-cache"
+
+	# No SPA fallback: a missing file is a 404.
+	root * /srv
+	file_server
+}

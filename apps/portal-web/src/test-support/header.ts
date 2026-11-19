@@ -1,15 +1,12 @@
-import type { SdgHeader } from '@repo/sdg-header';
 import { type BoundFunctions, type queries, waitFor, within } from '@testing-library/react';
 
-/** The rendered `<sdg-header>` once its first render is done. */
-export async function findSdgHeader(): Promise<SdgHeader> {
-  const element = await waitFor(() => {
-    const found = document.querySelector('sdg-header');
-    if (!found?.shadowRoot) throw new Error('sdg-header not rendered yet');
+/** The `<sdg-header>` once its shadow root holds the first render (Preact renders on connect, possibly async). */
+export async function findSdgHeader(): Promise<HTMLElement> {
+  return waitFor(() => {
+    const found = document.querySelector<HTMLElement>('sdg-header');
+    if (!found?.shadowRoot?.querySelector('header')) throw new Error('sdg-header not rendered yet');
     return found;
   });
-  await element.updateComplete;
-  return element;
 }
 
 /** Testing Library queries inside `<sdg-header>`'s shadow root, where `screen` can't reach. */

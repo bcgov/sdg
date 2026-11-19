@@ -12,7 +12,7 @@
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["PORTAL_API_URL", "CONSOLE_API_URL"]
+      "passThroughEnv": ["PORTAL_API_URL", "CONSOLE_API_URL", "SHARED_UI_URL"]
     },
     "typecheck": {
       "dependsOn": ["^build"]

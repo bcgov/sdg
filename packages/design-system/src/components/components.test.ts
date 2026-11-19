@@ -11,7 +11,9 @@ const subpaths: Record<string, Record<string, unknown>> = Object.fromEntries(
 const custom: Record<string, string[]> = {
   avatar: ['Avatar', 'getInitials'],
   'data-table': ['DataTable', 'dataTableColumnHelper', 'readTableState', 'tableParamKeys', 'writeTableState'],
+  details: ['Details'],
   'nav-link': ['NavLink'],
+  section: ['Section'],
   tabs: ['Tab', 'TabList', 'TabPanel', 'Tabs'],
 };
 const wrapped: Record<string, Record<string, unknown>> = Object.fromEntries(

@@ -1,0 +1,49 @@
+.details {
+  margin: 0;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+/* Content-independent tracks, so every row's columns line up with every other row's. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.label,
+.value,
+.extra {
+  margin: 0;
+  padding: var(--layout-padding-medium);
+}
+
+.label {
+  font: var(--typography-bold-body);
+}
+
+.value {
+  overflow-wrap: anywhere;
+}
+
+/* Always the third column, so a row without extra content leaves that column empty. */
+.extra {
+  grid-column: 3;
+}
+
+@media (max-width: 768px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .extra {
+    grid-column: auto;
+  }
+
+  .label {
+    padding-bottom: 0;
+  }
+
+  .value + .extra {
+    padding-top: 0;
+  }
+}

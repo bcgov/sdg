@@ -1,0 +1,137 @@
+import { faBars } from '@fortawesome/free-solid-svg-icons';
+import type { ComponentChildren, JSX, RefObject } from 'preact';
+import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
+
+import { Icon } from './icon.js';
+import { hostOf, isInside } from './shadow.js';
+
+/** The wide layout: links inline in the main row. Below it they sit behind the menu button (KTD10). */
+const WIDE_QUERY = '(min-width: 768px)';
+const PANEL_ID = 'nav-panel';
+
+/** Tracks the wide-layout media query. Only called once links exist, so a header without nav never queries it. */
+function useWide(): boolean {
+  const [wide, setWide] = useState(() => window.matchMedia(WIDE_QUERY).matches);
+  useLayoutEffect(() => {
+    const query = window.matchMedia(WIDE_QUERY);
+    const onChange = (event: MediaQueryListEvent): void => setWide(event.matches);
+    query.addEventListener('change', onChange);
+    setWide(query.matches);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  return wide;
+}
+
+/**
+ * While the menu is open, closes it on Escape or a link click (focus back to the menu button), on a pointerdown
+ * outside the header (the composed path crosses the shadow boundary) and on focus moving out of the header (R24).
+ * Slotted links' events reach the nav through their slot.
+ */
+function useCloseOnLeave(
+  open: boolean,
+  navRef: RefObject<HTMLElement | null>,
+  buttonRef: RefObject<HTMLButtonElement | null>,
+  close: () => void,
+): void {
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const host = hostOf(nav);
+    if (!open || !nav || !host) return undefined;
+    const closeAndFocusButton = (): void => {
+      close();
+      buttonRef.current?.focus();
+    };
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') closeAndFocusButton();
+    };
+    const onClick = (event: MouseEvent): void => {
+      if (event.target instanceof Element && event.target.closest('a')) closeAndFocusButton();
+    };
+    // Only a move to a known element outside the header closes it: a null relatedTarget is a window switch.
+    const onFocusOut = (event: FocusEvent): void => {
+      if (event.relatedTarget instanceof Node && !isInside(host, event.relatedTarget)) close();
+    };
+    const onPointerDown = (event: Event): void => {
+      if (!event.composedPath().includes(host)) close();
+    };
+    nav.addEventListener('keydown', onKeyDown);
+    nav.addEventListener('click', onClick);
+    nav.addEventListener('focusout', onFocusOut);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      nav.removeEventListener('keydown', onKeyDown);
+      nav.removeEventListener('click', onClick);
+      nav.removeEventListener('focusout', onFocusOut);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [open, navRef, buttonRef, close]);
+}
+
+interface MenuNavProps {
+  children: ComponentChildren;
+}
+
+// The WAI-ARIA disclosure navigation pattern: one panel holds the slot, an inline row when wide and a menu when
+// narrow, so slotted links never move between slots. The panel is hidden only while narrow and closed (R24).
+function MenuNav({ children }: Readonly<MenuNavProps>): JSX.Element {
+  const wide = useWide();
+  const [open, setOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  const menuOpen = open && !wide;
+
+  useLayoutEffect(() => {
+    if (wide) setOpen(false);
+  }, [wide]);
+  useCloseOnLeave(menuOpen, navRef, buttonRef, close);
+
+  return (
+    <nav ref={navRef} className={wide ? 'nav' : 'nav nav-narrow'} data-part="nav" aria-label="Main">
+      {!wide && (
+        <button
+          ref={buttonRef}
+          type="button"
+          className="button button-secondary button-icon menu-button"
+          aria-label="Menu"
+          aria-expanded={menuOpen ? 'true' : 'false'}
+          aria-controls={PANEL_ID}
+          onClick={() => setOpen(!open)}
+        >
+          <Icon icon={faBars} />
+        </button>
+      )}
+      <div className="nav-panel" id={PANEL_ID} data-part="nav-panel" hidden={!wide && !menuOpen}>
+        {children}
+      </div>
+    </nav>
+  );
+}
+
+/**
+ * The nav slot. Until the host assigns an element to `slot="nav"` there is no landmark and no menu button, only the
+ * slot itself, so it can report links that arrive later (`slotchange`, no re-render call needed).
+ */
+export function Nav(): JSX.Element {
+  const [hasLinks, setHasLinks] = useState(false);
+  const slotRef = useRef<HTMLSlotElement>(null);
+
+  useLayoutEffect(() => {
+    const slot = slotRef.current;
+    if (!slot) return undefined;
+    const update = (): void => setHasLinks(slot.assignedElements().length > 0);
+    slot.addEventListener('slotchange', update);
+    update();
+    return () => slot.removeEventListener('slotchange', update);
+  }, [hasLinks]);
+
+  const slot = <slot ref={slotRef} name="nav" />;
+  if (!hasLinks) {
+    return (
+      <div className="nav" data-part="nav">
+        {slot}
+      </div>
+    );
+  }
+  return <MenuNav>{slot}</MenuNav>;
+}

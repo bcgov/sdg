@@ -1,4 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { identities, principals } from '@repo/database';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -60,6 +61,34 @@ describe('POST /internal/principals/login (KTD5, KTD6)', () => {
     const stored = JSON.stringify(identity?.claims);
     expect(stored).not.toMatch(/access_token|refresh_token|id_token/);
     expect(stored).not.toContain(token);
+  });
+
+  it('Should never persist the profile claims userinfo releases (R19)', async () => {
+    t.idp.profile = {
+      ...t.idp.profile,
+      birthdate: '1815-12-10',
+      gender: 'female',
+      address: { formatted: '12 St James Sq' },
+      phone_number: '+1 250 555 0100',
+      phone_number_verified: true,
+    };
+    expect((await login(await t.idp.portalToken())).status).toBe(200);
+    const [identity] = await t.database.db.select().from(identities);
+    expect(identity?.claims).toMatchObject({ email: 'ada@example.com' });
+    const stored = JSON.stringify(identity?.claims);
+    expect(stored).not.toMatch(/birthdate|gender|address|phone_number/);
+    expect(stored).not.toMatch(/1815-12-10|St James|555 0100/);
+  });
+
+  it('Should warn, naming only the keys, when a sign-in token carries profile claims, and still sign in (KTD8)', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    try {
+      expect((await login(await t.idp.portalToken({ gender: 'female' }))).status).toBe(200);
+      expect(warn).toHaveBeenCalledWith(expect.objectContaining({ claims: ['gender'] }));
+      expect(JSON.stringify(warn.mock.calls)).not.toContain('female');
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('Should answer 403 to a console-client token without the admin role, and create nothing (AE1)', async () => {

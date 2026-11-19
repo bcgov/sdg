@@ -86,6 +86,7 @@ API="$(container portal-api)"
 CORE="$(container core-api)"
 WEB="$(container portal-web)"
 CONSOLE_WEB="$(container console-web)"
+SHARED_UI="$(container shared-ui)"
 MIGRATE="$(container migrate)"
 MIGRATE_PORTAL="$(container migrate-portal)"
 MIGRATE_CONSOLE="$(container migrate-console)"
@@ -111,7 +112,8 @@ check "HMR websocket upgrades through Caddy" bash -c \
     '$SITE/' 2>/dev/null | head -n 1 | grep -q ' 101'"
 
 echo "Security headers"
-header() { grep -i "^$1:" "$TMP/headers" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
+# header <name> [file]: the first value of a response header (default: GET /'s headers).
+header() { grep -i "^$1:" "${2:-$TMP/headers}" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
 check "Server header removed" bash -c "! grep -qi '^server:' '$TMP/headers'"
 # ZAP 40025 (Proxy Disclosure) fingerprints the proxy chain from these headers.
 check "Via header removed (proxied response)" bash -c "! grep -qi '^via:' '$TMP/headers'"
@@ -124,6 +126,22 @@ check "Dev CSP allows Vite inline scripts only" \
   grep -qi "^content-security-policy:.*script-src 'self' https://\*\.gov\.bc\.ca 'unsafe-inline';" "$TMP/headers"
 check "Dev CSP allows Vite's injected styles" \
   grep -qi "^content-security-policy:.*style-src [^;]*'unsafe-inline';" "$TMP/headers"
+
+echo "Header script (shared-ui)"
+# The shared-ui service rebuilds the CDN bundle and serves it on :5180; Caddyfile.dev mirrors the production edge's
+# /shared-ui/ route and its cross-origin headers (KTD3, KTD4).
+HEADER_JS="$SITE/shared-ui/header/v1/sdg-header.js"
+until [ "$(status "$HEADER_JS")" = 200 ] || ((SECONDS > deadline)); do sleep 5; done
+check "GET /shared-ui/header/v1/sdg-header.js is 200 through Caddy" \
+  test "$("${CURL[@]}" -D "$TMP/header-js.headers" -o "$TMP/sdg-header.js" -w '%{http_code}' "$HEADER_JS")" = 200
+check "the header script is served as JavaScript" grep -qi '^content-type: text/javascript' "$TMP/header-js.headers"
+check "the header script is the built bundle, not the SPA shell" bash -c "! grep -q '<div id=\"root\">' '$TMP/sdg-header.js'"
+check "the header script allows any origin (Access-Control-Allow-Origin *)" \
+  test "$(header Access-Control-Allow-Origin "$TMP/header-js.headers")" = '*'
+check "the header script is cross-origin readable (Cross-Origin-Resource-Policy)" \
+  test "$(header Cross-Origin-Resource-Policy "$TMP/header-js.headers")" = cross-origin
+check "GET / keeps Cross-Origin-Resource-Policy same-origin" test "$(header Cross-Origin-Resource-Policy)" = same-origin
+check "GET / sends no Access-Control-Allow-Origin" bash -c "! grep -qi '^access-control-allow-origin:' '$TMP/headers'"
 
 echo "API proxy"
 check "GET /api/auth/me without a session is 401 from portal-api" \
@@ -204,6 +222,7 @@ echo "Isolation"
 check "portal-api publishes no host port" test -z "$("$ENGINE" port "$API" 2>/dev/null)"
 check "portal-web publishes no host port" test -z "$("$ENGINE" port "$WEB" 2>/dev/null)"
 check "console-web publishes no host port" test -z "$("$ENGINE" port "$CONSOLE_WEB" 2>/dev/null)"
+check "shared-ui publishes no host port" test -z "$("$ENGINE" port "$SHARED_UI" 2>/dev/null)"
 
 echo "Migrations"
 # Each init service touches /tmp/ready only after its migrations succeed; its app waits for that (service_healthy).

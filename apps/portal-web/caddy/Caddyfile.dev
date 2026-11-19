@@ -32,6 +32,16 @@ sdg.localhost {
 	encode zstd gzip
 	import collect_{$TELEMETRY:off}
 	import api_proxy {$PORTAL_API_URL}
+	# The header script from shared-ui's dev server (compose's shared-ui service), prefix stripped, with the same
+	# cross-origin headers as the production edge (Caddyfile): deferred and path-matched, they win for this path alone.
+	handle_path /shared-ui/* {
+		reverse_proxy {$SHARED_UI_URL}
+	}
+	header /shared-ui/* {
+		Access-Control-Allow-Origin "*"
+		Cross-Origin-Resource-Policy "cross-origin"
+		defer
+	}
 	# Everything else goes to Vite, HMR websocket included. The original Host is kept: Vite allows *.localhost.
 	reverse_proxy {$PORTAL_WEB_URL}
 	import security_headers "'unsafe-inline'" "'unsafe-inline'"
