@@ -13,8 +13,8 @@ async function navBoxes(page: Page, path: string) {
   await page.goto(path);
   // Slotted links are the element's light-DOM children, outside the shadow <header>'s DOM subtree.
   const nav = page.locator('sdg-header');
-  const links = ['Home', 'Services', 'Contact us'].map((name) => nav.getByRole('link', { name }));
-  await expect(links[2]!).toBeVisible();
+  const links = ['Home', 'Services', 'Help', 'Contact us'].map((name) => nav.getByRole('link', { name }));
+  await expect(links[3]!).toBeVisible();
   await page.evaluate(async () => {
     await document.fonts.ready;
   });
@@ -30,9 +30,11 @@ test.describe('portal-web shared header', () => {
     await expect(page.locator('sdg-header [aria-current="page"]')).toHaveCount(0);
     const home = await navBoxes(page, '/');
     const services = await navBoxes(page, '/services');
+    const help = await navBoxes(page, '/help');
     const contactUs = await navBoxes(page, '/contact-us');
     expect(home).toEqual(none);
     expect(services).toEqual(none);
+    expect(help).toEqual(none);
     expect(contactUs).toEqual(none);
 
     // Links look like tertiary buttons; only the selected one is bold (faux bold) (R5).
@@ -117,6 +119,8 @@ test.describe('portal-web shared header', () => {
     await expect(header.getByRole('link', { name: 'Home' })).toBeFocused();
     await page.keyboard.press(tab);
     await expect(header.getByRole('link', { name: 'Services' })).toBeFocused();
+    await page.keyboard.press(tab);
+    await expect(header.getByRole('link', { name: 'Help' })).toBeFocused();
     await page.keyboard.press(tab);
     await expect(header.getByRole('link', { name: 'Contact us' })).toBeFocused();
 
@@ -208,7 +212,7 @@ test.describe('portal-web shared header', () => {
     const header = page.locator('sdg-header');
     expect(await header.evaluate((el) => el.matches(':defined'))).toBe(false);
     expect((await page.getByRole('main').boundingBox())!.y).toBe(104);
-    await expect(header.locator('a[slot="nav"]')).toHaveCount(3);
+    await expect(header.locator('a[slot="nav"]')).toHaveCount(4);
     await expect(header.locator('a[slot="nav"]:visible')).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
   });

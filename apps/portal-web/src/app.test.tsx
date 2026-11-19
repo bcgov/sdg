@@ -110,6 +110,25 @@ describe('portal-web app shell', () => {
     });
   });
 
+  describe('help route', () => {
+    it('renders the Help page at "/help" and marks its nav item current', async () => {
+      renderAt('/help');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Help');
+      await headerQueries();
+      const nav = within(document.querySelector('sdg-header')!);
+      await waitFor(() => expect(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page'));
+      expect(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
+      expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('lists the nav items in order: Home, Services, Help, Contact us', async () => {
+      renderAt('/');
+      await headerQueries();
+      const links = [...document.querySelectorAll('sdg-header a[slot="nav"]')].map((a) => a.textContent);
+      expect(links).toEqual(['Home', 'Services', 'Help', 'Contact us']);
+    });
+  });
+
   describe('contact us route', () => {
     it('renders the Contact us page at "/contact-us" and marks its nav item current', async () => {
       renderAt('/contact-us');

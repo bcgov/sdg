@@ -31,6 +31,9 @@ export function SiteHeader() {
       <Link slot="nav" to="/services">
         Services
       </Link>
+      <Link slot="nav" to="/help">
+        Help
+      </Link>
       <Link slot="nav" to="/contact-us">
         Contact us
       </Link>

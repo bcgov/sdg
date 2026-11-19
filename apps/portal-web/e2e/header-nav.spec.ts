@@ -19,7 +19,7 @@ async function openMenu(page: Page) {
 }
 
 test.describe('portal-web header nav', () => {
-  test('shows Home, Services and Contact us inline with no menu button on wide screens, Contact us selected on /contact-us', async ({
+  test('shows Home, Services, Help and Contact us inline with no menu button on wide screens, Contact us selected on /contact-us', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -27,7 +27,7 @@ test.describe('portal-web header nav', () => {
     await page.goto('/contact-us');
     const header = page.locator('sdg-header');
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeVisible();
-    await expect(header.locator('a[slot="nav"]')).toHaveText(['Home', 'Services', 'Contact us']);
+    await expect(header.locator('a[slot="nav"]')).toHaveText(['Home', 'Services', 'Help', 'Contact us']);
     await expect(header.getByRole('link', { name: 'Contact us' })).toHaveAttribute('aria-current', 'page');
     await expect(header.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
     await expect(header.getByRole('button', { name: 'Menu' })).toHaveCount(0);

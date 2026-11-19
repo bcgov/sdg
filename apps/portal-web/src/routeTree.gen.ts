@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as ContactUsRouteImport } from './routes/contact-us'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as AuthenticatedAccountSettingsRouteImport } from './routes/_authenticated/account-settings'
 
@@ -29,6 +30,11 @@ const ContactUsRoute = ContactUsRouteImport.update({
   path: '/contact-us',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
@@ -44,12 +50,14 @@ const AuthenticatedAccountSettingsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/contact-us': typeof ContactUsRoute
+  '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/account-settings': typeof AuthenticatedAccountSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contact-us': typeof ContactUsRoute
+  '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/account-settings': typeof AuthenticatedAccountSettingsRoute
 }
@@ -58,19 +66,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/contact-us': typeof ContactUsRoute
+  '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/_authenticated/account-settings': typeof AuthenticatedAccountSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/contact-us' | '/services' | '/account-settings'
+  fullPaths: '/' | '/contact-us' | '/help' | '/services' | '/account-settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/contact-us' | '/services' | '/account-settings'
+  to: '/' | '/contact-us' | '/help' | '/services' | '/account-settings'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/contact-us'
+    | '/help'
     | '/services'
     | '/_authenticated/account-settings'
   fileRoutesById: FileRoutesById
@@ -79,6 +89,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   ContactUsRoute: typeof ContactUsRoute
+  HelpRoute: typeof HelpRoute
   ServicesRoute: typeof ServicesRoute
 }
 
@@ -103,6 +114,13 @@ declare module '@tanstack/react-router' {
       path: '/contact-us'
       fullPath: '/contact-us'
       preLoaderRoute: typeof ContactUsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/services': {
@@ -138,6 +156,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   ContactUsRoute: ContactUsRoute,
+  HelpRoute: HelpRoute,
   ServicesRoute: ServicesRoute,
 }
 export const routeTree = rootRouteImport
