@@ -15,4 +15,6 @@ function sdgOrigin(): string {
   return window.location.origin;
 }
 
-export const SETTINGS_HREF: string = `${sdgOrigin()}${SETTINGS_PATH}`;
+export const SDG_ORIGIN: string = sdgOrigin();
+
+export const SETTINGS_HREF: string = `${SDG_ORIGIN}${SETTINGS_PATH}`;

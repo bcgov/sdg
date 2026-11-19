@@ -120,6 +120,28 @@
   justify-content: flex-end;
 }
 
+/* "Back to SDG" (back-to-sdg.ts): a plain link at the utility row's start, pushing Log In or the menu to the end. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--layout-margin-xsmall, 0.25rem);
+  margin-inline-end: auto;
+  border-radius: var(--layout-border-radius-small, 2px);
+  font-size: var(--typography-font-size-small-body, 0.875rem);
+  color: var(--typography-color-link, #255a90);
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.back-link:hover {
+  text-decoration: none;
+}
+
+.back-link:focus-visible {
+  outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
+  outline-offset: 2px;
+}
+
 /* Main row: 56px, white: logo, separator, site title, then the nav area on the right (R1, R2). */
 .main {
   position: relative;
