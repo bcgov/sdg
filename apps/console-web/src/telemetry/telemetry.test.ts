@@ -83,5 +83,16 @@ describe('startTelemetry', () => {
       expect(loadFaro).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith('console-web: telemetry not started', expect.any(Error));
     });
+
+    it('uses global fetch and dynamic Faro import when no options are passed (line 30)', async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(Response.json({ enabled: true, environment: 'default-env' }));
+      await expect(startTelemetry()).resolves.toBe(true);
+      expect(fetchSpy).toHaveBeenCalledWith('/telemetry.json', { credentials: 'same-origin', cache: 'no-store' });
+      expect(sdk.initializeFaro).toHaveBeenCalledWith(
+        expect.objectContaining({ app: { name: 'console-web', environment: 'default-env' } }),
+      );
+    });
   });
 });

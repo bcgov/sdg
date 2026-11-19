@@ -131,6 +131,12 @@ describe('apiRequest', () => {
       expect(error.reasons).toEqual(['clientId: Must be a Keycloak client id']);
     });
 
+    it('ignores non-string, non-array message fields when collecting reasons (line 54)', async () => {
+      const error = await failure(Response.json({ statusCode: 400, message: 123 }, { status: 400 }));
+      expect(error.kind).toBe('invalid');
+      expect(error.reasons).toEqual([]);
+    });
+
     it.each([
       [404, 'not-found'],
       [409, 'conflict'],

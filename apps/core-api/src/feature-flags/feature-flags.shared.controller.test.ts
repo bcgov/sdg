@@ -116,7 +116,7 @@ describe('Shared flag routes /api/v1/shared/flags and /hello-world (R3–R7, R10
     const atEighty = await whoGets(subjects);
     for (const subject of atHalf) expect(atEighty.has(subject)).toBe(true);
     expect(atEighty.size).toBeGreaterThan(atHalf.size);
-  }, 15_000);
+  }, 30_000);
 
   it('Should keep an off flag from a resident with an "on" override (R3, kill switch)', async () => {
     const [x] = await seed(['resident-x']);

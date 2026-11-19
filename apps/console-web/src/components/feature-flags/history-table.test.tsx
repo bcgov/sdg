@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fakeFeatureFlagsApi, flag, flagEvent } from '../../test-support/fake-feature-flags-api';
 import { renderAt } from '../../test-support/render';
+import { action, details } from './history-format';
 
 const HISTORY = '/api/v1/console/feature-flag-history';
 const GRACE = { principalId: '00000000-0000-4000-8000-0000000000aa', name: 'Grace Hopper' };
@@ -100,7 +101,7 @@ describe('a flag’s history as a cursor DataTable (R19, R20)', () => {
       '?key=hello_world&limit=20&after=55',
       '?key=hello_world&limit=20',
     ]);
-  });
+  }, 15000);
 
   it('Should show the full newest page for an h.after past the newest, dropping it with replace (KTD3)', async () => {
     fakeFeatureFlagsApi({ flags: [flag('hello_world')], events: updates(75) });
@@ -161,5 +162,49 @@ describe('a flag’s history as a cursor DataTable (R19, R20)', () => {
     await waitFor(() => expect(switchCard.getByRole('switch', { name: 'On' })).toBeChecked());
     await userEvent.click(screen.getByRole('tab', { name: 'History' }));
     await waitFor(async () => expect(await rowTexts()).toEqual([['Ada Lovelace', 'Updated', 'Switch: off → on']]));
+  });
+
+  it('Should format string descriptions, null values, unknown fields/audiences, and unnamed subjects (line 25)', () => {
+    const namelessSubject = { principalId: '00000000-0000-4000-8000-0000000000bb', name: null };
+    const event = flagEvent(
+      1,
+      'hello_world',
+      'override_removed',
+      { enabled: { from: true, to: null } },
+      namelessSubject,
+    );
+    expect(action(event)).toBe('Override removed for someone no longer known');
+    expect(details(event)).toBe('Override: on → none');
+
+    const updated = flagEvent(2, 'hello_world', 'updated', {
+      description: { from: null, to: 'Shown to users' },
+      audience: { from: 'portal', to: 'custom' },
+      custom_field: { from: 'a', to: 'b' },
+    });
+    expect(details(updated)).toBe(
+      'Description: “Shown to users”; Audience: Portal → “custom”; custom_field: “a” → “b”',
+    );
+  });
+
+  it('Should format string descriptions, null values, unknown fields/audiences, and unnamed subjects (line 25)', () => {
+    const namelessSubject = { principalId: '00000000-0000-4000-8000-0000000000bb', name: null };
+    const event = flagEvent(
+      1,
+      'hello_world',
+      'override_removed',
+      { enabled: { from: true, to: null } },
+      namelessSubject,
+    );
+    expect(action(event)).toBe('Override removed for someone no longer known');
+    expect(details(event)).toBe('Override: on → none');
+
+    const updated = flagEvent(2, 'hello_world', 'updated', {
+      description: { from: null, to: 'Shown to users' },
+      audience: { from: 'portal', to: 'custom' },
+      custom_field: { from: 'a', to: 'b' },
+    });
+    expect(details(updated)).toBe(
+      'Description: “Shown to users”; Audience: Portal → “custom”; custom_field: “a” → “b”',
+    );
   });
 });

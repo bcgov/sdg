@@ -122,4 +122,13 @@ describe('the icon rail (R12, AE4)', () => {
     await user.click(toggle);
     expect(sidebar).toHaveAttribute('data-state', 'collapsed');
   });
+
+  it('shows ⌘K as the search shortcut hint on Apple platforms (line 15)', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
+    vi.resetModules();
+    const { renderShell: renderFreshShell } = await import('../../test-support/shell');
+    const { sidebar } = await renderFreshShell('/');
+    expect(within(sidebar).getByRole('button', { name: 'Search' }).querySelector('kbd')).toHaveTextContent('⌘K');
+    vi.resetModules();
+  });
 });
