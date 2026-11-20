@@ -17,7 +17,7 @@ setup('authenticate', async ({ page, clientURL, clientUsername, clientPassword }
 
   // Wait for login redirection or dashboard state to verify success
   await page.waitForURL(clientURL);
-  await expect(page.getByText('Welcome to SDG')).toBeVisible();
+  await expect(page.getByText('Access services online')).toBeVisible();
 
   // Save cookies and localStorage to the JSON file
   await page.context().storageState({

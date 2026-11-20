@@ -83,7 +83,7 @@ describe('account settings route', () => {
   it("routes the header's sdg-settings client-side for a signed-in user", async () => {
     stubCurrentUser(() => Response.json(user));
     const { router } = renderAt('/');
-    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Welcome to SDG');
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Access services online');
     const settings = new CustomEvent('sdg-settings', { bubbles: true, composed: true, cancelable: true });
     document.querySelector('sdg-header')!.dispatchEvent(settings);
 

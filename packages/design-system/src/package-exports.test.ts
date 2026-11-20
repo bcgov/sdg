@@ -27,11 +27,12 @@ function runBin(name: 'vite' | 'tsc', args: string[]) {
 }
 
 describe('package.json', () => {
-  it('exposes only the components/*, icons, fonts.css and styles.css subpaths (no root export)', () => {
+  it('exposes only the components/*, icons, router-search, fonts.css and styles.css subpaths (no root export)', () => {
     expect(Object.keys(manifest.exports).toSorted()).toEqual([
       './components/*',
       './fonts.css',
       './icons',
+      './router-search',
       './styles.css',
     ]);
     expect(manifest.exports['./components/*']).toEqual({
@@ -41,6 +42,10 @@ describe('package.json', () => {
     expect(manifest.exports['./icons']).toEqual({
       types: './dist/icons/index.d.ts',
       import: './dist/icons/index.js',
+    });
+    expect(manifest.exports['./router-search']).toEqual({
+      types: './dist/router-search/index.d.ts',
+      import: './dist/router-search/index.js',
     });
     expect(manifest.exports['./fonts.css']).toBe('./src/fonts.css');
     expect(manifest.exports['./styles.css']).toBe('./dist/styles.css');
@@ -91,9 +96,9 @@ describe('build output', () => {
     if (outDir) rmSync(outDir, { recursive: true, force: true });
   });
 
-  it('emits a JS entry and declaration for every component folder and icons', () => {
+  it('emits a JS entry and declaration for every component folder, icons and router-search', () => {
     expect(components.length).toBeGreaterThan(0);
-    for (const entry of [...components.map((name) => `components/${name}`), 'icons']) {
+    for (const entry of [...components.map((name) => `components/${name}`), 'icons', 'router-search']) {
       expect(existsSync(join(outDir, entry, 'index.js'))).toBe(true);
       expect(existsSync(join(outDir, entry, 'index.d.ts'))).toBe(true);
     }
@@ -137,5 +142,6 @@ describe('build output', () => {
   it('does not emit test files', () => {
     expect(existsSync(join(outDir, 'package-exports.test.d.ts'))).toBe(false);
     expect(existsSync(join(outDir, 'components/components.test.d.ts'))).toBe(false);
+    expect(existsSync(join(outDir, 'router-search/router-search.test.d.ts'))).toBe(false);
   });
 });
