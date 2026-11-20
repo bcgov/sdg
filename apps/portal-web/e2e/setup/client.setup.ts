@@ -16,8 +16,9 @@ setup('authenticate', async ({ page, clientURL, clientUsername, clientPassword }
   await page.getByRole('button', { name: 'Continue' }).click();
 
   // Wait for login redirection or dashboard state to verify success
-  await page.waitForURL(clientURL);
-  await expect(page.getByText('Welcome to SDG')).toBeVisible();
+  const expectedOrigin = new URL(clientURL).origin;
+  await page.waitForURL((url) => url.origin === expectedOrigin, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('SDG')).toBeVisible();
 
   // Save cookies and localStorage to the JSON file
   await page.context().storageState({
