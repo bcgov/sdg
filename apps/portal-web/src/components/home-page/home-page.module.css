@@ -1,4 +1,3 @@
-/* The search control's height: the hero reserves half of it below so the next block clears the overhang (KTD2). */
 .page {
   --home-search-height: 40px; /* bcgov's medium TextField and Button */
 

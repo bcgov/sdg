@@ -12,7 +12,6 @@ const CHEVRON = <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />;
 const PLACEHOLDER_COUNT = 6;
 
 interface HomePageProps {
-  /** Rendered above the hero, e.g. the sign-in failure notice. */
   children?: ReactNode;
 }
 

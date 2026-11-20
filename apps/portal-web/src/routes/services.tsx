@@ -1,7 +1,7 @@
 import { Heading } from '@repo/design-system/components/heading';
 import { createFileRoute } from '@tanstack/react-router';
 
-export interface ServicesSearch {
+interface ServicesSearch {
   q?: string;
 }
 

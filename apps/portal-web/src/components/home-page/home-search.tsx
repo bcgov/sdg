@@ -14,7 +14,6 @@ const SEARCH_ICON = <FontAwesomeIcon icon={faMagnifyingGlass} aria-hidden="true"
  */
 const PLACEHOLDER_PROPS: object = { placeholder: 'Search for services' };
 
-/** Sends the query to /services as `?q=`; a blank query goes to the full list (R5, R7). */
 export function HomeSearch() {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
