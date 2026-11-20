@@ -37,7 +37,7 @@ services:
       TELEMETRY_ENVIRONMENT: local
 
   alloy:
-    image: docker.io/grafana/alloy:v1.21.3
+    image: docker.io/grafana/alloy:v1.22.0
     command: [run, /etc/alloy/sdg, --server.http.listen-addr=0.0.0.0:12345, --storage.path=/var/lib/alloy/data]
     environment: *stack-urls
     volumes:
@@ -58,7 +58,7 @@ services:
       - prometheus-data:/prometheus
 
   loki:
-    image: docker.io/grafana/loki:3.7.9
+    image: docker.io/grafana/loki:3.7.10
     command: [-config.file=/etc/loki/loki.yaml, -config.expand-env=true]
     environment:
       LOKI_RETENTION: 168h

@@ -23,7 +23,7 @@ RUN pnpm --filter "portal-web..." run build
 
 # Strip the binary's cap_net_bind_service file capability in a throwaway stage: OpenShift drops every capability,
 # and exec of a binary that requests one then fails. Doing it in the final stage would ship the binary twice.
-FROM docker.io/library/caddy:2.11.8-alpine AS caddy
+FROM docker.io/library/caddy:2.11.9-alpine AS caddy
 RUN setcap -r /usr/bin/caddy && ! getcap /usr/bin/caddy | grep -q .
 
 FROM docker.io/library/alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
