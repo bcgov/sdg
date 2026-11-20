@@ -1,5 +1,5 @@
-/** The SDG settings page, which the user menu's Settings item links to on every site. */
-export const SETTINGS_PATH = '/settings';
+/** The SDG account settings page, which the user menu's Account Settings item links to on every site. */
+export const SETTINGS_PATH = '/account-settings';
 
 /**
  * SDG's origin, read once while this module first evaluates. In the CDN bundle that happens during the classic
@@ -15,4 +15,6 @@ function sdgOrigin(): string {
   return window.location.origin;
 }
 
-export const SETTINGS_HREF: string = `${sdgOrigin()}${SETTINGS_PATH}`;
+export const SDG_ORIGIN: string = sdgOrigin();
+
+export const SETTINGS_HREF: string = `${SDG_ORIGIN}${SETTINGS_PATH}`;

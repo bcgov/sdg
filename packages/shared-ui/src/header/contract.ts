@@ -23,6 +23,19 @@ export const HEADER_EVENTS = {
   settings: 'sdg-settings',
 } as const;
 
+/**
+ * The query parameter SDG adds to its links to other sites: the SDG page (a path, with its search and hash) the
+ * visitor left from. The header on the other site reads it and links "Back to SDG" there.
+ */
+export const RETURN_TO_PARAM = 'return-to';
+
+/** `href` (an absolute URL on another site) with `return-to` set to `returnPath`, a path on SDG. */
+export function withReturnTo(href: string, returnPath: string): string {
+  const url = new URL(href);
+  url.searchParams.set(RETURN_TO_PARAM, returnPath);
+  return url.href;
+}
+
 export type HeaderAttributeName = (typeof HEADER_ATTRIBUTES)[keyof typeof HEADER_ATTRIBUTES];
 export type HeaderEventName = (typeof HEADER_EVENTS)[keyof typeof HEADER_EVENTS];
 

@@ -13,7 +13,7 @@ export function SettingsPage() {
   return (
     <div className={styles['page']}>
       <Heading level={1} className={styles['title']}>
-        Settings
+        Account Settings
       </Heading>
       <Separator />
       <Section title="Profile" description="Habitant sit ut scelerisque a metus BC Services Card.">

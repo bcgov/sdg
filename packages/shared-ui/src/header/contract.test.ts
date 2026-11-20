@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { HEADER_ATTRIBUTES, HEADER_EVENTS, HEADER_MAJOR, HEADER_TAG, headerCdnPath } from './contract.js';
+import {
+  HEADER_ATTRIBUTES,
+  HEADER_EVENTS,
+  HEADER_MAJOR,
+  HEADER_TAG,
+  headerCdnPath,
+  RETURN_TO_PARAM,
+  withReturnTo,
+} from './contract.js';
 
 // These names are the public contract external sites code against: renaming one is a breaking change (a new major).
 describe('header contract', () => {
@@ -19,5 +27,12 @@ describe('header contract', () => {
       fluid: 'fluid',
     });
     expect(HEADER_EVENTS).toEqual({ login: 'sdg-login', logout: 'sdg-logout', settings: 'sdg-settings' });
+    expect(RETURN_TO_PARAM).toBe('return-to');
+  });
+
+  it('adds the SDG page to a link to another site, keeping its own query and hash', () => {
+    expect(withReturnTo('https://partner.gov.bc.ca/apply?step=1#form', '/services?q=licence')).toBe(
+      'https://partner.gov.bc.ca/apply?step=1&return-to=%2Fservices%3Fq%3Dlicence#form',
+    );
   });
 });

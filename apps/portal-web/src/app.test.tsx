@@ -98,17 +98,50 @@ describe('portal-web app shell', () => {
     });
   });
 
+  describe('services route', () => {
+    it('renders the Services page at "/services" and marks its nav item current', async () => {
+      renderAt('/services');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
+      await headerQueries();
+      const nav = within(document.querySelector('sdg-header')!);
+      await waitFor(() => expect(nav.getByRole('link', { name: 'Services' })).toHaveAttribute('aria-current', 'page'));
+      expect(nav.getByRole('link', { name: 'Services' })).toHaveAttribute('href', '/services');
+      expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    });
+  });
+
   describe('help route', () => {
-    it('renders the help page at "/help" and marks the Help nav item current', async () => {
+    it('renders the Help page at "/help" and marks its nav item current', async () => {
       renderAt('/help');
       expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Help');
+      await headerQueries();
+      const nav = within(document.querySelector('sdg-header')!);
+      await waitFor(() => expect(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page'));
+      expect(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
+      expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('lists the nav items in order: Home, Services, Help, Contact us', async () => {
+      renderAt('/');
+      await headerQueries();
+      const links = [...document.querySelectorAll('sdg-header a[slot="nav"]')].map((a) => a.textContent);
+      expect(links).toEqual(['Home', 'Services', 'Help', 'Contact us']);
+    });
+  });
+
+  describe('contact us route', () => {
+    it('renders the Contact us page at "/contact-us" and marks its nav item current', async () => {
+      renderAt('/contact-us');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Contact us');
       expect((await headerQueries()).getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
       // Nav items are the app's own links, slotted into the header from the light DOM.
       const nav = within(document.querySelector('sdg-header')!);
-      await waitFor(() => expect(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page'));
+      await waitFor(() =>
+        expect(nav.getByRole('link', { name: 'Contact us' })).toHaveAttribute('aria-current', 'page'),
+      );
       expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
       expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
-      expect(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('slot', 'nav');
+      expect(nav.getByRole('link', { name: 'Contact us' })).toHaveAttribute('slot', 'nav');
     });
 
     it('navigates client-side from the header nav and moves the current item', async () => {
@@ -116,10 +149,12 @@ describe('portal-web app shell', () => {
       expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Welcome to SDG');
       await headerQueries();
       const header = within(document.querySelector('sdg-header')!);
-      await userEvent.click(header.getByRole('link', { name: 'Help' }));
-      expect(await screen.findByRole('heading', { level: 1, name: 'Help' })).toBeInTheDocument();
-      expect(router.state.location.pathname).toBe('/help');
-      await waitFor(() => expect(header.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page'));
+      await userEvent.click(header.getByRole('link', { name: 'Contact us' }));
+      expect(await screen.findByRole('heading', { level: 1, name: 'Contact us' })).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/contact-us');
+      await waitFor(() =>
+        expect(header.getByRole('link', { name: 'Contact us' })).toHaveAttribute('aria-current', 'page'),
+      );
       expect(header.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
     });
   });

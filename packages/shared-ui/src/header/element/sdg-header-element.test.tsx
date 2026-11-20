@@ -1,7 +1,12 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { HEADER_EVENTS, HEADER_TAG } from '../contract.js';
+import { backToSdgHref } from './back-to-sdg.js';
 import { defineSdgHeader, SdgHeaderElement } from './sdg-header-element.js';
+
+// jsdom serves the header from the page's own origin (SDG itself), where Back to SDG never shows; back-to-sdg.test.ts
+// covers when it does, so these tests choose its answer.
+vi.mock('./back-to-sdg.js', () => ({ backToSdgHref: vi.fn<() => string | null>(() => null) }));
 
 function mount(attributes: Record<string, string>): SdgHeaderElement {
   const element = new SdgHeaderElement();
@@ -89,6 +94,23 @@ describe('<sdg-header> auth states', () => {
     expect(loginLink(element)?.textContent).toBe('Log In');
     expect(menuButton(element)).toBeNull();
     expect(utilityRow(element).textContent).not.toContain('Jane Doe');
+  });
+});
+
+describe('<sdg-header> Back to SDG', () => {
+  it('links back to the SDG page the visitor came from, at the start of the utility row before Log In', () => {
+    vi.mocked(backToSdgHref).mockReturnValueOnce('https://sdg.gov.bc.ca/services');
+    const element = mount({ 'login-href': '/auth/login' });
+
+    const links = [...utilityRow(element).querySelectorAll('a')];
+    expect(links.map((link) => link.textContent)).toEqual(['Back to SDG', 'Log In']);
+    expect(links[0]?.getAttribute('href')).toBe('https://sdg.gov.bc.ca/services');
+  });
+
+  it('shows no Back to SDG link when the visitor did not come from SDG', () => {
+    const element = mount({ 'login-href': '/auth/login' });
+
+    expect(utilityRow(element).querySelector('[data-part="back"]')).toBeNull();
   });
 });
 

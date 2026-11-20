@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { HEADER_ATTRIBUTES, HEADER_EVENTS, HEADER_TAG, headerCdnPath } from '../contract.js';
+import { HEADER_ATTRIBUTES, HEADER_EVENTS, HEADER_TAG, headerCdnPath, RETURN_TO_PARAM } from '../contract.js';
 
 // A path, not a URL object: jsdom replaces the global URL, which node:fs does not accept.
 const read = (relative: string): string => readFileSync(fileURLToPath(new URL(relative, import.meta.url).href), 'utf8');
@@ -12,10 +12,10 @@ const preloadCss = read('../preload.css');
 
 // Implementers copy from the README, so it must name exactly what the contract module exports.
 describe('README', () => {
-  it('documents the tag, the script path, every attribute and every event', () => {
+  it('documents the tag, the script path, every attribute, every event and the return-to parameter', () => {
     expect(readme).toContain(`<${HEADER_TAG}`);
     expect(readme).toContain(`/shared-ui/${headerCdnPath()}`);
-    for (const name of [...Object.values(HEADER_ATTRIBUTES), ...Object.values(HEADER_EVENTS)]) {
+    for (const name of [...Object.values(HEADER_ATTRIBUTES), ...Object.values(HEADER_EVENTS), RETURN_TO_PARAM]) {
       expect(readme).toContain(`\`${name}\``);
     }
   });
