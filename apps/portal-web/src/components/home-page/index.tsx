@@ -3,7 +3,6 @@ import { Section } from '@repo/design-system/components/section';
 import { faChevronRight, FontAwesomeIcon } from '@repo/design-system/icons';
 import type { ReactNode } from 'react';
 
-import { HelloWorld } from '../hello-world';
 import { Link } from '../link';
 import { HomeSearch } from './home-search';
 
@@ -43,7 +42,6 @@ export function HomePage({ children }: Readonly<HomePageProps>) {
           </Link>
         </div>
       </Section>
-      <HelloWorld />
     </div>
   );
 }
