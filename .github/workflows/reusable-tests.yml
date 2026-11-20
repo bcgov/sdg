@@ -147,6 +147,7 @@ jobs:
   # suites shared a job); separate runners each get their own allowance, and the slices run in parallel.
   e2e-tests:
     name: E2E (${{ matrix.name }})
+    needs: smoke
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     strategy:
