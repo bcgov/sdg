@@ -18,7 +18,7 @@ test.describe('portal-web feature flags', () => {
     await page.goto('/');
 
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Welcome to SDG');
+    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Access services online');
     await expect(main.getByText('Hello, world!')).toBeVisible();
     await expect(page.getByRole('banner').getByRole('link', { name: 'Log In' })).toBeVisible();
   });
@@ -38,7 +38,7 @@ test.describe('portal-web feature flags', () => {
     await flagsResponse;
 
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Welcome to SDG');
+    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Access services online');
     await page.waitForLoadState('networkidle');
     await expect(main.getByText('Hello, world!')).toHaveCount(0);
     await expect(page.getByRole('alert')).toHaveCount(0);

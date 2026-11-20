@@ -74,14 +74,14 @@ describe('portal-web app shell', () => {
     it('renders the home page heading at "/"', async () => {
       renderAt('/');
       const heading = await screen.findByRole('heading', { level: 1 });
-      expect(heading).toHaveTextContent('Welcome to SDG');
+      expect(heading).toHaveTextContent('Access services online');
       expect(screen.queryByText('Page not found')).not.toBeInTheDocument();
     });
 
     it('Should fetch the flags once and show no hello-world when the flag list fails (R7, R8, AE8)', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       renderAt('/');
-      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Welcome to SDG');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Access services online');
       // test-setup answers every request 401, the flag list included.
       await waitFor(() => expect(warn).toHaveBeenCalledTimes(1));
       const inputs = vi.mocked(fetch).mock.calls.map(([input]) => input);
@@ -90,7 +90,7 @@ describe('portal-web app shell', () => {
       expect(screen.queryByText('Hello, world!')).not.toBeInTheDocument();
     });
 
-    it('Should show hello-world below the heading when the flag is on (R13, AE2)', async () => {
+    it('Should show hello-world below the Find a service section when the flag is on (R13, AE2)', async () => {
       vi.mocked(fetch).mockImplementation((input) => {
         if (input === FLAGS_PATH) return Promise.resolve(Response.json({ hello_world: true }));
         if (input === HELLO_WORLD_PATH) return Promise.resolve(Response.json({ message: 'Hello, world!' }));
@@ -98,8 +98,8 @@ describe('portal-web app shell', () => {
       });
       renderAt('/');
       const message = await screen.findByText('Hello, world!');
-      const heading = screen.getByRole('heading', { level: 1 });
-      expect(heading.compareDocumentPosition(message)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      const section = screen.getByRole('region', { name: 'Find a service' });
+      expect(section.compareDocumentPosition(message)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
   });
 
@@ -169,7 +169,7 @@ describe('portal-web app shell', () => {
 
     it('navigates client-side from the header nav and moves the current item', async () => {
       const { router } = renderAt('/');
-      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Welcome to SDG');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Access services online');
       await headerQueries();
       const header = within(document.querySelector('sdg-header')!);
       await userEvent.click(header.getByRole('link', { name: 'Contact us' }));

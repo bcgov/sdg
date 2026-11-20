@@ -1,0 +1,110 @@
+/* The search control's height: the hero reserves half of it below so the next block clears the overhang (KTD2). */
+.page {
+  --home-search-height: 40px; /* bcgov's medium TextField and Button */
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xlarge);
+}
+
+.page > * {
+  margin: 0;
+}
+
+/* Full-bleed band: `cqw` is relative to <main>, whose width excludes the scrollbar, so no horizontal scroll (KTD1). */
+.hero {
+  margin-inline: calc(50% - 50cqw);
+  background-color: var(--surface-color-background-light-blue);
+}
+
+/*
+ * Flush under the header by cancelling the container's top padding. (0,3,0) outranks the root layout's
+ * `.container > :first-child` reset; it no longer matches when the auth-error notice comes first.
+ */
+.page > .hero:first-child {
+  margin-block-start: calc(-1 * var(--layout-padding-large));
+}
+
+.page > .hero {
+  margin-block-end: calc(var(--home-search-height) / 2);
+}
+
+.heroInner {
+  /* Content-box like the root container (1100px plus its padding), so the text and search line up with the column. */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--layout-margin-xsmall);
+  max-width: 1100px;
+  height: 200px;
+  margin-inline: auto;
+  padding-inline: var(--layout-padding-medium);
+  text-align: center;
+}
+
+.heroInner > * {
+  margin: 0;
+}
+
+/* Specificity beats the bcgov heading's own type so the h1 reads as an H3 (KTD6). */
+.heroInner > .title {
+  font: var(--typography-bold-h3);
+  color: var(--typography-color-primary);
+}
+
+.lede {
+  font: var(--typography-regular-large-body);
+  line-height: 1.875rem;
+  color: var(--typography-color-primary);
+}
+
+/* Centered on the hero's bottom edge, half over the blue and half below; spans the content column (R6). */
+.heroInner > .search {
+  position: absolute;
+  bottom: 0;
+  left: var(--layout-padding-medium);
+  right: var(--layout-padding-medium);
+  transform: translateY(50%);
+}
+
+.searchForm {
+  display: flex;
+  gap: var(--layout-margin-small);
+}
+
+.searchField {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--layout-margin-large);
+}
+
+.placeholder {
+  height: 160px;
+  border-radius: var(--layout-border-radius-large);
+  background-color: var(--surface-color-background-light-gray);
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+}
+
+/* A button-styled link reads as a button, so no underline in any state. */
+.actions > a,
+.actions > a:hover,
+.actions > a:focus-visible {
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
