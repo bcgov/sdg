@@ -5,14 +5,9 @@ interface ServicesSearch {
   q?: string;
 }
 
-/**
- * The router's default search parser turns `?q=2024` into a number and `?q=true` into a boolean,
- * so those come back as strings. Blank or other values mean no query.
- */
+/** The router keeps search values as strings; a blank query means none. */
 function parseQuery(value: unknown): string | undefined {
-  const text = typeof value === 'number' || typeof value === 'boolean' ? String(value) : value;
-  if (typeof text !== 'string') return undefined;
-  const trimmed = text.trim();
+  const trimmed = typeof value === 'string' ? value.trim() : '';
   return trimmed === '' ? undefined : trimmed;
 }
 

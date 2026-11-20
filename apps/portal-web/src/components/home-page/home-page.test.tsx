@@ -61,6 +61,13 @@ describe('home page', () => {
       expect(router.state.location.searchStr).toBe('?q=fishing');
     });
 
+    it('writes a number-like query into the URL as plain text', async () => {
+      const router = await renderHome();
+      await userEvent.type(screen.getByRole('textbox', { name: 'Search for services' }), '007{Enter}');
+      expect(await landedOnServices(router)).toEqual({ q: '007' });
+      expect(router.state.location.searchStr).toBe('?q=007');
+    });
+
     it.each(['', '   '])('goes to plain /services for the query "%s"', async (query) => {
       const router = await renderHome();
       if (query) await userEvent.type(screen.getByRole('textbox', { name: 'Search for services' }), query);

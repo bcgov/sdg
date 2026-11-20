@@ -104,10 +104,10 @@ describe('portal-web app shell', () => {
       expect(servicesSearch(router)).toEqual({ q: 'dog' });
     });
 
-    it('keeps a numeric search query as a string', async () => {
-      const { router } = renderAt('/services?q=2024');
+    it.each(['007', '1e3', 'true', 'null'])('keeps the query "%s" exactly as typed in the URL', async (query) => {
+      const { router } = renderAt(`/services?q=${query}`);
       expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
-      expect(servicesSearch(router)).toEqual({ q: '2024' });
+      expect(servicesSearch(router)).toEqual({ q: query });
     });
 
     it.each(['/services', '/services?q=', '/services?q=%20%20'])('has no search query at "%s"', async (path) => {
