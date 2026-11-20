@@ -17,7 +17,10 @@ setup('authenticate', async ({ page, clientURL, clientUsername, clientPassword }
   await page.getByRole('button', { name: 'Continue' }).click();
 
   // Wait for login redirection or dashboard state to verify success
-  await page.waitForURL(clientURL);
+  const expectedOrigin = new URL(clientURL).origin;
+  await page.waitForURL((url) => url.origin === expectedOrigin && url.pathname === '/', {
+    waitUntil: 'domcontentloaded',
+  });
   await expect(page.getByText('Access services online')).toBeVisible();
 
   // Save cookies and localStorage to the JSON file
