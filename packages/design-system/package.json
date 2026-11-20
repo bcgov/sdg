@@ -19,6 +19,10 @@
       "types": "./dist/icons/index.d.ts",
       "import": "./dist/icons/index.js"
     },
+    "./router-search": {
+      "types": "./dist/router-search/index.d.ts",
+      "import": "./dist/router-search/index.js"
+    },
     "./fonts.css": "./src/fonts.css",
     "./styles.css": "./dist/styles.css"
   },

@@ -1,3 +1,4 @@
+import { parseSearch, stringifySearch } from '@repo/design-system/router-search';
 import type { QueryClient } from '@tanstack/react-query';
 import { createRouter, type RouterHistory } from '@tanstack/react-router';
 
@@ -17,6 +18,9 @@ export function createAppRouter({ queryClient, history }: AppRouterOptions) {
   return createRouter({
     routeTree,
     context: { queryClient },
+    // Every search value stays a plain string; the default JSON-parses `?page=3` into a number.
+    parseSearch,
+    stringifySearch,
     defaultPreload: 'intent',
     // Let TanStack Query own freshness for data loaded through route loaders.
     defaultPreloadStaleTime: 0,
