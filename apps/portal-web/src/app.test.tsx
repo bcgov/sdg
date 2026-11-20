@@ -25,6 +25,11 @@ function renderAt(path: string) {
   return { queryClient, router };
 }
 
+/** The search the /services route validated, as its component reads it. */
+function servicesSearch(router: ReturnType<typeof createAppRouter>) {
+  return router.state.matches.find((match) => match.routeId === '/services')?.search;
+}
+
 describe('portal-web app shell', () => {
   describe('root layout', () => {
     it('renders the <sdg-header> with the title "SDG" as the only banner landmark', async () => {
@@ -107,6 +112,24 @@ describe('portal-web app shell', () => {
       await waitFor(() => expect(nav.getByRole('link', { name: 'Services' })).toHaveAttribute('aria-current', 'page'));
       expect(nav.getByRole('link', { name: 'Services' })).toHaveAttribute('href', '/services');
       expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('keeps a search query from "?q=" as a string', async () => {
+      const { router } = renderAt('/services?q=dog');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
+      expect(servicesSearch(router)).toEqual({ q: 'dog' });
+    });
+
+    it('keeps a numeric search query as a string', async () => {
+      const { router } = renderAt('/services?q=2024');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
+      expect(servicesSearch(router)).toEqual({ q: '2024' });
+    });
+
+    it.each(['/services', '/services?q=', '/services?q=%20%20'])('has no search query at "%s"', async (path) => {
+      const { router } = renderAt(path);
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
+      expect(servicesSearch(router)).toEqual({});
     });
   });
 
