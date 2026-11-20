@@ -65,7 +65,7 @@ jobs:
       # 2. Run the authentication setup script
       - name: Run Pre-load Test Script
         env:
-          E2E_BASE_URL: ${{ inputs.url }}/
+          E2E_BASE_URL: ${{ inputs.url }}
           PLAYWRIGHT_CLIENT_USERNAME: ${{ inputs.playwright-client-username }}
           PLAYWRIGHT_CLIENT_PASSWORD: ${{ secrets.playwright-client-password }}
           CI: 'true'
