@@ -201,8 +201,8 @@ catalogs:
       specifier: ^2.13.0
       version: 2.13.0
     '@nestjs/cli':
-      specifier: 12.0.12
-      version: 12.0.12
+      specifier: 12.0.13
+      version: 12.0.13
     '@nestjs/common':
       specifier: ^12.2.0
       version: 12.3.2
@@ -545,7 +545,7 @@ importers:
         version: 0.5.14
       '@nestjs/cli':
         specifier: 'catalog:'
-        version: 12.0.12(@types/node@26.6.6)(prettier@3.9.10)
+        version: 12.0.13(@types/node@26.6.6)(prettier@3.9.10)
       '@nestjs/testing':
         specifier: 'catalog:'
         version: 12.3.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.3.2)(@nestjs/platform-express@12.3.2)
@@ -742,7 +742,7 @@ importers:
         version: 0.5.14
       '@nestjs/cli':
         specifier: 'catalog:'
-        version: 12.0.12(@types/node@26.6.6)(prettier@3.9.10)
+        version: 12.0.13(@types/node@26.6.6)(prettier@3.9.10)
       '@nestjs/testing':
         specifier: 'catalog:'
         version: 12.3.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.3.2)(@nestjs/platform-express@12.3.2)
@@ -824,7 +824,7 @@ importers:
     devDependencies:
       '@nestjs/cli':
         specifier: 'catalog:'
-        version: 12.0.12(@types/node@26.6.6)(prettier@3.9.10)
+        version: 12.0.13(@types/node@26.6.6)(prettier@3.9.10)
       '@nestjs/testing':
         specifier: 'catalog:'
         version: 12.3.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.3.2)(@nestjs/platform-express@12.3.2)
@@ -915,7 +915,7 @@ importers:
         version: 0.5.14
       '@nestjs/cli':
         specifier: 'catalog:'
-        version: 12.0.12(@types/node@26.6.6)(prettier@3.9.10)
+        version: 12.0.13(@types/node@26.6.6)(prettier@3.9.10)
       '@nestjs/testing':
         specifier: 'catalog:'
         version: 12.3.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.3.2)(@nestjs/platform-express@12.3.2)
@@ -2366,8 +2366,8 @@ packages:
       '@neodrag/core': 3.0.0-next.11
       solid-js: ^1.0.0
 
-  '@nestjs/cli@12.0.12':
-    resolution: {integrity: sha512-6Ab0zxLqYzZD8aEYWvleCIkvxJhcUtjR1VfQ/Hqg1/xhinKmSaFXEbFxc3QgqsJdoM//hRoMl0iQ4sudam1pjg==}
+  '@nestjs/cli@12.0.13':
+    resolution: {integrity: sha512-dfb9zbM4VRUQnkjt0IyhYWxiScDq/4j8m6Y5f6PKvg6LK47XbzBeWKCBdqVFQV85uAHdJiMa8nyemAu0xvujRQ==}
     engines: {node: '>= 20.11'}
     hasBin: true
     peerDependencies:
@@ -6456,7 +6456,7 @@ snapshots:
       '@neodrag/core': 3.0.0-next.11
       solid-js: 1.9.18
 
-  '@nestjs/cli@12.0.12(@types/node@26.6.6)(prettier@3.9.10)':
+  '@nestjs/cli@12.0.13(@types/node@26.6.6)(prettier@3.9.10)':
     dependencies:
       '@angular-devkit/core': 22.2.6(chokidar@5.0.0)
       '@angular-devkit/schematics': 22.2.6(chokidar@5.0.0)
