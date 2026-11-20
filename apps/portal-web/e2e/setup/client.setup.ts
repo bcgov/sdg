@@ -2,7 +2,6 @@ import { expect } from '@playwright/test';
 import { test as setup } from '@repo/playwright-config';
 
 setup('authenticate', async ({ page, clientURL, clientUsername, clientPassword }) => {
-  console.log('clientURL', clientURL);
   await page.goto(clientURL);
 
   const headerSection = page.locator('header');
@@ -16,7 +15,7 @@ setup('authenticate', async ({ page, clientURL, clientUsername, clientPassword }
   await page.getByRole('button', { name: 'Continue' }).click();
 
   // Wait for login redirection or dashboard state to verify success
-  await expect(page.getByText('SDG')).toBeVisible();
+  await expect(page.getByText('Access services online')).toBeVisible();
 
   // Save cookies and localStorage to the JSON file
   await page.context().storageState({
