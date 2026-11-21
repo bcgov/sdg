@@ -72,6 +72,24 @@ describe('dashboard hello-world (R13)', () => {
       expect(api.callsTo('GET', HELLO_WORLD)).toHaveLength(1);
     },
   );
+
+  it.each([
+    ['non-object body', () => Response.json('hello')],
+    ['null body', () => Response.json(null)],
+    ['missing message', () => Response.json({})],
+    ['non-string message', () => Response.json({ message: 123 })],
+  ])(
+    'Should render nothing and warn when hello-world returns an unexpected body (%s) (lines 11-12, 24)',
+    async (_label, respond) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const api = fakeConsoleApi({ flags: { hello_world: true } });
+      api.refuseNext('GET', HELLO_WORLD, respond);
+      const { router } = await renderDashboard(api);
+      await waitFor(() => expect(api.callsTo('GET', HELLO_WORLD)).toHaveLength(1));
+      await expectPlainDashboard(router);
+      expect(warn).toHaveBeenCalledWith(`GET ${HELLO_WORLD} returned an unexpected body`);
+    },
+  );
 });
 
 describe('flags are fetched only inside the signed-in shell (R8)', () => {

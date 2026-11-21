@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   type ExecutionContext,
 } from '@nestjs/common';
+import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants.js';
 import { AuthError, claimsToAuthUser, type AuthUser, type JwtVerifier } from '@repo/auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,6 +18,7 @@ import {
   type AudienceGuard,
 } from './audience.guards.js';
 import type { Caller, CallerRequest } from './caller.js';
+import { CurrentCaller } from './current-caller.decorator.js';
 import { optionalCaller } from './optional-caller.decorator.js';
 import { PrincipalResolver } from './principal.resolver.js';
 
@@ -176,6 +178,36 @@ describe('OptionalSharedGuard (KTD3, R5, R12)', () => {
     const { guard } = guardVerifying({ error: new AuthError('verifier_unavailable') });
     await expect(guard.canActivate(context(withAuthorization('Bearer a.b.c')))).rejects.toBeInstanceOf(
       ServiceUnavailableException,
+    );
+  });
+});
+
+function getCurrentCallerFactory(): (data: unknown, context: ExecutionContext) => Caller {
+  class TestHost {
+    endpoint(@CurrentCaller() _caller: Caller) {}
+  }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- custom route argument metadata reflects the factory function.
+  const meta = Reflect.getMetadata(ROUTE_ARGS_METADATA, TestHost, 'endpoint') as Record<
+    string,
+    { factory: (data: unknown, context: ExecutionContext) => Caller }
+  >;
+  const key = Object.keys(meta)[0];
+  if (key === undefined || meta[key] === undefined) throw new Error('Missing parameter decorator factory');
+  return meta[key].factory;
+}
+
+describe('CurrentCaller', () => {
+  it('Should return the resolved caller from the request', () => {
+    const factory = getCurrentCallerFactory();
+    const request: CallerRequest = { headers: {}, caller: callers.portal };
+    expect(factory(undefined, context(request))).toBe(callers.portal);
+  });
+
+  it('Should throw when used on a route without an audience guard (line 9)', () => {
+    const factory = getCurrentCallerFactory();
+    const request: CallerRequest = { headers: {} };
+    expect(() => factory(undefined, context(request))).toThrow(
+      '@CurrentCaller() used on a route without an audience guard',
     );
   });
 });

@@ -120,4 +120,22 @@ describe('RegistryService (KTD11)', () => {
     expect(second.events.map((event) => event.clientId)).toEqual(['a']);
     expect(second.nextBefore).toBeNull();
   });
+
+  it('Should omit the console client from reserved clients when console is undefined', async () => {
+    const serviceWithoutConsole = new RegistryService(database.db, {
+      portal: PORTAL_CLIENT_ID,
+      console: undefined,
+    });
+    const entry = await serviceWithoutConsole.add({ clientId: CONSOLE_CLIENT_ID, displayName: 'Console' }, ada);
+    expect(entry.clientId).toBe(CONSOLE_CLIENT_ID);
+    await expect(
+      serviceWithoutConsole.add({ clientId: PORTAL_CLIENT_ID, displayName: 'Portal' }, ada),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('Should return null nextBefore when limit is 0 even if events exist', async () => {
+    await registry.add({ clientId: 'a', displayName: 'A' }, ada);
+    const page = await registry.history({ limit: 0 });
+    expect(page).toEqual({ events: [], nextBefore: null });
+  });
 });

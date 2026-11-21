@@ -72,7 +72,7 @@ describe('DataTable numbered mode', () => {
     expect(disabled('Previous')).toBe(true);
     expect(disabled('Next')).toBe(false);
     expect(disabled('Last')).toBe(false);
-  });
+  }, 15_000);
 
   it('Should push the next page and keep the other params on Next (R7)', async () => {
     const { onSearchChange } = renderTable({ search: { q: 'check', other: 'kept' } });

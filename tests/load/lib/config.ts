@@ -1,5 +1,7 @@
 // Shared settings for the k6 load scripts (DEVELOPER.md, Load tests). Pure data from __ENV, no k6 imports.
 
+import type { Scenario } from 'k6/options';
+
 /** Origin of the deployment under test, e.g. https://sdg-test.apps.gold.devops.gov.bc.ca (no path, no trailing slash). */
 export function baseUrl(): string {
   const url = __ENV['BASE_URL'] ?? '';
@@ -35,6 +37,39 @@ export function stages(): Stage[] {
     throw new Error(`Invalid LOAD_PROFILE '${profile}': expected ${Object.keys(PROFILES).join(' or ')}`);
   }
   return [...selected];
+}
+
+const SCENARIOS: Readonly<Record<string, Scenario>> = Object.freeze({
+  smoke: {
+    executor: 'constant-vus',
+    vus: 1,
+    duration: '5s',
+    options: {
+      browser: { type: 'chromium' },
+    },
+  },
+  ramp: {
+    executor: 'ramping-vus',
+    startVUs: 1,
+    stages: [
+      { duration: '30s', target: 5 }, // Ramp up to 5 browser VUs
+      { duration: '1m', target: 5 }, // Hold at 5 browser VUs
+      { duration: '20s', target: 0 }, // Ramp down to 0
+    ],
+    gracefulRampDown: '30s',
+    options: {
+      browser: { type: 'chromium' },
+    },
+  },
+});
+
+export function scenarios(): Record<string, Scenario> {
+  const profile = __ENV['LOAD_PROFILE'] || 'smoke';
+  const selected = SCENARIOS[profile];
+  if (!selected) {
+    throw new Error(`Invalid LOAD_PROFILE '${profile}': expected ${Object.keys(SCENARIOS).join(' or ')}`);
+  }
+  return { [profile]: selected };
 }
 
 /** Breaching any of these makes k6 exit non-zero, which fails the CI job. */

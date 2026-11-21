@@ -8,6 +8,10 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
+
+# Guarantee cleanup runs on normal exit or failure
+trap 'rm -f utils/client-auth.json' EXIT
+
 command -v k6 >/dev/null || { echo "k6 is missing: brew install k6 (https://grafana.com/docs/k6/latest/set-up/install-k6/)" >&2; exit 1; }
 [ -n "${BASE_URL:-}" ] || { echo "Set BASE_URL, e.g. BASE_URL=https://sdg.localhost pnpm test:load" >&2; exit 1; }
 

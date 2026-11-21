@@ -25,7 +25,14 @@ describe('definePlaywrightConfig', () => {
 
   it('defines chromium, firefox and webkit projects', () => {
     const config = definePlaywrightConfig({ baseURL: 'http://localhost:5173' });
-    expect(config.projects?.map((p) => p.name)).toEqual(['chromium', 'firefox', 'webkit', 'client-setup']);
+    expect(config.projects?.map((p) => p.name)).toEqual([
+      'chromium',
+      'firefox',
+      'webkit',
+      'client-setup',
+      'client-tests',
+      'load-setup',
+    ]);
   });
 
   it('reuses an existing dev server locally but not in CI', () => {
