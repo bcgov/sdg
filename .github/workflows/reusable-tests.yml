@@ -70,6 +70,16 @@ jobs:
           PLAYWRIGHT_CLIENT_PASSWORD: ${{ secrets.playwright-client-password }}
           CI: 'true'
         run: pnpm --filter tests-load exec playwright test --project=load-setup
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        name: Upload load-setup results
+        with:
+          name: playwright-report-load-setup
+          path: |
+            tests/load/playwright-report
+            tests/load/test-results
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Install k6
         uses: grafana/setup-k6-action@v1
         with:
