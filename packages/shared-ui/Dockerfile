@@ -3,7 +3,7 @@
 # only this image. Build from the repository root:
 #   podman build -f packages/shared-ui/Dockerfile -t shared-ui .
 
-FROM docker.io/library/node:26.13.0-slim AS base
+FROM docker.io/library/node:26.13.1-slim AS base
 ENV CI=true LEFTHOOK=0
 # Same pnpm as the host: the version comes from devEngines in package.json.
 COPY package.json /tmp/package.json
