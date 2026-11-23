@@ -146,7 +146,34 @@ jobs:
           APP: ${{ matrix.app }}
           E2E_BASE_URL: ${{ matrix.url }}/
           CI: 'true'
-        run: pnpm --filter "$APP" exec playwright test --project=chromium --reporter=html
+          PORTAL_URL: ${{ inputs.url }}
+          CONSOLE_URL: ${{ inputs.console_url }}
+          DIAGNOSTICS: ${{ runner.temp }}/e2e-diagnostics
+        # Diagnosing the Gold cluster's refused connections: Playwright logs every new connection and failed request
+        # (E2E_CONNECTION_LOG), while scripts/e2e-probe.sh polls both PR hosts and a non-Gold control from the same runner.
+        run: |
+          mkdir -p "$DIAGNOSTICS"
+          export E2E_CONNECTION_LOG="$DIAGNOSTICS/connections.ndjson"
+          urls=("$PORTAL_URL/")
+          if [ -n "$CONSOLE_URL" ]; then urls+=("$CONSOLE_URL/"); fi
+          urls+=("https://github.com/")
+          scripts/e2e-probe.sh "$DIAGNOSTICS/probe.log" "${urls[@]}" &
+          probe=$!
+          status=0
+          pnpm --filter "$APP" exec playwright test --project=chromium --reporter=html || status=$?
+          kill "$probe"
+          echo "New connections opened by the browser: $(grep -c '"event":"connect"' "$E2E_CONNECTION_LOG" || true)"
+          echo "Probe requests that failed:"
+          grep -v ' rc=0 ' "$DIAGNOSTICS/probe.log" || echo "  none"
+          exit "$status"
+
+      - uses: actions/upload-artifact@v7
+        if: (! cancelled()) && matrix.url != ''
+        name: upload diagnostics
+        with:
+          name: e2e-diagnostics-${{ matrix.app }}
+          path: ${{ runner.temp }}/e2e-diagnostics
+          retention-days: 7
 
       - uses: actions/upload-artifact@v7
         if: (! cancelled()) && matrix.url != ''

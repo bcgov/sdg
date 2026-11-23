@@ -1,5 +1,7 @@
 import { defineConfig, devices, test as base, type PlaywrightTestConfig } from '@playwright/test';
 
+import { logConnections } from './connection-log.ts';
+
 // Define the type for your custom configuration variable
 export type E2ETestOptions = {
   clientURL: string;
@@ -8,10 +10,19 @@ export type E2ETestOptions = {
 };
 
 // Extend the base test object to include your new option
-export const test = base.extend<E2ETestOptions>({
+export const test = base.extend<E2ETestOptions & { connectionLog: void }>({
   clientURL: ['', { option: true }],
   clientUsername: ['', { option: true }],
   clientPassword: ['', { option: true }],
+  // With E2E_CONNECTION_LOG set (CI sets it), every test logs its new connections and failed requests to that file.
+  connectionLog: [
+    async ({ context }, use, testInfo) => {
+      const file = process.env['E2E_CONNECTION_LOG'];
+      if (file) logConnections(context, testInfo, file);
+      await use();
+    },
+    { auto: true },
+  ],
 });
 
 export interface PlaywrightOptions {
