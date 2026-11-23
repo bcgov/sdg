@@ -25,9 +25,9 @@ export async function waitUntilReachable(
     sleep = wait,
   }: ReachabilityOptions = {},
 ): Promise<boolean> {
-  for (let attempt = 1; attempt <= attempts; attempt++) {
+  /** Polls one attempt at a time: each waits for the one before, so this recurses instead of looping. */
+  const poll = async (attempt: number): Promise<boolean> => {
     try {
-      // oxlint-disable-next-line no-await-in-loop -- polling: each attempt waits for the one before.
       await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(requestTimeoutMs) });
       if (attempt > 1) console.warn(`[retry-gate] ${url} reachable again (attempt ${attempt}/${attempts})`);
       return true;
@@ -35,10 +35,11 @@ export async function waitUntilReachable(
       const cause = error instanceof Error && error.cause instanceof Error ? `: ${error.cause.message}` : '';
       console.warn(`[retry-gate] ${url} unreachable (attempt ${attempt}/${attempts}): ${String(error)}${cause}`);
     }
-    // oxlint-disable-next-line no-await-in-loop -- the pause between attempts.
-    if (attempt < attempts) await sleep(intervalMs);
-  }
-  return false;
+    if (attempt >= attempts) return false;
+    await sleep(intervalMs);
+    return poll(attempt + 1);
+  };
+  return poll(1);
 }
 
 /**
