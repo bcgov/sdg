@@ -50,11 +50,3 @@ export const HEADER_PATHS: Readonly<Record<'loader' | 'manifest' | 'loaderConfig
   /** Folder of the immutable, content-hashed release bundles (KTD2). */
   bundles: `header/v${HEADER_MAJOR}/bundles/`,
 };
-
-/**
- * @deprecated The unsigned always-latest URL, no longer built or served (KTD12). Kept only for the README test until it
- * moves to the loader (U9); do not use.
- */
-export function headerCdnPath(): string {
-  return `header/v${HEADER_MAJOR}/sdg-header.js`;
-}

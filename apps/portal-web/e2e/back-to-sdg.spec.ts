@@ -12,11 +12,9 @@ async function signedOut(page: Page) {
 test.describe('Back to SDG in the shared header', () => {
   test('links an external site back to the SDG page in return-to, on every page of that site in the tab', async ({
     page,
-    context,
     baseURL,
-    browserName,
   }) => {
-    const external = await serveExternalSite({ page, context, baseURL, browserName });
+    const external = await serveExternalSite({ page, baseURL });
     await page.goto(`${external}?return-to=${encodeURIComponent('/help?topic=fees')}`);
 
     const header = page.locator('sdg-header');
@@ -39,13 +37,8 @@ test.describe('Back to SDG in the shared header', () => {
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Help');
   });
 
-  test("links to SDG's home page when an SDG link carries no return-to", async ({
-    page,
-    context,
-    baseURL,
-    browserName,
-  }) => {
-    const external = await serveExternalSite({ page, context, baseURL, browserName });
+  test("links to SDG's home page when an SDG link carries no return-to", async ({ page, baseURL }) => {
+    const external = await serveExternalSite({ page, baseURL });
     await signedOut(page);
     await page.goto('/help');
     // A plain link out of SDG: the visitor arrives with only SDG's origin as the referrer.
@@ -71,13 +64,8 @@ test.describe('Back to SDG in the shared header', () => {
     await expect(header.getByRole('link', { name: 'Back to SDG' })).toHaveCount(0);
   });
 
-  test('shows no Back to SDG on an external site the visitor did not reach from SDG', async ({
-    page,
-    context,
-    baseURL,
-    browserName,
-  }) => {
-    const external = await serveExternalSite({ page, context, baseURL, browserName });
+  test('shows no Back to SDG on an external site the visitor did not reach from SDG', async ({ page, baseURL }) => {
+    const external = await serveExternalSite({ page, baseURL });
     await page.goto(external);
 
     const header = page.locator('sdg-header');

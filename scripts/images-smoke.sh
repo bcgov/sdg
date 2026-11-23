@@ -239,22 +239,52 @@ CURL=(curl -sS --max-time 15)
 status() { "${CURL[@]}" -o /dev/null -w '%{http_code}' "$@"; }
 header() { grep -i "^$1:" "$2" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
 
+# sri <file>: the file's Subresource Integrity value (sha384, base64).
+sri() { printf 'sha384-%s' "$(openssl dgst -sha384 -binary "$1" | openssl base64 -A)"; }
+DEV_LOADER_INTEGRITY="$(node -p "require('./packages/shared-ui/loaders.lock.json').dev.integrity")"
+
 echo "shared-ui"
+# The manifest the chart mounts at /manifest (KTD6): here the image's own release, signed with the committed dev key.
+"$ENGINE" run --rm "$(image shared-ui)" cat /release/release.json > "$TMP/release.json"
+mkdir -p "$TMP/manifest"
+HEADER_SIGNING_KEY_ID="$(node -p "Object.keys(require('./packages/shared-ui/keys/dev.private.json').keys).find((id) => id.startsWith('dev-primary-'))")" \
+HEADER_SIGNING_KEY="$(node -p "const f = require('./packages/shared-ui/keys/dev.private.json'); JSON.stringify(Object.entries(f.keys).find(([id]) => id.startsWith('dev-primary-'))[1])")" \
+HEADER_KEYSET=dev HEADER_FLOOR=0 \
+  node packages/shared-ui/scripts/sign-manifest.ts release --release "$TMP/release.json" --version smoke \
+  --out "$TMP/manifest/manifest.json" >/dev/null
+# Readable by the container's arbitrary UID.
+chmod 755 "$TMP" "$TMP/manifest" && chmod 644 "$TMP/manifest/manifest.json"
+BUNDLE_PATH="$(node -p "require('$TMP/release.json').bundle.path")"
+BUNDLE_INTEGRITY="$(node -p "require('$TMP/release.json').bundle.integrity")"
 # Under OCP's dropped capabilities, so Caddy starting at all shows its binary carries no file capability.
-"$ENGINE" run -d --name "$PREFIX-shared-ui" "${OCP[@]}" -p 127.0.0.1::8080 "$(image shared-ui)" >/dev/null
+"$ENGINE" run -d --name "$PREFIX-shared-ui" "${OCP[@]}" -p 127.0.0.1::8080 -e HEADER_KEYSET=dev \
+  -v "$TMP/manifest:/manifest:ro" "$(image shared-ui)" >/dev/null
 SHARED_UI="http://$("$ENGINE" port "$PREFIX-shared-ui" 8080 | head -n 1)"
 deadline=$((SECONDS + 30))
 until curl -sf -o /dev/null "$SHARED_UI/healthz" || ((SECONDS > deadline)); do sleep 1; done
 check "/healthz is 200 under an arbitrary UID with no capabilities" test "$(status "$SHARED_UI/healthz")" = 200
-HEADER_JS="$SHARED_UI/header/v1/sdg-header.js"
-check "/header/v1/sdg-header.js is 200" \
-  test "$("${CURL[@]}" -D "$TMP/shared-ui.headers" -o /dev/null -w '%{http_code}' "$HEADER_JS")" = 200
-check "the header script revalidates (Cache-Control: no-cache)" \
-  test "$(header Cache-Control "$TMP/shared-ui.headers")" = no-cache
-check "the header script is served as JavaScript" grep -qi '^content-type: text/javascript' "$TMP/shared-ui.headers"
-ETAG="$(header ETag "$TMP/shared-ui.headers")"
-check "the header script has an ETag" test -n "$ETAG"
-check "a request with its ETag in If-None-Match is 304" test "$(status -H "If-None-Match: $ETAG" "$HEADER_JS")" = 304
+LOADER_JS="$SHARED_UI/header/v1/loader.js"
+check "/header/v1/loader.js is 200 (HEADER_KEYSET=dev)" \
+  test "$("${CURL[@]}" -D "$TMP/loader.headers" -o "$TMP/loader.js" -w '%{http_code}' "$LOADER_JS")" = 200
+check "the loader is the committed dev loader, byte for byte (loaders.lock.json)" \
+  test "$(sri "$TMP/loader.js")" = "$DEV_LOADER_INTEGRITY"
+check "the loader revalidates (Cache-Control: no-cache)" test "$(header Cache-Control "$TMP/loader.headers")" = no-cache
+check "the loader is served as JavaScript" grep -qi '^content-type: text/javascript' "$TMP/loader.headers"
+ETAG="$(header ETag "$TMP/loader.headers")"
+check "the loader has an ETag" test -n "$ETAG"
+check "a request with its ETag in If-None-Match is 304" test "$(status -H "If-None-Match: $ETAG" "$LOADER_JS")" = 304
+check "/header/v1/manifest.json is 200 from the mounted directory" \
+  test "$("${CURL[@]}" -D "$TMP/manifest.headers" -o "$TMP/manifest.json" -w '%{http_code}' "$SHARED_UI/header/v1/manifest.json")" = 200
+check "the manifest is the mounted one" cmp -s "$TMP/manifest.json" "$TMP/manifest/manifest.json"
+check "the manifest revalidates (Cache-Control: no-cache)" test "$(header Cache-Control "$TMP/manifest.headers")" = no-cache
+BUNDLE="$SHARED_UI${BUNDLE_PATH#/shared-ui}"
+check "the release bundle ($BUNDLE_PATH) is 200" \
+  test "$("${CURL[@]}" -D "$TMP/bundle.headers" -o "$TMP/bundle.js" -w '%{http_code}' "$BUNDLE")" = 200
+check "the bundle matches release.json's integrity" test "$(sri "$TMP/bundle.js")" = "$BUNDLE_INTEGRITY"
+check "the bundle is cached immutably" \
+  test "$(header Cache-Control "$TMP/bundle.headers")" = "public, max-age=31536000, immutable"
+check "release.json is not served" test "$(status "$SHARED_UI/release/release.json")" = 404
+check "the unsigned /header/v1/sdg-header.js is gone (404)" test "$(status "$SHARED_UI/header/v1/sdg-header.js")" = 404
 check "an unknown path is 404 (no fallback)" test "$(status "$SHARED_UI/header/v1/missing.js")" = 404
 
 echo "portal-web, console-web and edge"
@@ -265,7 +295,7 @@ echo "portal-web, console-web and edge"
   -e CONSOLE_HOST=console.smoke.test -e "CONSOLE_API_URL=http://$PREFIX-console:3000" \
   -e "CONSOLE_WEB_URL=http://$PREFIX-console-web:8080" \
   -e GATEWAY_HOST=gateway.smoke.test -e "GATEWAY_API_URL=http://$PREFIX-gateway:3000" \
-  -e "SHARED_UI_URL=http://$PREFIX-shared-ui:8080" \
+  -e "SHARED_UI_URL=http://$PREFIX-shared-ui:8080" -e "HEADER_LOADER_INTEGRITY=$DEV_LOADER_INTEGRITY" \
   "$(image edge)" >/dev/null
 EDGE="http://$("$ENGINE" port "$PREFIX-edge" 3000 | head -n 1)"
 deadline=$((SECONDS + 30))
@@ -319,18 +349,35 @@ check "the console host's page URL with an SQL-looking search loads" \
   test "$(status -H 'Host: console.smoke.test' "$EDGE/feature-flags?q=%27%20or%201%3D1--%20")" = 200
 
 echo "Edge cross-origin headers (shared-ui only)"
-EDGE_JS="$EDGE/shared-ui/header/v1/sdg-header.js"
-check "/shared-ui/header/v1/sdg-header.js is 200 through the edge" \
-  test "$("${CURL[@]}" -D "$TMP/edge-shared-ui.headers" -o /dev/null -w '%{http_code}' "$EDGE_JS")" = 200
-check "the header script allows any origin (Access-Control-Allow-Origin: *)" \
-  test "$(header Access-Control-Allow-Origin "$TMP/edge-shared-ui.headers")" = '*'
-check "the header script is cross-origin readable (Cross-Origin-Resource-Policy: cross-origin)" \
-  test "$(header Cross-Origin-Resource-Policy "$TMP/edge-shared-ui.headers")" = cross-origin
-check "the header script never allows credentials" \
-  bash -c "! grep -qi '^access-control-allow-credentials:' '$TMP/edge-shared-ui.headers'"
-check "the header script keeps shared-ui's Cache-Control: no-cache" \
-  test "$(header Cache-Control "$TMP/edge-shared-ui.headers")" = no-cache
-check "OPTIONS on the header script is 405 (WAF rule 1009)" test "$(status -X OPTIONS "$EDGE_JS")" = 405
+EDGE_LOADER="$EDGE/shared-ui/header/v1/loader.js"
+check "/shared-ui/header/v1/loader.js is 200 through the edge" \
+  test "$("${CURL[@]}" -D "$TMP/edge-loader.headers" -o "$TMP/edge-loader.js" -w '%{http_code}' "$EDGE_LOADER")" = 200
+check "the loader allows any origin (Access-Control-Allow-Origin: *)" \
+  test "$(header Access-Control-Allow-Origin "$TMP/edge-loader.headers")" = '*'
+check "the loader is cross-origin readable (Cross-Origin-Resource-Policy: cross-origin)" \
+  test "$(header Cross-Origin-Resource-Policy "$TMP/edge-loader.headers")" = cross-origin
+check "the loader never allows credentials" \
+  bash -c "! grep -qi '^access-control-allow-credentials:' '$TMP/edge-loader.headers'"
+check "the loader keeps shared-ui's Cache-Control: no-cache" \
+  test "$(header Cache-Control "$TMP/edge-loader.headers")" = no-cache
+check "OPTIONS on the loader is 405 (WAF rule 1009)" test "$(status -X OPTIONS "$EDGE_LOADER")" = 405
+"${CURL[@]}" -D "$TMP/edge-manifest.headers" -o /dev/null "$EDGE/shared-ui/header/v1/manifest.json"
+check "the manifest allows any origin through the edge (the loader fetches it with CORS)" \
+  test "$(header Access-Control-Allow-Origin "$TMP/edge-manifest.headers")" = '*'
+check "the manifest keeps Cache-Control: no-cache through the edge" \
+  test "$(header Cache-Control "$TMP/edge-manifest.headers")" = no-cache
+"${CURL[@]}" -D "$TMP/edge-bundle.headers" -o /dev/null "$EDGE$BUNDLE_PATH"
+check "the bundle allows any origin through the edge" \
+  test "$(header Access-Control-Allow-Origin "$TMP/edge-bundle.headers")" = '*'
+check "the bundle stays immutable through the edge" \
+  test "$(header Cache-Control "$TMP/edge-bundle.headers")" = "public, max-age=31536000, immutable"
+check "the unsigned /shared-ui/header/v1/sdg-header.js is 404 through the edge" \
+  test "$(status "$EDGE/shared-ui/header/v1/sdg-header.js")" = 404
+"${CURL[@]}" -D "$TMP/loader-config.headers" -o "$TMP/loader-config.json" "$EDGE/shared-ui/header/v1/loader.json"
+check "the edge's loader.json names the loader with the lock's dev integrity" \
+  test "$(cat "$TMP/loader-config.json")" = "{\"src\":\"/shared-ui/header/v1/loader.js\",\"integrity\":\"$DEV_LOADER_INTEGRITY\"}"
+check "the edge's loader.json integrity matches the loader it serves" \
+  test "$(sri "$TMP/edge-loader.js")" = "$DEV_LOADER_INTEGRITY"
 "${CURL[@]}" -D "$TMP/gateway.headers" -o /dev/null -H 'Host: gateway.smoke.test' "$EDGE/api/v1/gateway/me"
 # same_origin_only <label> <headers file>: CORP same-origin and no Access-Control-Allow-Origin
 same_origin_only() {
@@ -349,7 +396,9 @@ EDGE_BARE="http://$("$ENGINE" port "$PREFIX-edge-bare" 3000 | head -n 1)"
 deadline=$((SECONDS + 30))
 until curl -sf -o /dev/null "$EDGE_BARE/" || ((SECONDS > deadline)); do sleep 1; done
 check "without SHARED_UI_URL, /shared-ui/ answers 503" \
-  test "$(status "$EDGE_BARE/shared-ui/header/v1/sdg-header.js")" = 503
+  test "$(status "$EDGE_BARE/shared-ui/header/v1/loader.js")" = 503
+check "without HEADER_LOADER_INTEGRITY, loader.json is 404 (no header rather than no check)" \
+  test "$(status "$EDGE_BARE/shared-ui/header/v1/loader.json")" = 404
 
 psql "drop database if exists $SMOKE_DB with (force)" >/dev/null || true
 echo
