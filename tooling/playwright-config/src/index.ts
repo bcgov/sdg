@@ -1,5 +1,8 @@
 import { defineConfig, devices, test as base, type PlaywrightTestConfig } from '@playwright/test';
 
+import { connectionLogFixture } from './connection-log.ts';
+import { retryGateFixture } from './retry-gate.ts';
+
 // Define the type for your custom configuration variable
 export type E2ETestOptions = {
   clientURL: string;
@@ -8,10 +11,14 @@ export type E2ETestOptions = {
 };
 
 // Extend the base test object to include your new option
-export const test = base.extend<E2ETestOptions>({
+export const test = base.extend<E2ETestOptions & { connectionLog: void; retryGate: void }>({
   clientURL: ['', { option: true }],
   clientUsername: ['', { option: true }],
   clientPassword: ['', { option: true }],
+  // With E2E_CONNECTION_LOG set (CI sets it), every test logs its new connections and failed requests to that file.
+  connectionLog: [connectionLogFixture, { auto: true }],
+  // A retry first waits (on its own timeout, outside the test's) until the base URL answers again.
+  retryGate: [retryGateFixture, { auto: true, timeout: 180_000 }],
 });
 
 export interface PlaywrightOptions {
@@ -46,6 +53,9 @@ export function definePlaywrightConfig({
     use: {
       baseURL,
       trace: 'on-first-retry',
+      // One browser context per worker, reset between tests, so connections stay open from test to test: a fresh
+      // context per test opens new TCP connections each time, and the Gold cluster drops a runner that opens too many.
+      reuseContext: true,
     },
     projects: [
       { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

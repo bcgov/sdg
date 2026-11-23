@@ -1,4 +1,5 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '@repo/playwright-config';
 
 /**
  * PR environments start with no flags (KTD14), so the flag list is faked in the browser, as is

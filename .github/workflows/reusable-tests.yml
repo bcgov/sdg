@@ -103,9 +103,10 @@ jobs:
           echo "ERROR: the console and gateway hosts did not answer as expected in time."
           exit 1
 
-  # One job per web app, so each suite runs on its own runner. A single runner that opens ~30 browser sessions against
-  # the Gold cluster within ~20s has its new connections dropped for ~2 minutes (seen when both suites shared a job);
-  # separate runners each get their own allowance, and the suites run in parallel.
+  # One job per web app, so each suite runs on its own runner. The Gold cluster refuses or drops every connection from a
+  # runner, to every *.apps.gold host, for ~2 minutes once it opens too many (PR 82: after ~115 new connections in
+  # ~30s); separate runners each get their own allowance. @repo/playwright-config keeps one browser context per worker
+  # (reuseContext) so connections stay open across tests, and makes a retry wait until the host answers again.
   e2e-tests:
     name: E2E (${{ matrix.app }})
     runs-on: ubuntu-26.04
@@ -146,7 +147,35 @@ jobs:
           APP: ${{ matrix.app }}
           E2E_BASE_URL: ${{ matrix.url }}/
           CI: 'true'
-        run: pnpm --filter "$APP" exec playwright test --project=chromium --reporter=html
+          PORTAL_URL: ${{ inputs.url }}
+          CONSOLE_URL: ${{ inputs.console_url }}
+          DIAGNOSTICS: ${{ runner.temp }}/e2e-diagnostics
+        # Diagnosing the Gold cluster's refused connections: Playwright logs every new connection and failed request
+        # (E2E_CONNECTION_LOG), while scripts/e2e-probe.sh polls both PR hosts and a non-Gold control from the same runner
+        # every 15s (slow, since its own connections count against the runner's allowance).
+        run: |
+          mkdir -p "$DIAGNOSTICS"
+          export E2E_CONNECTION_LOG="$DIAGNOSTICS/connections.ndjson"
+          urls=("$PORTAL_URL/")
+          if [ -n "$CONSOLE_URL" ]; then urls+=("$CONSOLE_URL/"); fi
+          urls+=("https://github.com/")
+          scripts/e2e-probe.sh "$DIAGNOSTICS/probe.log" "${urls[@]}" &
+          probe=$!
+          status=0
+          pnpm --filter "$APP" exec playwright test --project=chromium --reporter=html || status=$?
+          kill "$probe"
+          echo "New connections opened by the browser: $(grep -c '"event":"connect"' "$E2E_CONNECTION_LOG" || true)"
+          echo "Probe requests that failed:"
+          grep -v ' rc=0 ' "$DIAGNOSTICS/probe.log" || echo "  none"
+          exit "$status"
+
+      - uses: actions/upload-artifact@v7
+        if: (! cancelled()) && matrix.url != ''
+        name: upload diagnostics
+        with:
+          name: e2e-diagnostics-${{ matrix.app }}
+          path: ${{ runner.temp }}/e2e-diagnostics
+          retention-days: 7
 
       - uses: actions/upload-artifact@v7
         if: (! cancelled()) && matrix.url != ''
