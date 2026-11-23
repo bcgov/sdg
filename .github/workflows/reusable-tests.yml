@@ -152,10 +152,11 @@ jobs:
           echo "ERROR: the console and gateway hosts did not answer as expected in time."
           exit 1
 
-  # One job per web app, so each suite runs on its own runner. The Gold cluster refuses or drops every connection from a
-  # runner, to every *.apps.gold host, for ~2 minutes once it opens too many (PR 82: after ~115 new connections in
-  # ~30s); separate runners each get their own allowance. @repo/playwright-config keeps one browser context per worker
-  # (reuseContext) so connections stay open across tests, and makes a retry wait until the host answers again.
+  # One job per web app (and sharded for portal-web), so each slice runs on its own runner. The Gold cluster refuses or
+  # drops every connection from a runner, to every *.apps.gold host, for ~2 minutes once it opens too many (PR 82: after
+  # ~115 new connections in ~30s); separate runners each get their own allowance, and the slices run in parallel.
+  # @repo/playwright-config keeps one browser context per worker (reuseContext) so connections stay open across tests,
+  # and makes a retry wait until the host answers again.
   e2e-tests:
     name: E2E (${{ matrix.name }})
     needs: smoke
@@ -262,10 +263,10 @@ jobs:
         run: rm -f apps/portal-web/e2e/setup/client-auth.json
 
       - uses: actions/upload-artifact@v7
-        if: (! cancelled()) && matrix.url != ''
+        if: (! cancelled()) && matrix.url != '' && matrix.run_unauthenticated
         name: upload diagnostics
         with:
-          name: e2e-diagnostics-${{ matrix.app }}
+          name: e2e-diagnostics-${{ matrix.report }}
           path: ${{ runner.temp }}/e2e-diagnostics
           retention-days: 7
 
