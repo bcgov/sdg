@@ -28,6 +28,7 @@
     "build:loaders": "node scripts/build-loaders.ts",
     "dev": "node scripts/dev.ts",
     "generate-keys": "node scripts/generate-keys.ts",
+    "sign-manifest": "node scripts/sign-manifest.ts",
     "typecheck": "tsc -b",
     "test": "vitest run"
   },
