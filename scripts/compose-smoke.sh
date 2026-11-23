@@ -115,13 +115,15 @@ echo "Security headers"
 # header <name> [file]: the first value of a response header (default: GET /'s headers).
 header() { grep -i "^$1:" "${2:-$TMP/headers}" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
 check "Server header removed" bash -c "! grep -qi '^server:' '$TMP/headers'"
-# ZAP 40025 (Proxy Disclosure) fingerprints the proxy chain from these headers.
+# ZAP 40025 (Proxy Disclosure) fingerprints the proxy chain from these headers (.zap/rules.tsv ignores what's left).
 check "Via header removed (proxied response)" bash -c "! grep -qi '^via:' '$TMP/headers'"
 check "X-Frame-Options SAMEORIGIN" test "$(header X-Frame-Options)" = SAMEORIGIN
 check "X-Content-Type-Options nosniff" test "$(header X-Content-Type-Options)" = nosniff
 check "Strict-Transport-Security set" test "$(header Strict-Transport-Security)" = max-age=31536000
 check "Cross-Origin-Embedder-Policy credentialless" test "$(header Cross-Origin-Embedder-Policy)" = credentialless
 check "CSP frame-ancestors 'self'" grep -qi "^content-security-policy:.*frame-ancestors 'self'" "$TMP/headers"
+# ZAP 10055: base-uri doesn't fall back to default-src, so it must be set itself.
+check "CSP base-uri 'self'" grep -qi "^content-security-policy:.*base-uri 'self'" "$TMP/headers"
 check "Dev CSP allows Vite inline scripts only" \
   grep -qi "^content-security-policy:.*script-src 'self' https://\*\.gov\.bc\.ca 'unsafe-inline';" "$TMP/headers"
 check "Dev CSP allows Vite's injected styles" \

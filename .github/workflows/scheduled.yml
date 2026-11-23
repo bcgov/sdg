@@ -57,8 +57,9 @@ jobs:
             echo "Uninstall PR releases (${REPO}-<pr>) last updated before ${CUTOFF}"
             BEFORE=$(date +%s -d "${CUTOFF}")
 
-            # Helm 4 prints RFC 3339; Helm 3 "2026-10-21 12:34:56.789 -0700 PDT" (keep the first 3 fields)
-            RELEASES=$(helm list --all -o json | jq -r --arg re "^${REPO}-[0-9]+$" \
+            # Helm 4 lists releases in every status by default (it has no --all) and prints RFC 3339 times; Helm 3
+            # printed "2026-10-21 12:34:56.789 -0700 PDT" (keep the first 3 fields)
+            RELEASES=$(helm list -o json | jq -r --arg re "^${REPO}-[0-9]+$" \
               '.[] | select(.name | test($re)) | "\(.name) \(.updated | split(" ")[0:3] | join(" "))"')
             if [ -z "${RELEASES}" ]; then
               echo "No PR releases found"
