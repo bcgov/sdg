@@ -67,7 +67,7 @@
 		X-Content-Type-Options "nosniff"
 		Strict-Transport-Security "max-age=31536000"
 		# One line: a newline makes the value invalid, and Go's HTTP/2 server silently drops the whole header.
-		Content-Security-Policy "default-src 'self' https://*.gov.bc.ca; script-src 'self' https://*.gov.bc.ca {args[0]}; style-src 'self' https://fonts.googleapis.com https://use.fontawesome.com {args[1]}; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://fonts.googleapis.com https://www.w3.org https://*.gov.bc.ca https://*.tile.openstreetmap.org; frame-ancestors 'self'; form-action 'self'; block-all-mixed-content; connect-src 'self' https://*.gov.bc.ca wss://*.gov.bc.ca;"
+		Content-Security-Policy "default-src 'self' https://*.gov.bc.ca; script-src 'self' https://*.gov.bc.ca {args[0]}; style-src 'self' https://fonts.googleapis.com https://use.fontawesome.com {args[1]}; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://fonts.googleapis.com https://www.w3.org https://*.gov.bc.ca https://*.tile.openstreetmap.org; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; block-all-mixed-content; connect-src 'self' https://*.gov.bc.ca wss://*.gov.bc.ca;"
 		# Other sites see only SDG's origin, never the path or query: the shared header's "Back to SDG" uses it when
 		# an SDG link carries no return-to.
 		Referrer-Policy "strict-origin-when-cross-origin"
