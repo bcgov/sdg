@@ -2,17 +2,17 @@
 import { sleep } from 'k6';
 import type { Options } from 'k6/options';
 
-import { scenarios, thresholds } from './lib/config.ts';
+import { stages, thresholds } from './lib/config.ts';
 import clientWebTest from './utils/client-web-test.ts';
 
 export const options: Options = {
-  scenarios: scenarios(),
+  stages: stages(),
   thresholds: { ...thresholds },
 };
 
-export default async function (): Promise<void> {
+export default function (): void {
   const testHomePage = true;
 
-  await clientWebTest(testHomePage);
+  clientWebTest(testHomePage);
   sleep(1);
 }
