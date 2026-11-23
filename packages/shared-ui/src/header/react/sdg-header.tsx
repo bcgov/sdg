@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { HEADER_EVENTS, type HeaderEventName } from '../contract.js';
 import type { SdgLoginEvent, SdgLogoutEvent, SdgSettingsEvent } from '../types.js';
 import type { SdgHeaderIntrinsicProps } from './jsx.js';
-import { DEFAULT_HEADER_SRC, loadSdgHeader } from './load-script.js';
+import { DEFAULT_LOADER_CONFIG_URL, loadSdgHeader } from './load-script.js';
 
 export interface SdgHeaderProps {
   siteTitle?: string;
@@ -22,8 +22,11 @@ export interface SdgHeaderProps {
   onSettings?: (event: SdgSettingsEvent) => void;
   /** Called on Log Out. Required in practice for signed-in visitors: the header does not sign anyone out itself. */
   onLogout?: (event: SdgLogoutEvent) => void;
-  /** The header script's URL. Defaults to the same-origin `/shared-ui/header/v1/sdg-header.js`. */
-  src?: string;
+  /**
+   * The `{ src, integrity }` of the SRI-pinned header loader. Defaults to the edge's same-origin
+   * `/shared-ui/header/v1/loader.json`.
+   */
+  configUrl?: string;
   className?: string;
   /** Nav items: the app's own links (`slot="nav"`), with `aria-current="page"` on the current one. */
   children?: ReactNode;
@@ -44,7 +47,7 @@ function useHeaderEvent<K extends HeaderEventName>(
   }, [ref, type, handler]);
 }
 
-/** Renders the edge-loaded `<sdg-header>` and loads its script when the page has not. Holds no header behavior. */
+/** Renders `<sdg-header>` and loads it through the SRI-pinned loader when the page has not. Holds no header behavior. */
 export function SdgHeader({
   siteTitle,
   userName,
@@ -53,7 +56,7 @@ export function SdgHeader({
   onLogin,
   onSettings,
   onLogout,
-  src = DEFAULT_HEADER_SRC,
+  configUrl = DEFAULT_LOADER_CONFIG_URL,
   className,
   children,
 }: Readonly<SdgHeaderProps>): ReactNode {
@@ -61,8 +64,8 @@ export function SdgHeader({
 
   useEffect(() => {
     // The loader logs a failure with context; there is nothing else to do, since the page shows no header (R21).
-    loadSdgHeader(src).catch(() => undefined);
-  }, [src]);
+    loadSdgHeader(configUrl).catch(() => undefined);
+  }, [configUrl]);
 
   useHeaderEvent(ref, HEADER_EVENTS.login, onLogin);
   useHeaderEvent(ref, HEADER_EVENTS.settings, onSettings);
