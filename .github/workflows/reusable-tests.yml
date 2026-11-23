@@ -236,13 +236,12 @@ jobs:
           scripts/e2e-probe.sh "$DIAGNOSTICS/probe.log" "${urls[@]}" &
           probe=$!
           status=0
-          pnpm --filter "$APP" exec playwright test --project=chromium --reporter=html || status=$?
+          pnpm --filter "$APP" exec playwright test --project=chromium ${{ matrix.shard }} --reporter=html || status=$?
           kill "$probe"
           echo "New connections opened by the browser: $(grep -c '"event":"connect"' "$E2E_CONNECTION_LOG" || true)"
           echo "Probe requests that failed:"
           grep -v ' rc=0 ' "$DIAGNOSTICS/probe.log" || echo "  none"
           exit "$status"
-      # Run authenticated client tests
       - name: Run Client Setup Script
         if: matrix.url != '' && matrix.run_client
         env:
