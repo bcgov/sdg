@@ -42,3 +42,14 @@ export function logConnections(context: BrowserContext, testInfo: TestInfo, file
     });
   });
 }
+
+/** Auto fixture body: with E2E_CONNECTION_LOG set (CI sets it), logs the test's connections to that file. */
+export async function connectionLogFixture(
+  { context }: { context: BrowserContext },
+  use: () => Promise<void>,
+  testInfo: TestInfo,
+): Promise<void> {
+  const file = process.env['E2E_CONNECTION_LOG'];
+  if (file) logConnections(context, testInfo, file);
+  await use();
+}
