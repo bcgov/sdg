@@ -53,23 +53,24 @@ Setup takes an hour or less, plus waiting for the platform team to issue the Key
    ```bash
    scripts/setup.sh --plate abc123 --reviewers alice,bcgov/my-team   # preview, then add --apply
    ```
-5. **OpenShift deploy account**: creates the `github-actions` service account, `edit` role binding and `github-actions-token` Secret in each namespace.
+5. **OpenShift deploy account**: creates the `github-actions` service account, `edit` role binding and `github-actions-token` Secret in each namespace. In `<plate>-prod` it also creates the header re-signer's account: service account `header-resign`, a Role and RoleBinding `header-resign` that can only get and patch the ConfigMap `<repo>-prod-shared-ui-manifest`, and its `header-resign-token` Secret (see [Header signing keys](#header-signing-keys)). The release name comes from the repository's name (`--repo`, default the current one).
    ```bash
    scripts/setup-openshift.sh --plate abc123          # preview, then add --apply
    ```
-6. **GitHub environments, secrets and variables**: creates the `test` and `prod` environments (PROD with required reviewers if you name them; without `--reviewers` it reports the current ones), and sets the `OC_NAMESPACE` variable and `OC_TOKEN` secret for pull requests (repository level), TEST and PROD, plus the `OC_SERVER` variable. It also checks the `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CONSOLE_CLIENT_ID` variables for each and prints the `gh variable set` command for any that are missing; it never invents them. Without `--plate` it reads the plate from existing `OC_NAMESPACE` variables. Secrets that are already set are never overwritten. Secret values are piped from `oc` straight into `gh secret set`; they're never printed or written to disk, and previews show only the secret's name.
+6. **GitHub environments, secrets and variables**: creates the `test`, `prod` and `prod-resign` environments (PROD with required reviewers if you name them; without `--reviewers` it reports the current ones; `prod-resign` never has reviewers) and limits which refs can deploy to them: `test` and `prod-resign` `main` only, `prod` `main` and `v*` tags, removing any other rule. It sets the `OC_NAMESPACE` variable and `OC_TOKEN` secret for pull requests (repository level), TEST and PROD, plus the `OC_SERVER` variable, `OC_NAMESPACE=<plate>-prod` and `OC_TOKEN_HEADER` (from `header-resign-token`) for `prod-resign`, and `HEADER_FLOOR_TEST` and `HEADER_FLOOR_PROD` to `0` when unset (it never changes a floor that is set). It checks that the header signing keys and key ids exist (step 10) and that no `HEADER_SIGNING_KEY` is stored at repository level, where pull requests could read it. It also checks the `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CONSOLE_CLIENT_ID` variables for each and prints the `gh variable set` command for any that are missing; it never invents them. Without `--plate` it reads the plate from existing `OC_NAMESPACE` variables. Secrets that are already set are never overwritten. Secret values are piped from `oc` straight into `gh secret set`; they're never printed or written to disk, and previews show only the secret's name.
    ```bash
    scripts/setup-environments.sh --plate abc123 --reviewers alice,bcgov/my-team   # preview, then add --apply
    ```
-7. **GitHub repository settings**: the `main` ruleset, pull request settings and private vulnerability reporting (see [Repository Configuration](#repository-configuration)).
+7. **GitHub repository settings**: the `main` ruleset (including approval of the last push, which the unattended header re-signer relies on), pull request settings and private vulnerability reporting (see [Repository Configuration](#repository-configuration)).
    ```bash
    scripts/setup-github.sh                              # preview, then add --apply
    ```
 8. **Vault secrets** (by hand): write `SESSION_SECRET` and `KEYCLOAK_CLIENT_SECRET` to Vault at `<plate>-nonprod/portal-api` and `<plate>-nonprod/console-api` (pull requests and TEST), and at `<plate>-prod/portal-api` and `<plate>-prod/console-api` (PROD). The two apps use different clients, so their secrets differ. DEV and TEST loginproxy issue different secrets for the same client, so give TEST its own paths (for example `<plate>-nonprod/test/portal-api` and `<plate>-nonprod/test/console-api`) and set `VAULT_SECRET_PATH` and `CONSOLE_VAULT_SECRET_PATH` on the `test` environment. See [Vault](#vault).
 9. **Keycloak clients** (by hand): add `https://<release>.apps.<cluster>.devops.gov.bc.ca/api/auth/callback` and `https://<release>.apps.<cluster>.devops.gov.bc.ca/` as valid redirect URIs. Wildcards are allowed on the pull request and TEST clients, so `https://<repo>-*.apps.<cluster>.devops.gov.bc.ca/*` covers every pull request. They are not allowed in PROD: list the exact `https://<repo>-prod.apps.<cluster>.devops.gov.bc.ca` URIs (and the vanity URL's, if you set [`ROUTE_HOST`](#optional-values)).
    Request a second client for the console: IDIR, confidential, with an `admin` client role (core-api refuses a console token without it). Its redirect URIs are `https://<release>-console.apps.<cluster>.devops.gov.bc.ca/api/auth/callback`, and its post-logout redirect URIs are `https://<release>-console.apps.<cluster>.devops.gov.bc.ca/` and `.../not-authorized`. DEV allows a wildcard for every pull request's console host (`https://<repo>-*-console.apps.<cluster>.devops.gov.bc.ca/*`); TEST uses its exact `<repo>-test-console` host or a wildcard if the client allows it; PROD lists the exact `<repo>-prod-console` URIs. Set `KEYCLOAK_CONSOLE_CLIENT_ID` (repository, `test` and `prod` scopes) to that client's id; it also tells core-api which client's tokens are administrators'. The gateway host needs no client of its own: each service account is a client-credentials client in the same realm, registered by an administrator in console-web.
-10. **First pull request**: open one to run the pipeline, then make the packages public (see [Packages](#packages)).
-11. **Optional** (by hand): [SonarCloud](#code-quality-with-sonarcloud), [Renovate](#renovate), Sysdig, a vanity URL with TLS, PROD deployment rules and team members, all described below.
+10. **Header signing keys** (by hand, after steps 5 to 7 are applied): generate the `pr`, `test` and `prod` keysets offline, commit the public keys and regenerated loaders, then store each primary private key and key id in GitHub. Every deploy signs the header manifest and fails without its key. Follow [the header signing runbook](./docs/runbooks/shared-ui-header-signing.md); see [Header signing keys](#header-signing-keys).
+11. **First pull request**: open one to run the pipeline, then make the packages public (see [Packages](#packages)).
+12. **Optional** (by hand): [SonarCloud](#code-quality-with-sonarcloud), [Renovate](#renovate), Sysdig, a vanity URL with TLS and team members, all described below.
 
 ### Adding the console app to an existing deployment
 
@@ -83,35 +84,46 @@ Teams that already run the portal alone do these by hand (agents never do):
 
 Configuration lives in three places:
 
-- **GitHub** holds what the workflows need to reach the cluster and render the chart. Repository-level values are used by pull request deploys; `test` and `prod` environment values override them for those deploys. Checklist steps 5 and 6 set the required ones.
+- **GitHub** holds what the workflows need to reach the cluster, render the chart and sign the header manifest. Repository-level values are used by pull request deploys; `test` and `prod` environment values override them for those deploys, and `prod-resign` holds only what the Header Re-sign workflow needs for PROD. Checklist steps 5 and 6 set the required ones; step 10 stores the signing keys.
 - **OpenShift** holds credentials that are created in the cluster and never leave it.
 - **Vault** holds the application secrets that people choose. The Vault Agent sidecar renders them into portal-api's pod at startup.
 
 ### GitHub
 
-| Environment | Name                                                  | Description                                                                                           |
-| ----------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| none        | `vars.OC_SERVER`                                      | OpenShift API server, `https://api.<cluster>.devops.gov.bc.ca:6443` (repository-level)                |
-| none        | `vars.OC_NAMESPACE`                                   | PR namespace, `<plate>-dev`                                                                           |
-| none        | `secrets.OC_TOKEN`                                    | PR service token (from the `github-actions-token` Secret in `<plate>-dev`)                            |
-| none        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PR portal-api Keycloak client                                                                         |
-| none        | `vars.KEYCLOAK_CONSOLE_CLIENT_ID`                     | PR console (IDIR) Keycloak client: console-api's, and the console client core-api accepts             |
-| test        | `vars.OC_NAMESPACE`                                   | TEST namespace, `<plate>-test`                                                                        |
-| test        | `secrets.OC_TOKEN`                                    | TEST service token (from `<plate>-test`)                                                              |
-| test        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | TEST portal-api Keycloak client                                                                       |
-| test        | `vars.KEYCLOAK_CONSOLE_CLIENT_ID`                     | TEST console Keycloak client                                                                          |
-| prod        | `vars.OC_NAMESPACE`                                   | PROD namespace, `<plate>-prod`                                                                        |
-| prod        | `secrets.OC_TOKEN`                                    | PROD service token (from `<plate>-prod`)                                                              |
-| prod        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID` | PROD portal-api Keycloak client                                                                       |
-| prod        | `vars.KEYCLOAK_CONSOLE_CLIENT_ID`                     | PROD console Keycloak client                                                                          |
-| any (opt)   | `vars.VAULT_SECRET_PATH`                              | Vault KV path; default `<plate>-nonprod/portal-api` (PROD: `<plate>-prod/portal-api`)                 |
-| any (opt)   | `vars.CONSOLE_VAULT_SECRET_PATH`                      | console-api's Vault KV path; default `<plate>-nonprod/console-api` (PROD: `<plate>-prod/console-api`) |
-| prod (opt)  | `vars.ROUTE_HOST`                                     | Vanity URL hostname (repository or environment)                                                       |
-| prod (opt)  | `secrets.TLS_CERTIFICATE`                             | Leaf certificate PEM for vanity URL                                                                   |
-| prod (opt)  | `secrets.TLS_PRIVATE_KEY`                             | Private key PEM for vanity URL                                                                        |
-| prod (opt)  | `secrets.TLS_CA_CERTIFICATE`                          | Issuing CA PEM for vanity URL                                                                         |
-| none (opt)  | `secrets.SONAR_TOKEN`                                 | See [SonarCloud](#code-quality-with-sonarcloud)                                                       |
-| none (opt)  | `secrets.SYSDIG_API_TOKEN`                            | PROD alert sync                                                                                       |
+| Environment | Name                                                       | Description                                                                                                  |
+| ----------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| none        | `vars.OC_SERVER`                                           | OpenShift API server, `https://api.<cluster>.devops.gov.bc.ca:6443` (repository-level)                       |
+| none        | `vars.OC_NAMESPACE`                                        | PR namespace, `<plate>-dev`                                                                                  |
+| none        | `secrets.OC_TOKEN`                                         | PR service token (from the `github-actions-token` Secret in `<plate>-dev`)                                   |
+| none        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID`      | PR portal-api Keycloak client                                                                                |
+| none        | `vars.KEYCLOAK_CONSOLE_CLIENT_ID`                          | PR console (IDIR) Keycloak client: console-api's, and the console client core-api accepts                    |
+| test        | `vars.OC_NAMESPACE`                                        | TEST namespace, `<plate>-test`                                                                               |
+| test        | `secrets.OC_TOKEN`                                         | TEST service token (from `<plate>-test`)                                                                     |
+| test        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID`      | TEST portal-api Keycloak client                                                                              |
+| test        | `vars.KEYCLOAK_CONSOLE_CLIENT_ID`                          | TEST console Keycloak client                                                                                 |
+| prod        | `vars.OC_NAMESPACE`                                        | PROD namespace, `<plate>-prod`                                                                               |
+| prod        | `secrets.OC_TOKEN`                                         | PROD service token (from `<plate>-prod`)                                                                     |
+| prod        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID`      | PROD portal-api Keycloak client                                                                              |
+| prod        | `vars.KEYCLOAK_CONSOLE_CLIENT_ID`                          | PROD console Keycloak client                                                                                 |
+| none        | `secrets.HEADER_SIGNING_KEY_PR`                            | Primary private key (JWK) of the `pr` keyset; signs PR header manifests, trusted only by the pr loader       |
+| none        | `vars.HEADER_SIGNING_KEY_ID_PR`                            | Its key id, e.g. `pr-primary-20261123`                                                                       |
+| test        | `secrets.HEADER_SIGNING_KEY`                               | Primary private key (JWK) of the `test` keyset; never a repository secret                                    |
+| test        | `vars.HEADER_SIGNING_KEY_ID`                               | Its key id, e.g. `test-primary-20261123`                                                                     |
+| prod        | `secrets.HEADER_SIGNING_KEY`                               | Primary private key (JWK) of the `prod` keyset                                                               |
+| prod        | `vars.HEADER_SIGNING_KEY_ID`                               | Its key id, e.g. `prod-primary-20261123`                                                                     |
+| prod-resign | `vars.OC_NAMESPACE`                                        | PROD namespace, `<plate>-prod`                                                                               |
+| prod-resign | `secrets.OC_TOKEN_HEADER`                                  | Re-signer token (from `header-resign-token` in `<plate>-prod`): get and patch on the manifest ConfigMap only |
+| prod-resign | `secrets.HEADER_SIGNING_KEY`, `vars.HEADER_SIGNING_KEY_ID` | A copy of PROD's signing key and its key id                                                                  |
+| none        | `vars.HEADER_FLOOR_TEST`, `vars.HEADER_FLOOR_PROD`         | Lowest build sequence TEST and PROD will sign, `0` until a release is withdrawn                              |
+| none (opt)  | `vars.TEST_URL`, `vars.PROD_URL`                           | TEST and PROD portal URLs; when set, Tests fails if a live header manifest expires within 30 days            |
+| any (opt)   | `vars.VAULT_SECRET_PATH`                                   | Vault KV path; default `<plate>-nonprod/portal-api` (PROD: `<plate>-prod/portal-api`)                        |
+| any (opt)   | `vars.CONSOLE_VAULT_SECRET_PATH`                           | console-api's Vault KV path; default `<plate>-nonprod/console-api` (PROD: `<plate>-prod/console-api`)        |
+| prod (opt)  | `vars.ROUTE_HOST`                                          | Vanity URL hostname (repository or environment)                                                              |
+| prod (opt)  | `secrets.TLS_CERTIFICATE`                                  | Leaf certificate PEM for vanity URL                                                                          |
+| prod (opt)  | `secrets.TLS_PRIVATE_KEY`                                  | Private key PEM for vanity URL                                                                               |
+| prod (opt)  | `secrets.TLS_CA_CERTIFICATE`                               | Issuing CA PEM for vanity URL                                                                                |
+| none (opt)  | `secrets.SONAR_TOKEN`                                      | See [SonarCloud](#code-quality-with-sonarcloud)                                                              |
+| none (opt)  | `secrets.SYSDIG_API_TOKEN`                                 | PROD alert sync                                                                                              |
 
 Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-12`, `sdg-test`, `sdg-prod`) at `https://<release>.apps.<cluster>.devops.gov.bc.ca`, with the console app at `https://<release>-console.apps.<cluster>.devops.gov.bc.ca` and the service-account gateway at `https://<release>-gateway.apps.<cluster>.devops.gov.bc.ca`. [`scripts/deploy-values.sh`](./scripts/deploy-values.sh) derives the host, images and Vault settings (role `<plate>-nonprod`/`<plate>-prod`, service account `<plate>-vault`, auth path `auth/k8s-<cluster>`) from these values; sizes per environment live in `charts/sdg/values-{pr,test,prod}.yaml`. The Keycloak issuer URL and client ids reach portal-api, console-api and core-api through ConfigMaps; they are not secrets.
 
@@ -121,11 +133,12 @@ Deploys install the `charts/sdg` Helm chart as release `<repo>-<target>` (`sdg-1
 
 Nobody sets these by hand; they are created in the namespace and read there.
 
-| Secret                              | Namespace(s)            | Holds                                                            | Created by                                                                      |
-| ----------------------------------- | ----------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `github-actions-token`              | `<plate>-dev/test/prod` | Deploy service account token                                     | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6   |
-| `<release>-postgres-pguser-<login>` | the release's namespace | `DATABASE_URL` (key `uri`) of logins `core`, `portal`, `console` | The Crunchy operator, from the chart's `PostgresCluster`                        |
-| Sysdig team Secret                  | `<plate>-tools`         | Sysdig API token                                                 | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN` |
+| Secret                              | Namespace(s)            | Holds                                                            | Created by                                                                          |
+| ----------------------------------- | ----------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `github-actions-token`              | `<plate>-dev/test/prod` | Deploy service account token                                     | `scripts/setup-openshift.sh`; copied to GitHub `OC_TOKEN` by checklist step 6       |
+| `header-resign-token`               | `<plate>-prod`          | Header re-signer token: get and patch on the manifest ConfigMap  | `scripts/setup-openshift.sh`; copied to `prod-resign`'s `OC_TOKEN_HEADER` by step 6 |
+| `<release>-postgres-pguser-<login>` | the release's namespace | `DATABASE_URL` (key `uri`) of logins `core`, `portal`, `console` | The Crunchy operator, from the chart's `PostgresCluster`                            |
+| Sysdig team Secret                  | `<plate>-tools`         | Sysdig API token                                                 | Platform Services, from your `SysdigTeam` CR; copy to GitHub `SYSDIG_API_TOKEN`     |
 
 On first install the core-api, portal-api and console-api pods wait (`CreateContainerConfigError`) until the operator has created their database user Secrets; the migrators then retry until the database accepts connections.
 
@@ -139,6 +152,29 @@ portal-api and console-api each read two secrets from a Vault KV v2 secret. Depl
 | `KEYCLOAK_CLIENT_SECRET` | Secret of the Keycloak confidential client named by `KEYCLOAK_CLIENT_ID` (portal-api) or `KEYCLOAK_CONSOLE_CLIENT_ID` (console-api)               |
 
 Values must not contain `'` or newlines. The Vault Agent writes them to `/vault/secrets/portal-api.env`, which portal-api loads with `node --env-file`; console-api's is `/vault/secrets/console-api.env`. See [`charts/README.md`](./charts/README.md) for where every other value lives and how to deploy without Vault.
+
+### Header signing keys
+
+Every deploy signs the header's release manifest (`/shared-ui/header/v1/manifest.json`), and the SRI-pinned loader that embedding sites load runs the header only when the signature verifies with a key built into that loader. Each environment has its own keyset (`pr`, `test`, `prod`), each with a primary and a backup key pair. The public keys are committed in `packages/shared-ui/keys/<keyset>.json` and baked into `packages/shared-ui/loaders/<keyset>/loader.js`, whose integrity is in `loaders.lock.json`.
+
+Where the private keys live:
+
+- **Primary**: a GitHub secret only usable by the workflows that sign for that environment: `HEADER_SIGNING_KEY_PR` (repository, trusted only by the pr loader), `HEADER_SIGNING_KEY` on `test`, and on `prod` and `prod-resign` (the same PROD key in both). The `test` and `prod` keys must never be repository secrets: pull request workflows can read those. Each secret's key id goes in the matching `HEADER_SIGNING_KEY_ID` variable.
+- **Backup**: offline or under separate custody, never in GitHub or the cluster. It is used only to rotate away from a lost primary.
+- The `dev` keyset's private keys are committed (`keys/dev.private.json`) and trusted only by the local dev loader.
+
+The keys are never reachable from the edge, the `shared-ui` image or the cluster: CI signs the manifest and passes it to Helm. The `prod-resign` environment lets the daily Header Re-sign workflow refresh PROD's signature without a reviewer, so it is limited to `main`, its OpenShift token can only get and patch the manifest ConfigMap, and the `main` ruleset requires approval of the last push so nothing reaches `main` unreviewed.
+
+Generate a keyset on a trusted workstation, with the private keys written outside the repository:
+
+```bash
+pnpm --filter @repo/shared-ui generate-keys test --out ~/sdg-header-keys/test   # writes keys/test.json and two private JWK files
+pnpm --filter @repo/shared-ui build:loaders                                      # regenerates loaders/ and loaders.lock.json
+```
+
+Commit `keys/`, `loaders/` and `loaders.lock.json` through a pull request, then store the primary: `gh secret set HEADER_SIGNING_KEY --env test < ~/sdg-header-keys/test/test-primary-<date>.private.jwk.json` and `gh variable set HEADER_SIGNING_KEY_ID --env test --body test-primary-<date>`. Move the backup file to offline custody and delete the working copies. `scripts/setup-environments.sh` reports any key or key id still missing.
+
+**Rotation.** A new key means a new loader: the loader trusts exactly the keys built into it, and embedding sites pin the loader's integrity. Rotating to the backup after losing the primary needs no change on embedding sites (store the backup as the secret and its id as the variable). Replacing a compromised key, primary or backup, or replacing both, needs a new keyset and loader, which is a breaking change for every embedding site. The [runbook](./docs/runbooks/shared-ui-header-signing.md) has the steps for setup, rollback, withdrawal, re-signing and rotation.
 
 ### Optional Values
 
@@ -169,7 +205,7 @@ PEM-formatted certificates and private key for custom vanity URL TLS on the PROD
 
 - References: `${{ secrets.TLS_CERTIFICATE }}`, `${{ secrets.TLS_PRIVATE_KEY }}`, `${{ secrets.TLS_CA_CERTIFICATE }}`
 - Validated and applied on-demand via the standalone [`.github/workflows/route-tls.yml`](./.github/workflows/route-tls.yml) workflow using [`bcgov/actions-openshift/route-tls`](https://github.com/bcgov/actions-openshift/tree/main/route-tls), which checks key matching, CA chain, expiration, and archives previous certificates to an OpenShift secret.
-- Store these as `prod` environment secrets (not repository secrets), and configure the `prod` environment's deployment branches and tags to restrict access (e.g. to `main` or release tags); environment scoping alone does not prevent a pull-request job from requesting these secrets.
+- Store these as `prod` environment secrets (not repository secrets). Environment scoping alone does not stop a pull-request job from requesting them; the `prod` environment's deployment branches and tags (`main` and `v*`, set by `scripts/setup-environments.sh`) do.
 - Do not pass PEMs or private keys as `workflow_dispatch` inputs—dispatch inputs are recorded in plaintext in workflow run logs. Rotation is handled by updating the `prod` secrets and triggering the `Route TLS` workflow with `dry_run=true` to validate, then `dry_run=false` to apply.
 
 When receiving a certificate package from Entrust, map the files to GitHub secrets as follows:
@@ -211,15 +247,17 @@ gh workflow run route-tls.yml -f dry_run=true
 gh workflow run cert-expiry.yml
 ```
 
-### PROD Deployment Branches and Tags (optional)
+### Deployment Branches and Tags
 
-By default, an environment allows deployments from any branch or tag ("No restriction"). To ensure pull requests and untrusted branches cannot access production secrets without adding human approval gates, configure deployment restrictions:
+The header signing keys depend on which refs can deploy to each environment, so `scripts/setup-environments.sh` (checklist step 6) sets them and removes any other rule:
 
-1. Select `Settings > Environments > prod`
-2. Under **Deployment branches and tags**, change the dropdown to **Selected branches and tags**
-3. Click **Add deployment branch or tag rule**:
-   - To gate by branch: select **Branch** and enter `main` (or your protected release branch).
-   - To gate by release tag: select **Tag** and enter a pattern like `v*.*.*` or `v*` so only release tags can trigger deployment.
+| Environment   | Refs                    | Used by                                                                                       |
+| ------------- | ----------------------- | --------------------------------------------------------------------------------------------- |
+| `test`        | branch `main`           | `merge.yml`, Header Re-sign (TEST)                                                            |
+| `prod`        | branch `main`, tag `v*` | `release.yml` (release tags and rollbacks), `route-tls.yml`, `observability.yml` (prod stack) |
+| `prod-resign` | branch `main`           | Header Re-sign (PROD)                                                                         |
+
+Release tags must match `v*`, or releases can't deploy.
 
 ## Releases (optional)
 
@@ -233,7 +271,8 @@ PROD is release-only: the `deploy-prod`, `monitor-prod` and `promote` jobs in `m
 Notes:
 
 - Publish releases from a commit on `main` that was merged from a PR. Commits pushed straight to `main` have no PR images to deploy.
-- If the `prod` environment limits deployment branches and tags, add a tag rule for your release tags (e.g. `v*`), or releases can't deploy.
+- Release tags must match `v*`: the `prod` environment accepts only those tags (see [Deployment Branches and Tags](#deployment-branches-and-tags)).
+- To roll back, dispatch the release workflow on an earlier release's tag: `gh workflow run release.yml --ref <tag>`. It redeploys that release with a freshly signed header manifest. Never run `helm rollback` by hand. See the [header signing runbook](./docs/runbooks/shared-ui-header-signing.md).
 - Both workflows share a concurrency group, so they never deploy PROD at the same time.
 
 ## Updating Dependencies
@@ -352,7 +391,7 @@ If `@testing-library/user-event` is flagged but exported from `test-utils.tsx`:
 
 `scripts/setup-github.sh` (checklist step 7) sets:
 
-- **Ruleset `main`** on the default branch: blocks deletion and force pushes; requires a pull request with 1 approval and resolved conversations, merged by squash only; requires CodeQL code scanning results with no alerts at high or higher; and requires these status checks, which must be up to date with `main`:
+- **Ruleset `main`** on the default branch: blocks deletion and force pushes; requires a pull request with 1 approval of its last push (approvals are dismissed when new commits are pushed, so a Renovate rebase needs a fresh approval) and resolved conversations, merged by squash only; requires CodeQL code scanning results with no alerts at high or higher; and requires these status checks, which must be up to date with `main`:
   - `PR Results` (PR workflow)
   - `Analysis Results` (Analysis workflow)
   - `Validate Results` (PR Validate workflow)
@@ -647,6 +686,16 @@ Runs on scheduled job (cronjob) or workflow dispatch.
 ![](.github/graphics/scheduled.png)
 
 > Screenshot out of date: shows the original quickstart jobs; see [`scheduled.yml`](.github/workflows/scheduled.yml).
+
+## Header Re-sign
+
+Runs daily (10:41 UTC) or by hand: `gh workflow run header-resign.yml`.
+
+- Re-signs TEST's and PROD's header manifests from CI's own record of the current release, with a new 90-day expiry and the current floor, and waits until the edge serves the new signature
+- Skips with a notice while a Merge, Release or Route TLS run is active or queued; the next run covers it
+- PROD runs in the `prod-resign` environment (no reviewers, `main` only); notifies CODEOWNERS on failure
+
+See the [header signing runbook](./docs/runbooks/shared-ui-header-signing.md).
 
 ## Load tests
 
