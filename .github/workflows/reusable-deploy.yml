@@ -20,11 +20,24 @@ on:
         description: Paths that trigger a deployment; omit to always deploy
         default: ''
         type: string
+      header_floor:
+        description: The header manifest's floor, a build sequence (KTD8); '0' for PRs, HEADER_FLOOR_TEST or HEADER_FLOOR_PROD
+        required: true
+        type: string
+      header_version:
+        description: The header release's display label in the signed manifest, e.g. pr-123 or a release tag
+        required: true
+        type: string
 
     secrets:
       oc_token:
         description: OpenShift token
         required: true
+      header_signing_key:
+        # TEST and PROD read HEADER_SIGNING_KEY from their environment instead: an environment secret wins over a
+        # passed one of the same name, and environment secrets can't be passed from a caller (R6).
+        description: The pr keyset's private signing key (HEADER_SIGNING_KEY_PR); PRs only
+        required: false
     outputs:
       triggered:
         description: Has deployment been triggered?
@@ -46,6 +59,8 @@ jobs:
     name: Helm (${{ inputs.target }})
     environment: ${{ inputs.environment }}
     permissions:
+      # actions: read finds the previous signing record after a failed upgrade (scripts/header-manifest.sh record)
+      actions: read
       contents: read
     outputs:
       triggered: ${{ steps.deploy.outputs.triggered }}
@@ -70,6 +85,9 @@ jobs:
       CONSOLE_VAULT_SECRET_PATH: ${{ vars.CONSOLE_VAULT_SECRET_PATH }}
       # Optional: "true" reports to the observability stack (doc 20; scripts/deploy-values.sh)
       OBSERVABILITY: ${{ vars.OBSERVABILITY }}
+      # The keyset whose loader the environment serves (KTD5) and whose key signs its manifest
+      HEADER_KEYSET: ${{ inputs.environment || 'pr' }}
+      HEADER_FLOOR: ${{ inputs.header_floor }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -83,6 +101,68 @@ jobs:
           scripts/deploy-values.sh outputs | tee -a "$GITHUB_OUTPUT" >> "$GITHUB_ENV"
           scripts/deploy-values.sh values > "${RUNNER_TEMP}/deploy-values.yaml"
           echo "DEPLOY_VALUES=${RUNNER_TEMP}/deploy-values.yaml" >> "$GITHUB_ENV"
+          # Outside the workspace: action-oc-runner checks the repository out again, which cleans it
+          echo "HEADER_DIR=${RUNNER_TEMP}/header" >> "$GITHUB_ENV"
+
+      # The same diff action-oc-runner runs below, so an untriggered PR signs nothing. Skipped without triggers (TEST
+      # and PROD): the action checks out github.ref, which can be newer than the commit this run deploys.
+      - name: Triggers
+        id: triggers
+        if: inputs.triggers != ''
+        uses: bcgov/action-diff-triggers@a80e4b3cf77b7e05f84e74030e3bfa08b717a574 # v1.2.1
+        with:
+          triggers: ${{ inputs.triggers }}
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Header signing needed
+        id: header
+        env:
+          SIGN: ${{ inputs.triggers == '' || steps.triggers.outputs.triggered == 'true' }}
+        run: echo "sign=${SIGN}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        if: steps.header.outputs.sign == 'true'
+        with:
+          node-version-file: .node-version
+
+      # What to sign comes from the shared-ui image this deploy runs (KTD7): bundle path, integrity and build sequence
+      - name: Header release
+        if: steps.header.outputs.sign == 'true'
+        run: |
+          mkdir -p "$HEADER_DIR"
+          image="ghcr.io/${REPOSITORY,,}/shared-ui:${TAG}"
+          docker pull --quiet "$image"
+          container="$(docker create "$image")"
+          docker cp "${container}:/release/release.json" "${HEADER_DIR}/release.json"
+          docker rm "$container" > /dev/null
+          echo "${image}: $(jq -c . "${HEADER_DIR}/release.json")"
+
+      # A PR can overwrite its PR-number image tag, so TEST and PROD trust the tag's release.json only when the deployed
+      # commit rebuilds the same bundle (KTD7). The image's sequence is reused so only the bundle can differ.
+      - name: Rebuild header bundle
+        if: steps.header.outputs.sign == 'true' && inputs.environment != ''
+        run: |
+          npm install -g "pnpm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+          pnpm install --frozen-lockfile --filter "@repo/shared-ui..."
+          HEADER_BUILD_SEQUENCE="$(jq -r .sequence "${HEADER_DIR}/release.json")" \
+            pnpm --filter @repo/shared-ui exec vite build --mode cdn
+          built="$(jq -c .bundle packages/shared-ui/dist/release.json)"
+          deployed="$(jq -c .bundle "${HEADER_DIR}/release.json")"
+          if [ "$built" != "$deployed" ]; then
+            echo "::error::shared-ui:${TAG} is not ${GITHUB_SHA}'s build: image bundle ${deployed}, rebuilt ${built}. Not signing."
+            exit 1
+          fi
+          echo "Rebuilt ${GITHUB_SHA}: ${built} matches the image"
+
+      - name: Sign header manifest
+        if: steps.header.outputs.sign == 'true'
+        env:
+          HEADER_SIGNING_KEY: ${{ secrets.header_signing_key }}
+          HEADER_SIGNING_KEY_ID: ${{ inputs.environment == '' && vars.HEADER_SIGNING_KEY_ID_PR || vars.HEADER_SIGNING_KEY_ID }}
+          VERSION: ${{ inputs.header_version }}
+        run: |
+          node packages/shared-ui/scripts/sign-manifest.ts release --release "${HEADER_DIR}/release.json" \
+            --version "$VERSION" --out "${HEADER_DIR}/manifest.json"
 
       # The charts are verified with Helm 4; the runner image ships Helm 3
       - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
@@ -102,7 +182,8 @@ jobs:
             status="$(helm status "$release" -o json 2>/dev/null | jq -r .info.status || true)"
             if [[ "$status" == pending-* ]]; then
               echo "Release ${release} is ${status}; rolling back"
-              helm rollback "$release" --wait --timeout 5m || helm uninstall "$release" --wait --timeout 5m
+              helm rollback "$release" --server-side=true --force-conflicts --wait --timeout 5m \
+                || helm uninstall "$release" --wait --timeout 5m
             fi
 
             # file:// dependencies: leaf charts before the umbrella, which packages them
@@ -110,8 +191,53 @@ jobs:
               helm dependency build "charts/${chart}" > /dev/null
             done
 
-            # A first install waits for PGO's cluster and the migrator's retries
+            # A first install waits for PGO's cluster and the migrator's retries. Server-side apply with forced
+            # conflicts: the re-signer patches the manifest ConfigMap under its own field manager (header-resign.yml),
+            # and the chart's values must win again here, as with client-side apply. A failed upgrade's rollback
+            # inherits both flags.
             helm upgrade --install "$release" charts/sdg \
               -f "$values_file" -f "$DEPLOY_VALUES" \
+              --set-file "shared-ui.manifest=${HEADER_DIR}/manifest.json" \
+              --server-side=true --force-conflicts \
               --rollback-on-failure --timeout 15m
             helm status "$release"
+
+      # CI's record of this signature, which the re-signer (header-resign.yml) and a later failed deploy re-sign from
+      - name: Upload header record
+        if: steps.deploy.outputs.triggered == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: header-manifest-${{ inputs.target }}
+          path: ${{ env.HEADER_DIR }}/manifest.json
+          if-no-files-found: error
+
+      # A failed upgrade was rolled back (--rollback-on-failure, after any pending-* recovery), or never replaced the
+      # previous release: the live ConfigMap holds the manifest stored with that release, signed back then. Re-sign CI's
+      # newest record (the release now live) with a fresh expiry and the current floor and write it (KTD13). The job has
+      # failed either way; if this step fails too, its error says why the restored manifest was left as it was. PR
+      # environments are throwaway and keep the restored manifest.
+      - name: Re-sign the restored release
+        id: resign
+        if: failure() && steps.deploy.outcome == 'failure' && inputs.environment != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEADER_SIGNING_KEY: ${{ secrets.header_signing_key }}
+          HEADER_SIGNING_KEY_ID: ${{ vars.HEADER_SIGNING_KEY_ID }}
+        run: |
+          scripts/header-manifest.sh record "$TARGET" "${HEADER_DIR}/previous"
+          mkdir -p "${HEADER_DIR}/restored"
+          node packages/shared-ui/scripts/sign-manifest.ts resign --record "${HEADER_DIR}/previous/manifest.json" \
+            --out "${HEADER_DIR}/restored/manifest.json"
+          jq -n --rawfile manifest "${HEADER_DIR}/restored/manifest.json" '{data: {"manifest.json": $manifest}}' \
+            > "${HEADER_DIR}/restored/patch.json"
+          # Still logged in as action-oc-runner left it (its token lasts 25 minutes)
+          oc patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-resign \
+            --patch-file "${HEADER_DIR}/restored/patch.json"
+
+      - name: Upload restored header record
+        if: failure() && steps.resign.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: header-manifest-${{ inputs.target }}
+          path: ${{ env.HEADER_DIR }}/restored/manifest.json
+          if-no-files-found: error
