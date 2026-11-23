@@ -4,6 +4,7 @@
 // and /header/v1/loader.json (scripts/dev-header.ts). The loader resolves the manifest and bundle under /shared-ui/, so
 // it works behind portal-web's Vite proxy and compose's Caddy, which strip that prefix. `--host <addr>` listens beyond
 // localhost (compose).
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -11,12 +12,14 @@ import { build, preview, type Rolldown } from 'vite';
 
 import type { ManifestEnvelope } from '../src/signing/envelope.ts';
 import { devHeaderRoutes, signDevManifest } from './dev-header.ts';
+import { PACKAGE_ROOT } from './keysets.ts';
+import { DEFAULT_RELEASE_FILE } from './vite-builds.ts';
 
 const SHARED_UI_DEV_PORT = 5180;
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const configFile = fileURLToPath(new URL('../vite.config.ts', import.meta.url));
-const releaseFile = fileURLToPath(new URL('../dist/release.json', import.meta.url));
+const releaseFile = join(PACKAGE_ROOT, DEFAULT_RELEASE_FILE);
 
 let manifest: ManifestEnvelope | undefined;
 

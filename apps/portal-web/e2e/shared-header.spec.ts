@@ -26,7 +26,6 @@ test.describe('portal-web shared header', () => {
   test('keeps every nav link in place whichever one is selected (AE3)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await signedOut(page);
-    // An unknown path selects neither link.
     const none = await navBoxes(page, '/does-not-exist');
     await expect(page.locator('sdg-header [aria-current="page"]')).toHaveCount(0);
     const home = await navBoxes(page, '/');
@@ -38,7 +37,7 @@ test.describe('portal-web shared header', () => {
     expect(help).toEqual(none);
     expect(contactUs).toEqual(none);
 
-    // Links look like tertiary buttons; only the selected one is bold (faux bold) (R5).
+    // Links look like tertiary buttons; only the selected one is bold (faux bold).
     const nav = page.locator('sdg-header');
     const selected = nav.getByRole('link', { name: 'Contact us' });
     const other = nav.getByRole('link', { name: 'Home' });

@@ -1,6 +1,6 @@
 name: Header Re-sign
 
-# Keeps TEST's and PROD's signed header manifests fresh (U6; R15, KTD7, KTD9, KTD10). Manifests expire 90 days after
+# Keeps TEST's and PROD's signed header manifests fresh. Manifests expire 90 days after
 # signing; this re-signs CI's own record of the current release (the newest header-manifest-<env> artifact from a
 # deploy or an earlier re-sign, verified against the keyset's public keys) with a new expiry and the current floor,
 # writes it to the shared-ui manifest ConfigMap and waits until the edge serves it. It never signs content read back
@@ -42,14 +42,12 @@ jobs:
         run: |
           busy=false
           for workflow in merge.yml release.yml route-tls.yml; do
-            for status in in_progress queued requested waiting pending; do
-              count=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?status=${status}&per_page=1" \
-                --jq .total_count)
-              if [ "$count" != 0 ]; then
-                echo "::notice::${workflow} has ${count} run(s) ${status}; not re-signing this time"
-                busy=true
-              fi
-            done
+            statuses=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?per_page=100" \
+              --jq '[.workflow_runs[] | select(.status != "completed") | .status] | join(" ")')
+            if [ -n "$statuses" ]; then
+              echo "::notice::${workflow} has run(s) not completed (${statuses}); not re-signing this time"
+              busy=true
+            fi
           done
           echo "busy=${busy}" >> "$GITHUB_OUTPUT"
 
@@ -121,7 +119,7 @@ jobs:
             oc patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-resign \
               --patch-file "${HEADER_DIR}/patch.json"
 
-      # The narrow token (KTD9) can't mint the pipeline account's token that action-oc-runner logs in with, so oc uses it
+      # The narrow token can't mint the pipeline account's token that action-oc-runner logs in with, so oc uses it
       # directly, with a throwaway kubeconfig.
       - name: Write (PROD)
         if: matrix.target == 'prod'

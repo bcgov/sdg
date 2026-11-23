@@ -80,7 +80,7 @@
 	}
 }
 
-# The shared header's loader for in-repo apps (KTD11): @repo/shared-ui's SdgHeader reads { src, integrity } here and
+# The shared header's loader for in-repo apps: @repo/shared-ui's SdgHeader reads { src, integrity } here and
 # loads the loader with that integrity. Answered by the edge itself, so a compromised shared-ui pod can't choose the
 # loader: import it before `handle_path /shared-ui/*`. HEADER_LOADER_INTEGRITY is the environment keyset's sha384 from
 # packages/shared-ui/loaders.lock.json (charts/edge headerLoaderIntegrity, set by scripts/deploy-values.sh). Unset, the

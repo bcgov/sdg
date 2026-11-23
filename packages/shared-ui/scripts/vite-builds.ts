@@ -1,8 +1,8 @@
-// The two browser IIFE builds behind vite.config.ts (KTD5, KTD12): the release bundle (`--mode cdn`) and a keyset's
+// The two browser IIFE builds behind vite.config.ts: the release bundle (`--mode cdn`) and a keyset's
 // loader (`build:loaders` only). Exported as functions so tests can build into a temporary folder.
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import { defineLibraryConfig } from '@repo/vite-config';
 import type { Plugin, UserConfig } from 'vite';
@@ -13,7 +13,7 @@ import { formatJson, PACKAGE_ROOT, type PublicKeys } from './keysets.ts';
 /** Overrides `release.json`'s build sequence (ms), e.g. to compare two builds of one commit byte for byte. */
 export const SEQUENCE_ENV = 'HEADER_BUILD_SEQUENCE';
 
-/** `release.json` (KTD3, KTD7): what the signer needs from a build. Written outside the served tree. */
+/** `release.json`: what the signer needs from a build. Written outside the served tree. */
 export interface ReleaseRecord {
   schema: 1;
   /** Build time in ms, or `HEADER_BUILD_SEQUENCE`; every signature of this build carries it. */
@@ -23,8 +23,6 @@ export interface ReleaseRecord {
 
 // The element is Preact; React files under src/header/react override this with a @jsxImportSource pragma.
 export const oxc: UserConfig['oxc'] = { jsx: { runtime: 'automatic', importSource: 'preact' } };
-
-const fromRoot = (path: string): string => (isAbsolute(path) ? path : resolve(PACKAGE_ROOT, path));
 
 export function sha384Integrity(bytes: Uint8Array | string): string {
   return `sha384-${createHash('sha384').update(bytes).digest('base64')}`;
@@ -73,13 +71,13 @@ function iifeConfig(input: string, outDir: string, fileName: string, extra: User
       build: {
         // Not library mode: lib.formats would merge with the default ['es'] instead of replacing it.
         lib: false,
-        outDir: fromRoot(outDir),
+        outDir: resolve(PACKAGE_ROOT, outDir),
         emptyOutDir: true,
         copyPublicDir: false,
         sourcemap: false,
         minify: true,
         rolldownOptions: {
-          input: fromRoot(input),
+          input: resolve(PACKAGE_ROOT, input),
           external: () => false,
           output: { format: 'iife', entryFileNames: fileName, codeSplitting: false },
         },
@@ -87,6 +85,9 @@ function iifeConfig(input: string, outDir: string, fileName: string, extra: User
     },
   });
 }
+
+/** Where the CDN build writes `release.json`, relative to the package root. */
+export const DEFAULT_RELEASE_FILE = 'dist/release.json';
 
 export interface CdnBuildOptions {
   /** Served tree; the image copies it to /srv. */
@@ -97,14 +98,14 @@ export interface CdnBuildOptions {
 
 /**
  * The release bundle: `<outDir>/header/v1/bundles/sdg-header-<hash>.js`, content-hashed so it can be cached as
- * immutable, plus `release.json`. No unsigned `header/v1/sdg-header.js` (KTD12).
+ * immutable, plus `release.json`. No unsigned `header/v1/sdg-header.js`.
  */
 export function cdnBuildConfig({
   outDir = 'dist/cdn',
-  releaseFile = 'dist/release.json',
+  releaseFile = DEFAULT_RELEASE_FILE,
 }: CdnBuildOptions = {}): UserConfig {
   return iifeConfig('src/header/element/cdn.ts', outDir, `${HEADER_PATHS.bundles}sdg-header-[hash].js`, {
-    plugins: [releaseJson(fromRoot(releaseFile))],
+    plugins: [releaseJson(resolve(PACKAGE_ROOT, releaseFile))],
   });
 }
 
@@ -114,7 +115,7 @@ export interface LoaderBuildOptions {
   outDir: string;
 }
 
-/** A keyset's loader (KTD5): `src/loader/cdn.ts` with the keyset and its public keys baked in, as `loader.js`. */
+/** A keyset's loader: `src/loader/cdn.ts` with the keyset and its public keys baked in, as `loader.js`. */
 export function loaderBuildConfig({ keyset, keys, outDir }: LoaderBuildOptions): UserConfig {
   return iifeConfig('src/loader/cdn.ts', outDir, 'loader.js', {
     define: { SDG_HEADER_KEYSET: JSON.stringify(keyset), SDG_HEADER_KEYS: JSON.stringify(keys) },

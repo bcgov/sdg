@@ -1,4 +1,4 @@
-// The dev server's stand-ins for what deployed environments get from the chart and the edge (KTD5, KTD6, KTD11): the
+// The dev server's stand-ins for what deployed environments get from the chart and the edge: the
 // committed dev loader at /header/v1/loader.js, a manifest signed with the committed dev key (re-signed after every
 // rebuild) at /header/v1/manifest.json, and the loader's { src, integrity } at /header/v1/loader.json.
 import { createPrivateKey } from 'node:crypto';
@@ -11,11 +11,17 @@ import { HEADER_PATHS } from '../src/header/contract.ts';
 import type { ManifestEnvelope } from '../src/signing/envelope.ts';
 import { MANIFEST_SCHEMA } from '../src/signing/manifest.ts';
 import { signManifest, type SigningKey } from '../src/signing/sign.ts';
-import { KEYS_DIR, LOADERS_DIR, LOADERS_LOCK, type Jwk, type LoadersLock } from './keysets.ts';
+import {
+  DAY_MS,
+  DEFAULT_TTL_DAYS,
+  DEV_KEYSET,
+  KEYS_DIR,
+  LOADERS_DIR,
+  LOADERS_LOCK,
+  type Jwk,
+  type LoadersLock,
+} from './keysets.ts';
 import type { ReleaseRecord } from './vite-builds.ts';
-
-const DEV_KEYSET = 'dev';
-const EXPIRY_MS = 90 * 86_400_000;
 
 /** The committed dev primary key (keys/dev.private.json): trusted only by the dev loader. */
 function devSigningKey(): SigningKey {
@@ -37,7 +43,7 @@ export function signDevManifest(releaseFile: string): ManifestEnvelope {
       sequence: release.sequence,
       floor: 0,
       issuedAt: now,
-      expires: now + EXPIRY_MS,
+      expires: now + DEFAULT_TTL_DAYS * DAY_MS,
       bundle: release.bundle,
     },
     devSigningKey(),

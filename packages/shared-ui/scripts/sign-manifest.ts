@@ -1,4 +1,4 @@
-// Signs the header manifest (U4; R5, R13–R15, KTD3, KTD7, KTD8, KTD10), for every workflow that publishes one:
+// Signs the header manifest, for every workflow that publishes one:
 //
 //   sign-manifest.ts release --release <release.json> --version <label> --out <manifest.json>
 //   sign-manifest.ts resign --record <previous manifest.json> [--live-url <manifest URL>] --out <manifest.json>
@@ -7,10 +7,10 @@
 // record of the current release (the previous signing run's envelope): it verifies the record against
 // keys/<keyset>.json, accepting an expired signature, keeps its sequence, version and bundle, and moves only the
 // expiry and floor. Given the live manifest URL it only compares: a live sequence other than the record's fails, so
-// content read back from the edge is never signed. Both refuse a floor above the sequence (KTD8).
+// content read back from the edge is never signed. Both refuse a floor above the sequence.
 //
 // Environment: HEADER_SIGNING_KEY (a P-256 private JWK as JSON), HEADER_SIGNING_KEY_ID, HEADER_KEYSET, HEADER_FLOOR
-// (a sequence, ms) and HEADER_TTL_DAYS (default 90, R9). It prints only non-secret fields and never an env value.
+// (a sequence, ms) and HEADER_TTL_DAYS (default 90). It prints only non-secret fields and never an env value.
 import { createPrivateKey, type KeyObject, type webcrypto } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
@@ -18,16 +18,14 @@ import { parseArgs } from 'node:util';
 import type { ManifestEnvelope } from '../src/signing/envelope.ts';
 import { MANIFEST_SCHEMA, isRecord, type ManifestPayload } from '../src/signing/manifest.ts';
 import { signManifest, type SigningKey } from '../src/signing/sign.ts';
-import { verifyManifest } from '../src/signing/verify.ts';
-import { formatJson, isKeysetName, readKeyset, type PublicKeys } from './keysets.ts';
+import { verifyManifest, type VerifyResult } from '../src/signing/verify.ts';
+import { DAY_MS, DEFAULT_TTL_DAYS, formatJson, isKeysetName, readKeyset, type PublicKeys } from './keysets.ts';
 
 declare global {
   // verify.ts types keys with the DOM's global `JsonWebKey`, which this Node-only project (no DOM lib) lacks.
   type JsonWebKey = webcrypto.JsonWebKey;
 }
 
-const DAY_MS = 86_400_000;
-const DEFAULT_TTL_DAYS = 90;
 const LIVE_FETCH_TIMEOUT_MS = 15_000;
 
 export interface SignDeps {
@@ -111,7 +109,7 @@ function readJson(file: string, what: string): unknown {
 
 type Unsigned = Pick<ManifestPayload, 'version' | 'sequence' | 'bundle'>;
 
-/** The release to sign from a build's `release.json` (U3) and its version label. */
+/** The release to sign from a build's `release.json` and its version label. */
 function fromReleaseJson(file: string, version: string): Unsigned {
   const value = readJson(file, 'release.json');
   const record = isRecord(value) ? value : {};
@@ -124,15 +122,21 @@ function fromReleaseJson(file: string, version: string): Unsigned {
   return { version, sequence, bundle: { path, integrity } };
 }
 
-/** The release in CI's signed record, verified against the keyset's public keys; an expired signature is fine. */
-async function fromRecord(file: string, settings: Settings, deps: SignDeps): Promise<Unsigned> {
-  const result = await verifyManifest(readJson(file, 'record'), {
-    keys: deps.readKeys(settings.keyset),
-    keyset: settings.keyset,
+/** Verifies `envelope` against the keyset's public keys; an expired signature is fine. */
+function verifyAcceptingExpired(envelope: unknown, settings: Settings, deps: SignDeps): Promise<VerifyResult> {
+  const { keyset } = settings;
+  return verifyManifest(envelope, {
+    keys: deps.readKeys(keyset),
+    keyset,
     now: deps.now(),
     floor: 0,
     acceptExpired: true,
   });
+}
+
+/** The release in CI's signed record, after verifying it. */
+async function fromRecord(file: string, settings: Settings, deps: SignDeps): Promise<Unsigned> {
+  const result = await verifyAcceptingExpired(readJson(file, 'record'), settings, deps);
   if (!result.ok) throw new SignError(`refusing to re-sign ${file}: the record does not verify (${result.reason})`);
   const { version, sequence, bundle } = result.payload;
   return { version, sequence, bundle };
@@ -142,13 +146,7 @@ async function fromRecord(file: string, settings: Settings, deps: SignDeps): Pro
 async function liveSequence(url: string, settings: Settings, deps: SignDeps): Promise<number> {
   const response = await deps.fetch(url, { signal: AbortSignal.timeout(LIVE_FETCH_TIMEOUT_MS), cache: 'no-store' });
   if (!response.ok) throw new SignError(`live manifest ${url} answered ${response.status}`);
-  const result = await verifyManifest(await response.json(), {
-    keys: deps.readKeys(settings.keyset),
-    keyset: settings.keyset,
-    now: deps.now(),
-    floor: 0,
-    acceptExpired: true,
-  });
+  const result = await verifyAcceptingExpired(await response.json(), settings, deps);
   if (!result.ok) throw new SignError(`live manifest ${url} does not verify (${result.reason})`);
   return result.payload.sequence;
 }

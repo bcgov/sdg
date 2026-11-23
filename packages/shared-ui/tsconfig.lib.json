@@ -8,6 +8,5 @@
     "allowImportingTsExtensions": true
   },
   "include": ["src"],
-  // sign.ts is Node-only (node:crypto); tsconfig.node.json checks it.
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/signing/sign.ts"]
 }

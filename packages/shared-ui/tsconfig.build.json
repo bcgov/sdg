@@ -3,10 +3,8 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
-    // src/signing uses .ts imports so Node scripts can run it by type stripping.
     "allowImportingTsExtensions": true
   },
   "include": ["src"],
-  // sign.ts is Node-only (node:crypto); tsconfig.node.json checks it.
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/signing/sign.ts"]
 }

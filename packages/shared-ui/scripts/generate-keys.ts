@@ -1,20 +1,19 @@
-// Generates a keyset's primary and backup ECDSA P-256 key pairs (KTD1, KTD5, R7) for an operator, offline:
+// Generates a keyset's primary and backup ECDSA P-256 key pairs for an operator, offline:
 //
 //   node packages/shared-ui/scripts/generate-keys.ts <keyset> --out <directory outside the repository>
 //
 // Writes the two public JWKs to keys/<keyset>.json (replacing the keyset's keys) and each private JWK to its own file,
 // mode 0600, in the chosen directory, from where the operator moves the primary into its GitHub secret and the backup
-// into offline custody (R6). It never prints a private key. Only the local `dev` keyset keeps its private keys in the
+// into offline custody. It never prints a private key. Only the local `dev` keyset keeps its private keys in the
 // repository (keys/dev.private.json), since only the dev loader trusts them: `generate-keys.ts dev` takes no --out.
-// Afterwards run `pnpm --filter @repo/shared-ui build:loaders`: a new key means a new loader (R1).
+// Afterwards run `pnpm --filter @repo/shared-ui build:loaders`: a new key means a new loader.
 import { generateKeyPairSync, type KeyObject } from 'node:crypto';
 import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { formatJson, isKeysetName, KEYS_DIR, PACKAGE_ROOT, type Jwk, type KeysetFile } from './keysets.ts';
+import { DEV_KEYSET, formatJson, isKeysetName, KEYS_DIR, PACKAGE_ROOT, type Jwk, type KeysetFile } from './keysets.ts';
 
-const DEV_KEYSET = 'dev';
 const DEV_WARNING =
   'DEV ONLY. Local development keys, trusted only by loaders/dev/loader.js, which no deployed environment serves. ' +
   'Never use them to sign anything outside a workstation.';
@@ -48,11 +47,11 @@ function isInside(dir: string, root: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-/** Creates `out` if needed and returns its real path; refuses one inside the repository. */
 function refuse(dir: string): never {
   throw new Error(`refusing to write private keys inside the repository (${dir}); choose a directory outside it`);
 }
 
+/** Creates `out` if needed and returns its real path; refuses one inside the repository. */
 function privateKeyDir(out: string): string {
   const root = repoRoot();
   // Checked before creating it (so a refused path leaves nothing behind) and again once symlinks resolve.
@@ -72,7 +71,7 @@ function writePrivateKeys(dir: string, keys: GeneratedKey[]): string[] {
   });
 }
 
-/** The dev keyset's private keys, committed and labelled (KTD5). */
+/** The dev keyset's private keys, committed and labelled. */
 function writeDevPrivateKeys(keys: GeneratedKey[]): string[] {
   const file = join(KEYS_DIR, `${DEV_KEYSET}.private.json`);
   const record = { warning: DEV_WARNING, keys: Object.fromEntries(keys.map((k) => [k.keyId, k.privateJwk])) };

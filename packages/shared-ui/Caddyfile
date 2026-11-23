@@ -1,11 +1,5 @@
 # shared-ui production static server (packages/shared-ui/Dockerfile). Cluster-internal only: the edge
 # (apps/portal-web/caddy) adds the WAF, security headers and compression, and serves this at /shared-ui/.
-#   /header/v1/loader.js       the committed loader of the keyset named by HEADER_KEYSET (KTD5); 404 when unset or
-#                              when no loader exists for it
-#   /header/v1/manifest.json   the signed manifest, from the ConfigMap directory mounted at /manifest (KTD6); 404 until
-#                              one is mounted
-#   /header/v1/bundles/*       immutable, content-hashed release bundles
-# Nothing serves the old unsigned /header/v1/sdg-header.js (KTD12): no such file exists, so it is a 404.
 {
 	admin off
 	auto_https off

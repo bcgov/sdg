@@ -1,4 +1,4 @@
-// Constants the loader build injects per keyset with Vite `define` (KTD5): the loader carries its keyset's public keys
+// Constants the loader build injects per keyset with Vite `define`: the loader carries its keyset's public keys
 // and nothing else.
 import type { TrustedKeys } from '../signing/verify.ts';
 

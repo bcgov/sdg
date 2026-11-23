@@ -32,7 +32,7 @@ export interface SdgHeaderProps {
   children?: ReactNode;
 }
 
-// Listeners via addEventListener: React 19's on* props on custom elements are case-sensitive event names (KTD11).
+// Listeners via addEventListener: React 19's on* props on custom elements are case-sensitive event names.
 function useHeaderEvent<K extends HeaderEventName>(
   ref: RefObject<HTMLElement | null>,
   type: K,
@@ -63,7 +63,7 @@ export function SdgHeader({
   const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    // The loader logs a failure with context; there is nothing else to do, since the page shows no header (R21).
+    // The loader logs a failure with context; there is nothing else to do, since the page shows no header.
     loadSdgHeader(configUrl).catch(() => undefined);
   }, [configUrl]);
 
@@ -77,7 +77,6 @@ export function SdgHeader({
     'site-title': siteTitle,
     'user-name': userName,
     'login-href': loginHref,
-    // A boolean attribute: present when true, absent (undefined) when false.
     fluid: fluid ? '' : undefined,
   };
 

@@ -17,7 +17,7 @@ export interface LoaderTag {
   integrity: string;
 }
 
-/** The environment's own loader tag, as the edge's loader.json gives it to in-repo apps (KTD11). */
+/** The environment's own loader tag, as the edge's loader.json gives it to in-repo apps. */
 export async function environmentLoader(request: APIRequestContext, baseURL: string | undefined): Promise<LoaderTag> {
   const response = await request.get(new URL(LOADER_CONFIG_PATH, baseURL).href);
   if (!response.ok()) throw new Error(`${LOADER_CONFIG_PATH} answered ${response.status()}`);

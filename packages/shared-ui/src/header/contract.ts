@@ -1,9 +1,9 @@
 // The header's public contract: what implementers' markup and listeners depend on. No Preact import, so the React
-// wrapper can use it without pulling Preact in. Renaming anything here is a breaking change, i.e. a new major (R14).
+// wrapper can use it without pulling Preact in. Renaming anything here is a breaking change, i.e. a new major.
 
 /**
  * The major version, in every path under `header/v<HEADER_MAJOR>/`. Within a major the loader's URL and bytes never
- * change (R1); releases reach visitors through the signed manifest, and carry no version in code.
+ * change; releases reach visitors through the signed manifest, and carry no version in code.
  */
 export const HEADER_MAJOR = 1;
 
@@ -41,12 +41,12 @@ export type HeaderEventName = (typeof HEADER_EVENTS)[keyof typeof HEADER_EVENTS]
 
 /** The served paths of this major, relative to the shared-ui root (the edge serves that root at `/shared-ui/`). */
 export const HEADER_PATHS: Readonly<Record<'loader' | 'manifest' | 'loaderConfig' | 'bundles', string>> = {
-  /** The SRI-pinned loader for the environment's keyset (KTD5): the one script sites embed. */
+  /** The SRI-pinned loader for the environment's keyset: the one script sites embed. */
   loader: `header/v${HEADER_MAJOR}/loader.js`,
-  /** The signed release manifest the loader fetches (KTD2, KTD6). */
+  /** The signed release manifest the loader fetches. */
   manifest: `header/v${HEADER_MAJOR}/manifest.json`,
-  /** `{ src, integrity }` of the loader, for in-repo apps (KTD11). */
+  /** `{ src, integrity }` of the loader, for in-repo apps. */
   loaderConfig: `header/v${HEADER_MAJOR}/loader.json`,
-  /** Folder of the immutable, content-hashed release bundles (KTD2). */
+  /** Folder of the immutable, content-hashed release bundles. */
   bundles: `header/v${HEADER_MAJOR}/bundles/`,
 };

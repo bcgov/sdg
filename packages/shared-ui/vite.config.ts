@@ -8,7 +8,7 @@ import { cdnBuildConfig, oxc } from './scripts/vite-builds.ts';
 
 const source = (path: string): string => fileURLToPath(new URL(`./src/${path}`, import.meta.url));
 
-/** Copies the pre-load CSS rule (R20) to dist/header/preload.css for the package's `./header/preload.css` export. */
+/** Copies the pre-load CSS rule to dist/header/preload.css for the package's `./header/preload.css` export. */
 function preloadCss(): Plugin {
   return {
     name: 'shared-ui:preload-css',
@@ -23,7 +23,7 @@ function preloadCss(): Plugin {
 // `vite build --mode cdn` → dist/cdn/header/v<HEADER_MAJOR>/bundles/sdg-header-<hash>.js, one classic IIFE script with
 // Preact and everything else bundled and no chunks, so a rollout can never pair a new entry with old chunks; plus
 // dist/release.json (path, integrity, sequence) for the signer, outside the served tree. The loaders are built only by
-// `pnpm build:loaders` (scripts/build-loaders.ts), never here: their bytes are committed and locked (KTD5).
+// `pnpm build:loaders` (scripts/build-loaders.ts), never here: their bytes are committed and locked.
 export default defineConfig(({ mode }) =>
   mode === 'cdn'
     ? cdnBuildConfig()

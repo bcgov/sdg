@@ -1,4 +1,4 @@
-// The committed public keysets (KTD5): `keys/<keyset>.json` holds a keyset's primary and backup P-256 public keys,
+// The committed public keysets: `keys/<keyset>.json` holds a keyset's primary and backup P-256 public keys,
 // which `build:loaders` bakes into `loaders/<keyset>/loader.js`. Private keys never live here, apart from the labelled
 // `keys/dev.private.json`. Node-only; shared by the scripts, the Vite build and the lock test.
 import type { webcrypto } from 'node:crypto';
@@ -14,6 +14,12 @@ export const KEYS_DIR = join(PACKAGE_ROOT, 'keys/');
 export const LOADERS_DIR = join(PACKAGE_ROOT, 'loaders/');
 export const LOADERS_LOCK = join(PACKAGE_ROOT, 'loaders.lock.json');
 
+/** The local-only keyset, whose private keys are committed (keys/dev.private.json). */
+export const DEV_KEYSET = 'dev';
+export const DAY_MS = 86_400_000;
+/** How long a signed manifest stays valid unless HEADER_TTL_DAYS says otherwise. */
+export const DEFAULT_TTL_DAYS = 90;
+
 /** Public P-256 JWKs keyed by `keyId`: the loader's `TrustedKeys` (src/signing/verify.ts), in Node's JWK type. */
 export type PublicKeys = Readonly<Record<string, Jwk>>;
 
@@ -22,7 +28,7 @@ export type Jwk = webcrypto.JsonWebKey;
 /** The committed form of `keys/<keyset>.json`. */
 export interface KeysetFile {
   keyset: string;
-  /** Public JWKs (`kty`, `crv`, `x`, `y`) keyed by `keyId`: the primary and the backup (R7). */
+  /** Public JWKs (`kty`, `crv`, `x`, `y`) keyed by `keyId`: the primary and the backup. */
   keys: PublicKeys;
 }
 
