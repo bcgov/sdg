@@ -49,8 +49,10 @@ console-web:
   strategy:
     type: Recreate
 
-# shared-ui's chart already requests PR-level resources (10m / 32Mi).
+# shared-ui's chart already requests PR-level resources (10m / 32Mi). PRs serve the pr keyset's loader, which trusts
+# only the pr signing keys.
 shared-ui:
+  keyset: pr
   strategy:
     type: Recreate
 

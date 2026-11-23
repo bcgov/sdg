@@ -202,3 +202,83 @@ tests:
           value:
             requests: { cpu: 10m, memory: 32Mi }
             limits: { memory: 64Mi }
+
+  - it: renders the signed manifest into the fixed-name <release>-shared-ui-manifest ConfigMap as manifest.json
+    template: templates/configmap.yaml
+    set:
+      manifest: '{"keyId":"pr-primary","payload":"eyJ9","sig":"c2ln"}'
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: sdg-shared-ui-manifest
+      - equal:
+          path: data
+          value:
+            manifest.json: '{"keyId":"pr-primary","payload":"eyJ9","sig":"c2ln"}'
+
+  - it: renders an empty ConfigMap without a manifest, so Caddy answers 404 and the header fails closed
+    template: templates/configmap.yaml
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - notExists:
+          path: data
+
+  - it: mounts the manifest ConfigMap read-only as a directory at /manifest, outside /srv and without subPath
+    template: templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: manifest
+            mountPath: /manifest
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: manifest
+            configMap:
+              name: sdg-shared-ui-manifest
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[2]
+          value:
+            name: manifest
+            mountPath: /manifest
+            readOnly: true
+
+  - it: annotates the pod with the manifest's sha256
+    template: templates/deployment.yaml
+    set:
+      manifest: '{"keyId":"pr-primary","payload":"b25l","sig":"c2ln"}'
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/manifest"]
+          value: 663d5359558e7ec3212e8dddbb6e7e3e931b514637dac82e62cb483268a11b1e
+
+  - it: a changed manifest changes the checksum, so helm upgrade rolls the pods
+    template: templates/deployment.yaml
+    set:
+      manifest: '{"keyId":"pr-primary","payload":"dHdv","sig":"c2ln"}'
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/manifest"]
+          value: 663d5359558e7ec3212e8dddbb6e7e3e931b514637dac82e62cb483268a11b1e
+
+  - it: gives Caddy the keyset whose committed loader it serves
+    template: templates/deployment.yaml
+    set:
+      keyset: test
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HEADER_KEYSET
+            value: test
+
+  - it: leaves HEADER_KEYSET unset without a keyset, so the loader is a 404
+    template: templates/deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env

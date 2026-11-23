@@ -17,6 +17,9 @@ spec:
     metadata:
       labels:
         {{- include "common.labels" (dict "context" . "component" "web") | nindent 8 }}
+      annotations:
+        # A deploy's new manifest rolls the pods; the re-signer's patch reaches them through the directory mount.
+        checksum/manifest: {{ .Values.manifest | sha256sum }}
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -25,6 +28,12 @@ spec:
         - name: shared-ui
           image: {{ include "common.image" (dict "image" .Values.image "context" $) }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.keyset }}
+          # Picks the committed loader Caddy serves at /header/v1/loader.js (KTD5). Unset, that URL is a 404.
+          env:
+            - name: HEADER_KEYSET
+              value: {{ . | quote }}
+          {{- end }}
           ports:
             - name: http
               containerPort: 8080
@@ -43,17 +52,24 @@ spec:
             {{- include "common.containerSecurityContext" . | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          # Caddy's state dirs (XDG_CONFIG_HOME / XDG_DATA_HOME in the image).
+          # Caddy's state dirs (XDG_CONFIG_HOME / XDG_DATA_HOME in the image), and the manifest ConfigMap as a
+          # directory outside /srv. Never subPath: a subPath mount never sees a patched ConfigMap.
           volumeMounts:
             - name: config
               mountPath: /config
             - name: data
               mountPath: /data
+            - name: manifest
+              mountPath: /manifest
+              readOnly: true
       volumes:
         - name: config
           emptyDir: {}
         - name: data
           emptyDir: {}
+        - name: manifest
+          configMap:
+            name: {{ include "common.fullname" . }}-manifest
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -7,12 +7,26 @@ set -uo pipefail
 SCRIPT="$(dirname "$0")/deploy-values.sh"
 FAILED=0
 
+# The committed lock has only the dev keyset until a person generates pr, test and prod (U7), so the tests use their own.
+LOCK_DIR="$(mktemp -d)"
+trap 'rm -rf "$LOCK_DIR"' EXIT
+INTEGRITY_PR="sha384-$(printf 'p%.0s' {1..64})"
+INTEGRITY_TEST="sha384-$(printf 't%.0s' {1..64})"
+INTEGRITY_PROD="sha384-$(printf 'P%.0s' {1..63})/"
+# write_lock <file> <pr integrity>: a loaders.lock.json for the three deployed keysets
+write_lock() {
+  printf '{ "pr": { "integrity": "%s" }, "test": { "integrity": "%s" }, "prod": { "integrity": "%s" } }\n' \
+    "$2" "$INTEGRITY_TEST" "$INTEGRITY_PROD" > "$1"
+}
+write_lock "$LOCK_DIR/loaders.lock.json" "$INTEGRITY_PR"
+
 # PR defaults; each case overrides what it tests
 base_env() {
   export TARGET=12 TAG=0123abc REPOSITORY=Acme/sdg ENVIRONMENT='' VAULT_SECRET_PATH='' CONSOLE_VAULT_SECRET_PATH='' OBSERVABILITY=''
   export OC_NAMESPACE=d62e77-dev OC_SERVER=https://api.gold.devops.gov.bc.ca:6443
   export KEYCLOAK_ISSUER_URL=https://dev.loginproxy.gov.bc.ca/auth/realms/standard KEYCLOAK_CLIENT_ID=sdg-1234
   export KEYCLOAK_CONSOLE_CLIENT_ID=sdg-console-5678
+  export LOADERS_LOCK="$LOCK_DIR/loaders.lock.json"
 }
 
 # expect <name> <haystack> <needle>
@@ -139,6 +153,38 @@ export OBSERVABILITY=true TARGET=prod ENVIRONMENT=prod OC_NAMESPACE=d62e77-prod
 values="$("$SCRIPT" values)"
 expect "prod reports to its own stack" "$values" "    collectorHost: \"observability-alloy.d62e77-prod.svc\""
 expect "prod is scraped from <plate>-prod" "$values" "    scraperNamespace: \"d62e77-prod\""
+
+# The edge's loader.json integrity: the environment's keyset from loaders.lock.json
+base_env
+values="$("$SCRIPT" values)"
+expect "PR edge gets the pr keyset's loader integrity" "$(sed -n '/^edge:/,/^[a-z]/p' <<< "$values")" \
+  "  headerLoaderIntegrity: \"${INTEGRITY_PR}\""
+base_env
+export TARGET=test ENVIRONMENT=test OC_NAMESPACE=d62e77-test
+expect "test edge gets the test keyset's loader integrity" "$("$SCRIPT" values)" "  headerLoaderIntegrity: \"${INTEGRITY_TEST}\""
+base_env
+export TARGET=prod ENVIRONMENT=prod OC_NAMESPACE=d62e77-prod
+expect "prod edge gets the prod keyset's loader integrity" "$("$SCRIPT" values)" "  headerLoaderIntegrity: \"${INTEGRITY_PROD}\""
+
+# rejects_lock <name> <pr integrity>: a lock whose pr entry is that value must fail, naming the keyset
+rejects_lock() {
+  local out
+  base_env
+  write_lock "$LOCK_DIR/bad.lock.json" "$2"
+  export LOADERS_LOCK="$LOCK_DIR/bad.lock.json"
+  if out="$("$SCRIPT" values 2>&1)"; then echo "FAIL: $1: accepted '$2'"; FAILED=1
+  elif grep -q "keyset pr" <<< "$out"; then echo "PASS: $1"
+  else echo "FAIL: $1: error does not name the keyset: $out"; FAILED=1; fi
+}
+rejects_lock "integrity that is not sha384-" "sha256-$(printf 'a%.0s' {1..64})"
+rejects_lock "sha384 integrity of the wrong length" "sha384-abc"
+rejects_lock "integrity with a quote" "sha384-$(printf 'a%.0s' {1..63})\\\""
+rejects_lock "empty integrity" ""
+base_env
+printf '{ "dev": { "integrity": "%s" } }\n' "$INTEGRITY_PR" > "$LOCK_DIR/dev-only.lock.json"
+export LOADERS_LOCK="$LOCK_DIR/dev-only.lock.json"
+if "$SCRIPT" values >/dev/null 2>&1; then echo "FAIL: a lock without the pr keyset was accepted"; FAILED=1
+else echo "PASS: a lock without the environment's keyset is rejected"; fi
 
 rejects "OBSERVABILITY other than true/false" OBSERVABILITY 'yes'
 rejects "missing Keycloak issuer" KEYCLOAK_ISSUER_URL ''

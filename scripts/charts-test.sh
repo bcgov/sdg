@@ -90,6 +90,13 @@ for values in values-tools.yaml values-prod.yaml; do
   helm template observability observability -f "observability/${values}" "${OBSERVABILITY_VALUES[@]}" | validate
 done
 
+# The committed loaders.lock.json has only the dev keyset until a person generates pr, test and prod, so the rendered
+# deploys read a stand-in lock.
+LOADERS_LOCK="$(mktemp)"
+trap 'rm -f "$LOADERS_LOCK"' EXIT
+jq -n '{pr: {integrity: ("sha384-" + "p" * 64)}, test: {integrity: ("sha384-" + "t" * 64)},
+  prod: {integrity: ("sha384-" + "P" * 64)}}' > "$LOADERS_LOCK"
+
 # What reusable-deploy.yml installs: values-<env>.yaml plus scripts/deploy-values.sh output (DEVELOPER.md, Workflows).
 # expect_rendered <env> <manifests> <grep -E pattern> <description>
 expect_rendered() {
@@ -103,7 +110,8 @@ for env in pr test prod; do
   esac
   deploy_env=(TARGET="$target" ENVIRONMENT="$environment" TAG=0123abc REPOSITORY=example/sdg OC_NAMESPACE="$namespace"
     OC_SERVER=https://api.gold.devops.gov.bc.ca:6443 KEYCLOAK_ISSUER_URL=https://keycloak.example.com/realms/portal
-    KEYCLOAK_CLIENT_ID=portal KEYCLOAK_CONSOLE_CLIENT_ID=console VAULT_SECRET_PATH='' OBSERVABILITY=true)
+    KEYCLOAK_CLIENT_ID=portal KEYCLOAK_CONSOLE_CLIENT_ID=console VAULT_SECRET_PATH='' OBSERVABILITY=true
+    LOADERS_LOCK="$LOADERS_LOCK")
   outputs="$(env "${deploy_env[@]}" ../scripts/deploy-values.sh outputs)"
   release="$(sed -n 's/^release=//p' <<< "$outputs")"
   values_file="../$(sed -n 's/^values_file=//p' <<< "$outputs")"
@@ -126,6 +134,12 @@ for env in pr test prod; do
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/gateway-api:0123abc" "deploys gateway-api"
   expect_rendered "$env" "$manifests" "image: ghcr.io/example/sdg/shared-ui:0123abc" "deploys shared-ui"
   expect_rendered "$env" "$manifests" "value: \"?http://${release}-shared-ui:8080\"?$" "sends the portal host's /shared-ui/ to shared-ui"
+  expect_rendered "$env" "$(grep -A1 'name: HEADER_KEYSET$' <<< "$manifests")" "value: \"?${env}\"?$" \
+    "serves the ${env} keyset's loader (HEADER_KEYSET)"
+  integrity="$(jq -r --arg k "$env" '.[$k].integrity' "$LOADERS_LOCK")"
+  expect_rendered "$env" "$(grep -A1 'name: HEADER_LOADER_INTEGRITY$' <<< "$manifests")" "value: \"?${integrity}\"?$" \
+    "gives the edge the ${env} loader's integrity"
+  expect_rendered "$env" "$manifests" "name: ${release}-shared-ui-manifest" "mounts the release's manifest ConfigMap"
   expect_rendered "$env" "$manifests" "value: \"?http://${release}-gateway-api:3000\"?$" "sends the gateway host's /api to gateway-api"
   expect_rendered "$env" "$manifests" "host: \"?${release}\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>.<apps domain>"
   expect_rendered "$env" "$manifests" "host: \"?${release}-console\.apps\.gold\.devops\.gov\.bc\.ca" "routes <release>-console.<apps domain>"

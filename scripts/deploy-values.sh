@@ -2,7 +2,8 @@
 # Values the deploy workflow passes to charts/sdg (DEVELOPER.md, Workflows), derived from the environment
 # so reusable-deploy.yml, charts-test.sh and deploy-values.test.sh share one computation.  No cluster access.
 #
-#   values   print a values file: images, hosts, Keycloak (portal-api, console-api, core-api) and Vault settings
+#   values   print a values file: images, hosts, Keycloak (portal-api, console-api, core-api), Vault settings and the
+#            edge's shared-ui loader integrity
 #   outputs  print release=, url=, console_url=, gateway_url= and values_file= lines (for $GITHUB_OUTPUT)
 #
 # Environment (all validated; anything unexpected fails instead of reaching the YAML):
@@ -16,6 +17,8 @@
 #                        prod). PRs and test share the nonprod role, so test sets both when its secrets differ.
 #   OBSERVABILITY        optional; "true" reports to the observability stack (doc 20): <plate>-tools for PRs and test,
 #                        <plate>-prod for prod. Unset or "false" leaves telemetry off.
+#   LOADERS_LOCK         optional; default packages/shared-ui/loaders.lock.json. `values` reads the integrity of the
+#                        environment's keyset (pr for PRs, test, prod) from it; a missing or malformed entry fails.
 # `outputs` needs only TARGET, ENVIRONMENT, REPOSITORY and OC_SERVER.
 #
 # Usage: scripts/deploy-values.sh values|outputs
@@ -58,6 +61,13 @@ case "${1:-}" in
     check OBSERVABILITY '^(true|false)?$'
     plate="${OC_NAMESPACE%-*}"
     vault_role="${plate}-$([ "$ENVIRONMENT" = prod ] && echo prod || echo nonprod)"
+    # The loader the edge's /shared-ui/header/v1/loader.json pins (KTD11): the keyset values-<env>.yaml gives shared-ui.
+    keyset="${ENVIRONMENT:-pr}"
+    lock="${LOADERS_LOCK:-$(dirname "$0")/../packages/shared-ui/loaders.lock.json}"
+    loader_integrity="$(jq -r --arg keyset "$keyset" '.[$keyset].integrity // ""' "$lock")" \
+      || { echo "Cannot read ${lock}" >&2; exit 1; }
+    [[ "$loader_integrity" =~ ^sha384-[A-Za-z0-9+/]{64}$ ]] \
+      || { echo "Invalid loader integrity for keyset ${keyset} in ${lock}: '${loader_integrity}'" >&2; exit 1; }
     observability=''
     if [ "${OBSERVABILITY:-}" = true ]; then
       # Prod reports to its own stack; PRs and test to the shared non-prod stack in tools.
@@ -100,6 +110,8 @@ core-api:
     issuerUrl: "${KEYCLOAK_ISSUER_URL}"
     portalClientId: "${KEYCLOAK_CLIENT_ID}"
     consoleClientId: "${KEYCLOAK_CONSOLE_CLIENT_ID}"
+edge:
+  headerLoaderIntegrity: "${loader_integrity}"
 EOF
     ;;
   outputs)

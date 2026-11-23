@@ -19,6 +19,14 @@ image:
   tag: ''
   pullPolicy: IfNotPresent
 
+# Keyset whose committed loader Caddy serves at /header/v1/loader.js (pr, test or prod; dev is local only). Set per
+# environment in charts/sdg/values-<env>.yaml. Empty: no loader (404).
+keyset: ''
+
+# The signed manifest envelope (JSON), passed by the deploy job with --set-file shared-ui.manifest=<file>. Empty: an
+# empty ConfigMap, so /header/v1/manifest.json is a 404 and the header fails closed.
+manifest: ''
+
 resources:
   requests:
     cpu: 10m

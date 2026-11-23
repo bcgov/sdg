@@ -59,7 +59,9 @@ import common.caddy
 	handle {
 		import collect_{$TELEMETRY:off}
 		import api_proxy {$PORTAL_API_URL}
-		# The header script any site loads with a classic <script src> (packages/shared-ui), prefix stripped. Unset
+		# The loader's { src, integrity } for this repo's apps, from the edge's own env; never proxied.
+		import shared_ui_loader_config
+		# The header's loader, manifest and bundles any site loads (packages/shared-ui), prefix stripped. Unset
 		# SHARED_UI_URL: 503, like the other upstreams.
 		handle_path /shared-ui/* {
 			reverse_proxy {$SHARED_UI_URL}
