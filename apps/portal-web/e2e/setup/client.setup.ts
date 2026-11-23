@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import { expect } from '@playwright/test';
 import { test as setup } from '@repo/playwright-config';
 
@@ -23,6 +25,6 @@ setup('authenticate', async ({ page, clientURL, clientUsername, clientPassword }
 
   // Save cookies and localStorage to the JSON file
   await page.context().storageState({
-    path: 'apps/portal-web/e2e/setup/client-auth.json',
+    path: path.resolve(import.meta.dirname, 'client-auth.json'),
   });
 });
