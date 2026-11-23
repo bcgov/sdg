@@ -7,6 +7,6 @@ test.describe('Client Dashboard E2E Test Suite', () => {
   });
 
   test('Should display greeting content after successful login', async ({ page }) => {
-    await expect(page.getByText('Welcome to SDG')).toBeVisible();
+    await expect(page.getByText('Access services online')).toBeVisible();
   });
 });
