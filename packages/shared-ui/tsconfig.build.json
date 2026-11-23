@@ -2,8 +2,11 @@
   "extends": "@repo/typescript-config/browser-library-build.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "preact"
+    "jsxImportSource": "preact",
+    // src/signing uses .ts imports so Node scripts can run it by type stripping.
+    "allowImportingTsExtensions": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+  // sign.ts is Node-only (node:crypto); tsconfig.node.json checks it.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/signing/sign.ts"]
 }
