@@ -2,8 +2,8 @@
 // wrapper can use it without pulling Preact in. Renaming anything here is a breaking change, i.e. a new major (R14).
 
 /**
- * The major version, served at `header/v<HEADER_MAJOR>/sdg-header.js`. It always serves the latest release in that
- * major; minor and patch releases carry no version in code.
+ * The major version, in every path under `header/v<HEADER_MAJOR>/`. Within a major the loader's URL and bytes never
+ * change (R1); releases reach visitors through the signed manifest, and carry no version in code.
  */
 export const HEADER_MAJOR = 1;
 
@@ -39,7 +39,22 @@ export function withReturnTo(href: string, returnPath: string): string {
 export type HeaderAttributeName = (typeof HEADER_ATTRIBUTES)[keyof typeof HEADER_ATTRIBUTES];
 export type HeaderEventName = (typeof HEADER_EVENTS)[keyof typeof HEADER_EVENTS];
 
-/** The CDN bundle's path, relative to the shared-ui root (the build's output folder uses it too). */
+/** The served paths of this major, relative to the shared-ui root (the edge serves that root at `/shared-ui/`). */
+export const HEADER_PATHS: Readonly<Record<'loader' | 'manifest' | 'loaderConfig' | 'bundles', string>> = {
+  /** The SRI-pinned loader for the environment's keyset (KTD5): the one script sites embed. */
+  loader: `header/v${HEADER_MAJOR}/loader.js`,
+  /** The signed release manifest the loader fetches (KTD2, KTD6). */
+  manifest: `header/v${HEADER_MAJOR}/manifest.json`,
+  /** `{ src, integrity }` of the loader, for in-repo apps (KTD11). */
+  loaderConfig: `header/v${HEADER_MAJOR}/loader.json`,
+  /** Folder of the immutable, content-hashed release bundles (KTD2). */
+  bundles: `header/v${HEADER_MAJOR}/bundles/`,
+};
+
+/**
+ * @deprecated The unsigned always-latest URL, no longer built or served (KTD12). Kept only for the React wrapper and
+ * README test until they move to the loader (U8, U9); do not use.
+ */
 export function headerCdnPath(): string {
   return `header/v${HEADER_MAJOR}/sdg-header.js`;
 }

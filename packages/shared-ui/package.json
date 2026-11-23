@@ -10,8 +10,7 @@
   "sideEffects": [
     "./dist/header/index.js",
     "./dist/header/react/index.js",
-    "./dist/header/preload.css",
-    "./dist/cdn/**"
+    "./dist/header/preload.css"
   ],
   "exports": {
     "./header": {
@@ -26,7 +25,9 @@
   },
   "scripts": {
     "build": "vite build && vite build --mode cdn && tsc -p tsconfig.build.json",
+    "build:loaders": "node scripts/build-loaders.ts",
     "dev": "node scripts/dev.ts",
+    "generate-keys": "node scripts/generate-keys.ts",
     "typecheck": "tsc -b",
     "test": "vitest run"
   },

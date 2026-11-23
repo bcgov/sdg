@@ -1,0 +1,17 @@
+{
+  "keyset": "dev",
+  "keys": {
+    "dev-primary-20261123": {
+      "kty": "EC",
+      "x": "_Ckgf8-F2dSycGWUPj-cPmZvXtcLNF0xOvhMQDcXrFs",
+      "y": "Ze-6DoMihIRbkgCOGMMACci7lRCcy37cgqaa1zdC_FA",
+      "crv": "P-256"
+    },
+    "dev-backup-20261123": {
+      "kty": "EC",
+      "x": "By3LnG5BxlqLwV11pJV3c4k4xs7V_nr3rcRxxLFSiEQ",
+      "y": "n1NUNQ7t_1nTpC-ThIiRf9ZQBfRFxDCdOCUjfSQ_0k4",
+      "crv": "P-256"
+    }
+  }
+}

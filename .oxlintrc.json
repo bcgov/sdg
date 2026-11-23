@@ -25,7 +25,7 @@
     "builtin": true,
     "es2024": true
   },
-  "ignorePatterns": ["**/test/fixtures/**", "**/routeTree.gen.ts"],
+  "ignorePatterns": ["**/test/fixtures/**", "**/routeTree.gen.ts", "packages/shared-ui/loaders/**"],
   "rules": {
     "typescript/no-explicit-any": "error",
     "typescript/no-floating-promises": "error",
