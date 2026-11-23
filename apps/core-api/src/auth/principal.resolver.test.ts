@@ -103,6 +103,39 @@ describe('PrincipalResolver', () => {
   it('Should name a service account by its client id', async () => {
     const caller = await new PrincipalResolver(verifierReturning(serviceClaims), CLIENTS).resolve(request('Bearer t'));
     expect(caller).toMatchObject({ kind: 'service-account', clientId: 'partner-client' });
+
+    const withoutAzp = await new PrincipalResolver(
+      verifierReturning({ iss: ISS, sub: 'svc-2', client_id: 'partner-client' }),
+      CLIENTS,
+    ).resolve(request('Bearer t'));
+    expect(withoutAzp).toMatchObject({ kind: 'service-account', clientId: 'partner-client' });
+  });
+
+  it('Should reject a token whose client id cannot be classified (lines 65, 68, 111-112)', async () => {
+    const unknownClient = new PrincipalResolver(verifierReturning({ ...portalClaims, azp: 'unknown-client' }), CLIENTS);
+    await expect(unknownClient.resolve(request('Bearer t'))).rejects.toBeInstanceOf(UnauthorizedException);
+
+    const unlabelledService = new PrincipalResolver(
+      verifierReturning({ iss: ISS, sub: 'svc-3', preferred_username: 'service-account-x' }),
+      CLIENTS,
+    );
+    await expect(unlabelledService.resolve(request('Bearer t'))).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('Should treat console roles as empty if console client id becomes undefined during resolution', async () => {
+    let reads = 0;
+    const dynamicClients: KeycloakClients = {
+      portal: 'sdg-portal',
+      get console() {
+        reads += 1;
+        return reads <= 2 ? 'sdg-console' : undefined;
+      },
+    };
+    const resolver = new PrincipalResolver(verifierReturning(consoleClaims(['admin'])), dynamicClients);
+    await expect(resolver.resolve(request('Bearer t'))).resolves.toMatchObject({
+      kind: 'console-user',
+      isAdmin: false,
+    });
   });
 
   it('Should verify once per request', async () => {

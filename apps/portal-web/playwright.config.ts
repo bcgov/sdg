@@ -9,8 +9,8 @@ dotenv.config({ path: path.resolve(import.meta.dirname, '.env') });
 // CI points E2E_BASE_URL at a deployed PR environment; locally Playwright starts the Vite dev server and the header's
 // dev server (@repo/shared-ui), which Vite proxies at /shared-ui like the edge does.
 const deployedURL = process.env['E2E_BASE_URL'];
-const clientUsername = process.env['E2E_CLIENT_USERNAME'];
-const clientPassword = process.env['E2E_CLIENT_PASSWORD'];
+const clientUsername = process.env['PLAYWRIGHT_CLIENT_USERNAME'];
+const clientPassword = process.env['PLAYWRIGHT_CLIENT_PASSWORD'];
 
 function localConfig(): PlaywrightTestConfig {
   const local = definePlaywrightConfig({

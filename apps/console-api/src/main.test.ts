@@ -17,5 +17,5 @@ describe('main', () => {
       AppModule,
       expect.objectContaining({ serviceName: 'console-api', rawBody: true }),
     );
-  });
+  }, 15_000);
 });

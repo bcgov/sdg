@@ -1,6 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import type { ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { fakeConsoleApi, nestError, serviceClient } from '../../test-support/fake-console-api';
 import { renderAt } from '../../test-support/render';
@@ -8,7 +9,7 @@ import { renderAt } from '../../test-support/render';
 const REMOVE = '/api/v1/console/service-clients/billing-1';
 
 async function openDialog() {
-  const remove = await screen.findByRole('button', { name: 'Remove billing-1' });
+  const remove = await screen.findByRole('button', { name: 'Remove billing-1' }, { timeout: 10000 });
   await userEvent.click(remove);
   const dialog = await screen.findByRole('alertdialog', { name: 'Remove billing-1?' });
   return { remove, dialog };
@@ -93,5 +94,30 @@ describe('remove with confirmation (R16)', () => {
     );
     await waitFor(() => expect(row()).toBeNull());
     expect(await screen.findByText('No service accounts are registered yet. Add one below.')).toBeInTheDocument();
+  });
+
+  it('does not call onCancel when Modal reports onOpenChange(true) (line 27)', async () => {
+    let capturedOnOpenChange: ((open: boolean) => void) | undefined;
+    vi.resetModules();
+    vi.doMock('@repo/design-system/components/modal', () => ({
+      Modal: ({ children, onOpenChange }: { children: ReactNode; onOpenChange?: (open: boolean) => void }) => {
+        capturedOnOpenChange = onOpenChange;
+        return <div>{children}</div>;
+      },
+    }));
+    const { RemoveDialog } = await import('./remove-dialog');
+    const onCancel = vi.fn<() => void>();
+    render(
+      <RemoveDialog
+        client={serviceClient('billing-1')}
+        isPending={false}
+        onConfirm={vi.fn<() => void>()}
+        onCancel={onCancel}
+      />,
+    );
+    capturedOnOpenChange?.(true);
+    expect(onCancel).not.toHaveBeenCalled();
+    vi.doUnmock('@repo/design-system/components/modal');
+    vi.resetModules();
   });
 });

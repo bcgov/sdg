@@ -1,8 +1,18 @@
-import { featureFlagEvents, featureFlagOverrides, featureFlags, identities, principals } from '@repo/database';
+import {
+  featureFlagEvents,
+  featureFlagOverrides,
+  featureFlags,
+  identities,
+  principals,
+  type FeatureFlag,
+} from '@repo/database';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import type { Database } from '../database/database.module.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
+import { FeatureFlagsService } from './feature-flags.service.js';
+import type { FlagCache } from './flag-cache.service.js';
 
 const FLAGS = '/api/v1/console/feature-flags';
 const HISTORY = '/api/v1/console/feature-flag-history';
@@ -242,11 +252,117 @@ describe('Console flag routes /api/v1/console/feature-flags and /feature-flag-hi
     expect(await t.database.db.$count(featureFlags)).toBe(0);
   });
 
+  it('Should answer a flag detail with an empty overrides list when it has no overrides', async () => {
+    await create({ key: 'hello_world' });
+    const res = await auth(t.http().get(`${FLAGS}/hello_world`));
+    expect(res.status).toBe(200);
+    expect(res.body.overrides).toEqual([]);
+  });
+
   it('Should describe the routes under the console tag in the OpenAPI document', async () => {
     const { body } = await t.http().get('/api/docs-json');
     expect(body.paths[FLAGS].get.tags).toEqual(['console']);
     expect(body.paths[FLAGS].post.tags).toEqual(['console']);
     expect(Object.keys(body.paths[`${FLAGS}/{key}`]).toSorted()).toEqual(['delete', 'get', 'patch']);
     expect(body.paths[HISTORY].get.tags).toEqual(['console']);
+  });
+});
+
+function stubFlag(key: string): FeatureFlag {
+  return {
+    key,
+    description: null,
+    enabled: false,
+    rolloutPct: 100,
+    audience: 'portal',
+  };
+}
+
+function stubCache(): FlagCache {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal cache stub for defensive branch coverage
+  return { invalidate: () => undefined } as unknown as FlagCache;
+}
+
+describe('FeatureFlagsService defensive branches', () => {
+  it('Should omit overrides whose principal target is missing and sort remaining overrides by name', async () => {
+    const flag = stubFlag('stub_flag');
+    let selectCall = 0;
+    const db = {
+      select: () => {
+        selectCall += 1;
+        const call = selectCall;
+        return {
+          from: () => ({
+            leftJoin: () => ({
+              where: () => ({
+                groupBy: () =>
+                  Promise.resolve([
+                    { principalId: 'p-2', name: 'Zoe', email: null, portal: true, console: false },
+                    { principalId: 'p-1', name: 'Ada', email: 'ada@example.com', portal: true, console: false },
+                  ]),
+              }),
+            }),
+            where: () => {
+              if (call === 1) return Promise.resolve([flag]);
+              return Promise.resolve([
+                { flagKey: 'stub_flag', userId: 'missing-id', enabled: true },
+                { flagKey: 'stub_flag', userId: 'p-2', enabled: false },
+                { flagKey: 'stub_flag', userId: 'p-1', enabled: true },
+              ]);
+            },
+          }),
+        };
+      },
+    };
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal db stub for detail() branch coverage
+    const service = new FeatureFlagsService(db as unknown as Database, stubCache());
+
+    const detail = await service.detail('stub_flag');
+    expect(detail.overrides.map((o) => o.name)).toEqual(['Ada', 'Zoe']);
+  });
+
+  it('Should fall back to current flag when update returning is empty and NO_OVERRIDES when countOverrides is empty', async () => {
+    const current = stubFlag('stub_flag');
+    let txSelectCall = 0;
+    const tx = {
+      select: () => {
+        txSelectCall += 1;
+        const call = txSelectCall;
+        return {
+          from: () => ({
+            where: () => (call === 1 ? { for: () => Promise.resolve([current]) } : Promise.resolve([])),
+          }),
+        };
+      },
+      update: () => ({
+        set: () => ({
+          where: () => ({
+            returning: () => Promise.resolve([]),
+          }),
+        }),
+      }),
+      insert: () => ({
+        values: () => Promise.resolve(),
+      }),
+    };
+    const db = {
+      transaction: async <T>(fn: (arg: typeof tx) => Promise<T>) => fn(tx),
+    };
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal db stub for update() and countOverrides() branch coverage
+    const service = new FeatureFlagsService(db as unknown as Database, stubCache());
+
+    const summary = await service.update(
+      'stub_flag',
+      { enabled: true },
+      { principalId: '00000000-0000-0000-0000-000000000001', name: 'Admin' },
+    );
+    expect(summary).toEqual({
+      key: 'stub_flag',
+      description: null,
+      enabled: false,
+      rolloutPct: 100,
+      audience: 'portal',
+      overrideCounts: { on: 0, off: 0 },
+    });
   });
 });

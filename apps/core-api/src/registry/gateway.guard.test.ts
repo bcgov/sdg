@@ -1,10 +1,35 @@
+import type { ExecutionContext } from '@nestjs/common';
+import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants.js';
 import { serviceClientEvents, serviceClients } from '@repo/database';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestApp, type TestApp } from '../testing/app.js';
 import { SERVICE_CLIENT_ID } from '../testing/idp.js';
+import { CurrentServiceClient, type GatewayRequest } from './gateway.guard.js';
+import type { ServiceClientView } from './registry.schemas.js';
 
 const ME = '/api/v1/gateway/me';
+
+function getCurrentServiceClientFactory(): (data: unknown, context: ExecutionContext) => ServiceClientView {
+  class TestHost {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    endpoint(@CurrentServiceClient() _entry: unknown) {}
+  }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- custom route argument metadata reflects the factory function.
+  const meta = Reflect.getMetadata(ROUTE_ARGS_METADATA, TestHost, 'endpoint') as Record<
+    string,
+    { factory: (data: unknown, context: ExecutionContext) => ServiceClientView }
+  >;
+  const key = Object.keys(meta)[0];
+  if (key === undefined || meta[key] === undefined) throw new Error('Missing parameter decorator factory');
+  return meta[key].factory;
+}
+
+function mockContext(request: GatewayRequest): ExecutionContext {
+  const http = { getRequest: () => request };
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the decorator only calls switchToHttp().getRequest().
+  return { switchToHttp: () => http } as unknown as ExecutionContext;
+}
 
 describe('Gateway route /api/v1/gateway/me behind GatewayGuard (R9, R20, R21, R22)', () => {
   let t: TestApp;
@@ -76,5 +101,26 @@ describe('Gateway route /api/v1/gateway/me behind GatewayGuard (R9, R20, R21, R2
 
   it('Should answer 401 without a token', async () => {
     expect((await t.http().get(ME)).status).toBe(401);
+  });
+});
+
+describe('CurrentServiceClient decorator', () => {
+  const factory = getCurrentServiceClientFactory();
+
+  it('Should extract the serviceClient when present on the request', () => {
+    const serviceClient: ServiceClientView = {
+      clientId: SERVICE_CLIENT_ID,
+      displayName: 'Partner',
+      enabled: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const ctx = mockContext({ headers: {}, serviceClient });
+    expect(factory(undefined, ctx)).toBe(serviceClient);
+  });
+
+  it('Should throw when used on a request without GatewayGuard (serviceClient is undefined)', () => {
+    const ctx = mockContext({ headers: {} });
+    expect(() => factory(undefined, ctx)).toThrow('@CurrentServiceClient() used on a route without GatewayGuard');
   });
 });

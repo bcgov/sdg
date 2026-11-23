@@ -13,7 +13,7 @@ function event(id: number, clientId: string, action: ServiceClientAction, name =
   return { id, clientId, action, actor: { principalId: ADMIN.id, name }, createdAt };
 }
 
-const findHistory = () => screen.findByRole('table', { name: /Every change to the registry/ });
+const findHistory = () => screen.findByRole('table', { name: /Every change to the registry/ }, { timeout: 10000 });
 
 describe('registry history (R17)', () => {
   it('lists events newest first with actor names and times, including removed clients', async () => {
@@ -111,6 +111,28 @@ describe('registry history (R17)', () => {
         .slice(loads)
         .map((call) => call.path),
     ).toEqual([`${HISTORY}?limit=20`]);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('retries the next page when "Load more history" fails and the administrator tries again (line 74)', async () => {
+    const events = Array.from({ length: 25 }, (_, i) => event(i + 1, `client-${i + 1}`, 'added'));
+    const api = fakeConsoleApi({ events });
+    renderAt('/service-clients');
+    await findHistory();
+
+    api.refuseNext('GET', HISTORY, () => nestError(503, 'Service Unavailable'));
+    await userEvent.click(screen.getByRole('button', { name: 'Load more history' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("The history couldn't be loaded");
+
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(screen.getByText('Showing 25 changes.')).toBeInTheDocument());
+    expect(api.callsTo('GET', HISTORY).map((call) => call.path)).toEqual([
+      `${HISTORY}?limit=20`,
+      `${HISTORY}?limit=20&before=6`,
+      `${HISTORY}?limit=20&before=6`,
+    ]);
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });

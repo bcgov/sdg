@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { Forwarder } from '@repo/server-core/forwarding';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestApp, type TestApp } from '../../src/testing/app.js';
@@ -119,6 +120,13 @@ describe('gateway-api forwarding to core-api (R2, R4, R18, R19, KTD12)', () => {
       expect(res.status).toBe(503);
       expect(warn).toHaveBeenCalledWith(expect.objectContaining({ msg: 'Forwarding GET to core-api failed' }));
     });
+  });
+
+  it('Should fall back to "Error" when a local refusal status has no standard HTTP reason phrase', async () => {
+    vi.spyOn(Forwarder.prototype, 'forward').mockResolvedValueOnce({ kind: 'rejected', status: 599 });
+    const res = await t.http().get(ME).set('authorization', BEARER);
+    expect(res.status).toBe(599);
+    expect(res.body).toEqual({ statusCode: 599, message: 'Error' });
   });
 });
 

@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - tooling/*
+  - tests/load
 
 # Shared versions — reference with "catalog:" in package.json
 catalog:

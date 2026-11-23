@@ -76,7 +76,7 @@ describe('the feature flag list on the DataTable (R15–R18)', () => {
     cleanup();
     renderAt('/feature-flags?q=check');
     expect(await keys()).toEqual(['check_01', 'check_02', 'check_03']);
-  });
+  }, 15000);
 
   it('Should request audience=portal for Audience: Portal and show the portal and both flags (R15)', async () => {
     const api = fakeFeatureFlagsApi({

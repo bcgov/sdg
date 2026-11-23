@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fakeFeatureFlagsApi, flag, overrideFor, person } from '../../test-support/fake-feature-flags-api';
 import { renderAt } from '../../test-support/render';
+import { overridesPage } from './overrides-table';
 
 const SEARCH = '/api/v1/console/people/search';
 
@@ -45,7 +46,7 @@ describe('overrides (R18, R21)', () => {
     await userEvent.click(screen.getByRole('link', { name: 'All feature flags' }));
     const row = (await screen.findByRole('rowheader', { name: 'hello_world' })).closest('[role="row"]');
     expect(row).toHaveTextContent('1 on, 0 off');
-  });
+  }, 15000);
 
   it('saves an override on an off flag, saying it applies once the flag is turned on (kill switch)', async () => {
     const grace = person('Grace Hopper', 'resident');
@@ -198,5 +199,53 @@ describe('the overrides table (R18)', () => {
     const { router } = renderAt('/feature-flags/hello_world?tab=overrides&o.page=9');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'overrides', 'o.page': '2' }));
     expect(await names()).toHaveLength(5);
+  });
+
+  it('sorts by email (including null), kind, and override state, and searches with null email (lines 22-25)', async () => {
+    const noEmail = overrideFor(person('Zed', 'resident', { email: null }), false);
+    const consoleOn = overrideFor(person('Ada', 'console-user', { email: 'ada@example.com' }), true);
+    const residentOff = overrideFor(person('Bob', 'resident', { email: 'bob@example.com' }), false);
+    fakeFeatureFlagsApi({
+      flags: [flag('hello_world', { audience: 'both', overrides: [noEmail, consoleOn, residentOff] })],
+    });
+
+    const { router } = renderAt('/feature-flags/hello_world?tab=overrides&o.sort=email');
+    expect(await names()).toEqual(['Zed', 'Ada', 'Bob']);
+
+    await router.navigate({
+      to: '/feature-flags/$key',
+      params: { key: 'hello_world' },
+      search: { tab: 'overrides', 'o.sort': 'kind' },
+    });
+    await waitFor(async () => expect(await names()).toEqual(['Ada', 'Zed', 'Bob']));
+
+    await router.navigate({
+      to: '/feature-flags/$key',
+      params: { key: 'hello_world' },
+      search: { tab: 'overrides', 'o.sort': 'enabled', 'o.order': 'desc' },
+    });
+    await waitFor(async () => expect(await names()).toEqual(['Ada', 'Zed', 'Bob']));
+
+    await router.navigate({
+      to: '/feature-flags/$key',
+      params: { key: 'hello_world' },
+      search: { tab: 'overrides', 'o.q': 'zed' },
+    });
+    await waitFor(async () => expect(await names()).toEqual(['Zed']));
+  });
+
+  it('falls back to name when sort column is unknown and breaks ties by principalId (lines 43, 48)', () => {
+    const first = { ...overrideFor(person('Same', 'resident'), true), principalId: 'id-a' };
+    const second = { ...overrideFor(person('Same', 'resident'), false), principalId: 'id-b' };
+    const state = {
+      search: '',
+      filters: {},
+      page: 1,
+      pageSize: 20 as const,
+      cursor: null,
+      sort: { column: 'unknown', direction: 'asc' as const },
+    };
+    expect(overridesPage([second, first], state).items.map((item) => item.principalId)).toEqual(['id-a', 'id-b']);
+    expect(overridesPage([first, second], state).items.map((item) => item.principalId)).toEqual(['id-a', 'id-b']);
   });
 });

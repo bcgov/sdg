@@ -98,6 +98,9 @@ jobs:
       url: ${{ needs.deploys.outputs.url }}
       console_url: ${{ needs.deploys.outputs.console_url }}
       gateway_url: ${{ needs.deploys.outputs.gateway_url }}
+      playwright-client-username: ${{ vars.PLAYWRIGHT_CLIENT_USERNAME }}
+    secrets:
+      playwright-client-password: ${{ secrets.PLAYWRIGHT_CLIENT_PASSWORD }}
 
   comment:
     name: Deployment Links
