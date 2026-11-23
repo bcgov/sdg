@@ -1,4 +1,5 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '@repo/playwright-config';
 
 const user = { id: 'p-1', name: 'Ada Lovelace', email: 'ada@example.com' };
 
