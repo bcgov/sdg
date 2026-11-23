@@ -19,8 +19,23 @@ interface JarCookie {
   secure?: boolean;
 }
 
-// Load client cookies from JSON file
-export const clientCookieData: { cookies: Cookie[] } = JSON.parse(open('./client-auth.json'));
+// Type guard for clientCookieData
+const isCookieData = (value: unknown): value is { cookies: Cookie[] } => {
+  return typeof value === 'object' && value !== null && 'cookies' in value && Array.isArray(value.cookies);
+};
+
+// Load client cookies from JSON file (absent during `k6 inspect` without prior setup)
+const loadClientCookies = (): { cookies: Cookie[] } => {
+  try {
+    const parsed: unknown = JSON.parse(open('./client-auth.json'));
+    return isCookieData(parsed) ? parsed : { cookies: [] };
+  } catch {
+    return { cookies: [] };
+  }
+};
+
+// Load client cookies from JSON file (absent during `k6 inspect` without prior setup)
+export const clientCookieData: { cookies: Cookie[] } = loadClientCookies();
 
 /**
  * Formats a timestamp into a cookie expiry string.
