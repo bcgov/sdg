@@ -5,9 +5,10 @@ import type { BrowserContext, Request, TestInfo } from '@playwright/test';
 /**
  * Appends one JSON line per new TCP connection and per failed request in `context` to `file`, to measure how many
  * connections a run opens before the Gold cluster starts refusing them (ERR_CONNECTION_REFUSED). A request on a reused
- * connection, or served from cache, has `connectStart` -1 and is not logged.
+ * connection, or served from cache, has `connectStart` -1 and is not logged. Returns a function that detaches the
+ * listeners, since a reused context outlives the test.
  */
-export function logConnections(context: BrowserContext, testInfo: TestInfo, file: string): void {
+export function logConnections(context: BrowserContext, testInfo: TestInfo, file: string): () => void {
   const base = { test: testInfo.titlePath.join(' › '), retry: testInfo.retry };
   const write = (entry: Record<string, unknown>) => {
     try {
@@ -17,7 +18,7 @@ export function logConnections(context: BrowserContext, testInfo: TestInfo, file
     }
   };
 
-  context.on('requestfinished', (request: Request) => {
+  const onFinished = (request: Request) => {
     const timing = request.timing();
     if (timing.connectStart < 0) return;
     const entry = {
@@ -31,16 +32,23 @@ export function logConnections(context: BrowserContext, testInfo: TestInfo, file
       .then((response) => response?.serverAddr())
       .then((addr) => write({ ...entry, ip: addr?.ipAddress ?? null }))
       .catch((error: unknown) => write({ ...entry, ip: null, addrError: String(error) }));
-  });
+  };
 
-  context.on('requestfailed', (request: Request) => {
+  const onFailed = (request: Request) => {
     write({
       at: new Date().toISOString(),
       event: 'failed',
       url: request.url(),
       error: request.failure()?.errorText ?? null,
     });
-  });
+  };
+
+  context.on('requestfinished', onFinished);
+  context.on('requestfailed', onFailed);
+  return () => {
+    context.off('requestfinished', onFinished);
+    context.off('requestfailed', onFailed);
+  };
 }
 
 /** Auto fixture body: with E2E_CONNECTION_LOG set (CI sets it), logs the test's connections to that file. */
@@ -50,6 +58,7 @@ export async function connectionLogFixture(
   testInfo: TestInfo,
 ): Promise<void> {
   const file = process.env['E2E_CONNECTION_LOG'];
-  if (file) logConnections(context, testInfo, file);
+  const detach = file ? logConnections(context, testInfo, file) : undefined;
   await use();
+  detach?.();
 }

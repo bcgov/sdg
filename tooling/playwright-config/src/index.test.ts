@@ -13,6 +13,7 @@ describe('definePlaywrightConfig', () => {
     expect(config.retries).toBe(0);
     expect(config.use?.baseURL).toBe('http://localhost:5173');
     expect(config.use?.trace).toBe('on-first-retry');
+    expect(config.use?.reuseContext).toBe(true);
   });
 
   it('tightens settings in CI', () => {

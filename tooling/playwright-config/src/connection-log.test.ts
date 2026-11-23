@@ -163,4 +163,19 @@ describe('connectionLogFixture', () => {
     );
     expect(readFileSync(fixtureFile, 'utf8')).toContain('"error":"net::ERR_CONNECTION_REFUSED"');
   });
+
+  it('detaches its listeners when the test ends, since a reused context carries over to the next test', async () => {
+    vi.stubEnv('E2E_CONNECTION_LOG', join(dir, 'fixture.ndjson'));
+    const fresh = new EventEmitter();
+    let during: (string | symbol)[] = [];
+    await connectionLogFixture(
+      { context: asContext(fresh) },
+      async () => {
+        during = fresh.eventNames();
+      },
+      testInfo,
+    );
+    expect(during).toEqual(['requestfinished', 'requestfailed']);
+    expect(fresh.eventNames()).toEqual([]);
+  });
 });
