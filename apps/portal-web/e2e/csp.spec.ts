@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '@repo/playwright-config';
 
 declare global {
   interface Window {

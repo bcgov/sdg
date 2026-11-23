@@ -1,29 +1,22 @@
-import { Heading } from '@repo/design-system/components/heading';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
 
 import { type AuthErrorCode, parseAuthError } from '../auth/auth-error';
 import { AuthErrorNotice } from '../components/auth-error-notice';
-import { HelloWorld } from '../components/hello-world';
+import { HomePage } from '../components/home-page';
 
 type IndexSearch = Record<string, unknown> & { authError?: AuthErrorCode };
 
 export const Route = createFileRoute('/')({
   validateSearch: (search): IndexSearch => ({ ...search, authError: parseAuthError(search['authError']) }),
-  component: HomePage,
+  component: HomeRoute,
 });
 
-function HomePage() {
+function HomeRoute() {
   const { authError } = Route.useSearch();
   const navigate = useNavigate();
   const dismiss = useCallback(() => {
     void navigate({ to: '/', search: (prev) => ({ ...prev, authError: undefined }), replace: true });
   }, [navigate]);
-  return (
-    <>
-      {authError && <AuthErrorNotice code={authError} returnTo="/" onDismiss={dismiss} />}
-      <Heading level={1}>Welcome to SDG</Heading>
-      <HelloWorld />
-    </>
-  );
+  return <HomePage>{authError && <AuthErrorNotice code={authError} returnTo="/" onDismiss={dismiss} />}</HomePage>;
 }

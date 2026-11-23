@@ -12,8 +12,6 @@ import { headerQueries } from './test-support/header';
 // Devtools render only in dev; keep them out of jsdom.
 vi.mock('./components/devtools', () => ({ Devtools: () => null }));
 
-const HELLO_WORLD_PATH = '/api/v1/shared/hello-world';
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -23,6 +21,11 @@ function renderAt(path: string) {
   const router = createAppRouter({ queryClient, history: createMemoryHistory({ initialEntries: [path] }) });
   render(<App queryClient={queryClient} router={router} />);
   return { queryClient, router };
+}
+
+/** The search the /services route validated, as its component reads it. */
+function servicesSearch(router: ReturnType<typeof createAppRouter>) {
+  return router.state.matches.find((match) => match.routeId === '/services')?.search;
 }
 
 describe('portal-web app shell', () => {
@@ -69,32 +72,18 @@ describe('portal-web app shell', () => {
     it('renders the home page heading at "/"', async () => {
       renderAt('/');
       const heading = await screen.findByRole('heading', { level: 1 });
-      expect(heading).toHaveTextContent('Welcome to SDG');
+      expect(heading).toHaveTextContent('Access services online');
       expect(screen.queryByText('Page not found')).not.toBeInTheDocument();
     });
 
-    it('Should fetch the flags once and show no hello-world when the flag list fails (R7, R8, AE8)', async () => {
+    it('Should fetch the flags once and still render the page when the flag list fails (R7, R8, AE8)', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       renderAt('/');
-      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Welcome to SDG');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Access services online');
       // test-setup answers every request 401, the flag list included.
       await waitFor(() => expect(warn).toHaveBeenCalledTimes(1));
       const inputs = vi.mocked(fetch).mock.calls.map(([input]) => input);
       expect(inputs.filter((input) => input === FLAGS_PATH)).toHaveLength(1);
-      expect(inputs).not.toContain(HELLO_WORLD_PATH);
-      expect(screen.queryByText('Hello, world!')).not.toBeInTheDocument();
-    });
-
-    it('Should show hello-world below the heading when the flag is on (R13, AE2)', async () => {
-      vi.mocked(fetch).mockImplementation((input) => {
-        if (input === FLAGS_PATH) return Promise.resolve(Response.json({ hello_world: true }));
-        if (input === HELLO_WORLD_PATH) return Promise.resolve(Response.json({ message: 'Hello, world!' }));
-        return Promise.resolve(Response.json({ statusCode: 401 }, { status: 401 }));
-      });
-      renderAt('/');
-      const message = await screen.findByText('Hello, world!');
-      const heading = screen.getByRole('heading', { level: 1 });
-      expect(heading.compareDocumentPosition(message)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
   });
 
@@ -107,6 +96,24 @@ describe('portal-web app shell', () => {
       await waitFor(() => expect(nav.getByRole('link', { name: 'Services' })).toHaveAttribute('aria-current', 'page'));
       expect(nav.getByRole('link', { name: 'Services' })).toHaveAttribute('href', '/services');
       expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('keeps a search query from "?q=" as a string', async () => {
+      const { router } = renderAt('/services?q=dog');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
+      expect(servicesSearch(router)).toEqual({ q: 'dog' });
+    });
+
+    it.each(['007', '1e3', 'true', 'null'])('keeps the query "%s" exactly as typed in the URL', async (query) => {
+      const { router } = renderAt(`/services?q=${query}`);
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
+      expect(servicesSearch(router)).toEqual({ q: query });
+    });
+
+    it.each(['/services', '/services?q=', '/services?q=%20%20'])('has no search query at "%s"', async (path) => {
+      const { router } = renderAt(path);
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Services');
+      expect(servicesSearch(router)).toEqual({});
     });
   });
 
@@ -146,7 +153,7 @@ describe('portal-web app shell', () => {
 
     it('navigates client-side from the header nav and moves the current item', async () => {
       const { router } = renderAt('/');
-      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Welcome to SDG');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Access services online');
       await headerQueries();
       const header = within(document.querySelector('sdg-header')!);
       await userEvent.click(header.getByRole('link', { name: 'Contact us' }));

@@ -1,4 +1,5 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '@repo/playwright-config';
 
 /** Viewport-relative boxes of the layout regions, plus the document's scroll height. */
 async function measureLayout(page: Page) {
@@ -24,7 +25,7 @@ test.describe('portal-web layout', () => {
     await page.goto('/');
     await expect(page).toHaveTitle('SDG');
     await expect(page.getByRole('banner')).toContainText('SDG');
-    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Welcome to SDG');
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Access services online');
     await expect(page.getByRole('contentinfo')).toBeVisible();
   });
 
@@ -77,8 +78,9 @@ test.describe('portal-web layout', () => {
     expect(m.marginLeft).toBeCloseTo(m.marginRight, 0);
   });
 
+  // On /services: the home page's hero cancels the top padding on purpose, so it is checked there instead.
   test('spaces content from the container edges by the container padding alone', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/services');
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeVisible();
 
     const m = await page.evaluate(() => {
@@ -116,7 +118,7 @@ test.describe('portal-web layout', () => {
 
     await main.getByRole('link', { name: 'Go to the home page' }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Welcome to SDG');
+    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Access services online');
   });
 
   test('ships no devtools code in the production build', async ({ page }) => {
@@ -134,5 +136,93 @@ test.describe('portal-web layout', () => {
       expect(body).not.toContain('TanStack Query');
       expect(body).not.toContain('TanStack Router');
     }
+  });
+});
+
+/** Viewport-relative geometry of the home page's hero, search control and placeholder grid. */
+async function measureHome(page: Page) {
+  return page.evaluate(() => {
+    const heading = document.querySelector('main h1')!;
+    const section = document.querySelector('main section[aria-labelledby]')!;
+    const [header, hero, lede, search, sectionBox, ...placeholders] = [
+      document.querySelector('sdg-header')!,
+      heading.parentElement!.parentElement!,
+      heading.nextElementSibling!,
+      document.querySelector('main search')!,
+      section,
+      ...section.querySelectorAll('div[aria-hidden="true"] > div'),
+    ].map((element) => {
+      const { top, bottom, left, right, height } = element.getBoundingClientRect();
+      return { top, bottom, left, right, height };
+    });
+    return {
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      container: (({ left, right }) => ({ left, right }))(
+        document.querySelector('main > div')!.getBoundingClientRect(),
+      ),
+      containerPadding: Number.parseFloat(getComputedStyle(document.querySelector('main > div')!).paddingLeft),
+      header: header!,
+      hero: hero!,
+      lede: lede!,
+      search: search!,
+      section: sectionBox!,
+      placeholders,
+    };
+  });
+}
+
+test.describe('portal-web home page layout', () => {
+  for (const width of [1280, 375]) {
+    test(`runs the hero edge to edge, flush under the header, at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      await expect(page.getByRole('search')).toBeVisible();
+
+      const m = await measureHome(page);
+      expect(m.scrollWidth).toBe(m.clientWidth);
+      expect(m.hero.left).toBeCloseTo(0, 0);
+      expect(m.hero.right).toBeCloseTo(m.clientWidth, 0);
+      expect(m.hero.top).toBeCloseTo(m.header.bottom, 0);
+      expect(m.hero.height).toBeCloseTo(200, 0);
+      // Half over the blue, half below it; the text above stays clear of it.
+      expect((m.search.top + m.search.bottom) / 2).toBeCloseTo(m.hero.bottom, 0);
+      expect(m.lede.bottom).toBeLessThanOrEqual(m.search.top);
+      expect(m.section.top).toBeGreaterThanOrEqual(m.search.bottom);
+      // The field and button span the content column.
+      expect(m.search.left).toBeCloseTo(m.container.left + m.containerPadding, 0);
+      expect(m.search.right).toBeCloseTo(m.container.right - m.containerPadding, 0);
+    });
+  }
+
+  test('lays the placeholders out 3 × 2 on desktop and in one column on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/');
+    await expect(page.getByRole('region', { name: 'Find a service' })).toBeVisible();
+    let m = await measureHome(page);
+    expect(m.placeholders).toHaveLength(6);
+    expect(new Set(m.placeholders.map((p) => Math.round(p.top))).size).toBe(2);
+    expect(new Set(m.placeholders.map((p) => Math.round(p.left))).size).toBe(3);
+
+    await page.setViewportSize({ width: 375, height: 900 });
+    m = await measureHome(page);
+    expect(new Set(m.placeholders.map((p) => Math.round(p.left))).size).toBe(1);
+  });
+
+  test('shows View all services without an underline', async ({ page }) => {
+    await page.goto('/');
+    const link = page.getByRole('region', { name: 'Find a service' }).getByRole('link', { name: 'View all services' });
+    await expect(link).toHaveCSS('text-decoration-line', 'none');
+    await link.hover();
+    await expect(link).toHaveCSS('text-decoration-line', 'none');
+  });
+
+  test('searches from the hero and lands on /services with the query', async ({ page }) => {
+    await page.goto('/');
+    const search = page.getByRole('search');
+    await search.getByRole('textbox', { name: 'Search for services' }).fill('dog licence');
+    await search.getByRole('button', { name: 'Search' }).click();
+    await expect(page).toHaveURL(/\/services\?q=dog(\+|%20)licence$/);
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Services');
   });
 });

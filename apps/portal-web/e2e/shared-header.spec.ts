@@ -1,4 +1,5 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '@repo/playwright-config';
 
 import { serveExternalSite } from './external-site';
 
@@ -194,7 +195,7 @@ test.describe('portal-web shared header', () => {
     await signedOut(page);
     await page.route(`**${HEADER_SCRIPT}`, (route) => route.abort());
     await page.goto('/');
-    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Welcome to SDG');
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Access services online');
     const header = page.locator('sdg-header');
     expect((await page.getByRole('main').boundingBox())!.y).toBe(104);
 
@@ -209,7 +210,7 @@ test.describe('portal-web shared header', () => {
     await signedOut(page);
     await page.route(`**${HEADER_SCRIPT}`, (route) => route.abort());
     await page.goto('/');
-    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Welcome to SDG');
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Access services online');
 
     const header = page.locator('sdg-header');
     expect(await header.evaluate((el) => el.matches(':defined'))).toBe(false);

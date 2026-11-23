@@ -21,8 +21,10 @@
   outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
 }
 
+/* An inline-size container, so a full-bleed band can size itself with `cqw` (the width without the scrollbar). */
 .main {
   flex: 1 0 auto;
+  container-type: inline-size;
 }
 
 /* Focus lands here from the skip link; the container itself needs no ring. */

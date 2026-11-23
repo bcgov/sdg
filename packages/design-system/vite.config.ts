@@ -15,6 +15,7 @@ export default defineLibraryConfig({
   entry: {
     ...Object.fromEntries(components.map((name) => [`components/${name}/index`, `${src}components/${name}/index.ts`])),
     'icons/index': `${src}icons/index.ts`,
+    'router-search/index': `${src}router-search/index.ts`,
   },
   // Custom components' CSS Modules are extracted into one stylesheet, exported as @repo/design-system/styles.css.
   overrides: { build: { lib: { cssFileName: 'styles' } } },

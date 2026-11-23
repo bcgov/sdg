@@ -1,4 +1,5 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '@repo/playwright-config';
 
 // Runs the Feature Flags flow through the edge against a deployed console host with a real administrator
 // (playwright.config.ts signs in first). Runs only when E2E_CONSOLE_USERNAME and E2E_CONSOLE_PASSWORD are set; skipped
