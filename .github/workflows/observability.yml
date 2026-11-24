@@ -19,7 +19,7 @@ on:
         options: [tools, prod]
 
 concurrency:
-  # prod shares the Merge group with merge.yml, release.yml and route-tls.yml, so it never overlaps a PROD deploy.
+  # prod shares the Merge group with merge.yml and release.yml, so it never overlaps a PROD deploy.
   group: ${{ (inputs.stack || 'tools') == 'prod' && 'Merge' || 'observability-tools' }}
   cancel-in-progress: false
 
