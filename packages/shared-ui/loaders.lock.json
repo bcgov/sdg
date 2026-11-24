@@ -1,5 +1,14 @@
 {
   "dev": {
     "integrity": "sha384-nGuWKS+1NAegEUEoiUVX48Sv19FqJvl5iEvJi5pMkIe5klJd67CwmdiTn3qCJopQ"
+  },
+  "pr": {
+    "integrity": "sha384-EtvdKzJlc0HCxCgq996747aIkRDJug6AwBu0uPvGHXULriPd0871iMvD6QLpQuaF"
+  },
+  "prod": {
+    "integrity": "sha384-7h+W3F+UrCzZ0jOAtulVyF8Tchx5vdast7PH7/dDoD2rjPLjHQ2a2T/SgMgGwRh8"
+  },
+  "test": {
+    "integrity": "sha384-gy7DZvVyoCBeHGEwI5mlqsC4xMtvIzicSFCvqgOntHN5yQVEiCnU/aa91laMuyWc"
   }
 }

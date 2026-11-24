@@ -9,11 +9,11 @@ manifest signed by this team's CI, checks it, and loads that release's header bu
 `integrity`. Visitors get a new release (or a rolled-back one) on their next page load, and nobody redeploys to pick it
 up.
 
-| Environment | Loader URL                                                 | Loader `integrity`                                 |
-| ----------- | ---------------------------------------------------------- | -------------------------------------------------- |
-| PROD        | `https://<portal-host>/shared-ui/header/v1/loader.js`      | `sha384-PLACEHOLDER-prod-loader-not-generated-yet` |
-| TEST        | `https://<test-portal-host>/shared-ui/header/v1/loader.js` | `sha384-PLACEHOLDER-test-loader-not-generated-yet` |
-| PR preview  | `https://<pr-portal-host>/shared-ui/header/v1/loader.js`   | `sha384-PLACEHOLDER-pr-loader-not-generated-yet`   |
+| Environment | Loader URL                                                 | Loader `integrity`                                                        |
+| ----------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| PROD        | `https://<portal-host>/shared-ui/header/v1/loader.js`      | `sha384-7h+W3F+UrCzZ0jOAtulVyF8Tchx5vdast7PH7/dDoD2rjPLjHQ2a2T/SgMgGwRh8` |
+| TEST        | `https://<test-portal-host>/shared-ui/header/v1/loader.js` | `sha384-gy7DZvVyoCBeHGEwI5mlqsC4xMtvIzicSFCvqgOntHN5yQVEiCnU/aa91laMuyWc` |
+| PR preview  | `https://<pr-portal-host>/shared-ui/header/v1/loader.js`   | `sha384-EtvdKzJlc0HCxCgq996747aIkRDJug6AwBu0uPvGHXULriPd0871iMvD6QLpQuaF` |
 
 `<portal-host>` is the portal's host in that environment. Each environment's loader trusts only that environment's
 signing keys, so its `integrity` differs: use the value from its row, and point your TEST site at the TEST loader so you
@@ -72,7 +72,7 @@ This rule stays valid for the whole of v1: changing what it targets or the heade
 ```html
 <script
   src="https://<portal-host>/shared-ui/header/v1/loader.js"
-  integrity="sha384-PLACEHOLDER-prod-loader-not-generated-yet"
+  integrity="sha384-7h+W3F+UrCzZ0jOAtulVyF8Tchx5vdast7PH7/dDoD2rjPLjHQ2a2T/SgMgGwRh8"
   crossorigin="anonymous"
   async
 ></script>

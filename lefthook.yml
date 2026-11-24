@@ -9,7 +9,7 @@ pre-commit:
       stage_fixed: true
     - name: lint
       glob: '*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'
-      run: pnpm exec oxlint --fix {staged_files}
+      run: pnpm exec oxlint --no-error-on-unmatched-pattern --fix {staged_files}
       stage_fixed: true
 
 pre-push:
