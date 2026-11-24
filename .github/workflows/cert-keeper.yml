@@ -6,7 +6,7 @@ name: Cert Keeper
 on:
   schedule:
     # Daily Let's Encrypt expiry check (runs only when vars.ROUTE_HOST is set).
-    - cron: "11 14 * * *"
+    - cron: '11 14 * * *'
   workflow_dispatch:
     inputs:
       force:
@@ -46,6 +46,6 @@ jobs:
         if: failure()
         uses: bcgov/actions/workflow-notifier@acc058abf85bb183dad21b839a92a40a4ff47af3 # v0.14.0
         with:
-          title: "Cert Keeper failed"
-          notify_author: "false"
-          notify_codeowners: "always"
+          title: 'Cert Keeper failed'
+          notify_author: 'false'
+          notify_codeowners: 'always'
