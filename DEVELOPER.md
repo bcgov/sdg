@@ -201,57 +201,16 @@ The observability stack (ADR 0001, `charts/README.md`, Observability). Optional,
 4. Run the **Observability** workflow (stack `tools`, later `prod`); it also runs on any change to `charts/observability` on main.
 5. Set the `OBSERVABILITY` variable to `true`. From the next deploy, PR, test and prod releases report to their stack (`scripts/deploy-values.sh`).
 
-**`TLS_CERTIFICATE`, `TLS_PRIVATE_KEY`, `TLS_CA_CERTIFICATE`**
+**`ROUTE_HOST` (vanity URL certificate)**
 
-PEM-formatted certificates and private key for custom vanity URL TLS on the PROD edge OpenShift Route. Optional — required only when `vars.ROUTE_HOST` is configured.
-
-- References: `${{ secrets.TLS_CERTIFICATE }}`, `${{ secrets.TLS_PRIVATE_KEY }}`, `${{ secrets.TLS_CA_CERTIFICATE }}`
-- Validated and applied on-demand via the standalone [`.github/workflows/route-tls.yml`](./.github/workflows/route-tls.yml) workflow using [`bcgov/actions-openshift/route-tls`](https://github.com/bcgov/actions-openshift/tree/main/route-tls), which checks key matching, CA chain, expiration, and archives previous certificates to an OpenShift secret.
-- Store these as `prod` environment secrets (not repository secrets). Environment scoping alone does not stop a pull-request job from requesting them; the `prod` environment's deployment branches and tags (`main` and `v*`, set by `scripts/setup-environments.sh`) do.
-- Do not pass PEMs or private keys as `workflow_dispatch` inputs—dispatch inputs are recorded in plaintext in workflow run logs. Rotation is handled by updating the `prod` secrets and triggering the `Route TLS` workflow with `dry_run=true` to validate, then `dry_run=false` to apply.
-
-When receiving a certificate package from Entrust, map the files to GitHub secrets as follows:
-
-| Secret               | File in package                       | Notes                                                             |
-| -------------------- | ------------------------------------- | ----------------------------------------------------------------- |
-| `TLS_CERTIFICATE`    | `<host>.pem`                          | Leaf certificate only (CN/SAN matches hostname).                  |
-| `TLS_PRIVATE_KEY`    | `<host>.key`                          | Unencrypted private key (`BEGIN PRIVATE KEY`). Never commit this. |
-| `TLS_CA_CERTIFICATE` | `Entrust OV TLS Issuing RSA CA 2.pem` | Issuing intermediate CA only (one PEM).                           |
-
-Leave out root certificates (e.g. `Sectigo Public Server Authentication Root R46.pem` or `USERTrust RSA Certification Authority.pem`) because clients already have them in their trust stores. Omit `<host>.csr` (the signing request is finished).
-
-Upload these secrets to the `prod` environment via GitHub CLI:
-
-```bash
-CERT_HOST='myapp.gov.bc.ca' # Replace with the certificate filename prefix
-gh secret set TLS_CERTIFICATE --env prod < "${CERT_HOST}.pem"
-gh secret set TLS_PRIVATE_KEY --env prod < "${CERT_HOST}.key"
-gh secret set TLS_CA_CERTIFICATE --env prod < 'Entrust OV TLS Issuing RSA CA 2.pem'
-```
-
-**`ROUTE_HOST`**
-
-Vanity URL hostname for the application (e.g., `myapp.gov.bc.ca` — hostname only, no scheme). Optional — can be set as a repository variable or environment variable on `prod`. When set, the standalone `Route TLS` workflow (`.github/workflows/route-tls.yml`) configures an OpenShift Route with custom TLS for the edge service (`<repo>-prod-edge`).
+Vanity URL hostname for the application (e.g., `myapp.gov.bc.ca` — hostname only, no scheme). Optional repository variable. While it is unset, the standalone `Cert Keeper` workflow ([`cert-keeper.yml`](./.github/workflows/cert-keeper.yml)) does nothing.
 
 - Reference: `${{ vars.ROUTE_HOST }}`
-- Set as a repository variable: `gh variable set ROUTE_HOST --body 'myapp.gov.bc.ca'` (or `Settings > Secrets and variables > Actions > Variables`). The `Cert Expiry` check reads only the repository variable.
+- Set as a repository variable: `gh variable set ROUTE_HOST --body 'myapp.gov.bc.ca'`. The workflow checks `ROUTE_HOST` at job level, so it must be a repository variable, not an environment-only variable.
+- Once `ROUTE_HOST` is set, `Cert Keeper` runs daily and on-demand (`workflow_dispatch`) to keep a [Let's Encrypt](https://letsencrypt.org/) certificate valid on `<repo>-vanity-url` pointing to `<repo>-prod-edge` (or pass `tls_certificate` / `tls_private_key` / `tls_ca_certificate` if using pre-supplied certificates). See the [cert-keeper README](https://github.com/bcgov/actions-openshift/blob/main/cert-keeper/README.md#add-a-host-step-by-step).
 - Add `https://<ROUTE_HOST>/api/auth/callback` and `https://<ROUTE_HOST>/` to the PROD Keycloak client's redirect URIs.
 
-Two standalone workflows use it:
-
-- `Route TLS` ([`route-tls.yml`](./.github/workflows/route-tls.yml)) validates (`dry_run=true`) or applies (`dry_run=false`) the PROD vanity Route certificate. Manual only.
-- `Cert Expiry` ([`cert-expiry.yml`](./.github/workflows/cert-expiry.yml)) checks the `ROUTE_HOST` certificate and notifies CODEOWNERS if it expires within 30 days or can't be read. Runs weekly (Monday) or by hand, only when `ROUTE_HOST` is set.
-
-Run either by hand from `Actions > <workflow> > Run workflow`, or:
-
-```bash
-gh workflow run route-tls.yml -f dry_run=true
-gh workflow run cert-expiry.yml
-```
-
-### Deployment Branches and Tags
-
-The header signing keys depend on which refs can deploy to each environment, so `scripts/setup-environments.sh` (checklist step 6) sets them and removes any other rule:
+### PROD Deployment Branches and Tags (optional)
 
 | Environment   | Refs                    | Used by                                                                                       |
 | ------------- | ----------------------- | --------------------------------------------------------------------------------------------- |

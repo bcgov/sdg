@@ -45,7 +45,7 @@ Repository facts for automated coding assistants. Teams may edit or remove this 
 
 - Uses bcgov shared actions and workflows (`bcgov/action-*`, `bcgov/actions/*`, `bcgov/actions-openshift/*`, `bcgov/quickstart-openshift-helpers`). Use them as provided; don't copy or fork them.
 - Never pin `@main`. Pin bcgov shared actions to a published release SHA with a `# vX.Y.Z` comment.
-- Vanity Route TLS (`bcgov/actions-openshift/route-tls`) is strictly managed via the standalone on-demand workflow (`.github/workflows/route-tls.yml` with `workflow_dispatch`). Never embed `route-tls` into `merge.yml`, `release.yml`, or continuous deployment pipelines.
+- Vanity Route TLS (`bcgov/actions-openshift/cert-keeper`) is managed via the standalone workflow (`.github/workflows/cert-keeper.yml`), never embedded in `merge.yml`, `release.yml`, or continuous deployment pipelines.
 
 ## Settings
 
