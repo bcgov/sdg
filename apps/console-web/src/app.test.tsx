@@ -1,6 +1,8 @@
+import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createAppRouter } from './router';
 import { fakeConsoleApi } from './test-support/fake-console-api';
 import { renderAt } from './test-support/render';
 
@@ -78,5 +80,10 @@ describe('signed-in pages (R9, R10, R15, KTD5)', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/does-not-exist');
+  });
+
+  it('defaults to browser history when no history is passed (router line 45)', () => {
+    const router = createAppRouter({ queryClient: new QueryClient() });
+    expect(router.history).toBeDefined();
   });
 });

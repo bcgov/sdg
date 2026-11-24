@@ -21,6 +21,14 @@ on:
         description: The header keyset the deployment's loader trusts (pr, test or prod)
         default: pr
         type: string
+      playwright-client-username:
+        description: Username for portal-web login
+        required: true
+        type: string
+    secrets:
+      playwright-client-password:
+        description: Password for portal-web login
+        required: true
 
 permissions: {}
 
@@ -29,8 +37,19 @@ jobs:
   smoke:
     name: Smoke
     runs-on: ubuntu-26.04
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - name: Install dependencies
+        run: |
+          npm install -g "pnpm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+          pnpm install --frozen-lockfile
+          pnpm --filter tests-load exec playwright install --with-deps chromium
       - name: Wait for portal-web and portal-api
         env:
           BASE_URL: ${{ inputs.url }}
@@ -47,13 +66,36 @@ jobs:
           done
           echo "ERROR: ${BASE_URL} did not become healthy in time."
           exit 1
-
-      - uses: actions/checkout@v7
+      # 2. Run the authentication setup script
+      - name: Run Pre-load Test Script
+        env:
+          E2E_BASE_URL: ${{ inputs.url }}
+          PLAYWRIGHT_CLIENT_USERNAME: ${{ inputs.playwright-client-username }}
+          PLAYWRIGHT_CLIENT_PASSWORD: ${{ secrets.playwright-client-password }}
+          CI: 'true'
+        run: pnpm --filter tests-load exec playwright test --project=load-setup
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        name: Upload load-setup results
         with:
-          persist-credentials: false
-      - uses: actions/setup-node@v7
+          name: playwright-report-load-setup
+          path: |
+            tests/load/playwright-report
+            tests/load/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Install k6
+        uses: grafana/setup-k6-action@v1
         with:
-          node-version-file: .node-version
+          flags: --version
+      - name: Run Load Tests
+        env:
+          BASE_URL: ${{ inputs.url }}
+          LOAD_PROFILE: smoke
+        run: pnpm test:load
+      - name: Cleanup Load Auth File
+        if: always()
+        run: rm -f tests/load/utils/client-auth.json
 
       # The signed header through the edge (U6): the loader is the committed one for this keyset and revalidated on every
       # load; the manifest verifies with the keyset's public keys; the bundle it names has the manifest's hash and is
@@ -192,25 +234,49 @@ jobs:
           done
           exit "$failed"
 
-  # One job per web app, so each suite runs on its own runner. The Gold cluster refuses or drops every connection from a
-  # runner, to every *.apps.gold host, for ~2 minutes once it opens too many (PR 82: after ~115 new connections in
-  # ~30s); separate runners each get their own allowance. @repo/playwright-config keeps one browser context per worker
-  # (reuseContext) so connections stay open across tests, and makes a retry wait until the host answers again.
+  # One job per web app (and sharded for portal-web), so each slice runs on its own runner. The Gold cluster refuses or
+  # drops every connection from a runner, to every *.apps.gold host, for ~2 minutes once it opens too many (PR 82: after
+  # ~115 new connections in ~30s); separate runners each get their own allowance, and the slices run in parallel.
+  # @repo/playwright-config keeps one browser context per worker (reuseContext) so connections stay open across tests,
+  # and makes a retry wait until the host answers again.
   e2e-tests:
-    name: E2E (${{ matrix.app }})
+    name: E2E (${{ matrix.name }})
+    needs: smoke
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         include:
-          - app: portal-web
+          - name: portal-web (1/2)
+            app: portal-web
             url: ${{ inputs.url }}
-            report: playwright-report-chromium
+            shard: --shard=1/2
+            run_unauthenticated: true
+            run_client: false
+            report: playwright-report-chromium-1
+          - name: portal-web (2/2)
+            app: portal-web
+            url: ${{ inputs.url }}
+            shard: --shard=2/2
+            run_unauthenticated: true
+            run_client: false
+            report: playwright-report-chromium-2
+          - name: portal-web (signed-in)
+            app: portal-web
+            url: ${{ inputs.url }}
+            shard: ''
+            run_unauthenticated: false
+            run_client: true
+            report: playwright-report-chromium-signed-in
           # console-web's signed-out specs against the console host (the signed-in ones need an admin test account and
           # skip). Without console_url the job runs no steps.
-          - app: console-web
+          - name: console-web
+            app: console-web
             url: ${{ inputs.console_url }}
+            shard: ''
+            run_unauthenticated: true
+            run_client: false
             report: playwright-report-console-web-chromium
     steps:
       - uses: actions/checkout@v7
@@ -231,10 +297,11 @@ jobs:
           pnpm --filter "$APP" exec playwright install --with-deps chromium
 
       - name: Run Tests
-        if: matrix.url != ''
+        if: matrix.url != '' && matrix.run_unauthenticated
         env:
           APP: ${{ matrix.app }}
           E2E_BASE_URL: ${{ matrix.url }}/
+          PLAYWRIGHT_HTML_REPORT: playwright-report/unauthenticated
           CI: 'true'
           PORTAL_URL: ${{ inputs.url }}
           CONSOLE_URL: ${{ inputs.console_url }}
@@ -251,18 +318,36 @@ jobs:
           scripts/e2e-probe.sh "$DIAGNOSTICS/probe.log" "${urls[@]}" &
           probe=$!
           status=0
-          pnpm --filter "$APP" exec playwright test --project=chromium --reporter=html || status=$?
+          pnpm --filter "$APP" exec playwright test --project=chromium ${{ matrix.shard }} --reporter=html || status=$?
           kill "$probe"
           echo "New connections opened by the browser: $(grep -c '"event":"connect"' "$E2E_CONNECTION_LOG" || true)"
           echo "Probe requests that failed:"
           grep -v ' rc=0 ' "$DIAGNOSTICS/probe.log" || echo "  none"
           exit "$status"
+      - name: Run Client Setup Script
+        if: matrix.url != '' && matrix.run_client
+        env:
+          E2E_BASE_URL: ${{ matrix.url }}/
+          PLAYWRIGHT_CLIENT_USERNAME: ${{ inputs.playwright-client-username }}
+          PLAYWRIGHT_CLIENT_PASSWORD: ${{ secrets.playwright-client-password }}
+          CI: 'true'
+        run: pnpm --filter portal-web exec playwright test --project=client-setup
+      - name: Run Client Tests
+        if: matrix.url != '' && matrix.run_client
+        env:
+          E2E_BASE_URL: ${{ matrix.url }}/
+          PLAYWRIGHT_HTML_REPORT: playwright-report/authenticated
+          CI: 'true'
+        run: pnpm --filter portal-web exec playwright test --project=client-tests --reporter=html
+      - name: Cleanup Client Auth File
+        if: always() && matrix.run_client
+        run: rm -f apps/portal-web/e2e/setup/client-auth.json
 
       - uses: actions/upload-artifact@v7
-        if: (! cancelled()) && matrix.url != ''
+        if: (! cancelled()) && matrix.url != '' && matrix.run_unauthenticated
         name: upload diagnostics
         with:
-          name: e2e-diagnostics-${{ matrix.app }}
+          name: e2e-diagnostics-${{ matrix.report }}
           path: ${{ runner.temp }}/e2e-diagnostics
           retention-days: 7
 

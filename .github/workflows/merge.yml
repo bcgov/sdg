@@ -56,6 +56,9 @@ jobs:
       url: ${{ needs.deploy-test.outputs.url }}
       console_url: ${{ needs.deploy-test.outputs.console_url }}
       gateway_url: ${{ needs.deploy-test.outputs.gateway_url }}
+      playwright-client-username: ${{ vars.PLAYWRIGHT_CLIENT_USERNAME }}
+    secrets:
+      playwright-client-password: ${{ secrets.PLAYWRIGHT_CLIENT_PASSWORD }}
 
   # PROD is release-only: merges deploy TEST, run the tests and stop; publishing a GitHub
   # release deploys PROD (release.yml has its own deploy-prod, monitor-prod and promote).

@@ -97,6 +97,8 @@ Configuration lives in three places:
 | none        | `secrets.OC_TOKEN`                                         | PR service token (from the `github-actions-token` Secret in `<plate>-dev`)                                   |
 | none        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID`      | PR portal-api Keycloak client                                                                                |
 | none        | `vars.KEYCLOAK_CONSOLE_CLIENT_ID`                          | PR console (IDIR) Keycloak client: console-api's, and the console client core-api accepts                    |
+| none        | `vars.PLAYWRIGHT_CLIENT_USERNAME`                          | E2E client username to run authenticated tests in portal-web and load                                        |
+| none        | `secrets.PLAYWRIGHT_CLIENT_PASSWORD`                       | E2E client password to run authenticated tests in portal-web and load                                        |
 | test        | `vars.OC_NAMESPACE`                                        | TEST namespace, `<plate>-test`                                                                               |
 | test        | `secrets.OC_TOKEN`                                         | TEST service token (from `<plate>-test`)                                                                     |
 | test        | `vars.KEYCLOAK_ISSUER_URL`, `vars.KEYCLOAK_CLIENT_ID`      | TEST portal-api Keycloak client                                                                              |

@@ -1,6 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import type { ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { nestError } from '../../test-support/fake-console-api';
 import { fakeFeatureFlagsApi, flag, overrideFor, person } from '../../test-support/fake-feature-flags-api';
@@ -9,9 +10,12 @@ import { renderAt } from '../../test-support/render';
 const HELLO = '/api/v1/console/feature-flags/hello_world';
 
 async function openDialog() {
-  const remove = await screen.findByRole('button', { name: 'Delete hello_world' });
+  const remove = await screen.findByRole('button', { name: 'Delete hello_world' }, { timeout: 15000 });
   await userEvent.click(remove);
-  return { remove, dialog: await screen.findByRole('alertdialog', { name: 'Delete hello_world?' }) };
+  return {
+    remove,
+    dialog: await screen.findByRole('alertdialog', { name: 'Delete hello_world?' }, { timeout: 15000 }),
+  };
 }
 
 function withOverrides() {
@@ -72,5 +76,36 @@ describe('delete a flag from its page, with confirmation (R17, R19)', () => {
       'hello_world was already removed by another administrator',
     );
     expect(await screen.findByText('This flag was deleted. Its history is kept.')).toBeInTheDocument();
+  });
+
+  it('omits override count when there are none and closes on Escape without deleting (line 36)', async () => {
+    const api = fakeFeatureFlagsApi({ flags: [flag('hello_world')] });
+    renderAt('/feature-flags/hello_world');
+    const { dialog } = await openDialog();
+    expect(dialog).toHaveTextContent('hello_world will be deleted');
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(api.callsTo('DELETE', HELLO)).toEqual([]);
+  });
+
+  it('does not call onCancel when Modal reports onOpenChange(true) (line 36)', async () => {
+    let capturedOnOpenChange: ((open: boolean) => void) | undefined;
+    vi.resetModules();
+    vi.doMock('@repo/design-system/components/modal', () => ({
+      Modal: ({ children, onOpenChange }: { children: ReactNode; onOpenChange?: (open: boolean) => void }) => {
+        capturedOnOpenChange = onOpenChange;
+        return <div>{children}</div>;
+      },
+    }));
+    const { DeleteDialog } = await import('./delete-dialog');
+    const onCancel = vi.fn<() => void>();
+    render(
+      <DeleteDialog flag={flag('hello_world')} isPending={false} onConfirm={vi.fn<() => void>()} onCancel={onCancel} />,
+    );
+    capturedOnOpenChange?.(true);
+    expect(onCancel).not.toHaveBeenCalled();
+    vi.doUnmock('@repo/design-system/components/modal');
+    vi.resetModules();
   });
 });

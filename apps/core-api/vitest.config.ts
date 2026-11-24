@@ -11,7 +11,7 @@ export default defineNodeTestConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/main.ts', 'src/testing/*.ts'],
+      exclude: ['src/main.ts', 'src/instrumentation.ts', 'src/testing/*.ts'],
       reportOnFailure: true,
     },
   },

@@ -52,6 +52,30 @@ describe('Auth API Integration Test Suite', () => {
       // An unread body leaves the request open in Chromium.
       expect(response.bodyUsed).toBe(true);
     });
+
+    it('Should throw on non-401 error responses (line 33)', async () => {
+      fetchMock.mockResolvedValue(new Response('Server Error', { status: 500 }));
+      await expect(fetchCurrentUser()).rejects.toThrow('GET /api/auth/me failed with 500');
+    });
+
+    it('Should throw when /api/auth/me returns an unexpected body (line 16)', async () => {
+      const invalidBodies = [
+        null,
+        'not-an-object',
+        {},
+        { id: 'p-1' },
+        { id: 'p-1', name: 'Ada' },
+        { id: 123, name: 'Ada', email: null },
+        { id: 'p-1', name: 123, email: null },
+        { id: 'p-1', name: 'Ada', email: 123 },
+      ];
+      for (const body of invalidBodies) fetchMock.mockResolvedValueOnce(Response.json(body));
+      await Promise.all(
+        invalidBodies.map(() =>
+          expect(fetchCurrentUser()).rejects.toThrow('GET /api/auth/me returned an unexpected body'),
+        ),
+      );
+    });
   });
 
   describe('loginHref', () => {

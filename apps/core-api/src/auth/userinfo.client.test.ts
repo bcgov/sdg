@@ -90,4 +90,15 @@ describe('UserinfoClient', () => {
     t.userinfoMode = 'wrong-subject';
     expect((await failure(token, user)).reason).toBe('invalid');
   });
+
+  it('Should fail as unavailable when an endpoint returns an unexpected body', async () => {
+    const { token, user } = await verified();
+    const badBodyClient = new UserinfoClient(t.issuer, () =>
+      Promise.resolve(new Response(JSON.stringify({}), { status: 200 })),
+    );
+    await expect(badBodyClient.profile(token, user)).rejects.toMatchObject({
+      name: 'UserinfoError',
+      reason: 'unavailable',
+    });
+  });
 });

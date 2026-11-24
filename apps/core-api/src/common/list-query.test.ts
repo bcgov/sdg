@@ -65,10 +65,22 @@ describe('numberedQuerySchema (R12, KTD2)', () => {
 
   it('Should keep an explicit order', () => {
     expect(numbered.parse({ sort: 'overridesOn', order: 'asc' })).toMatchObject({ order: 'asc' });
+    expect(numbered.parse({ sort: 'key', order: 'desc' })).toMatchObject({ order: 'desc' });
   });
 
   it('Should treat a blank search as no search', () => {
     expect(numbered.parse({ q: '   ' }).q).toBeUndefined();
+  });
+
+  it('Should fall back to ascending order when sort is missing, non-string, or unknown', () => {
+    const withOptionalSort = numberedQuerySchema({
+      sort: { key: 'desc' },
+      defaultSort: 'key',
+      filters: { sort: z.union([z.string(), z.number()]).optional() },
+    });
+    expect(withOptionalSort.parse({}).order).toBe('asc');
+    expect(withOptionalSort.parse({ sort: 123 }).order).toBe('asc');
+    expect(withOptionalSort.parse({ sort: 'unknown' }).order).toBe('asc');
   });
 });
 

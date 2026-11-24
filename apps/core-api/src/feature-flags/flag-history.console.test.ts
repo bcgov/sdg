@@ -1,19 +1,61 @@
 import { randomUUID } from 'node:crypto';
 
-import { featureFlagEvents, featureFlags } from '@repo/database';
+import { featureFlagEvents, featureFlags, principals, type FeatureFlagEvent } from '@repo/database';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import type { Database } from '../database/database.module.js';
 import { createTestApp, type TestApp } from '../testing/app.js';
+import { readHistory } from './flag-history.query.js';
 
 const HISTORY = '/api/v1/console/feature-flag-history';
 
 interface Page {
-  items: { id: number; flagKey: string }[];
+  items: {
+    id: number;
+    flagKey: string;
+    subject?: { principalId: string; name: string | null } | null;
+  }[];
   older: number | null;
   newer: number | null;
 }
 
 const ids = (from: Page) => from.items.map((event) => event.id);
+
+function makeMockEvent(id: number | undefined): { event: FeatureFlagEvent; subjectName: string | null } {
+  return {
+    event: {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- deliberately simulate missing id for branch coverage
+      id: id as unknown as number,
+      flagKey: 'stub_flag',
+      action: 'created',
+      actorPrincipalId: randomUUID(),
+      actorName: 'Ada Lovelace',
+      subjectPrincipalId: null,
+      changes: {},
+      createdAt: new Date(),
+    },
+    subjectName: null,
+  };
+}
+
+function mockDb(rows: { event: FeatureFlagEvent; subjectName: string | null }[]) {
+  let callCount = 0;
+  const queryBuilder = {
+    from: () => queryBuilder,
+    leftJoin: () => queryBuilder,
+    where: () => queryBuilder,
+    orderBy: () => queryBuilder,
+    limit: () => {
+      callCount += 1;
+      if (callCount === 1) {
+        return Promise.resolve(rows);
+      }
+      return Promise.resolve([{ id: 1 }]);
+    },
+  };
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal query builder stub for edge case coverage
+  return { select: () => queryBuilder } as unknown as Database;
+}
 
 describe('Console flag history GET /api/v1/console/feature-flag-history, two-way cursors (R13, R19, R20, KTD3)', () => {
   let t: TestApp;
@@ -124,5 +166,45 @@ describe('Console flag history GET /api/v1/console/feature-flag-history, two-way
     const oldest = await page(`?key=gone_flag&limit=20&before=${newest.older}`);
     expect(oldest).toEqual({ items: expect.any(Array), older: null, newer: all[20] });
     expect(ids(oldest)).toEqual(all.slice(20));
+  });
+
+  it('Should answer null older cursor when after query has more newer events but no older events', async () => {
+    const all = await events('start_flag', 25);
+    const oldestId = all[24]!;
+    const res = await page(`?key=start_flag&limit=20&after=${oldestId - 1}`);
+    expect(res.items.length).toBe(20);
+    expect(res.older).toBeNull();
+    expect(res.newer).toBe(all[5]);
+  });
+
+  it('Should include subject details when an event has a subjectPrincipalId', async () => {
+    const subjectId = randomUUID();
+    await t.database.db.insert(principals).values({ id: subjectId, displayName: 'Subject User' });
+    await t.database.db.insert(featureFlagEvents).values({
+      flagKey: 'subject_flag',
+      action: 'override_set',
+      actorPrincipalId: randomUUID(),
+      actorName: 'Ada Lovelace',
+      subjectPrincipalId: subjectId,
+      changes: { enabled: { from: null, to: true } },
+    });
+    const res = await page('?key=subject_flag&limit=10');
+    expect(res.items[0]?.subject).toEqual({ principalId: subjectId, name: 'Subject User' });
+  });
+
+  describe('readHistory cursor fallback branches', () => {
+    it('Should fallback to null for newer cursor when boundary item has no id (line 58)', async () => {
+      const db = mockDb([makeMockEvent(10), makeMockEvent(undefined), makeMockEvent(30)]);
+      const result = await readHistory(db, { limit: 2, after: 5 });
+      expect(result.newer).toBeNull();
+      expect(result.older).toBe(10);
+    });
+
+    it('Should fallback to null for older cursor when boundary item has no id (line 65)', async () => {
+      const db = mockDb([makeMockEvent(10), makeMockEvent(undefined), makeMockEvent(30)]);
+      const result = await readHistory(db, { limit: 2 });
+      expect(result.older).toBeNull();
+      expect(result.newer).toBeNull();
+    });
   });
 });
