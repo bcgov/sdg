@@ -13,10 +13,18 @@ import { setUpFontAwesome } from './font-awesome';
 import { createAppRouter } from './router';
 import { startTelemetry } from './telemetry';
 
+async function startHeader(): Promise<void> {
+  try {
+    await loadSdgHeader();
+  } catch {
+    // The loader logs a failure with context; the page keeps the pre-load band and shows no header.
+  }
+}
+
 setUpFontAwesome();
 
 // Start loading the edge-served <sdg-header> before React mounts so it overlaps initial render.
-void loadSdgHeader().catch(() => undefined);
+void startHeader();
 
 // Browser telemetry, only when the edge's /telemetry.json enables it; never blocks or breaks rendering.
 void startTelemetry();
