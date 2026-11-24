@@ -9,7 +9,6 @@ export default defineReactTestConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.(ts|tsx)'],
-      exclude: ['src/main.tsx'],
       reportOnFailure: true,
     },
   },
