@@ -14,7 +14,7 @@ import type { ManifestPayload } from '../src/signing/manifest.ts';
 import { signManifest } from '../src/signing/sign.ts';
 import { verifyManifest } from '../src/signing/verify.ts';
 import type { Jwk, PublicKeys } from './keysets.ts';
-import { runSignManifest, type SignDeps } from './sign-manifest.ts';
+import { runSignManifest, runVerifyManifest, type SignDeps } from './sign-manifest.ts';
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 10, 23, 3);
@@ -250,5 +250,22 @@ describe('either mode', () => {
     expect(failure?.stderr).toContain('HEADER_SIGNING_KEY is not set');
     expect(`${failure?.stdout}${failure?.stderr}`).not.toContain('SENTINEL');
     expect(existsSync(out)).toBe(false);
+  });
+});
+
+describe('verify mode', () => {
+  it('returns the payload for a valid manifest and refuses tampered or expired ones unless --accept-expired is set', async () => {
+    const validFile = record();
+    const payload = await runVerifyManifest('test', validFile, deps());
+    expect(payload.sequence).toBe(SEQUENCE);
+
+    const expiredFile = record({ issuedAt: NOW - 100 * DAY, expires: NOW - 10 * DAY });
+    await expect(runVerifyManifest('test', expiredFile, deps())).rejects.toThrow('expired');
+    const expiredPayload = await runVerifyManifest('test', expiredFile, deps(), true);
+    expect(expiredPayload.sequence).toBe(SEQUENCE);
+
+    const envelope = JSON.parse(readFileSync(validFile, 'utf8'));
+    writeFileSync(validFile, JSON.stringify({ ...envelope, keyId: backup.keyId }));
+    await expect(runVerifyManifest('test', validFile, deps())).rejects.toThrow('bad-signature');
   });
 });

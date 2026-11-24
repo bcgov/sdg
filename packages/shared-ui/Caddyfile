@@ -23,8 +23,8 @@
 
 	handle /header/v1/loader.js {
 		# One promoted image serves every environment; the chart picks the keyset.
-		rewrite * /header/v1/loaders/{$HEADER_KEYSET}/loader.js
-		root * /srv
+		rewrite * /{$HEADER_KEYSET}/loader.js
+		root * /loaders
 		file_server
 	}
 

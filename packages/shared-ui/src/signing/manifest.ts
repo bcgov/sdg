@@ -1,13 +1,11 @@
 // The signed manifest's payload (KTD2): what a release says about itself. Browser-safe; shared by the loader, the
 // signer and the signing scripts. Relative imports in src/signing use `.ts` so Node scripts can run them directly.
+import { HEADER_MAJOR } from '../header/contract.ts';
 
 export const MANIFEST_SCHEMA = 1;
 
-/** Bundles are served only from here, on the loader's own origin (KTD2). */
-export const BUNDLE_PATH_PREFIX = '/shared-ui/header/v1/bundles/';
-
 export interface ManifestBundle {
-  /** Root-relative, content-hashed path under `BUNDLE_PATH_PREFIX`; resolved against the loader's origin. */
+  /** Root-relative, content-hashed path under `/shared-ui/header/v<major>/bundles/`; resolved against the loader's origin. */
   path: string;
   /** The bundle's Subresource Integrity value (`sha384-…`), used as the script's `integrity`. */
   integrity: string;
@@ -31,20 +29,21 @@ export interface ManifestPayload {
 }
 
 // One file name of letters, digits, `_`, `-` and single dots, ending in `.js`: no `..`, `/`, `%`, `?` or `#`.
-const BUNDLE_PATH = /^\/shared-ui\/header\/v1\/bundles\/[\w-]+(?:\.[\w-]+)*\.js$/;
+const BUNDLE_FILE = /^[\w-]+(?:\.[\w-]+)*\.js$/;
 // sha384 is 48 bytes: 64 base64 characters, no padding.
 const SHA384_INTEGRITY = /^sha384-[A-Za-z0-9+/]{64}$/;
 
-/** True when `path` is a root-relative bundle path under `BUNDLE_PATH_PREFIX`, so it can't leave the loader's origin. */
-export function isBundlePath(path: string): boolean {
-  return BUNDLE_PATH.test(path);
+/** True when `path` is a root-relative bundle path under `/shared-ui/header/v<major>/bundles/`, so it can't leave the loader's origin. */
+export function isBundlePath(path: string, major: number = HEADER_MAJOR): boolean {
+  const prefix = `/shared-ui/header/v${major}/bundles/`;
+  return path.startsWith(prefix) && BUNDLE_FILE.test(path.slice(prefix.length));
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isCount(value: unknown): value is number {
+export function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 

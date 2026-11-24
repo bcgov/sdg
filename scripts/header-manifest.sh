@@ -16,30 +16,8 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 
 verify() {
   local keyset="$1" file="$2"
-  node --input-type=module - "$root" "$keyset" "$file" <<'EOF'
-import { readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
-
-const [root, keyset, file] = process.argv.slice(2);
-const load = (path) => import(pathToFileURL(`${root}/packages/shared-ui/${path}`).href);
-const [{ verifyManifest }, { readKeyset }] = await Promise.all([
-  load('src/signing/verify.ts'),
-  load('scripts/keysets.ts'),
-]);
-let value;
-try {
-  value = JSON.parse(readFileSync(file, 'utf8'));
-} catch (error) {
-  console.error(`${file} is not JSON: ${error.message}`);
-  process.exit(1);
-}
-const result = await verifyManifest(value, { keys: readKeyset(keyset).keys, keyset, now: Date.now(), floor: 0 });
-if (!result.ok) {
-  console.error(`${file} does not verify with keyset ${keyset}: ${result.reason}`);
-  process.exit(1);
-}
-console.log(JSON.stringify(result.payload));
-EOF
+  shift 2
+  node "${root}/packages/shared-ui/scripts/sign-manifest.ts" verify --keyset "$keyset" --manifest "$file" "$@"
 }
 
 record() {
@@ -72,7 +50,10 @@ record() {
 }
 
 case "${1:-}" in
-  verify) [ $# -eq 3 ] || { echo "Usage: $0 verify <keyset> <manifest.json>" >&2; exit 1; }; verify "$2" "$3" ;;
+  verify)
+    if [ $# -eq 3 ]; then verify "$2" "$3"
+    elif [ $# -eq 4 ] && [ "$4" = --accept-expired ]; then verify "$2" "$3" --accept-expired
+    else echo "Usage: $0 verify <keyset> <manifest.json> [--accept-expired]" >&2; exit 1; fi ;;
   record) [ $# -eq 3 ] || { echo "Usage: $0 record test|prod <dir>" >&2; exit 1; }; record "$2" "$3" ;;
-  *) echo "Usage: $0 verify <keyset> <manifest.json> | record test|prod <dir>" >&2; exit 1 ;;
+  *) echo "Usage: $0 verify <keyset> <manifest.json> [--accept-expired] | record test|prod <dir>" >&2; exit 1 ;;
 esac

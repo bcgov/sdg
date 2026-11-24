@@ -2,10 +2,18 @@
 // The committed loaders (KTD5): their bytes never change within a major (R1), so each one must match its sha384 in
 // loaders.lock.json and embed exactly its keyset's public keys. Changing a key without `build:loaders` fails here.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { LOADERS_DIR, LOADERS_LOCK, listKeysets, readKeyset, type LoadersLock } from '../../scripts/keysets.ts';
+import {
+  LOADERS_DIR,
+  LOADERS_LOCK,
+  PACKAGE_ROOT,
+  listKeysets,
+  readKeyset,
+  type LoadersLock,
+} from '../../scripts/keysets.ts';
 import { sha384Integrity } from '../../scripts/vite-builds.ts';
 
 const lock: LoadersLock = JSON.parse(readFileSync(LOADERS_LOCK, 'utf8'));
@@ -43,5 +51,11 @@ describe('committed loaders', () => {
     for (const marker of ['attachShadow', 'customElements.define', 'site-title', 'adoptedStyleSheets']) {
       expect(code).not.toContain(marker);
     }
+  });
+
+  it('compose.yaml carries the locked dev loader integrity', () => {
+    const compose = readFileSync(join(PACKAGE_ROOT, '../../compose.yaml'), 'utf8');
+    const match = /^\s*HEADER_LOADER_INTEGRITY:\s*(\S+)/m.exec(compose);
+    expect(match?.[1]).toBe(lock['dev']?.integrity);
   });
 });

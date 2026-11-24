@@ -1,30 +1,27 @@
-// Signs the header manifest, for every workflow that publishes one:
+// Signs or verifies the header manifest, for every workflow that publishes or checks one:
 //
 //   sign-manifest.ts release --release <release.json> --version <label> --out <manifest.json>
 //   sign-manifest.ts resign --record <previous manifest.json> [--live-url <manifest URL>] --out <manifest.json>
+//   sign-manifest.ts verify --keyset <keyset> --manifest <manifest.json> [--accept-expired]
 //
 // `release` signs a new build: sequence and bundle come from the build's `release.json`. `resign` re-signs CI's own
 // record of the current release (the previous signing run's envelope): it verifies the record against
 // keys/<keyset>.json, accepting an expired signature, keeps its sequence, version and bundle, and moves only the
 // expiry and floor. Given the live manifest URL it only compares: a live sequence other than the record's fails, so
-// content read back from the edge is never signed. Both refuse a floor above the sequence.
+// content read back from the edge is never signed. Both refuse a floor above the sequence. `verify` checks an envelope
+// against keys/<keyset>.json and prints the verified payload as JSON.
 //
-// Environment: HEADER_SIGNING_KEY (a P-256 private JWK as JSON), HEADER_SIGNING_KEY_ID, HEADER_KEYSET, HEADER_FLOOR
-// (a sequence, ms) and HEADER_TTL_DAYS (default 90). It prints only non-secret fields and never an env value.
-import { createPrivateKey, type KeyObject, type webcrypto } from 'node:crypto';
+// Environment (release/resign): HEADER_SIGNING_KEY (a P-256 private JWK as JSON), HEADER_SIGNING_KEY_ID, HEADER_KEYSET,
+// HEADER_FLOOR (a sequence, ms) and HEADER_TTL_DAYS (default 90). It prints only non-secret fields and never an env value.
+import { createPrivateKey, type KeyObject } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
 import type { ManifestEnvelope } from '../src/signing/envelope.ts';
-import { MANIFEST_SCHEMA, isRecord, type ManifestPayload } from '../src/signing/manifest.ts';
+import { MANIFEST_SCHEMA, isCount, isRecord, type ManifestPayload } from '../src/signing/manifest.ts';
 import { signManifest, type SigningKey } from '../src/signing/sign.ts';
 import { verifyManifest, type VerifyResult } from '../src/signing/verify.ts';
 import { DAY_MS, DEFAULT_TTL_DAYS, formatJson, isKeysetName, readKeyset, type PublicKeys } from './keysets.ts';
-
-declare global {
-  // verify.ts types keys with the DOM's global `JsonWebKey`, which this Node-only project (no DOM lib) lacks.
-  type JsonWebKey = webcrypto.JsonWebKey;
-}
 
 const LIVE_FETCH_TIMEOUT_MS = 15_000;
 
@@ -55,10 +52,6 @@ export interface SignSummary {
 /** Thrown for every refusal; its message never contains an environment value. */
 class SignError extends Error {}
 
-function count(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
-}
-
 /** A non-negative integer from env `name`; the message names the variable, never its value. */
 function envInteger(env: NodeJS.ProcessEnv, name: string, fallback?: number): number {
   const text = env[name];
@@ -67,7 +60,7 @@ function envInteger(env: NodeJS.ProcessEnv, name: string, fallback?: number): nu
     throw new SignError(`${name} is not set`);
   }
   const value = Number(text);
-  if (!/^\d+$/.test(text) || !count(value)) throw new SignError(`${name} must be a non-negative integer`);
+  if (!/^\d+$/.test(text) || !isCount(value)) throw new SignError(`${name} must be a non-negative integer`);
   return value;
 }
 
@@ -116,7 +109,7 @@ function fromReleaseJson(file: string, version: string): Unsigned {
   const { schema, sequence, bundle } = record;
   const { path, integrity } = isRecord(bundle) ? bundle : {};
   // The path and integrity formats are checked when the signed result is verified (`sign`).
-  if (schema !== 1 || !count(sequence) || typeof path !== 'string' || typeof integrity !== 'string') {
+  if (schema !== 1 || !isCount(sequence) || typeof path !== 'string' || typeof integrity !== 'string') {
     throw new SignError(`${file} is not a release.json ({ schema: 1, sequence, bundle: { path, integrity } })`);
   }
   return { version, sequence, bundle: { path, integrity } };
@@ -195,7 +188,8 @@ async function sign(
 
 const USAGE =
   'usage: sign-manifest.ts release --release <release.json> --version <label> --out <file>\n' +
-  '       sign-manifest.ts resign --record <manifest.json> [--live-url <url>] --out <file>';
+  '       sign-manifest.ts resign --record <manifest.json> [--live-url <url>] --out <file>\n' +
+  '       sign-manifest.ts verify --keyset <keyset> --manifest <manifest.json> [--accept-expired]';
 
 function parse(argv: string[]) {
   const { values, positionals } = parseArgs({
@@ -207,11 +201,20 @@ function parse(argv: string[]) {
       record: { type: 'string' },
       'live-url': { type: 'string' },
       out: { type: 'string' },
+      keyset: { type: 'string' },
+      manifest: { type: 'string' },
+      'accept-expired': { type: 'boolean' },
     },
   });
   const [mode] = positionals;
-  const { release, version, record, out } = values;
-  if (positionals.length !== 1 || !out) throw new SignError(USAGE);
+  const { release, version, record, out, keyset, manifest } = values;
+  const acceptExpired = values['accept-expired'] === true;
+  if (positionals.length !== 1) throw new SignError(USAGE);
+  if (mode === 'verify' && keyset && manifest && !out && !release && !version && !record && !values['live-url']) {
+    if (!isKeysetName(keyset)) throw new SignError(`invalid keyset "${keyset}"`);
+    return { mode, keyset, manifest, acceptExpired } as const;
+  }
+  if (!out || keyset || manifest || acceptExpired) throw new SignError(USAGE);
   if (mode === 'release' && release && version && !record && !values['live-url']) {
     return { mode, release, version, out } as const;
   }
@@ -221,9 +224,29 @@ function parse(argv: string[]) {
   throw new SignError(USAGE);
 }
 
+/** Verifies a manifest file against a keyset's public keys; returns the verified payload or throws SignError. */
+export async function runVerifyManifest(
+  keyset: string,
+  manifestFile: string,
+  deps: Pick<SignDeps, 'now' | 'readKeys'>,
+  acceptExpired = false,
+): Promise<ManifestPayload> {
+  const value = readJson(manifestFile, 'manifest');
+  const result = await verifyManifest(value, {
+    keys: deps.readKeys(keyset),
+    keyset,
+    now: deps.now(),
+    floor: 0,
+    acceptExpired,
+  });
+  if (!result.ok) throw new SignError(`${manifestFile} does not verify with keyset ${keyset}: ${result.reason}`);
+  return result.payload;
+}
+
 /** Runs one signing; throws (and writes nothing) on any refusal. */
 export async function runSignManifest(argv: string[], env: NodeJS.ProcessEnv, deps: SignDeps): Promise<SignSummary> {
   const args = parse(argv);
+  if (args.mode === 'verify') throw new SignError('use runVerifyManifest for verify mode');
   const settings = readSettings(env);
   const unsigned =
     args.mode === 'release'
@@ -254,7 +277,14 @@ async function main(): Promise<void> {
     fetch: (url, init) => fetch(url, init),
     readKeys: (keyset) => readKeyset(keyset).keys,
   };
-  printSummary(await runSignManifest(process.argv.slice(2), process.env, deps));
+  const argv = process.argv.slice(2);
+  const args = parse(argv);
+  if (args.mode === 'verify') {
+    const payload = await runVerifyManifest(args.keyset, args.manifest, deps, args.acceptExpired);
+    console.log(JSON.stringify(payload));
+    return;
+  }
+  printSummary(await runSignManifest(argv, process.env, deps));
 }
 
 if (import.meta.main) {

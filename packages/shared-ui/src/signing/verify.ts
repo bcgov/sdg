@@ -3,8 +3,18 @@
 import { decodeBase64Url, parseEnvelope, signedBytes } from './envelope.ts';
 import { isBundlePath, parsePayload, type ManifestPayload } from './manifest.ts';
 
+/** Structural public JWK shape usable across browser DOM and Node WebCrypto without ambient globals. */
+export interface PublicJwk {
+  kty?: string;
+  crv?: string;
+  x?: string;
+  y?: string;
+  ext?: boolean;
+  key_ops?: string[];
+}
+
 /** Trusted P-256 public keys in JWK form, keyed by `keyId` (a keyset's primary and backup, R7). */
-export type TrustedKeys = Readonly<Record<string, JsonWebKey>>;
+export type TrustedKeys = Readonly<Record<string, PublicJwk>>;
 
 export interface VerifyOptions {
   keys: TrustedKeys;
@@ -14,6 +24,8 @@ export interface VerifyOptions {
   now: number;
   /** The caller's floor (e.g. the visitor's remembered one); the effective floor is the higher of this and the manifest's. */
   floor: number;
+  /** Header major version whose bundle prefix is allowed (defaults to `HEADER_MAJOR`). */
+  major?: number;
   /** Skip the expiry check. Only for re-signing CI's own verified record (KTD7); never in the loader. */
   acceptExpired?: boolean;
 }
@@ -39,7 +51,7 @@ function subtleCrypto(): SubtleCrypto | undefined {
 /** True when `sig` is a valid signature by `jwk` over the domain-prefixed `payloadBytes`. Throws on crypto errors. */
 async function signatureValid(
   subtle: SubtleCrypto,
-  jwk: JsonWebKey,
+  jwk: PublicJwk,
   sig: Uint8Array<ArrayBuffer>,
   payloadBytes: Uint8Array,
 ): Promise<boolean> {
@@ -59,7 +71,7 @@ function decodePayload(bytes: Uint8Array): ManifestPayload | undefined {
 /** Checks a verified payload against the caller's keyset, clock and floor. */
 function checkPayload(payload: ManifestPayload, options: VerifyOptions): VerifyResult {
   if (payload.keyset !== options.keyset) return fail('wrong-keyset');
-  if (!isBundlePath(payload.bundle.path)) return fail('bad-bundle-path');
+  if (!isBundlePath(payload.bundle.path, options.major)) return fail('bad-bundle-path');
   if (!options.acceptExpired && options.now >= payload.expires) return fail('expired');
   if (payload.sequence < Math.max(options.floor, payload.floor)) return fail('below-floor');
   return { ok: true, payload };

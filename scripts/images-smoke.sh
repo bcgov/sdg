@@ -284,6 +284,7 @@ check "the bundle matches release.json's integrity" test "$(sri "$TMP/bundle.js"
 check "the bundle is cached immutably" \
   test "$(header Cache-Control "$TMP/bundle.headers")" = "public, max-age=31536000, immutable"
 check "release.json is not served" test "$(status "$SHARED_UI/release/release.json")" = 404
+check "non-selected keyset loaders are not served under /srv" test "$(status "$SHARED_UI/header/v1/loaders/dev/loader.js")" = 404
 check "the unsigned /header/v1/sdg-header.js is gone (404)" test "$(status "$SHARED_UI/header/v1/sdg-header.js")" = 404
 check "an unknown path is 404 (no fallback)" test "$(status "$SHARED_UI/header/v1/missing.js")" = 404
 

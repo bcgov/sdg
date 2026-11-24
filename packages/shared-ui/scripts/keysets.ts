@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { isRecord } from '../src/signing/manifest.ts';
+import type { PublicJwk } from '../src/signing/verify.ts';
 
 // From the file path string, not `new URL(…)`: under jsdom tests the global URL is jsdom's, which fileURLToPath refuses.
 export const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -20,8 +21,8 @@ export const DAY_MS = 86_400_000;
 /** How long a signed manifest stays valid unless HEADER_TTL_DAYS says otherwise. */
 export const DEFAULT_TTL_DAYS = 90;
 
-/** Public P-256 JWKs keyed by `keyId`: the loader's `TrustedKeys` (src/signing/verify.ts), in Node's JWK type. */
-export type PublicKeys = Readonly<Record<string, Jwk>>;
+/** Public P-256 JWKs keyed by `keyId`: the loader's `TrustedKeys` (src/signing/verify.ts). */
+export type PublicKeys = Readonly<Record<string, PublicJwk>>;
 
 export type Jwk = webcrypto.JsonWebKey;
 

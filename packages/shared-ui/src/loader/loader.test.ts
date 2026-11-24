@@ -231,6 +231,17 @@ describe('loadHeader', () => {
     expect(errors).toHaveBeenCalledWith(expect.stringMatching(/^shared-ui: /), expect.anything());
   });
 
+  it('does not persist a raised floor when the bundle fails to load', async () => {
+    window.localStorage.setItem(FLOOR_KEY, '100');
+    const fetchFn = manifestFetch(signed({ sequence: 250, floor: 250 }));
+    const outcome = start(fetchFn);
+    await settleBundle(0, 'error');
+    await settleBundle(1, 'error');
+
+    await expect(outcome).resolves.toBe('no-header');
+    expect(window.localStorage.getItem(FLOOR_KEY)).toBe('100');
+  });
+
   it('fetches nothing when sdg-header is already defined', async () => {
     vi.spyOn(window.customElements, 'get').mockImplementation((name) =>
       name === 'sdg-header' ? class extends HTMLElement {} : undefined,

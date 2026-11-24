@@ -60,8 +60,10 @@ async function fetchManifest(context: Context): Promise<{ value: unknown } | und
   }
 }
 
-/** Fetches and verifies the manifest, and remembers its floor when higher. `undefined` (logged) when refused. */
-async function fetchRelease(context: Context): Promise<ManifestPayload | undefined> {
+/** Fetches and verifies the manifest without persisting the floor yet. `undefined` (logged) when refused. */
+async function fetchRelease(
+  context: Context,
+): Promise<{ payload: ManifestPayload; stored: number | undefined } | undefined> {
   const { config, deps } = context;
   const key = floorKey(config.keyset, config.major);
   const stored = readFloor(deps.storage, key);
@@ -72,6 +74,7 @@ async function fetchRelease(context: Context): Promise<ManifestPayload | undefin
     keyset: config.keyset,
     now: deps.now(),
     floor: stored ?? 0,
+    major: config.major,
   });
   if (!result.ok) {
     console.error('shared-ui: header manifest refused; the page shows no header', {
@@ -80,8 +83,7 @@ async function fetchRelease(context: Context): Promise<ManifestPayload | undefin
     });
     return undefined;
   }
-  if (stored === undefined || result.payload.floor > stored) rememberFloor(deps.storage, key, result.payload.floor);
-  return result.payload;
+  return { payload: result.payload, stored };
 }
 
 /** Injects the release's bundle; resolves `true` on `load` and `false` (logged) on `error`. */
@@ -107,11 +109,16 @@ function injectBundle(context: Context, release: ManifestPayload): Promise<boole
 
 /**
  * Fetches, verifies and injects one release: `true` when its bundle loaded, `false` after a bundle error, and
- * `'refused'` when no release passed the checks.
+ * `'refused'` when no release passed the checks. Persists a raised floor only after the bundle loads.
  */
 async function attempt(context: Context): Promise<boolean | 'refused'> {
   const release = await fetchRelease(context);
-  return release ? injectBundle(context, release) : 'refused';
+  if (!release) return 'refused';
+  const loaded = await injectBundle(context, release.payload);
+  if (loaded && (release.stored === undefined || release.payload.floor > release.stored)) {
+    rememberFloor(context.deps.storage, floorKey(context.config.keyset, context.config.major), release.payload.floor);
+  }
+  return loaded;
 }
 
 /** One attempt, and after a failed bundle load one more with a refetched manifest (KTD14). */

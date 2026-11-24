@@ -51,14 +51,25 @@ function refuse(dir: string): never {
   throw new Error(`refusing to write private keys inside the repository (${dir}); choose a directory outside it`);
 }
 
-/** Creates `out` if needed and returns its real path; refuses one inside the repository. */
-function privateKeyDir(out: string): string {
-  const root = repoRoot();
+export interface GenerateKeysDeps {
+  /** Directory where committed public keys live (defaults to `KEYS_DIR`). */
+  keysDir?: string;
+  /** Repository root that private keys must never be written inside (defaults to the repo root). */
+  repoRoot?: string;
+  /** Current date for key IDs. */
+  now?: () => Date;
+  /** Logger for non-secret progress lines. */
+  info?: (line: string) => void;
+}
+
+/** Creates `out` if needed and returns its real path; refuses one inside `root`. */
+export function privateKeyDir(out: string, root = repoRoot()): string {
+  const realRoot = realpathSync(root);
   // Checked before creating it (so a refused path leaves nothing behind) and again once symlinks resolve.
-  if (isInside(resolve(out), root)) refuse(resolve(out));
+  if (isInside(resolve(out), root) || isInside(resolve(out), realRoot)) refuse(resolve(out));
   mkdirSync(out, { recursive: true, mode: 0o700 });
   const dir = realpathSync(out);
-  if (isInside(dir, root)) refuse(dir);
+  if (isInside(dir, realRoot)) refuse(dir);
   return dir;
 }
 
@@ -72,15 +83,19 @@ function writePrivateKeys(dir: string, keys: GeneratedKey[]): string[] {
 }
 
 /** The dev keyset's private keys, committed and labelled. */
-function writeDevPrivateKeys(keys: GeneratedKey[]): string[] {
-  const file = join(KEYS_DIR, `${DEV_KEYSET}.private.json`);
+function writeDevPrivateKeys(keysDir: string, keys: GeneratedKey[]): string[] {
+  const file = join(keysDir, `${DEV_KEYSET}.private.json`);
   const record = { warning: DEV_WARNING, keys: Object.fromEntries(keys.map((k) => [k.keyId, k.privateJwk])) };
   writeFileSync(file, formatJson(record));
   return [file];
 }
 
-function parse(): { keyset: string; out: string | undefined } {
-  const { values, positionals } = parseArgs({ options: { out: { type: 'string' } }, allowPositionals: true });
+function parse(argv: string[]): { keyset: string; out: string | undefined } {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    options: { out: { type: 'string' } },
+    allowPositionals: true,
+  });
   const [keyset] = positionals;
   if (positionals.length !== 1 || !keyset || !isKeysetName(keyset)) {
     throw new Error('usage: generate-keys.ts <keyset> --out <directory outside the repository>');
@@ -90,30 +105,39 @@ function parse(): { keyset: string; out: string | undefined } {
   return { keyset, out: values.out };
 }
 
-function main(): void {
-  const { keyset, out } = parse();
-  const date = utcDate(new Date());
+export function runGenerateKeys(
+  argv: string[],
+  deps: GenerateKeysDeps = {},
+): { publicFile: string; privateFiles: string[]; keysetFile: KeysetFile } {
+  const { keyset, out } = parse(argv);
+  const keysDir = deps.keysDir ?? KEYS_DIR;
+  const root = deps.repoRoot ?? repoRoot();
+  const info = deps.info ?? console.info;
+  const date = utcDate((deps.now ?? (() => new Date()))());
   const keys = [generate(`${keyset}-primary-${date}`), generate(`${keyset}-backup-${date}`)];
   // Check the private-key destination before touching the committed public keys.
-  const dir = out === undefined ? undefined : privateKeyDir(out);
-  const privateFiles = dir ? writePrivateKeys(dir, keys) : writeDevPrivateKeys(keys);
-  const publicFile = join(KEYS_DIR, `${keyset}.json`);
+  const dir = out === undefined ? undefined : privateKeyDir(out, root);
+  const privateFiles = dir ? writePrivateKeys(dir, keys) : writeDevPrivateKeys(keysDir, keys);
+  const publicFile = join(keysDir, `${keyset}.json`);
   const keysetFile: KeysetFile = { keyset, keys: Object.fromEntries(keys.map((k) => [k.keyId, k.publicJwk])) };
   writeFileSync(publicFile, formatJson(keysetFile));
-  console.info(`Public keys for "${keyset}" written to ${publicFile}:`);
-  console.info(formatJson(keysetFile));
-  console.info(`Private keys (not shown) written to:\n  ${privateFiles.join('\n  ')}`);
-  console.info('Next: pnpm --filter @repo/shared-ui build:loaders, then commit keys/, loaders/ and loaders.lock.json.');
+  info(`Public keys for "${keyset}" written to ${publicFile}:`);
+  info(formatJson(keysetFile));
+  info(`Private keys (not shown) written to:\n  ${privateFiles.join('\n  ')}`);
+  info('Next: pnpm --filter @repo/shared-ui build:loaders, then commit keys/, loaders/ and loaders.lock.json.');
+  return { publicFile, privateFiles, keysetFile };
 }
 
-process.on('unhandledRejection', (reason) => {
-  console.error('generate-keys: unhandled rejection', reason);
-  process.exit(1);
-});
+if (import.meta.main) {
+  process.on('unhandledRejection', (reason) => {
+    console.error('generate-keys: unhandled rejection', reason);
+    process.exit(1);
+  });
 
-try {
-  main();
-} catch (error: unknown) {
-  console.error('generate-keys failed', error instanceof Error ? error.message : error);
-  process.exit(1);
+  try {
+    runGenerateKeys(process.argv.slice(2));
+  } catch (error: unknown) {
+    console.error('generate-keys failed', error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
 }

@@ -37,7 +37,8 @@ COPY packages/shared-ui/Caddyfile /etc/caddy/Caddyfile
 # dist/cdn holds header/v<major>/bundles/sdg-header-<hash>.js. COPY keeps the build's mtime, which Caddy's ETag needs
 # (it omits the ETag for an mtime of 0 or 1, as reproducible-build tools set).
 COPY --from=build /app/packages/shared-ui/dist/cdn /srv
-COPY packages/shared-ui/loaders /srv/header/v1/loaders
+# Committed loaders live outside /srv so only the active HEADER_KEYSET is served via /header/v1/loader.js.
+COPY packages/shared-ui/loaders /loaders
 # What the signer reads from this image: bundle path, integrity and build sequence. Outside /srv, never served.
 COPY --from=build /app/packages/shared-ui/dist/release.json /release/release.json
 USER 1001

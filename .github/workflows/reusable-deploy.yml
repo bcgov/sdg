@@ -191,15 +191,34 @@ jobs:
               helm dependency build "charts/${chart}" > /dev/null
             done
 
+            # On an upgrade where a live manifest ConfigMap already exists, keep the live manifest untouched while Helm
+            # rolls out the new pods so old pods never serve a manifest pointing at a bundle hash they don't ship (nor
+            # break for up to 15m if the new pod fails to become Ready). Once helm upgrade succeeds, patch the ConfigMap
+            # with the newly signed manifest.
+            helm_manifest="${HEADER_DIR}/manifest.json"
+            defer_manifest_patch=false
+            if oc get configmap "${release}-shared-ui-manifest" -o jsonpath='{.data.manifest\.json}' > "${HEADER_DIR}/live-manifest.json" 2>/dev/null \
+              && [ -s "${HEADER_DIR}/live-manifest.json" ]; then
+              helm_manifest="${HEADER_DIR}/live-manifest.json"
+              defer_manifest_patch=true
+            fi
+
             # A first install waits for PGO's cluster and the migrator's retries. Server-side apply with forced
             # conflicts: the re-signer patches the manifest ConfigMap under its own field manager (header-resign.yml),
             # and the chart's values must win again here, as with client-side apply. A failed upgrade's rollback
             # inherits both flags.
             helm upgrade --install "$release" charts/sdg \
               -f "$values_file" -f "$DEPLOY_VALUES" \
-              --set-file "shared-ui.manifest=${HEADER_DIR}/manifest.json" \
+              --set-file "shared-ui.manifest=${helm_manifest}" \
               --server-side=true --force-conflicts \
               --rollback-on-failure --timeout 15m
+
+            if [ "$defer_manifest_patch" = true ]; then
+              jq -n --rawfile manifest "${HEADER_DIR}/manifest.json" '{data: {"manifest.json": $manifest}}' \
+                > "${HEADER_DIR}/deploy-patch.json"
+              oc patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-deploy \
+                --patch-file "${HEADER_DIR}/deploy-patch.json"
+            fi
             helm status "$release"
 
       # CI's record of this signature, which the re-signer (header-resign.yml) and a later failed deploy re-sign from
@@ -226,11 +245,22 @@ jobs:
         run: |
           scripts/header-manifest.sh record "$TARGET" "${HEADER_DIR}/previous"
           mkdir -p "${HEADER_DIR}/restored"
+          # Confirm the restored ConfigMap carries the same release sequence as CI's record before patching, and guard
+          # the patch with its resourceVersion (still logged in as action-oc-runner left it; its token lasts 25 minutes).
+          oc get configmap "${release}-shared-ui-manifest" -o json > "${HEADER_DIR}/restored/cm.json"
+          rv="$(jq -r '.metadata.resourceVersion' "${HEADER_DIR}/restored/cm.json")"
+          jq -r '.data["manifest.json"] // empty' "${HEADER_DIR}/restored/cm.json" > "${HEADER_DIR}/restored/cm-manifest.json"
+          live_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/restored/cm-manifest.json" --accept-expired | jq -r .sequence)"
+          rec_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/previous/manifest.json" --accept-expired | jq -r .sequence)"
+          if [ "$live_seq" != "$rec_seq" ]; then
+            echo "::error::Restored ConfigMap sequence ${live_seq} differs from CI record ${rec_seq}; not patching or uploading record"
+            exit 1
+          fi
           node packages/shared-ui/scripts/sign-manifest.ts resign --record "${HEADER_DIR}/previous/manifest.json" \
             --out "${HEADER_DIR}/restored/manifest.json"
-          jq -n --rawfile manifest "${HEADER_DIR}/restored/manifest.json" '{data: {"manifest.json": $manifest}}' \
+          jq -n --arg rv "$rv" --rawfile manifest "${HEADER_DIR}/restored/manifest.json" \
+            '{metadata: {resourceVersion: $rv}, data: {"manifest.json": $manifest}}' \
             > "${HEADER_DIR}/restored/patch.json"
-          # Still logged in as action-oc-runner left it (its token lasts 25 minutes)
           oc patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-resign \
             --patch-file "${HEADER_DIR}/restored/patch.json"
 

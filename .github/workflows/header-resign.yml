@@ -103,11 +103,10 @@ jobs:
           scripts/header-manifest.sh record "$TARGET" "${HEADER_DIR}/record"
           node packages/shared-ui/scripts/sign-manifest.ts resign --record "${HEADER_DIR}/record/manifest.json" \
             --live-url "${url}/shared-ui/header/v1/manifest.json" --out "${HEADER_DIR}/manifest.json"
-          jq -n --rawfile manifest "${HEADER_DIR}/manifest.json" '{data: {"manifest.json": $manifest}}' \
-            > "${HEADER_DIR}/patch.json"
 
-      # A merge patch under the field manager header-resign. The deploy's Helm upgrade takes the field back with
-      # --server-side=true --force-conflicts (reusable-deploy.yml), so the next deploy is unaffected.
+      # A merge patch under the field manager header-resign, guarded by the ConfigMap's resourceVersion after confirming
+      # its live sequence matches the re-signed manifest so a concurrent deploy is never clobbered (409 Conflict).
+      # The deploy's Helm upgrade takes the field back with --server-side=true --force-conflicts (reusable-deploy.yml).
       - name: Write (TEST)
         if: matrix.target == 'test'
         uses: bcgov/action-oc-runner@111868d1fc50db0a40417ba321d865ef5c931bbd # v1.7.0
@@ -116,22 +115,41 @@ jobs:
           oc_server: ${{ vars.OC_SERVER }}
           oc_token: ${{ secrets.OC_TOKEN }}
           commands: |
+            want_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/manifest.json" | jq -r .sequence)"
+            oc get configmap "${release}-shared-ui-manifest" -o json > "${HEADER_DIR}/cm.json"
+            rv="$(jq -r '.metadata.resourceVersion' "${HEADER_DIR}/cm.json")"
+            jq -r '.data["manifest.json"] // empty' "${HEADER_DIR}/cm.json" > "${HEADER_DIR}/cm-manifest.json"
+            live_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/cm-manifest.json" --accept-expired | jq -r .sequence)"
+            if [ "$live_seq" != "$want_seq" ]; then
+              echo "::error::ConfigMap sequence ${live_seq} differs from re-signed sequence ${want_seq}; a deploy updated it concurrently"
+              exit 1
+            fi
+            jq -n --arg rv "$rv" --rawfile manifest "${HEADER_DIR}/manifest.json" \
+              '{metadata: {resourceVersion: $rv}, data: {"manifest.json": $manifest}}' > "${HEADER_DIR}/patch.json"
             oc patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-resign \
               --patch-file "${HEADER_DIR}/patch.json"
 
-      # The narrow token can't mint the pipeline account's token that action-oc-runner logs in with, so oc uses it
-      # directly, with a throwaway kubeconfig.
+      # The narrow token can't mint the pipeline account's token that action-oc-runner logs in with, so kubectl (pre-installed
+      # on the runner image) uses it directly with a throwaway kubeconfig.
       - name: Write (PROD)
         if: matrix.target == 'prod'
         env:
           OC_TOKEN_HEADER: ${{ secrets.OC_TOKEN_HEADER }}
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
         run: |
-          if ! command -v oc > /dev/null; then
-            curl -fsSL --retry 3 https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-4.18/openshift-client-linux.tar.gz \
-              | sudo tar -xz -C /usr/local/bin oc
+          want_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/manifest.json" | jq -r .sequence)"
+          kubectl get configmap "${release}-shared-ui-manifest" -o json \
+            --server="$OC_SERVER" --token="$OC_TOKEN_HEADER" --namespace="$OC_NAMESPACE" > "${HEADER_DIR}/cm.json"
+          rv="$(jq -r '.metadata.resourceVersion' "${HEADER_DIR}/cm.json")"
+          jq -r '.data["manifest.json"] // empty' "${HEADER_DIR}/cm.json" > "${HEADER_DIR}/cm-manifest.json"
+          live_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/cm-manifest.json" --accept-expired | jq -r .sequence)"
+          if [ "$live_seq" != "$want_seq" ]; then
+            echo "::error::ConfigMap sequence ${live_seq} differs from re-signed sequence ${want_seq}; a deploy updated it concurrently"
+            exit 1
           fi
-          oc patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-resign \
+          jq -n --arg rv "$rv" --rawfile manifest "${HEADER_DIR}/manifest.json" \
+            '{metadata: {resourceVersion: $rv}, data: {"manifest.json": $manifest}}' > "${HEADER_DIR}/patch.json"
+          kubectl patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-resign \
             --server="$OC_SERVER" --token="$OC_TOKEN_HEADER" --namespace="$OC_NAMESPACE" \
             --patch-file "${HEADER_DIR}/patch.json"
 

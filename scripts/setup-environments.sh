@@ -118,12 +118,12 @@ for scope in "${SCOPES[@]}"; do
   ns="$(namespace "$scope")"
   if ! has_secret "$scope" OC_TOKEN && ! oc get secret github-actions-token -n "$ns" >/dev/null 2>&1; then
     echo "No github-actions-token Secret in ${ns} (or no access to it); run scripts/setup-openshift.sh$([ "$OBSERVABILITY" = false ] || echo " --observability") --apply first." >&2
-    exit 1
+    [ "$APPLY" = false ] || exit 1
   fi
 done
 if ! has_secret prod-resign OC_TOKEN_HEADER && ! oc get secret header-resign-token -n "${PLATE}-prod" >/dev/null 2>&1; then
   echo "No header-resign-token Secret in ${PLATE}-prod (or no access to it); run scripts/setup-openshift.sh --apply first." >&2
-  exit 1
+  [ "$APPLY" = false ] || exit 1
 fi
 
 # 1. Environments, with PROD reviewers when given
