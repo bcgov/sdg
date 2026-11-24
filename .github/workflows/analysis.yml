@@ -46,13 +46,25 @@ jobs:
           # and the PostgreSQL .sql files, which Sonar would analyze as Oracle PL/SQL.
           # Test code (tests, e2e, apps' test/ helpers) is excluded like the tests themselves.
           # Tool config files (vite, vitest, playwright, drizzle) are analyzed but not counted for coverage.
-          # Ignores docker:S8431: Renovate pins images as tag@digest, keeping the tag readable.
+          # Ignores:
+          # - e1: docker:S8431 (Renovate pins images as tag@digest, keeping the tag readable).
+          # - e2: secrets:S9131 on keys/dev.private.json (local-only dev key, trusted only by loaders/dev/loader.js).
+          # - e3/e4: tssecurity:S8707/S8703 on packages/shared-ui/scripts/*.ts (CLI tools whose args are paths/URLs).
+          # - e5: tssecurity:S8689 on sign-manifest.ts (prints public keyId/metadata only; never logs private key).
           sonar_args: >
             -Dsonar.exclusions=**/coverage/**,**/node_modules/**,**/dist/**,**/*.test.ts,**/*.test.tsx,**/e2e/**,apps/*/test/**,**/routeTree.gen.ts,**/tsconfig*.json,tooling/typescript-config/*.json,tooling/typescript-config/test/fixtures/**,**/*.sql
             -Dsonar.coverage.exclusions=**/*.config.ts
-            -Dsonar.issue.ignore.multicriteria=e1
+            -Dsonar.issue.ignore.multicriteria=e1,e2,e3,e4,e5
             -Dsonar.issue.ignore.multicriteria.e1.ruleKey=docker:S8431
             -Dsonar.issue.ignore.multicriteria.e1.resourceKey=**/Dockerfile
+            -Dsonar.issue.ignore.multicriteria.e2.ruleKey=secrets:S9131
+            -Dsonar.issue.ignore.multicriteria.e2.resourceKey=packages/shared-ui/keys/dev.private.json
+            -Dsonar.issue.ignore.multicriteria.e3.ruleKey=tssecurity:S8707
+            -Dsonar.issue.ignore.multicriteria.e3.resourceKey=packages/shared-ui/scripts/*.ts
+            -Dsonar.issue.ignore.multicriteria.e4.ruleKey=tssecurity:S8703
+            -Dsonar.issue.ignore.multicriteria.e4.resourceKey=packages/shared-ui/scripts/sign-manifest.ts
+            -Dsonar.issue.ignore.multicriteria.e5.ruleKey=tssecurity:S8689
+            -Dsonar.issue.ignore.multicriteria.e5.resourceKey=packages/shared-ui/scripts/sign-manifest.ts
             -Dsonar.organization=bcgov-sonarcloud
             -Dsonar.projectKey=bcgov_sdg
             -Dsonar.sources=apps,packages,tooling

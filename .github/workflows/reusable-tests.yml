@@ -17,6 +17,10 @@ on:
         description: Gateway host URL (reusable-deploy.yml's gateway_url output)
         default: ''
         type: string
+      keyset:
+        description: The header keyset the deployment's loader trusts (pr, test or prod)
+        default: pr
+        type: string
       playwright-client-username:
         description: Username for portal-web login
         required: true
@@ -93,31 +97,60 @@ jobs:
         if: always()
         run: rm -f tests/load/utils/client-auth.json
 
-      # The header script any site loads (shared-ui behind the edge): the only path other origins may read, revalidated
-      # on every load. Everything else, /api/auth/me included, stays same-origin with no CORS header.
-      - name: Header script
+      # The signed header through the edge (U6): the loader is the committed one for this keyset and revalidated on every
+      # load; the manifest verifies with the keyset's public keys; the bundle it names has the manifest's hash and is
+      # immutable; the old unsigned script is gone (KTD12). /shared-ui/* is the only path other origins may read.
+      # Everything else, /api/auth/me included, stays same-origin with no CORS header.
+      - name: Header loader, manifest and bundle
         env:
           BASE_URL: ${{ inputs.url }}
+          KEYSET: ${{ inputs.keyset }}
         run: |
-          header() { grep -i "^$1:" "$2" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
-          url="${BASE_URL}/shared-ui/header/v1/sdg-header.js"
-          for i in {1..30}; do
-            code=$(curl --connect-timeout 5 --max-time 10 -s -D js.headers -o /dev/null -w "%{http_code}" "$url" || true)
-            [ "$code" = 200 ] && break
-            echo "Waiting (${url} HTTP ${code}; want 200), retrying in 10s... ($i/30)"
-            sleep 10
-          done
-          curl --connect-timeout 5 --max-time 10 -s -D api.headers -o /dev/null "${BASE_URL}/api/auth/me" || true
+          # Downloads go to the runner's temp folder, out of the checkout
+          ws="$GITHUB_WORKSPACE"
+          cd "$RUNNER_TEMP"
+          header() { grep -i "^$1:" "$2.headers" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ //'; }
+          fetch() { curl --connect-timeout 5 --max-time 10 -s -D "$2.headers" -o "$2" -w "%{http_code}" "$1" || true; }
+          sha384() { echo "sha384-$(openssl dgst -sha384 -binary "$1" | base64 -w 0)"; }
           failed=0
           expect() {
             if [ "$2" = "$3" ]; then echo "OK: $1 ($2)"; else echo "::error::$1: got '$2', want '$3'"; failed=1; fi
           }
-          expect "header script status" "$code" 200
-          expect "header script Cache-Control" "$(header Cache-Control js.headers)" no-cache
-          expect "header script Access-Control-Allow-Origin" "$(header Access-Control-Allow-Origin js.headers)" '*'
-          expect "header script Cross-Origin-Resource-Policy" "$(header Cross-Origin-Resource-Policy js.headers)" cross-origin
-          expect "/api/auth/me Cross-Origin-Resource-Policy" "$(header Cross-Origin-Resource-Policy api.headers)" same-origin
-          expect "/api/auth/me Access-Control-Allow-Origin" "$(header Access-Control-Allow-Origin api.headers)" ''
+          cross_origin() { # <name> <file>
+            expect "$1 Access-Control-Allow-Origin" "$(header Access-Control-Allow-Origin "$2")" '*'
+            expect "$1 Cross-Origin-Resource-Policy" "$(header Cross-Origin-Resource-Policy "$2")" cross-origin
+          }
+          base="${BASE_URL}/shared-ui/header/v1"
+          for i in {1..30}; do
+            loader=$(fetch "${base}/loader.js" loader.js)
+            manifest=$(fetch "${base}/manifest.json" manifest.json)
+            [ "$loader" = 200 ] && [ "$manifest" = 200 ] && break
+            echo "Waiting (loader.js HTTP ${loader}, manifest.json HTTP ${manifest}; want 200), retrying in 10s... ($i/30)"
+            sleep 10
+          done
+          expect "loader status" "$loader" 200
+          expect "loader Cache-Control" "$(header Cache-Control loader.js)" no-cache
+          expect "loader integrity (loaders.lock.json ${KEYSET})" "$(sha384 loader.js)" \
+            "$(jq -r --arg keyset "$KEYSET" '.[$keyset].integrity' "${ws}/packages/shared-ui/loaders.lock.json")"
+          cross_origin loader loader.js
+          expect "manifest status" "$manifest" 200
+          expect "manifest Cache-Control" "$(header Cache-Control manifest.json)" no-cache
+          cross_origin manifest manifest.json
+          if payload="$("${ws}/scripts/header-manifest.sh" verify "$KEYSET" manifest.json)"; then
+            echo "OK: manifest verifies with keyset ${KEYSET}: ${payload}"
+            bundle=$(fetch "${BASE_URL}$(jq -r .bundle.path <<< "$payload")" bundle.js)
+            expect "bundle status" "$bundle" 200
+            expect "bundle Cache-Control" "$(header Cache-Control bundle.js)" 'public, max-age=31536000, immutable'
+            expect "bundle integrity" "$(sha384 bundle.js)" "$(jq -r .bundle.integrity <<< "$payload")"
+            cross_origin bundle bundle.js
+          else
+            echo "::error::${base}/manifest.json does not verify with keyset ${KEYSET}"
+            failed=1
+          fi
+          expect "old unsigned /shared-ui/header/v1/sdg-header.js status" "$(fetch "${base}/sdg-header.js" old.js)" 404
+          fetch "${BASE_URL}/api/auth/me" api > /dev/null
+          expect "/api/auth/me Cross-Origin-Resource-Policy" "$(header Cross-Origin-Resource-Policy api)" same-origin
+          expect "/api/auth/me Access-Control-Allow-Origin" "$(header Access-Control-Allow-Origin api)" ''
           exit "$failed"
 
       # The edge routes by Host. /telemetry.json is answered by the edge itself, so 200 there shows the console host's
@@ -151,6 +184,55 @@ jobs:
           done
           echo "ERROR: the console and gateway hosts did not answer as expected in time."
           exit 1
+
+  # TEST's and PROD's live header manifests (KTD10): each must verify with its keyset and expire in 30 days or more, so
+  # a stalled re-signer (header-resign.yml) fails every PR and merge long before the header goes dark. The portal base
+  # URLs come from the repository variables TEST_URL and PROD_URL; an unset one is skipped.
+  header-expiry:
+    name: Live header manifests
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - name: Check expiry
+        env:
+          TEST_URL: ${{ vars.TEST_URL }}
+          PROD_URL: ${{ vars.PROD_URL }}
+          MIN_DAYS: 30
+        run: |
+          ws="$GITHUB_WORKSPACE"
+          cd "$RUNNER_TEMP"
+          failed=0
+          for keyset in test prod; do
+            var="${keyset^^}_URL"
+            if [ -z "${!var}" ]; then
+              echo "::notice::${var} is not set; not checking the ${keyset} header manifest"
+              continue
+            fi
+            url="${!var}/shared-ui/header/v1/manifest.json"
+            code=$(curl --connect-timeout 5 --max-time 10 -s -o "${keyset}.json" -w "%{http_code}" "$url" || true)
+            if [ "$code" != 200 ]; then
+              echo "::error::${url}: HTTP ${code}"; failed=1; continue
+            fi
+            if ! payload="$("${ws}/scripts/header-manifest.sh" verify "$keyset" "${keyset}.json")"; then
+              echo "::error::${url} does not verify with keyset ${keyset} (expired, or not signed by a trusted key)"
+              failed=1; continue
+            fi
+            days=$(jq --argjson now "$(date +%s%3N)" '((.expires - $now) / 86400000) | floor' <<< "$payload")
+            expires=$(jq -r '.expires / 1000 | todate' <<< "$payload")
+            if [ "$days" -lt "$MIN_DAYS" ]; then
+              echo "::error::${url} expires ${expires}, in ${days} days (under ${MIN_DAYS}): check the Header Re-sign workflow"
+              failed=1
+            else
+              echo "OK: ${keyset} manifest $(jq -r '"\(.version) (sequence \(.sequence))"' <<< "$payload") expires ${expires}, in ${days} days"
+            fi
+          done
+          exit "$failed"
 
   # One job per web app (and sharded for portal-web), so each slice runs on its own runner. The Gold cluster refuses or
   # drops every connection from a runner, to every *.apps.gold host, for ~2 minutes once it opens too many (PR 82: after

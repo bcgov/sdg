@@ -21,7 +21,8 @@ function localConfig(): PlaywrightTestConfig {
   });
   const headerServer = {
     command: 'pnpm --filter @repo/shared-ui dev',
-    url: 'http://localhost:5180/header/v1/sdg-header.js',
+    // Ready once the first build is signed: the dev manifest is a 503 until then.
+    url: 'http://localhost:5180/header/v1/manifest.json',
     reuseExistingServer: !process.env['CI'],
   };
   return { ...local, webServer: [...[local.webServer ?? []].flat(), headerServer] };

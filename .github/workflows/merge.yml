@@ -34,20 +34,25 @@ jobs:
     needs: [init]
     # A called workflow can only narrow these: grant what reusable-deploy.yml requests
     permissions:
+      actions: read
       contents: read
     uses: ./.github/workflows/reusable-deploy.yml
+    # The test environment supplies HEADER_SIGNING_KEY and HEADER_SIGNING_KEY_ID
     secrets:
       oc_token: ${{ secrets.oc_token }}
     with:
       environment: test
       target: test
       tag: ${{ needs.init.outputs.pr }}
+      header_floor: ${{ vars.HEADER_FLOOR_TEST }}
+      header_version: pr-${{ needs.init.outputs.pr }}
 
   tests:
     name: Tests
     needs: [deploy-test]
     uses: ./.github/workflows/reusable-tests.yml
     with:
+      keyset: test
       url: ${{ needs.deploy-test.outputs.url }}
       console_url: ${{ needs.deploy-test.outputs.console_url }}
       gateway_url: ${{ needs.deploy-test.outputs.gateway_url }}
@@ -63,6 +68,7 @@ jobs:
   #   needs: [tests, init]
   #   # A called workflow can only narrow these: grant what reusable-deploy.yml requests
   #   permissions:
+  #     actions: read
   #     contents: read
   #   uses: ./.github/workflows/reusable-deploy.yml
   #   secrets:
@@ -71,6 +77,8 @@ jobs:
   #     environment: prod
   #     target: prod
   #     tag: ${{ needs.init.outputs.pr }}
+  #     header_floor: ${{ vars.HEADER_FLOOR_PROD }}
+  #     header_version: pr-${{ needs.init.outputs.pr }}
 
   # # Sync Sysdig email alerts for PROD. No-ops cleanly if SYSDIG_API_TOKEN is
   # # unset or monitoring/alerts/ is empty — adoption is gradual. Alert

@@ -5,17 +5,22 @@ import {
   HEADER_EVENTS,
   HEADER_MAJOR,
   HEADER_TAG,
-  headerCdnPath,
+  HEADER_PATHS,
   RETURN_TO_PARAM,
   withReturnTo,
 } from './contract.js';
 
 // These names are the public contract external sites code against: renaming one is a breaking change (a new major).
 describe('header contract', () => {
-  it('builds the CDN path from a positive integer major', () => {
+  it('pins the loader, manifest, loader-config and bundle paths to a positive integer major', () => {
     expect(Number.isInteger(HEADER_MAJOR)).toBe(true);
     expect(HEADER_MAJOR).toBeGreaterThan(0);
-    expect(headerCdnPath()).toBe('header/v1/sdg-header.js');
+    expect(HEADER_PATHS).toEqual({
+      loader: 'header/v1/loader.js',
+      manifest: 'header/v1/manifest.json',
+      loaderConfig: 'header/v1/loader.json',
+      bundles: 'header/v1/bundles/',
+    });
   });
 
   it('keeps the documented tag, attribute and event names', () => {

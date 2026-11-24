@@ -441,3 +441,24 @@ tests:
           path: spec.strategy
           value:
             type: Recreate
+
+  # /shared-ui/header/v1/loader.json (common.caddy shared_ui_loader_config): unset, the edge answers it with a 404.
+  - it: leaves HEADER_LOADER_INTEGRITY unset by default
+    template: templates/deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: HEADER_LOADER_INTEGRITY
+
+  - it: gives Caddy the loader's integrity when provided
+    template: templates/deployment.yaml
+    set:
+      headerLoaderIntegrity: sha384-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HEADER_LOADER_INTEGRITY
+            value: sha384-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA

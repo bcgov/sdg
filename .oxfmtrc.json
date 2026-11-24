@@ -9,6 +9,7 @@
     "**/CHANGELOG.md",
     "**/routeTree.gen.ts",
     "**/migrations/meta/**",
-    "charts/*/templates/**"
+    "charts/*/templates/**",
+    "packages/shared-ui/loaders/**"
   ]
 }

@@ -47,6 +47,11 @@ spec:
               value: {{ include "common.tplvalue" (dict "value" . "context" $) | quote }}
             {{- end }}
             {{- end }}
+            {{- with .Values.headerLoaderIntegrity }}
+            # /shared-ui/header/v1/loader.json for in-repo apps (common.caddy shared_ui_loader_config). Unset: 404.
+            - name: HEADER_LOADER_INTEGRITY
+              value: {{ . | quote }}
+            {{- end }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel | quote }}
             {{- $o := include "common.observability" . | fromYaml }}

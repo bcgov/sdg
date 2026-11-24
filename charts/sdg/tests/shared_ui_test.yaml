@@ -58,3 +58,59 @@ tests:
               ports:
                 - port: 8080
                   protocol: TCP
+
+  - it: the umbrella passes edge.headerLoaderIntegrity to the edge
+    template: charts/edge/templates/deployment.yaml
+    set:
+      edge.headerLoaderIntegrity: sha384-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HEADER_LOADER_INTEGRITY
+            value: sha384-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+  - it: the umbrella's shared-ui.manifest reaches the release's manifest ConfigMap
+    template: charts/shared-ui/templates/configmap.yaml
+    set:
+      shared-ui.manifest: '{"keyId":"pr-primary","payload":"eyJ9","sig":"c2ln"}'
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sdg-12-shared-ui-manifest
+      - equal:
+          path: data["manifest.json"]
+          value: '{"keyId":"pr-primary","payload":"eyJ9","sig":"c2ln"}'
+
+  - it: values-pr.yaml serves the pr keyset's loader
+    template: charts/shared-ui/templates/deployment.yaml
+    values:
+      - ../values-pr.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HEADER_KEYSET
+            value: pr
+
+  - it: values-test.yaml serves the test keyset's loader
+    template: charts/shared-ui/templates/deployment.yaml
+    values:
+      - ../values-test.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HEADER_KEYSET
+            value: test
+
+  - it: values-prod.yaml serves the prod keyset's loader
+    template: charts/shared-ui/templates/deployment.yaml
+    values:
+      - ../values-prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HEADER_KEYSET
+            value: prod

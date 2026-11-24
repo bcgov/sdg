@@ -1,0 +1,14 @@
+# The signed header manifest (KTD6): the deploy job signs it and passes it with --set-file shared-ui.manifest=<file>; the
+# re-signer (header-resign.yml) patches this ConfigMap by its fixed name. Caddy serves it at /header/v1/manifest.json.
+# Without a manifest the ConfigMap is empty, so that URL is a 404 and the header fails closed (no header, never an
+# unverified one).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.fullname" . }}-manifest
+  labels:
+    {{- include "common.labels" (dict "context" . "component" "web") | nindent 4 }}
+{{- with .Values.manifest }}
+data:
+  manifest.json: {{ . | quote }}
+{{- end }}

@@ -1,4 +1,5 @@
-# shared-ui production image (DEVELOPER.md, Production Images): the header's CDN bundle on a stock Caddy static server.
+# shared-ui production image (DEVELOPER.md, Production Images): the header's loaders and release bundle on a stock
+# Caddy static server. The signed manifest is mounted at /manifest by the chart, not built in.
 # The edge (apps/portal-web/caddy) fronts it at /shared-ui/ with the WAF and security headers. A header release rebuilds
 # only this image. Build from the repository root:
 #   podman build -f packages/shared-ui/Dockerfile -t shared-ui .
@@ -33,9 +34,13 @@ ENV XDG_CONFIG_HOME=/config XDG_DATA_HOME=/data
 RUN mkdir -p /config /data && chgrp -R 0 /config /data && chmod -R g=u /config /data
 COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
 COPY packages/shared-ui/Caddyfile /etc/caddy/Caddyfile
-# dist/cdn holds header/v<major>/sdg-header.js. COPY keeps the build's mtime, which Caddy's ETag needs (it omits the
-# ETag for an mtime of 0 or 1, as reproducible-build tools set).
+# dist/cdn holds header/v<major>/bundles/sdg-header-<hash>.js. COPY keeps the build's mtime, which Caddy's ETag needs
+# (it omits the ETag for an mtime of 0 or 1, as reproducible-build tools set).
 COPY --from=build /app/packages/shared-ui/dist/cdn /srv
+# Committed loaders live outside /srv so only the active HEADER_KEYSET is served via /header/v1/loader.js.
+COPY packages/shared-ui/loaders /loaders
+# What the signer reads from this image: bundle path, integrity and build sequence. Outside /srv, never served.
+COPY --from=build /app/packages/shared-ui/dist/release.json /release/release.json
 USER 1001
 EXPOSE 8080
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

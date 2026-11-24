@@ -32,7 +32,7 @@ run() {
   echo
 }
 run setup-github.sh ${REPO[@]+"${REPO[@]}"} ${APPLY[@]+"${APPLY[@]}"}
-run setup-openshift.sh ${PLATE[@]+"${PLATE[@]}"} ${APPLY[@]+"${APPLY[@]}"}
+run setup-openshift.sh ${PLATE[@]+"${PLATE[@]}"} ${REPO[@]+"${REPO[@]}"} ${APPLY[@]+"${APPLY[@]}"}
 run setup-environments.sh ${PLATE[@]+"${PLATE[@]}"} ${REVIEWERS[@]+"${REVIEWERS[@]}"} ${REPO[@]+"${REPO[@]}"} ${APPLY[@]+"${APPLY[@]}"}
 
 if [ "$failed" -eq 0 ]; then

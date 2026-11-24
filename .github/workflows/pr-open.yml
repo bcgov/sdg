@@ -80,13 +80,19 @@ jobs:
     needs: [builds]
     # A called workflow can only narrow these: grant what reusable-deploy.yml requests
     permissions:
+      actions: read
       contents: read
     uses: ./.github/workflows/reusable-deploy.yml
     secrets:
       oc_token: ${{ secrets.oc_token }}
+      # The pr keyset's key, trusted only by the pr loader (R6, KTD9)
+      header_signing_key: ${{ secrets.HEADER_SIGNING_KEY_PR }}
     with:
       target: ${{ github.event.number }}
       tag: ${{ github.event.pull_request.head.sha }}
+      # PR environments never withdraw a release
+      header_floor: '0'
+      header_version: pr-${{ github.event.number }}
       triggers: ('apps/' 'packages/' 'tooling/' 'charts/' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' '.node-version' 'scripts/deploy-values.sh' '.github/workflows/pr-open.yml' '.github/workflows/reusable-deploy.yml')
 
   tests:

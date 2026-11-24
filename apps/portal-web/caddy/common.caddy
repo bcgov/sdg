@@ -80,6 +80,22 @@
 	}
 }
 
+# The shared header's loader for in-repo apps: @repo/shared-ui's SdgHeader reads { src, integrity } here and
+# loads the loader with that integrity. Answered by the edge itself, so a compromised shared-ui pod can't choose the
+# loader: import it before `handle_path /shared-ui/*`. HEADER_LOADER_INTEGRITY is the environment keyset's sha384 from
+# packages/shared-ui/loaders.lock.json (charts/edge headerLoaderIntegrity, set by scripts/deploy-values.sh). Unset, the
+# answer is a 404 (no header) rather than an empty integrity, which a browser would treat as no check at all.
+(shared_ui_loader_config) {
+	@loader_config path /shared-ui/header/v1/loader.json
+	handle @loader_config {
+		header Cache-Control "no-store"
+		@no_integrity expression `"{$HEADER_LOADER_INTEGRITY}" == ""`
+		respond @no_integrity 404
+		header Content-Type "application/json"
+		respond `{"src":"/shared-ui/header/v1/loader.js","integrity":"{$HEADER_LOADER_INTEGRITY}"}` 200
+	}
+}
+
 # Browser telemetry (Grafana Faro). Site blocks pick one with `import collect_{$TELEMETRY:off}`, so a missing
 # TELEMETRY leaves it off. portal-web reads /telemetry.json at startup and only loads Faro when it says enabled.
 (collect_off) {

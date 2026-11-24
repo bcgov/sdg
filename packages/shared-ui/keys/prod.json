@@ -1,0 +1,17 @@
+{
+  "keyset": "prod",
+  "keys": {
+    "prod-primary-20261124": {
+      "kty": "EC",
+      "x": "7iSwTa16gh6g5JJLkjllCfJahS7qaS2JJwPV0-DP0SQ",
+      "y": "7oY6dW5YvqHXI0F-BrsPK4Sgg-2kCSg8VtaHNrgMVPc",
+      "crv": "P-256"
+    },
+    "prod-backup-20261124": {
+      "kty": "EC",
+      "x": "DQLthD0svjQ9f0FfyCcxAdR9Mzt0bLxXZyE6JTJ-d7E",
+      "y": "SbTNPP0eDZirsrszVeuGrMT14XUklVHB91Kd0mFmIWg",
+      "crv": "P-256"
+    }
+  }
+}

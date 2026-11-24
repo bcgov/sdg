@@ -2,11 +2,20 @@ name: Release
 
 # Publishing a GitHub release deploys that release to PROD. It reuses the
 # images merge.yml deployed for the release's commit (tagged with the merged
-# PR number by pr-open.yml) and does not rebuild anything.
+# PR number by pr-open.yml) and does not rebuild anything; the deploy signs the
+# header manifest with PROD's key (KTD7).
+#
+# Rollback (KTD13): dispatch this workflow on an earlier release's tag,
+#   gh workflow run release.yml --ref <tag>
+# It redeploys that release's images with a freshly signed header manifest (new
+# expiry, current floor). Never `helm rollback` by hand. Releases cut before the
+# signed header (no /release/release.json in their shared-ui image) can't be
+# rolled back to.
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 # Same group as merge.yml (its workflow name), so the two never deploy PROD at once
 concurrency:
@@ -23,9 +32,22 @@ jobs:
       pull-requests: read
     outputs:
       pr: ${{ steps.pr.outputs.pr }}
+      tag: ${{ steps.tag.outputs.tag }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
+      # The published release's tag, or the tag a rollback was dispatched on (--ref <tag>)
+      - name: Tag
+        id: tag
+        env:
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$GITHUB_REF_TYPE" != tag ]; then
+            echo "::error::Dispatch a rollback on a release tag (gh workflow run release.yml --ref <tag>), not ${GITHUB_REF}."
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       # PR number for the release's commit (a squash merge to main)
       - id: pr
         uses: bcgov/action-get-pr@28b0adf8e4d40720d41f9c87356ce24b0a4bd6af # v0.3.1
@@ -34,7 +56,7 @@ jobs:
         env:
           PR: ${{ steps.pr.outputs.pr }}
           REPO: ${{ github.repository }}
-          RELEASE: ${{ github.event.release.tag_name }}
+          RELEASE: ${{ steps.tag.outputs.tag }}
         run: |
           if [ -z "${PR}" ]; then
             echo "::error::No merged PR found for ${RELEASE} (${GITHUB_SHA}). Release from a commit on main that came from a PR."
@@ -54,14 +76,18 @@ jobs:
     needs: [init]
     # A called workflow can only narrow these: grant what reusable-deploy.yml requests
     permissions:
+      actions: read
       contents: read
     uses: ./.github/workflows/reusable-deploy.yml
+    # The prod environment supplies HEADER_SIGNING_KEY and HEADER_SIGNING_KEY_ID
     secrets:
       oc_token: ${{ secrets.oc_token }}
     with:
       environment: prod
       target: prod
       tag: ${{ needs.init.outputs.pr }}
+      header_floor: ${{ vars.HEADER_FLOOR_PROD }}
+      header_version: ${{ needs.init.outputs.tag }}
 
   # Same as merge.yml's monitor-prod; no-ops if SYSDIG_API_TOKEN is unset
   monitor-prod:

@@ -2,8 +2,9 @@
   "extends": "@repo/typescript-config/browser-library-build.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "preact"
+    "jsxImportSource": "preact",
+    "allowImportingTsExtensions": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/signing/sign.ts"]
 }

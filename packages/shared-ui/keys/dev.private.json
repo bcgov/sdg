@@ -1,0 +1,21 @@
+{
+  "warning": "DEV ONLY. Local development keys, trusted only by loaders/dev/loader.js, which no deployed environment serves. Never use them to sign anything outside a workstation.",
+  "keys": {
+    "dev-primary-20261123": {
+      "kty": "EC",
+      "x": "_Ckgf8-F2dSycGWUPj-cPmZvXtcLNF0xOvhMQDcXrFs",
+      "y": "Ze-6DoMihIRbkgCOGMMACci7lRCcy37cgqaa1zdC_FA",
+      "crv": "P-256",
+      "d": "juO-o7BhvVNYQtPDjxRBrHlXqhSjELAE7nsOZ3z4hDA",
+      "kid": "dev-primary-20261123"
+    },
+    "dev-backup-20261123": {
+      "kty": "EC",
+      "x": "By3LnG5BxlqLwV11pJV3c4k4xs7V_nr3rcRxxLFSiEQ",
+      "y": "n1NUNQ7t_1nTpC-ThIiRf9ZQBfRFxDCdOCUjfSQ_0k4",
+      "crv": "P-256",
+      "d": "FFWksLXaVDM-M5qHHNgc1cnE-OAF8O4b3HnZqN8ueWI",
+      "kid": "dev-backup-20261123"
+    }
+  }
+}

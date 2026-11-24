@@ -129,19 +129,39 @@ check "Dev CSP allows Vite inline scripts only" \
 check "Dev CSP allows Vite's injected styles" \
   grep -qi "^content-security-policy:.*style-src [^;]*'unsafe-inline';" "$TMP/headers"
 
-echo "Header script (shared-ui)"
-# The shared-ui service rebuilds the CDN bundle and serves it on :5180; Caddyfile.dev mirrors the production edge's
-# /shared-ui/ route and its cross-origin headers (KTD3, KTD4).
-HEADER_JS="$SITE/shared-ui/header/v1/sdg-header.js"
-until [ "$(status "$HEADER_JS")" = 200 ] || ((SECONDS > deadline)); do sleep 5; done
-check "GET /shared-ui/header/v1/sdg-header.js is 200 through Caddy" \
-  test "$("${CURL[@]}" -D "$TMP/header-js.headers" -o "$TMP/sdg-header.js" -w '%{http_code}' "$HEADER_JS")" = 200
-check "the header script is served as JavaScript" grep -qi '^content-type: text/javascript' "$TMP/header-js.headers"
-check "the header script is the built bundle, not the SPA shell" bash -c "! grep -q '<div id=\"root\">' '$TMP/sdg-header.js'"
-check "the header script allows any origin (Access-Control-Allow-Origin *)" \
-  test "$(header Access-Control-Allow-Origin "$TMP/header-js.headers")" = '*'
-check "the header script is cross-origin readable (Cross-Origin-Resource-Policy)" \
-  test "$(header Cross-Origin-Resource-Policy "$TMP/header-js.headers")" = cross-origin
+echo "Header loader (shared-ui)"
+# The shared-ui service rebuilds the CDN bundle, signs it with the committed dev key and serves the dev loader on :5180;
+# Caddyfile.dev mirrors the production edge's /shared-ui/ route and its cross-origin headers (KTD5, KTD6, KTD11).
+DEV_LOADER_INTEGRITY="$(node -p "require('./packages/shared-ui/loaders.lock.json').dev.integrity")"
+sri() { printf 'sha384-%s' "$(openssl dgst -sha384 -binary "$1" | openssl base64 -A)"; }
+LOADER_JS="$SITE/shared-ui/header/v1/loader.js"
+MANIFEST="$SITE/shared-ui/header/v1/manifest.json"
+# The manifest is a 503 until the first build is signed.
+until [ "$(status "$MANIFEST")" = 200 ] || ((SECONDS > deadline)); do sleep 5; done
+check "GET /shared-ui/header/v1/loader.js is 200 through Caddy" \
+  test "$("${CURL[@]}" -D "$TMP/loader.headers" -o "$TMP/loader.js" -w '%{http_code}' "$LOADER_JS")" = 200
+check "the loader is served as JavaScript" grep -qi '^content-type: text/javascript' "$TMP/loader.headers"
+check "the loader is the committed dev loader (loaders.lock.json)" test "$(sri "$TMP/loader.js")" = "$DEV_LOADER_INTEGRITY"
+check "the loader revalidates (Cache-Control: no-cache)" test "$(header Cache-Control "$TMP/loader.headers")" = no-cache
+check "the loader allows any origin (Access-Control-Allow-Origin *)" \
+  test "$(header Access-Control-Allow-Origin "$TMP/loader.headers")" = '*'
+check "the loader is cross-origin readable (Cross-Origin-Resource-Policy)" \
+  test "$(header Cross-Origin-Resource-Policy "$TMP/loader.headers")" = cross-origin
+check "GET /shared-ui/header/v1/manifest.json is 200 through Caddy" \
+  test "$("${CURL[@]}" -D "$TMP/manifest.headers" -o "$TMP/manifest.json" -w '%{http_code}' "$MANIFEST")" = 200
+check "the manifest is a signed dev envelope" \
+  node -e "const m = require('$TMP/manifest.json'); process.exit(m.keyId.startsWith('dev-') && m.payload && m.sig ? 0 : 1)"
+check "the manifest revalidates (Cache-Control: no-cache)" test "$(header Cache-Control "$TMP/manifest.headers")" = no-cache
+check "the manifest allows any origin (the loader fetches it with CORS)" \
+  test "$(header Access-Control-Allow-Origin "$TMP/manifest.headers")" = '*'
+BUNDLE_PATH="$(node -p "JSON.parse(Buffer.from(require('$TMP/manifest.json').payload, 'base64url')).bundle.path" 2>/dev/null || echo /shared-ui/header/v1/bundles/unreadable-manifest.js)"
+check "the manifest's bundle is 200 through Caddy" test "$(status "$SITE$BUNDLE_PATH")" = 200
+check "the unsigned /shared-ui/header/v1/sdg-header.js is gone (404)" \
+  test "$(status "$SITE/shared-ui/header/v1/sdg-header.js")" = 404
+"${CURL[@]}" -o "$TMP/loader-config.json" "$SITE/shared-ui/header/v1/loader.json"
+check "the edge's loader.json integrity is the lock's dev entry" \
+  node -e "const c = require('$TMP/loader-config.json'); \
+    process.exit(c.src === '/shared-ui/header/v1/loader.js' && c.integrity === '$DEV_LOADER_INTEGRITY' ? 0 : 1)"
 check "GET / keeps Cross-Origin-Resource-Policy same-origin" test "$(header Cross-Origin-Resource-Policy)" = same-origin
 check "GET / sends no Access-Control-Allow-Origin" bash -c "! grep -qi '^access-control-allow-origin:' '$TMP/headers'"
 

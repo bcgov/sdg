@@ -5,8 +5,14 @@
 #   prod: variable OC_NAMESPACE=<plate>-prod; secret OC_TOKEN; required reviewers from --reviewers
 #   tools (--observability): variable OC_NAMESPACE=<plate>-tools; secret OC_TOKEN, for the
 #     Observability workflow (ADR 0001); KEYCLOAK_ISSUER_URL and GRAFANA_OIDC_CLIENT_ID are checked
-# OC_TOKEN is piped from the `github-actions-token` Secret made by setup-openshift.sh
-# straight into `gh secret set`; secret values are never printed or saved.
+#   prod-resign: no reviewers; variable OC_NAMESPACE=<plate>-prod; secret OC_TOKEN_HEADER, for the
+#     Header Re-sign workflow (KTD9)
+# Deployment branches and tags: test and prod-resign deploy from main only, prod from main and v* tags.
+# OC_TOKEN and OC_TOKEN_HEADER are piped from the `github-actions-token` and `header-resign-token`
+# Secrets made by setup-openshift.sh straight into `gh secret set`; secret values are never printed or saved.
+# Header signing (docs/runbooks/shared-ui-header-signing.md) is only checked: HEADER_SIGNING_KEY and
+# HEADER_SIGNING_KEY_ID (test, prod, prod-resign), HEADER_SIGNING_KEY_PR and HEADER_SIGNING_KEY_ID_PR
+# (repository).  HEADER_FLOOR_TEST and HEADER_FLOOR_PROD are set to 0 when unset and never changed.
 # KEYCLOAK_ISSUER_URL, KEYCLOAK_CLIENT_ID and KEYCLOAK_CONSOLE_CLIENT_ID (per scope) are only checked: they are
 # the team's to choose, so a missing one is reported with the command that sets it.
 #
@@ -32,20 +38,20 @@ while [ $# -gt 0 ]; do
     --reviewers) REVIEWERS="${2:-}"; shift ;;
     --repo) REPO="${2:-}"; shift ;;
     --observability) OBSERVABILITY=true ;;
-    -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
   shift
 done
 [ -n "$REPO" ] || REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-get_var() { # <scope: repo|test|prod|tools> <name>; empty if unset
+get_var() { # <scope: repo|test|prod|tools|prod-resign> <name>; empty if unset
   local args=(); [ "$1" = repo ] || args=(--env "$1")
   gh variable get "$2" -R "$REPO" ${args[@]+"${args[@]}"} 2>/dev/null || true
 }
 # No --plate: use the plate from existing OC_NAMESPACE variables, which must agree
 if [ -z "$PLATE" ]; then
   found=""
-  for scope in repo test prod tools; do
+  for scope in repo test prod tools prod-resign; do
     v="$(get_var "$scope" OC_NAMESPACE)"
     v="${v%-dev}"; v="${v%-test}"; v="${v%-prod}"; v="${v%-tools}"
     [ -n "$v" ] || continue
@@ -86,8 +92,9 @@ status() {
 # Verdict; a preview exits 1 when anything needs changing, so it works as a check
 summary() {
   if [ "$MISSING" -gt 0 ]; then
-    echo "${MISSING} variable(s) to set by hand (above)."
+    echo "${MISSING} item(s) to fix by hand (above)."
     [ "$APPLY" = false ] || { echo "Done: ${CHANGES} changed."; exit 1; }
+    [ "$CHANGES" -gt 0 ] || exit 1
   fi
   if [ "$APPLY" = true ]; then echo "Done: ${CHANGES} changed."
   elif [ "$CHANGES" -eq 0 ]; then echo "All set: nothing to change."
@@ -99,8 +106,11 @@ has_secret() { # <scope> <name>
   gh secret list -R "$REPO" ${args[@]+"${args[@]}"} --json name --jq '.[].name' 2>/dev/null | grep -qx "$2"
 }
 namespace() { if [ "$1" = repo ]; then echo "${PLATE}-dev"; else echo "${PLATE}-$1"; fi; }
+# deployment_refs, prod_resign and header_signing
+# shellcheck source=scripts/setup-environments-header.sh
+. "$(dirname "$0")/setup-environments-header.sh"
 SCOPES=(repo test prod)
-ENVIRONMENTS=(test prod)
+ENVIRONMENTS=(test prod prod-resign)
 if [ "$OBSERVABILITY" = true ]; then SCOPES+=(tools); ENVIRONMENTS+=(tools); fi
 
 # Tokens come from setup-openshift.sh; check before changing anything
@@ -108,9 +118,13 @@ for scope in "${SCOPES[@]}"; do
   ns="$(namespace "$scope")"
   if ! has_secret "$scope" OC_TOKEN && ! oc get secret github-actions-token -n "$ns" >/dev/null 2>&1; then
     echo "No github-actions-token Secret in ${ns} (or no access to it); run scripts/setup-openshift.sh$([ "$OBSERVABILITY" = false ] || echo " --observability") --apply first." >&2
-    exit 1
+    [ "$APPLY" = false ] || exit 1
   fi
 done
+if ! has_secret prod-resign OC_TOKEN_HEADER && ! oc get secret header-resign-token -n "${PLATE}-prod" >/dev/null 2>&1; then
+  echo "No header-resign-token Secret in ${PLATE}-prod (or no access to it); run scripts/setup-openshift.sh --apply first." >&2
+  [ "$APPLY" = false ] || exit 1
+fi
 
 # 1. Environments, with PROD reviewers when given
 reviewer_ids() {
@@ -156,14 +170,17 @@ if [ -n "$prod_env" ]; then
   status "environment prod reviewers" ok "$names"
 fi
 
-# 2. Variables, secrets (only when missing)
+# 2. Deployment branches and tags (R6, KTD9)
+deployment_refs
+
+# 3. Variables, secrets (only when missing)
 #
 # Secret values are never printed, kept in variables or written to disk: each
 # one is piped from its source (oc) straight into `gh secret set` on
 # stdin, which stops on any failure (pipefail).  Previews name the secret only.  Don't add `set -x` here.
-# secret <scope: repo|test|prod|tools> <name: OC_TOKEN> <namespace>
+# secret <scope: repo|test|prod|tools|prod-resign> <name: OC_TOKEN|OC_TOKEN_HEADER> <namespace> [token Secret]
 secret() {
-  local scope="$1" name="$2" ns="$3" args=()
+  local scope="$1" name="$2" ns="$3" from="${4:-github-actions-token}" args=()
   [ "$scope" = repo ] || args=(--env "$scope")
   if has_secret "$scope" "$name"; then
     echo "  ${name} for ${scope}: ok (already set)"
@@ -178,11 +195,11 @@ secret() {
     return
   fi
   # Count the token's bytes only, so an empty one fails before anything is set
-  if [ "$(oc get secret github-actions-token -n "$ns" -o jsonpath='{.data.token}' | wc -c)" -eq 0 ]; then
+  if [ "$(oc get secret "$from" -n "$ns" -o jsonpath='{.data.token}' | wc -c)" -eq 0 ]; then
     echo "  ${name} for ${scope}: the token Secret in ${ns} has no token yet; re-run shortly" >&2
     exit 1
   fi
-  oc get secret github-actions-token -n "$ns" -o jsonpath='{.data.token}' | base64 -d \
+  oc get secret "$from" -n "$ns" -o jsonpath='{.data.token}' | base64 -d \
     | gh secret set "$name" -R "$REPO" ${args[@]+"${args[@]}"} >/dev/null
   echo "  ${name} for ${scope}: set"
 }
@@ -224,4 +241,8 @@ else
   status "OC_SERVER variable for repo" change "${have:-unset} -> ${SERVER}"
   [ "$APPLY" = false ] || gh variable set OC_SERVER -R "$REPO" --body "$SERVER" >/dev/null
 fi
+
+# 4. prod-resign, then 5. the header signing keys and floors (KTD8, KTD9)
+prod_resign
+header_signing
 summary

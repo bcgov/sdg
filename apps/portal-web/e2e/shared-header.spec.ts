@@ -1,9 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from '@repo/playwright-config';
 
-import { serveExternalSite } from './external-site';
-
-const HEADER_SCRIPT = '/shared-ui/header/v1/sdg-header.js';
+import { LOADER_PATH, serveExternalSite } from './external-site';
 
 async function signedOut(page: Page) {
   await page.route('**/api/auth/me', (route) =>
@@ -28,7 +26,6 @@ test.describe('portal-web shared header', () => {
   test('keeps every nav link in place whichever one is selected (AE3)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await signedOut(page);
-    // An unknown path selects neither link.
     const none = await navBoxes(page, '/does-not-exist');
     await expect(page.locator('sdg-header [aria-current="page"]')).toHaveCount(0);
     const home = await navBoxes(page, '/');
@@ -40,7 +37,7 @@ test.describe('portal-web shared header', () => {
     expect(help).toEqual(none);
     expect(contactUs).toEqual(none);
 
-    // Links look like tertiary buttons; only the selected one is bold (faux bold) (R5).
+    // Links look like tertiary buttons; only the selected one is bold (faux bold).
     const nav = page.locator('sdg-header');
     const selected = nav.getByRole('link', { name: 'Contact us' });
     const other = nav.getByRole('link', { name: 'Home' });
@@ -190,10 +187,10 @@ test.describe('portal-web shared header', () => {
     expect((await page.getByRole('main').boundingBox())!.y).toBe(142);
   });
 
-  test('reserves the small-screen title row too while the script is missing', async ({ page }) => {
+  test('reserves the small-screen title row too while the loader is missing', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await signedOut(page);
-    await page.route(`**${HEADER_SCRIPT}`, (route) => route.abort());
+    await page.route(`**${LOADER_PATH}`, (route) => route.abort());
     await page.goto('/');
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Access services online');
     const header = page.locator('sdg-header');
@@ -203,12 +200,12 @@ test.describe('portal-web shared header', () => {
     expect((await page.getByRole('main').boundingBox())!.y).toBe(142);
   });
 
-  test('reserves the header height and hides the raw nav links while the script is missing (R20, R21)', async ({
+  test('reserves the header height and hides the raw nav links while the loader is missing (R20, R21)', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await signedOut(page);
-    await page.route(`**${HEADER_SCRIPT}`, (route) => route.abort());
+    await page.route(`**${LOADER_PATH}`, (route) => route.abort());
     await page.goto('/');
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Access services online');
 
@@ -220,13 +217,11 @@ test.describe('portal-web shared header', () => {
     await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
   });
 
-  test('renders on a page from another origin that loads the script with a plain tag (R19)', async ({
+  test('renders on a page from another origin that embeds the loader tag with its integrity (R19, R1)', async ({
     page,
-    context,
     baseURL,
-    browserName,
   }) => {
-    const external = await serveExternalSite({ page, context, baseURL, browserName });
+    const external = await serveExternalSite({ page, baseURL });
     await page.goto(external);
 
     const header = page.locator('sdg-header');
@@ -236,12 +231,19 @@ test.describe('portal-web shared header', () => {
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeVisible();
     await expect(header.getByRole('link', { name: 'Start' })).toBeVisible();
 
-    // Signed in, Account Settings links back to the SDG that served the script, not to the partner's own origin.
+    // Signed in, Account Settings links back to the SDG that served the header, not to the partner's own origin.
     await header.evaluate((el) => el.setAttribute('user-name', 'Ada Lovelace'));
     await header.getByRole('button', { name: 'Ada Lovelace' }).click();
     await expect(header.getByRole('menuitem', { name: 'Account Settings' })).toHaveAttribute(
       'href',
       new URL('/account-settings', baseURL).href,
     );
+
+    // Log Out is the site's to handle: the header only dispatches sdg-logout.
+    await header.evaluate((el) =>
+      el.addEventListener('sdg-logout', () => el.setAttribute('data-logged-out', ''), { once: true }),
+    );
+    await header.getByRole('menuitem', { name: 'Log Out' }).click();
+    await expect(header).toHaveAttribute('data-logged-out', '');
   });
 });

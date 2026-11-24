@@ -7,6 +7,8 @@ import type { SdgLoginEvent, SdgLogoutEvent, SdgSettingsEvent } from '../types.j
 
 type Wrapper = typeof import('./sdg-header.js');
 
+const INTEGRITY = `sha384-${'A'.repeat(64)}`;
+
 // A fresh module graph per test, so the loader's page-lifetime promise starts empty.
 async function freshWrapper(): Promise<Wrapper> {
   vi.resetModules();
@@ -20,13 +22,20 @@ function headerElement(container: HTMLElement): HTMLElement {
 }
 
 describe('SdgHeader', () => {
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
+
   beforeEach(() => {
     document.head.replaceChildren();
+    fetchMock = vi.fn<typeof fetch>(() =>
+      Promise.resolve(Response.json({ src: '/shared-ui/header/v1/loader.js', integrity: INTEGRITY })),
+    );
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('renders the element with attributes for the props that are set', async () => {
@@ -102,7 +111,7 @@ describe('SdgHeader', () => {
     expect(notCancelled).toBe(false);
   });
 
-  it('injects the default script once across two wrappers in StrictMode', async () => {
+  it('injects one loader with its integrity across two wrappers in StrictMode', async () => {
     const { SdgHeader } = await freshWrapper();
     render(
       <StrictMode>
@@ -111,15 +120,19 @@ describe('SdgHeader', () => {
       </StrictMode>,
     );
 
-    const scripts = Array.from(document.querySelectorAll('script'));
-    expect(scripts.map((script) => script.getAttribute('src'))).toEqual(['/shared-ui/header/v1/sdg-header.js']);
+    await vi.waitFor(() => expect(document.querySelectorAll('script')).toHaveLength(1));
+    const [script] = Array.from(document.querySelectorAll('script'));
+    expect(script?.getAttribute('src')).toBe('/shared-ui/header/v1/loader.js');
+    expect(script?.getAttribute('integrity')).toBe(INTEGRITY);
+    expect(script?.getAttribute('crossorigin')).toBe('anonymous');
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith('/shared-ui/header/v1/loader.json', expect.anything());
   });
 
-  it('loads the script from the src prop when given', async () => {
+  it('reads the loader config from the configUrl prop when given', async () => {
     const { SdgHeader } = await freshWrapper();
-    render(<SdgHeader src="https://portal.example/shared-ui/header/v1/sdg-header.js" />);
+    render(<SdgHeader configUrl="/elsewhere/loader.json" />);
 
-    const scripts = Array.from(document.querySelectorAll('script'));
-    expect(scripts.map((script) => script.src)).toEqual(['https://portal.example/shared-ui/header/v1/sdg-header.js']);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/elsewhere/loader.json', expect.anything()));
   });
 });

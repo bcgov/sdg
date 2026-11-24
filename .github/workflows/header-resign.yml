@@ -1,0 +1,203 @@
+name: Header Re-sign
+
+# Keeps TEST's and PROD's signed header manifests fresh. Manifests expire 90 days after
+# signing; this re-signs CI's own record of the current release (the newest header-manifest-<env> artifact from a
+# deploy or an earlier re-sign, verified against the keyset's public keys) with a new expiry and the current floor,
+# writes it to the shared-ui manifest ConfigMap and waits until the edge serves it. It never signs content read back
+# from the edge: the live manifest is only compared, and a live sequence other than the record's fails the run.
+#
+# Withdrawing a release: roll forward, raise HEADER_FLOOR_<ENV> to the new build's sequence, then dispatch this.
+#
+# PROD runs in `prod-resign` (no reviewers, main only) with its own copy of the PROD signing key and OC_TOKEN_HEADER,
+# a token whose Role can only get and patch the manifest ConfigMap. TEST runs in `test` with its deploy token.
+
+on:
+  schedule:
+    # Daily 02:41 PST / 03:41 PDT (10:41 UTC), outside working hours
+    - cron: '41 10 * * *'
+  workflow_dispatch:
+
+# Its own group: never queued behind, or cancelling, a deploy in the Merge group
+concurrency:
+  group: header-resign
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  # A deploy writes a new manifest: re-signing alongside one (or ahead of one waiting for review) could race it, so skip
+  # with a notice while a Merge-group workflow is running or queued. The next daily run picks up.
+  check:
+    name: Merge group idle?
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      busy: ${{ steps.busy.outputs.busy }}
+    steps:
+      - id: busy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          busy=false
+          for workflow in merge.yml release.yml route-tls.yml; do
+            statuses=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?per_page=100" \
+              --jq '[.workflow_runs[] | select(.status != "completed") | .status] | join(" ")')
+            if [ -n "$statuses" ]; then
+              echo "::notice::${workflow} has run(s) not completed (${statuses}); not re-signing this time"
+              busy=true
+            fi
+          done
+          echo "busy=${busy}" >> "$GITHUB_OUTPUT"
+
+  resign:
+    name: Re-sign (${{ matrix.target }})
+    needs: [check]
+    if: needs.check.outputs.busy == 'false'
+    environment: ${{ matrix.environment }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      # actions: read finds and downloads the signing record
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: test
+            environment: test
+            floor: ${{ vars.HEADER_FLOOR_TEST }}
+          - target: prod
+            environment: prod-resign
+            floor: ${{ vars.HEADER_FLOOR_PROD }}
+    env:
+      TARGET: ${{ matrix.target }}
+      ENVIRONMENT: ${{ matrix.target }}
+      REPOSITORY: ${{ github.repository }}
+      OC_NAMESPACE: ${{ vars.OC_NAMESPACE }}
+      OC_SERVER: ${{ vars.OC_SERVER }}
+      HEADER_KEYSET: ${{ matrix.target }}
+      HEADER_FLOOR: ${{ matrix.floor }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      # The release name and public URL, as the deploy computes them
+      - name: Vars
+        run: |
+          scripts/deploy-values.sh outputs >> "$GITHUB_ENV"
+          echo "HEADER_DIR=${RUNNER_TEMP}/header" >> "$GITHUB_ENV"
+
+      - name: Sign
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEADER_SIGNING_KEY: ${{ secrets.HEADER_SIGNING_KEY }}
+          HEADER_SIGNING_KEY_ID: ${{ vars.HEADER_SIGNING_KEY_ID }}
+        run: |
+          scripts/header-manifest.sh record "$TARGET" "${HEADER_DIR}/record"
+          node packages/shared-ui/scripts/sign-manifest.ts resign --record "${HEADER_DIR}/record/manifest.json" \
+            --live-url "${url}/shared-ui/header/v1/manifest.json" --out "${HEADER_DIR}/manifest.json"
+
+      # A merge patch under the field manager header-resign, guarded by the ConfigMap's resourceVersion after confirming
+      # its live sequence matches the re-signed manifest so a concurrent deploy is never clobbered (409 Conflict).
+      # The deploy's Helm upgrade takes the field back with --server-side=true --force-conflicts (reusable-deploy.yml).
+      - name: Write (TEST)
+        if: matrix.target == 'test'
+        uses: bcgov/action-oc-runner@111868d1fc50db0a40417ba321d865ef5c931bbd # v1.7.0
+        with:
+          oc_namespace: ${{ vars.OC_NAMESPACE }}
+          oc_server: ${{ vars.OC_SERVER }}
+          oc_token: ${{ secrets.OC_TOKEN }}
+          commands: |
+            want_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/manifest.json" | jq -r .sequence)"
+            oc get configmap "${release}-shared-ui-manifest" -o json > "${HEADER_DIR}/cm.json"
+            rv="$(jq -r '.metadata.resourceVersion' "${HEADER_DIR}/cm.json")"
+            jq -r '.data["manifest.json"] // empty' "${HEADER_DIR}/cm.json" > "${HEADER_DIR}/cm-manifest.json"
+            live_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/cm-manifest.json" --accept-expired | jq -r .sequence)"
+            if [ "$live_seq" != "$want_seq" ]; then
+              echo "::error::ConfigMap sequence ${live_seq} differs from re-signed sequence ${want_seq}; a deploy updated it concurrently"
+              exit 1
+            fi
+            jq -n --arg rv "$rv" --rawfile manifest "${HEADER_DIR}/manifest.json" \
+              '{metadata: {resourceVersion: $rv}, data: {"manifest.json": $manifest}}' > "${HEADER_DIR}/patch.json"
+            oc patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-resign \
+              --patch-file "${HEADER_DIR}/patch.json"
+
+      # The narrow token can't mint the pipeline account's token that action-oc-runner logs in with, so kubectl (pre-installed
+      # on the runner image) uses it directly with a throwaway kubeconfig.
+      - name: Write (PROD)
+        if: matrix.target == 'prod'
+        env:
+          OC_TOKEN_HEADER: ${{ secrets.OC_TOKEN_HEADER }}
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig
+        run: |
+          want_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/manifest.json" | jq -r .sequence)"
+          kubectl get configmap "${release}-shared-ui-manifest" -o json \
+            --server="$OC_SERVER" --token="$OC_TOKEN_HEADER" --namespace="$OC_NAMESPACE" > "${HEADER_DIR}/cm.json"
+          rv="$(jq -r '.metadata.resourceVersion' "${HEADER_DIR}/cm.json")"
+          jq -r '.data["manifest.json"] // empty' "${HEADER_DIR}/cm.json" > "${HEADER_DIR}/cm-manifest.json"
+          live_seq="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/cm-manifest.json" --accept-expired | jq -r .sequence)"
+          if [ "$live_seq" != "$want_seq" ]; then
+            echo "::error::ConfigMap sequence ${live_seq} differs from re-signed sequence ${want_seq}; a deploy updated it concurrently"
+            exit 1
+          fi
+          jq -n --arg rv "$rv" --rawfile manifest "${HEADER_DIR}/manifest.json" \
+            '{metadata: {resourceVersion: $rv}, data: {"manifest.json": $manifest}}' > "${HEADER_DIR}/patch.json"
+          kubectl patch configmap "${release}-shared-ui-manifest" --type=merge --field-manager=header-resign \
+            --server="$OC_SERVER" --token="$OC_TOKEN_HEADER" --namespace="$OC_NAMESPACE" \
+            --patch-file "${HEADER_DIR}/patch.json"
+
+      # CI's record of this signature, for the next re-sign
+      - name: Upload record
+        uses: actions/upload-artifact@v7
+        with:
+          name: header-manifest-${{ matrix.target }}
+          path: ${{ env.HEADER_DIR }}/manifest.json
+          if-no-files-found: error
+
+      # The kubelet syncs a ConfigMap mount within about a minute; wait up to 3 for the edge to serve the new signature
+      - name: Wait until live
+        run: |
+          want="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/manifest.json" | jq .issuedAt)"
+          live_url="${url}/shared-ui/header/v1/manifest.json"
+          for i in {1..18}; do
+            got=''
+            if curl --connect-timeout 5 --max-time 10 -fsS -o "${HEADER_DIR}/live.json" "$live_url"; then
+              got="$(scripts/header-manifest.sh verify "$HEADER_KEYSET" "${HEADER_DIR}/live.json" | jq .issuedAt || true)"
+            fi
+            if [ "$got" = "$want" ]; then
+              echo "${live_url} serves the manifest issued at $(jq -r '. / 1000 | todate' <<< "$want")"
+              exit 0
+            fi
+            echo "Waiting for issuedAt ${want} (live: ${got:-unreadable}), retrying in 10s... ($i/18)"
+            sleep 10
+          done
+          echo "::error::${live_url} still does not serve the re-signed manifest after 3 minutes"
+          exit 1
+
+  notify:
+    name: Notify
+    needs: [check, resign]
+    if: failure()
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # workflow-notifier reads CODEOWNERS from the workspace
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: bcgov/actions/workflow-notifier@d209bb08aabe15e5e69aca53b24d338a7b2843d5 # v0.12.0
+        with:
+          title: 'Header manifest re-signing failed'
+          labels: ''
+          notify_author: 'false'
+          notify_codeowners: 'true'

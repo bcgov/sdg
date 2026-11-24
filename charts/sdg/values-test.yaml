@@ -11,3 +11,7 @@ postgres:
     max_wal_size: 96MB
     min_wal_size: 32MB
     wal_keep_size: 32MB
+
+# The test keyset's loader, which trusts only the TEST signing keys.
+shared-ui:
+  keyset: test

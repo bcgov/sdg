@@ -2,10 +2,10 @@
 # GitHub repository setup: main-branch ruleset, pull request settings and
 # private vulnerability reporting, as described in DEVELOPER.md (Repository
 # Configuration).  The ruleset blocks deletion and force-push, and requires a
-# pull request (1 approval, resolved threads, squash only), the PR / Analysis /
-# Validate Results checks (up to date with main) and CodeQL code scanning at
-# high or higher.  Trivy results are reported but deliberately not a merge
-# gate; it fails too often.
+# pull request (1 approval of the last push, stale approvals dismissed, resolved
+# threads, squash only), the PR / Analysis / Validate Results checks (up to date
+# with main) and CodeQL code scanning at high or higher.  Trivy results are
+# reported but deliberately not a merge gate; it fails too often.
 #
 # Run it with your own `gh` login and admin rights on the repo.  Without --apply
 # it checks the setup and exits non-zero if anything differs; --apply makes the
@@ -63,7 +63,7 @@ desired="$(jq -n --argjson checks "$REQUIRED_CHECKS" --argjson tools "$CODE_SCAN
   bypass_actors: [{actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "pull_request"}],
   rules: [{type: "deletion"}, {type: "non_fast_forward"},
     {type: "pull_request", parameters: {required_approving_review_count: 1, required_review_thread_resolution: true,
-      dismiss_stale_reviews_on_push: false, require_code_owner_review: false, require_last_push_approval: false,
+      dismiss_stale_reviews_on_push: true, require_code_owner_review: false, require_last_push_approval: true,
       allowed_merge_methods: ["squash"]}},
     {type: "required_status_checks", parameters: {strict_required_status_checks_policy: true,
       required_status_checks: ($checks | map({context: ., integration_id: 15368}))}},

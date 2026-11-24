@@ -1,6 +1,5 @@
-# shared-ui production static server (packages/shared-ui/Dockerfile): the header's CDN bundle from /srv, at
-# /header/v<major>/sdg-header.js. Cluster-internal only: the edge (apps/portal-web/caddy) adds the WAF, security headers
-# and compression, and serves this at /shared-ui/.
+# shared-ui production static server (packages/shared-ui/Dockerfile). Cluster-internal only: the edge
+# (apps/portal-web/caddy) adds the WAF, security headers and compression, and serves this at /shared-ui/.
 {
 	admin off
 	auto_https off
@@ -14,13 +13,33 @@
 		level {$LOG_LEVEL:INFO}
 	}
 
-	respond /healthz 200
+	handle /healthz {
+		respond 200
+	}
 
-	# One URL per major always serves the latest release in it: browsers revalidate with the ETag on every load, so a
-	# release or rollback reaches visitors on their next page load.
-	header /header/*/sdg-header.js Cache-Control "no-cache"
+	# The loader and manifest keep one URL each: browsers revalidate with the ETag on every load, so a release or
+	# rollback (a new manifest) reaches visitors on their next page load. Bundle names change with their content.
+	header /header/v1/loader.js Cache-Control "no-cache"
+	header /header/v1/manifest.json Cache-Control "no-cache"
+	header /header/v1/bundles/* Cache-Control "public, max-age=31536000, immutable"
+
+	handle /header/v1/loader.js {
+		# One promoted image serves every environment; the chart picks the keyset.
+		rewrite * /{$HEADER_KEYSET}/loader.js
+		root * /loaders
+		file_server
+	}
+
+	handle /header/v1/manifest.json {
+		# A directory mount (never subPath), so a patched ConfigMap reaches running pods.
+		rewrite * /manifest.json
+		root * /manifest
+		file_server
+	}
 
 	# No SPA fallback: a missing file is a 404.
-	root * /srv
-	file_server
+	handle {
+		root * /srv
+		file_server
+	}
 }

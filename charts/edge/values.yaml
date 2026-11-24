@@ -34,6 +34,10 @@ image:
 # Caddy log level (common.caddy logging snippet).
 logLevel: INFO
 
+# The shared-ui loader's SRI hash for this environment's keyset (packages/shared-ui/loaders.lock.json), served to
+# in-repo apps at /shared-ui/header/v1/loader.json. scripts/deploy-values.sh sets it. Empty: that URL is a 404.
+headerLoaderIntegrity: ''
+
 # Rendered with tpl, so they can reference the release.
 upstreams:
   portalApi: 'http://{{ .Release.Name }}-portal-api:3000'
