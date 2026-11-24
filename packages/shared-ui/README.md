@@ -52,11 +52,27 @@ when you set `site-title` (the title moves to its own row there). Copy it into y
 sdg-header:not(:defined) {
   display: block;
   height: 104px;
+  background: linear-gradient(
+    to bottom,
+    var(--surface-color-background-light-gray, #faf9f8) 0 47px,
+    var(--surface-color-border-default, #d8d8d8) 47px 48px,
+    var(--surface-color-background-white, #ffffff) 48px 103px,
+    var(--surface-color-border-default, #d8d8d8) 103px 104px
+  );
 }
 
 @media (max-width: 575.98px) {
   sdg-header[site-title]:not([site-title='']):not(:defined) {
     height: 142px;
+    background: linear-gradient(
+      to bottom,
+      var(--surface-color-background-light-gray, #faf9f8) 0 47px,
+      var(--surface-color-border-default, #d8d8d8) 47px 48px,
+      var(--surface-color-background-white, #ffffff) 48px 103px,
+      var(--surface-color-border-default, #d8d8d8) 103px 104px,
+      var(--surface-color-background-white, #ffffff) 104px 141px,
+      var(--surface-color-border-default, #d8d8d8) 141px 142px
+    );
   }
 }
 

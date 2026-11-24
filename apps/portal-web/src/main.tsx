@@ -8,11 +8,15 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './app';
+import { startHeader } from './components/site-header';
 import { setUpFontAwesome } from './font-awesome';
 import { createAppRouter } from './router';
 import { startTelemetry } from './telemetry';
 
 setUpFontAwesome();
+
+// Start loading the edge-served <sdg-header> before React mounts so it overlaps initial render.
+void startHeader();
 
 // Browser telemetry, only when the edge's /telemetry.json enables it; never blocks or breaks rendering.
 void startTelemetry();
