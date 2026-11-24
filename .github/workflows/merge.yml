@@ -37,9 +37,8 @@ jobs:
       actions: read
       contents: read
     uses: ./.github/workflows/reusable-deploy.yml
-    # The test environment supplies HEADER_SIGNING_KEY and HEADER_SIGNING_KEY_ID
-    secrets:
-      oc_token: ${{ secrets.oc_token }}
+    # Inherit so the test environment supplies OC_TOKEN and HEADER_SIGNING_KEY (explicit `secrets:` hides unpassed env secrets)
+    secrets: inherit
     with:
       environment: test
       target: test
@@ -71,8 +70,7 @@ jobs:
   #     actions: read
   #     contents: read
   #   uses: ./.github/workflows/reusable-deploy.yml
-  #   secrets:
-  #     oc_token: ${{ secrets.oc_token }}
+  #   secrets: inherit
   #   with:
   #     environment: prod
   #     target: prod

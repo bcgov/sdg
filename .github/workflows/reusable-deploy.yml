@@ -34,8 +34,8 @@ on:
         description: OpenShift token
         required: true
       header_signing_key:
-        # TEST and PROD read HEADER_SIGNING_KEY from their environment instead: an environment secret wins over a
-        # passed one of the same name, and environment secrets can't be passed from a caller (R6).
+        # TEST and PROD callers use `secrets: inherit` so the job's environment supplies HEADER_SIGNING_KEY and OC_TOKEN
+        # (explicit `secrets:` hides unpassed environment secrets); PR callers pass HEADER_SIGNING_KEY_PR explicitly (R6).
         description: The pr keyset's private signing key (HEADER_SIGNING_KEY_PR); PRs only
         required: false
     outputs:
