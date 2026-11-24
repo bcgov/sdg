@@ -3,6 +3,7 @@ import '@repo/design-system/styles.css';
 // Reserves the header's height until the edge-served <sdg-header> script defines the element (R20).
 import '@repo/shared-ui/header/preload.css';
 import './styles.css';
+import { loadSdgHeader } from '@repo/shared-ui/header/react';
 import { QueryClient } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -13,6 +14,9 @@ import { createAppRouter } from './router';
 import { startTelemetry } from './telemetry';
 
 setUpFontAwesome();
+
+// Start loading the edge-served <sdg-header> before React mounts so it overlaps initial render.
+void loadSdgHeader().catch(() => undefined);
 
 // Browser telemetry, only when the edge's /telemetry.json enables it; never blocks or breaks rendering.
 void startTelemetry();
