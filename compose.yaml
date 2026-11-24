@@ -387,7 +387,7 @@ services:
       # /shared-ui/header/v1/loader.json (common.caddy shared_ui_loader_config): the dev keyset's loader integrity, which
       # must equal "dev" in packages/shared-ui/loaders.lock.json. The shared-ui service (scripts/dev.ts) serves that
       # dev loader and a manifest signed with the committed dev key, so the local stack needs no keyset or mount.
-      HEADER_LOADER_INTEGRITY: sha384-LZo/cdkuS4o5LqmFZjY+bboE3z6qUJKqtYgnoxVAlSpvBpyLhWYKT1mrqxmdu+cm
+      HEADER_LOADER_INTEGRITY: sha384-nGuWKS+1NAegEUEoiUVX48Sv19FqJvl5iEvJi5pMkIe5klJd67CwmdiTn3qCJopQ
     ports:
       - '443:8443'
     volumes:

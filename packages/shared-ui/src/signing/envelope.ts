@@ -19,15 +19,15 @@ const BASE64URL = /^[A-Za-z0-9_-]*$/;
 
 export function encodeBase64Url(bytes: Uint8Array): string {
   let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+  for (const byte of bytes) binary += String.fromCodePoint(byte);
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 }
 
 /** The decoded bytes, or `undefined` when `text` is not unpadded base64url. */
 export function decodeBase64Url(text: string): Uint8Array | undefined {
   if (!BASE64URL.test(text) || text.length % 4 === 1) return undefined;
   const binary = atob(text.replaceAll('-', '+').replaceAll('_', '/'));
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return Uint8Array.from(binary, (char) => char.codePointAt(0)!);
 }
 
 /** The bytes a signature covers: `SIGNATURE_DOMAIN` followed by the manifest bytes. */

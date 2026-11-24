@@ -268,4 +268,55 @@ describe('verify mode', () => {
     writeFileSync(validFile, JSON.stringify({ ...envelope, keyId: backup.keyId }));
     await expect(runVerifyManifest('test', validFile, deps())).rejects.toThrow('bad-signature');
   });
+
+  it('refuses unreadable JSON files in verify mode', async () => {
+    await expect(runVerifyManifest('test', join(dir, 'missing.json'), deps())).rejects.toThrow('cannot read manifest');
+  });
+});
+
+describe('input and self-check refusals', () => {
+  it('rejects invalid environment settings without leaking values', async () => {
+    const rsa = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ format: 'jwk' });
+    await expect(
+      runSignManifest(release(releaseJson()), env({ HEADER_SIGNING_KEY: 'not-json-SENTINEL' }), deps()),
+    ).rejects.toThrow('HEADER_SIGNING_KEY is not a private JWK');
+    await expect(
+      runSignManifest(release(releaseJson()), env({ HEADER_SIGNING_KEY: JSON.stringify(rsa) }), deps()),
+    ).rejects.toThrow('HEADER_SIGNING_KEY is not a P-256 key');
+    await expect(runSignManifest(release(releaseJson()), env({ HEADER_SIGNING_KEY_ID: '' }), deps())).rejects.toThrow(
+      'HEADER_SIGNING_KEY_ID is not set',
+    );
+    await expect(runSignManifest(release(releaseJson()), env({ HEADER_KEYSET: 'BAD!' }), deps())).rejects.toThrow(
+      'HEADER_KEYSET is not set to a keyset name',
+    );
+    await expect(runSignManifest(release(releaseJson()), env({ HEADER_FLOOR: 'abc' }), deps())).rejects.toThrow(
+      'HEADER_FLOOR must be a non-negative integer',
+    );
+    await expect(runSignManifest(release(releaseJson()), env({ HEADER_TTL_DAYS: '0' }), deps())).rejects.toThrow(
+      'HEADER_TTL_DAYS must be at least 1',
+    );
+  });
+
+  it('rejects malformed release.json, bad CLI usage, and failed post-sign self-check without writing out', async () => {
+    const badRelease = writeJson('bad-release.json', { schema: 2 });
+    await expect(runSignManifest(release(badRelease), env(), deps())).rejects.toThrow('is not a release.json');
+    await expect(runSignManifest(['bogus'], env(), deps())).rejects.toThrow('usage:');
+    await expect(
+      runSignManifest(release(releaseJson()), env({ HEADER_SIGNING_KEY_ID: 'untrusted-id' }), deps()),
+    ).rejects.toThrow('the signed manifest would not load (unknown-key)');
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('aborts resign --live-url on non-200 or untrusted live manifest without writing out', async () => {
+    fetchLive.mockResolvedValueOnce(new Response('nope', { status: 503 }));
+    await expect(
+      runSignManifest(resign(record(), '--live-url', 'https://portal.example/m.json'), env(), deps()),
+    ).rejects.toThrow('answered 503');
+
+    fetchLive.mockResolvedValueOnce(Response.json({ bad: true }));
+    await expect(
+      runSignManifest(resign(record(), '--live-url', 'https://portal.example/m.json'), env(), deps()),
+    ).rejects.toThrow('does not verify (malformed)');
+    expect(existsSync(out)).toBe(false);
+  });
 });

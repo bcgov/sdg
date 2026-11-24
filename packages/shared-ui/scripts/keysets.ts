@@ -48,7 +48,7 @@ export function listKeysets(): string[] {
   return readdirSync(KEYS_DIR)
     .map((file) => KEYSET_FILE.exec(file)?.[1])
     .filter((name): name is string => name !== undefined)
-    .toSorted();
+    .toSorted((a, b) => a.localeCompare(b));
 }
 
 function isPublicP256(jwk: unknown): jwk is Jwk {
