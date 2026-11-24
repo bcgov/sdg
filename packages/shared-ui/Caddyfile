@@ -13,7 +13,9 @@
 		level {$LOG_LEVEL:INFO}
 	}
 
-	respond /healthz 200
+	handle /healthz {
+		respond 200
+	}
 
 	# The loader and manifest keep one URL each: browsers revalidate with the ETag on every load, so a release or
 	# rollback (a new manifest) reaches visitors on their next page load. Bundle names change with their content.
