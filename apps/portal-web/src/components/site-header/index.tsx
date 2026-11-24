@@ -1,4 +1,4 @@
-import { SdgHeader, type SdgSettingsEvent } from '@repo/shared-ui/header/react';
+import { loadSdgHeader, SdgHeader, type SdgSettingsEvent } from '@repo/shared-ui/header/react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
 
@@ -6,6 +6,15 @@ import { useHeaderAuth } from '../auth-control';
 
 // Home is current only on "/" itself, not on every path under it.
 const exactMatch = { exact: true } as const;
+
+/** Starts loading `<sdg-header>` before React mounts; never rejects (the loader logs failures itself). */
+export async function startHeader(): Promise<void> {
+  try {
+    await loadSdgHeader();
+  } catch {
+    // The loader logs a failure with context; the page keeps the pre-load band and shows no header.
+  }
+}
 
 /**
  * The edge-served `<sdg-header>` wired to the router and the BFF session. The nav items are router links, so they

@@ -3,23 +3,15 @@ import '@repo/design-system/styles.css';
 // Reserves the header's height until the edge-served <sdg-header> script defines the element (R20).
 import '@repo/shared-ui/header/preload.css';
 import './styles.css';
-import { loadSdgHeader } from '@repo/shared-ui/header/react';
 import { QueryClient } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './app';
+import { startHeader } from './components/site-header';
 import { setUpFontAwesome } from './font-awesome';
 import { createAppRouter } from './router';
 import { startTelemetry } from './telemetry';
-
-async function startHeader(): Promise<void> {
-  try {
-    await loadSdgHeader();
-  } catch {
-    // The loader logs a failure with context; the page keeps the pre-load band and shows no header.
-  }
-}
 
 setUpFontAwesome();
 
