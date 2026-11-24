@@ -79,9 +79,8 @@ jobs:
       actions: read
       contents: read
     uses: ./.github/workflows/reusable-deploy.yml
-    # The prod environment supplies HEADER_SIGNING_KEY and HEADER_SIGNING_KEY_ID
-    secrets:
-      oc_token: ${{ secrets.oc_token }}
+    # Inherit so the prod environment supplies OC_TOKEN and HEADER_SIGNING_KEY (explicit `secrets:` hides unpassed env secrets)
+    secrets: inherit
     with:
       environment: prod
       target: prod
