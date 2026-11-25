@@ -87,6 +87,12 @@ describe('<sdg-header> user menu', () => {
     expect(menu(element).hidden).toBe(true);
   });
 
+  it('styles the menu button like Log In: a secondary button (dark text on white, bordered)', () => {
+    const element = mount(signedIn);
+    expect(button(element).classList).toContain('button-secondary');
+    expect(button(element).classList).not.toContain('button-primary');
+  });
+
   it("opens on click with Settings (a link to SDG's /settings) then Log Out, focusing the first item", async () => {
     const element = mount(signedIn);
     await openByClick(element);

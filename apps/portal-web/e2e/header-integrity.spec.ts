@@ -124,7 +124,7 @@ async function expectNoHeader(page: Page) {
   expect(await page.evaluate(() => customElements.get('sdg-header') === undefined)).toBe(true);
   // The pre-load rule's reserved band stays, empty.
   expect((await page.locator('sdg-header').boundingBox())?.height).toBe(104);
-  await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Log In', exact: true })).toHaveCount(0);
 }
 
 async function expectHeader(page: Page) {

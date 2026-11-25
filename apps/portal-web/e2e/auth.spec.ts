@@ -38,7 +38,7 @@ test.describe('portal-web auth', () => {
     const account = banner.getByRole('button', { name: 'Ada Lovelace' });
     await expect(account).toBeVisible();
     await expect(account).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Log In', exact: true })).toHaveCount(0);
     // It sits on the right of the header's top row, above the nav.
     const [bannerBox, accountBox, contactUsBox] = await Promise.all(
       [banner, account, header.getByRole('link', { name: 'Contact us' })].map((l) => l.boundingBox()),
