@@ -8,6 +8,7 @@ import { SearchToolsSheet } from './search-tools-sheet';
 import { SearchToolsSidebar } from './search-tools-sidebar';
 import { StillLooking } from './still-looking';
 import { DEFAULT_SERVICE_TYPE, type ServiceType } from './type-filter';
+import { useOnEnterWideLayout } from './use-wide-layout';
 
 import styles from './services-page.module.css';
 
@@ -31,6 +32,16 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
   const [isSidebarExpanded, setSidebarExpanded] = useState(true);
   const [isSheetOpen, setSheetOpen] = useState(false);
   const openSheet = useCallback(() => setSheetOpen(true), []);
+
+  // Growing into the wide layout with the sheet open: the sheet goes and the sidebar shows the same tools, open even
+  // if it was collapsed. With the sheet closed, the sidebar stays as the visitor left it.
+  useOnEnterWideLayout(
+    useCallback(() => {
+      if (!isSheetOpen) return;
+      setSheetOpen(false);
+      setSidebarExpanded(true);
+    }, [isSheetOpen]),
+  );
   return (
     <div className={styles['layout']}>
       <SearchToolsSidebar

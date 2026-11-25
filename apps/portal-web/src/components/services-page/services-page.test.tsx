@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { createMemoryHistory } from '@tanstack/react-router';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +8,30 @@ import { App } from '../../app';
 import { createAppRouter } from '../../router';
 
 vi.mock('../devtools', () => ({ Devtools: () => null }));
+
+/**
+ * A controllable `(min-width: 1025px)` media query: starts narrow, and `growToWide()` resizes past the breakpoint
+ * (firing `change` as a browser would).
+ */
+function stubViewport() {
+  const wide = Object.assign(new EventTarget(), {
+    matches: false,
+    media: '(min-width: 1025px)',
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+  });
+  vi.stubGlobal('matchMedia', (media: string) =>
+    media === wide.media ? wide : Object.assign(new EventTarget(), { matches: true, media }),
+  );
+  return {
+    growToWide: () =>
+      act(() => {
+        wide.matches = true;
+        wide.dispatchEvent(Object.assign(new Event('change'), { matches: true, media: wide.media }));
+      }),
+  };
+}
 
 async function renderServices(path = '/services') {
   const queryClient = new QueryClient();
@@ -102,6 +126,41 @@ describe('services page', () => {
     await screen.findByRole('dialog', { name: 'Search tools' });
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('swaps an open sheet for the expanded sidebar when the screen grows to the wide layout', async () => {
+    const viewport = stubViewport();
+    await renderServices();
+    // Collapsed on wide screens earlier; the sheet is then opened at a narrower width.
+    await userEvent.click(screen.getByRole('button', { name: 'Close sidebar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Search tools' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Search tools' });
+    await userEvent.click(within(sheet).getByRole('radio', { name: 'Platform' }));
+
+    viewport.growToWide();
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const sidebar = screen.getByRole('complementary', { name: 'Search tools' });
+    expect(within(sidebar).getByRole('radio', { name: 'Platform' })).toBeChecked();
+  });
+
+  it('leaves the sidebar as it was when the screen grows to the wide layout with the sheet closed', async () => {
+    const viewport = stubViewport();
+    await renderServices();
+    await userEvent.click(screen.getByRole('button', { name: 'Close sidebar' }));
+    // A filter changed in the sheet, which is then closed, still holds in the sidebar.
+    await userEvent.click(screen.getByRole('button', { name: 'Search tools' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Search tools' });
+    await userEvent.click(within(sheet).getByRole('radio', { name: 'Service' }));
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Show results' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    viewport.growToWide();
+
+    const rail = screen.getByRole('complementary', { name: 'Search tools' });
+    expect(within(rail).getByRole('button', { name: 'Open sidebar' })).toBeInTheDocument();
+    await userEvent.click(within(rail).getByRole('button', { name: 'Open sidebar' }));
+    expect(screen.getByRole('radio', { name: 'Service' })).toBeChecked();
   });
 
   it('shows twelve hidden placeholder cards', async () => {

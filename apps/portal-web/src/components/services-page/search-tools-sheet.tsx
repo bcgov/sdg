@@ -19,7 +19,8 @@ interface SearchToolsSheetProps {
 
 /**
  * Search tools as a modal sheet on medium screens (from the right, Figma 36:68956) and small ones (from the bottom,
- * Figma 37:71668). Show results closes it; Clear all resets the filter. Neither changes the results yet.
+ * Figma 37:71668). A filter applies as soon as it's selected, so Show results only closes the sheet; Clear all resets
+ * the filter. The results are placeholders for now, so nothing visibly changes yet.
  */
 export function SearchToolsSheet({ isOpen, onOpenChange, type, onTypeChange }: Readonly<SearchToolsSheetProps>) {
   const headingId = useId();
