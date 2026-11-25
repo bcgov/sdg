@@ -41,6 +41,15 @@ Repository facts for automated coding assistants. Teams may edit or remove this 
 - `charts/observability` is its own release (`observability.yml`), not part of the `sdg` umbrella: `<plate>-tools` collects from dev and test, `<plate>-prod` from prod only. Its configs live once in `charts/observability/files/`, loaded by the chart and bind-mounted by `compose.observability.yaml`; change them there, never in a copy. Pods that should be scraped need `app.kubernetes.io/part-of: sdg` plus the scrape annotations; skip `isQuietPath` paths in any new per-request telemetry.
 - Namespace storage quotas are small (`<plate>-tools`: 1Gi of PVC in total). Size volumes per environment, and put data that can be lost on restart on a `sizeLimit` emptyDir (ephemeral storage isn't under the PVC quota), as `charts/observability` does with `persistence.<component>.enabled: false`.
 
+## Design system
+
+- Read `packages/design-system/README.md` before adding, extending or re-exporting a component. Use a BCDS component (`@bcgov/design-system-react-components`) as is wherever one fits. If one nearly fits, extend it: a wrapper under the BCDS name in `src/components/<kebab-name>/` that passes every other prop through. Never edit or patch the BCDS package. Build a new component only when neither BCDS nor react-aria has one.
+- Extended and new components follow BCDS's style so BCDS could adopt them: BCDS prop names and named slots (`title`, `description`, `buttons`, `titleElement`, `size`, `variant`), CSS Modules using BC design-token variables (no hard-coded values), react-aria data attributes for states, and no imports from an app or router (app elements come in as `*Element` props). Register each in `src/components/components.test.ts` (`expected` + `extended`, or `custom`) and new `*Props` in `src/package-exports.test.ts`.
+- Every extended or new component has a page under portal-web's `/dev`, which exists only under `vite dev` (`src/routes/dev/route.tsx` 404s otherwise); BCDS components used as is don't get one. To add one:
+  - Add an entry to `DEV_PAGES` in `src/components/dev/dev-pages/index.ts`. The index, the "Dev pages" menu and `src/routes/dev/dev-pages.test.tsx` all read it.
+  - Add `src/routes/dev/<kebab-name>.tsx`. It renders `<PlaceholderPage to="/dev/<kebab-name>" />` until the page is built, then a page component in `src/components/dev/<kebab-name>-page/` (see `button-page`).
+  - Build the page from the `src/components/dev/` helpers, showing every variant and state: `DevPageLayout` (with `sections`), `DevSection`, `ExamplePreview` (wrap each example in `#region <name>` / `#endregion <name>` and pass `extractExample(source, '<name>')`, with `source` from the page's own `?raw` import), `CodeBlock` and `PropTable`. Then set the entry's `status` to `'ready'`.
+
 ## Shared actions
 
 - Uses bcgov shared actions and workflows (`bcgov/action-*`, `bcgov/actions/*`, `bcgov/actions-openshift/*`, `bcgov/quickstart-openshift-helpers`). Use them as provided; don't copy or fork them.
