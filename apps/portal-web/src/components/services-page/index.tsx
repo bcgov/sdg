@@ -66,7 +66,11 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
           <ServiceSearch key={query ?? ''} defaultQuery={query} />
         </header>
         {/* Holds the space for the service cards; decorative until they exist. */}
-        <div className={styles['cards']} data-testid="service-placeholders" aria-hidden="true">
+        <div
+          className={`${styles['cards']} ${isSidebarExpanded ? '' : styles['cardsWide']}`}
+          data-testid="service-placeholders"
+          aria-hidden="true"
+        >
           {Array.from({ length: PLACEHOLDER_COUNT }, (_, index) => (
             <div key={index} className={styles['placeholder']} />
           ))}

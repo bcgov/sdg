@@ -81,11 +81,16 @@ describe('services page', () => {
 
   it('collapses the sidebar to a rail with Open sidebar, and opens it again', async () => {
     await renderServices();
+    const cards = screen.getByTestId('service-placeholders');
+    expect(cards.className).not.toMatch(/cardsWide/);
     await userEvent.click(screen.getByRole('button', { name: 'Close sidebar' }));
+    // Three cards a row while the sidebar is closed (wide screens only; see services-page.module.css).
+    expect(cards.className).toMatch(/cardsWide/);
     const rail = screen.getByRole('complementary', { name: 'Search tools' });
     expect(within(rail).queryByRole('radiogroup')).toBeNull();
     await userEvent.click(within(rail).getByRole('button', { name: 'Open sidebar' }));
     expect(screen.getByRole('radiogroup', { name: 'Type' })).toBeInTheDocument();
+    expect(cards.className).not.toMatch(/cardsWide/);
   });
 
   it('lets a visitor pick a type without changing the results (presentational for now)', async () => {

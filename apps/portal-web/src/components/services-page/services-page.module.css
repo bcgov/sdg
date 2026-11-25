@@ -62,6 +62,13 @@
   gap: var(--layout-margin-large);
 }
 
+/* Wide screens with the sidebar collapsed have the room for three a row. */
+@media (min-width: 1025px) {
+  .cardsWide {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .placeholder {
   height: 203px;
   border-radius: var(--layout-border-radius-medium);
