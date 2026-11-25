@@ -3,15 +3,23 @@
   flex-direction: column;
 }
 
-/* The resident's photograph, an icon until the portal can show the real one. */
+/*
+ * The resident's photograph, an icon until the portal can show the real one: a head-and-shoulders silhouette standing
+ * on the frame's bottom edge, like an ID photo.
+ */
 .photograph {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  overflow: hidden;
   width: 200px;
   height: 200px;
   border-radius: var(--layout-border-radius-medium);
   background-color: var(--surface-color-secondary-default);
   color: var(--icons-color-secondary);
-  font-size: 6rem;
+  font-size: 160px;
+}
+
+.photograph > svg {
+  display: block;
 }
