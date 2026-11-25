@@ -98,6 +98,56 @@ describe('home page', () => {
     });
   });
 
+  describe('do more with a BC Services Card Account', () => {
+    it('follows Find a service, with its description and three cards in a list', async () => {
+      await renderHome();
+      const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      const findService = screen.getByRole('region', { name: 'Find a service' });
+      expect(findService.compareDocumentPosition(region)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(region).toHaveTextContent(
+        'You can use your BC Services Card Account to securely access and manage government services online.',
+      );
+
+      const cards = within(region).getAllByRole('listitem');
+      expect(cards.map((card) => within(card).getByRole('heading', { level: 3 }).textContent)).toEqual([
+        'Discover Services',
+        'Apply and track your requests',
+        'Manage your information',
+      ]);
+      expect(cards[0]).toHaveTextContent('Browse and search for government services');
+      expect(cards[1]).toHaveTextContent('Submit applications online and check the status of your requests.');
+      expect(cards[2]).toHaveTextContent('View and update your information in one place.');
+      for (const card of cards) expect(card.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+      expect(region.className).toMatch(/band/);
+    });
+
+    it('links every title to #', async () => {
+      await renderHome();
+      const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      expect(
+        within(region)
+          .getAllByRole('link')
+          .map((link) => [link.textContent, link.getAttribute('href')]),
+      ).toEqual([
+        ['Discover Services', '#'],
+        ['Apply and track your requests', '#'],
+        ['Manage your information', '#'],
+      ]);
+    });
+  });
+
+  it('ends with two hidden placeholder blocks, one above the other, after the account section', async () => {
+    await renderHome();
+    const account = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+    const [first, second, ...rest] = screen.getAllByTestId('home-placeholder');
+    expect(rest).toEqual([]);
+    expect(account.nextElementSibling).toBe(first);
+    expect(first?.nextElementSibling).toBe(second);
+    expect(second?.nextElementSibling).toBeNull();
+    expect(first).toHaveAttribute('aria-hidden', 'true');
+    expect(second).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('still shows and dismisses an auth-error notice above the hero', async () => {
     const router = await renderHome('/?authError=login_failed');
     const main = screen.getByRole('main');

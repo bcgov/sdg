@@ -90,6 +90,13 @@
   background-color: var(--surface-color-background-light-gray);
 }
 
+/* A full-width, 375px light grey block standing in for content still to come, as on the not-found page. */
+.contentPlaceholder {
+  width: 100%;
+  height: 375px;
+  background-color: var(--surface-color-background-light-gray);
+}
+
 .actions {
   display: flex;
   justify-content: center;

@@ -4,6 +4,7 @@ import { faChevronRight, FontAwesomeIcon } from '@repo/design-system/icons';
 import type { ReactNode } from 'react';
 
 import { Link } from '../link';
+import { AccountSection } from './account-section';
 import { HomeSearch } from './home-search';
 
 import styles from './home-page.module.css';
@@ -41,6 +42,10 @@ export function HomePage({ children }: Readonly<HomePageProps>) {
           </Link>
         </div>
       </Section>
+      <AccountSection />
+      {/* Placeholders for content still to come, like the not-found page's. */}
+      <div className={styles['contentPlaceholder']} data-testid="home-placeholder" aria-hidden="true" />
+      <div className={styles['contentPlaceholder']} data-testid="home-placeholder" aria-hidden="true" />
     </div>
   );
 }
