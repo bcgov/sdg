@@ -44,6 +44,11 @@ describe('PageLayout', () => {
     expect(screen.getByRole('heading', { level: 1 }).nextElementSibling).toBe(screen.getByRole('separator'));
   });
 
+  it('pads the page 24px above and below, since the root container pads only the sides', () => {
+    const page = /\n\.page \{(?<body>[^}]*)\}/u.exec(stylesheet)?.groups?.['body'];
+    expect(page).toContain('padding-block: var(--layout-padding-large);');
+  });
+
   it('sets the title in 28px bold', () => {
     expect(stylesheet).toMatch(/\.header > \.title \{[^}]*700 1\.75rem\/2\.625rem/u);
   });

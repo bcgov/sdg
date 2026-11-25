@@ -61,6 +61,21 @@ section.band {
   font: var(--typography-regular-body);
 }
 
+/* Log in, with the set-up link on the line below, both centred. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--layout-margin-medium);
+}
+
+/* Log in is a button-styled link, which reads as a button, so no underline in any state. */
+.actions > a:first-child,
+.actions > a:first-child:hover,
+.actions > a:first-child:focus-visible {
+  text-decoration: none;
+}
+
 @media (max-width: 768px) {
   .cards {
     grid-template-columns: 1fr;

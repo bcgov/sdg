@@ -121,11 +121,49 @@ describe('home page', () => {
       expect(region.className).toMatch(/band/);
     });
 
+    it('offers a signed-out visitor Log in, back to the home page, then the account set-up link', async () => {
+      await renderHome();
+      const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      const login = await within(region).findByRole('link', { name: 'Log in with BC Services Card Account' });
+      expect(login).toHaveAttribute('href', '/api/auth/login?returnTo=%2F');
+      expect(login.querySelector('svg')).toHaveAttribute('data-icon', 'arrow-right-to-bracket');
+      const setup = within(region).getByRole('link', {
+        name: 'Set up a BC Services Card Account (opens in a new tab)',
+      });
+      expect(setup).toHaveAttribute('href', 'https://id.gov.bc.ca/account/setup-instruction');
+      expect(setup).toHaveAttribute('target', '_blank');
+      expect(setup).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(login.nextElementSibling).toBe(setup);
+    });
+
+    it('shows neither Log in nor the set-up link to a signed-in user', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn<typeof fetch>((input) => {
+          const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+          return Promise.resolve(
+            url === '/api/auth/me'
+              ? Response.json({ id: 'p-1', name: 'Ada Lovelace', email: 'ada@example.com' })
+              : Response.json({ statusCode: 401 }, { status: 401 }),
+          );
+        }),
+      );
+      const queryClient = new QueryClient();
+      const router = createAppRouter({ queryClient, history: createMemoryHistory({ initialEntries: ['/'] }) });
+      render(<App queryClient={queryClient} router={router} />);
+      await screen.findByRole('heading', { level: 1, name: 'Access services online' });
+      // Only once the session check has answered is the absence meaningful.
+      await waitFor(() => expect(queryClient.getQueryData(['auth', 'me'])).toMatchObject({ name: 'Ada Lovelace' }));
+      const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      expect(within(region).queryByRole('link', { name: /Set up a BC Services Card Account/ })).toBeNull();
+      expect(within(region).queryByRole('link', { name: /Log in/ })).toBeNull();
+    });
+
     it('links every title to #', async () => {
       await renderHome();
       const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
       expect(
-        within(region)
+        within(within(region).getByRole('list'))
           .getAllByRole('link')
           .map((link) => [link.textContent, link.getAttribute('href')]),
       ).toEqual([
@@ -136,16 +174,16 @@ describe('home page', () => {
     });
   });
 
-  it('ends with two hidden placeholder blocks, one above the other, after the account section', async () => {
+  it('ends with Find more services, then Contact information, after the account section', async () => {
     await renderHome();
     const account = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
-    const [first, second, ...rest] = screen.getAllByTestId('home-placeholder');
-    expect(rest).toEqual([]);
-    expect(account.nextElementSibling).toBe(first);
-    expect(first?.nextElementSibling).toBe(second);
-    expect(second?.nextElementSibling).toBeNull();
-    expect(first).toHaveAttribute('aria-hidden', 'true');
-    expect(second).toHaveAttribute('aria-hidden', 'true');
+    const findMore = screen.getByRole('region', { name: 'Find more services' });
+    const contact = screen.getByRole('region', { name: 'Contact information' });
+    expect(account.nextElementSibling).toBe(findMore);
+    expect(findMore.nextElementSibling).toBe(contact);
+    expect(contact.nextElementSibling).toBeNull();
+    expect(screen.queryByTestId('home-placeholder')).toBeNull();
+    expect(contact).toHaveTextContent('We’re here to help, Monday to Friday from 7:30 am to 5 pm.');
   });
 
   it('still shows and dismisses an auth-error notice above the hero', async () => {

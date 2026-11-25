@@ -1,7 +1,9 @@
+/* The page's own vertical padding: the root container only pads the sides. */
 .page {
   display: flex;
   flex-direction: column;
   gap: var(--layout-margin-large);
+  padding-block: var(--layout-padding-large);
 }
 
 /* The page's gaps own the spacing between blocks, so its children drop their own margins. */

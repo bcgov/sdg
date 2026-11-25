@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PageLayout } from '../components/page-layout';
+import { ServicesPage } from '../components/services-page';
 
 interface ServicesSearch {
   q?: string;
@@ -15,9 +15,10 @@ function parseQuery(value: unknown): string | undefined {
 export const Route = createFileRoute('/services')({
   // `q` is always returned, even as undefined, so a blank raw `?q=` can't show through the merged search.
   validateSearch: (search): ServicesSearch => ({ q: parseQuery(search['q']) }),
-  component: ServicesPage,
+  component: ServicesRoute,
 });
 
-function ServicesPage() {
-  return <PageLayout title="Services" />;
+function ServicesRoute() {
+  const { q } = Route.useSearch();
+  return <ServicesPage query={q} />;
 }

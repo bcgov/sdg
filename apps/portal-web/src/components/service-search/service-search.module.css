@@ -1,0 +1,9 @@
+.searchForm {
+  display: flex;
+  gap: var(--layout-margin-small);
+}
+
+.searchField {
+  flex: 1 1 auto;
+  min-width: 0;
+}

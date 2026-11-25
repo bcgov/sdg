@@ -1,9 +1,11 @@
+/* Flush under the header (the hero band starts the page); the page's own padding keeps the footer off the content. */
 .page {
   --home-search-height: 40px; /* bcgov's medium TextField and Button */
 
   display: flex;
   flex-direction: column;
   gap: var(--layout-margin-xlarge);
+  padding-block-end: var(--layout-padding-large);
 }
 
 .page > * {
@@ -16,12 +18,9 @@
   background-color: var(--surface-color-background-light-blue);
 }
 
-/*
- * Flush under the header by cancelling the container's top padding. (0,3,0) outranks the root layout's
- * `.container > :first-child` reset; it no longer matches when the auth-error notice comes first.
- */
-.page > .hero:first-child {
-  margin-block-start: calc(-1 * var(--layout-padding-large));
+/* The auth-error notice, when it comes before the hero, keeps the usual space under the header. (0,3,0) outranks `.page > *`. */
+.page > :first-child:not(.hero) {
+  margin-block-start: var(--layout-padding-large);
 }
 
 .page > .hero {
@@ -68,16 +67,6 @@
   transform: translateY(50%);
 }
 
-.searchForm {
-  display: flex;
-  gap: var(--layout-margin-small);
-}
-
-.searchField {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -87,13 +76,6 @@
 .placeholder {
   height: 160px;
   border-radius: var(--layout-border-radius-large);
-  background-color: var(--surface-color-background-light-gray);
-}
-
-/* A full-width, 375px light grey block standing in for content still to come, as on the not-found page. */
-.contentPlaceholder {
-  width: 100%;
-  height: 375px;
   background-color: var(--surface-color-background-light-gray);
 }
 
@@ -107,6 +89,13 @@
 .actions > a:hover,
 .actions > a:focus-visible {
   text-decoration: none;
+}
+
+/* Medium widths (769–1024px) fit two placeholder cards a row; narrow ones, one. */
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {

@@ -1,12 +1,17 @@
 import { Link } from '@repo/design-system/components/link';
 import { Section } from '@repo/design-system/components/section';
 import {
+  faArrowRightToBracket,
+  faArrowUpRightFromSquare,
   faMagnifyingGlass,
   faPaperPlane,
   faUserGear,
   FontAwesomeIcon,
   type IconDefinition,
 } from '@repo/design-system/icons';
+
+import { loginHref } from '../../auth/api';
+import { useCurrentUser } from '../../auth/use-current-user';
 
 import styles from './account-section.module.css';
 
@@ -40,8 +45,20 @@ const CARDS: readonly AccountCard[] = [
   },
 ];
 
-/** What a BC Services Card Account lets a resident do: three cards, side by side, stacking on narrow screens. */
+/** BC Services Card's page on getting an account set up. */
+const ACCOUNT_SETUP_URL = 'https://id.gov.bc.ca/account/setup-instruction';
+
+const LOGIN_ICON = <FontAwesomeIcon icon={faArrowRightToBracket} aria-hidden="true" />;
+const EXTERNAL_ICON = <FontAwesomeIcon icon={faArrowUpRightFromSquare} aria-hidden="true" />;
+
+/**
+ * What a BC Services Card Account lets a resident do: three cards, side by side, stacking on narrow screens. A
+ * signed-out visitor also gets Log in (a full-page navigation through portal-api, back to the home page) and the
+ * account set-up link; neither shows while the session check is pending, so they don't flash for a signed-in user.
+ */
 export function AccountSection() {
+  const { data: user, isPending } = useCurrentUser();
+  const signedOut = !isPending && !user;
   return (
     <Section
       className={styles['band']}
@@ -63,6 +80,22 @@ export function AccountSection() {
           </li>
         ))}
       </ul>
+      {signedOut && (
+        <div className={styles['actions']}>
+          <Link href={loginHref('/')} isButton buttonVariant="primary" iconLeft={LOGIN_ICON}>
+            Log in with BC Services Card Account
+          </Link>
+          <Link
+            href={ACCOUNT_SETUP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            ariaLabel="Set up a BC Services Card Account (opens in a new tab)"
+            iconRight={EXTERNAL_ICON}
+          >
+            Set up a BC Services Card Account
+          </Link>
+        </div>
+      )}
     </Section>
   );
 }
