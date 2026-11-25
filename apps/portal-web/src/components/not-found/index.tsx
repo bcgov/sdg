@@ -16,10 +16,21 @@ export function NotFound() {
         <ul>
           <li>Checking that the web URL has been entered correctly</li>
           <li>
-            Going to our <Link to="/">Home Page</Link> and browse through our topics for the information you want
+            Going to our{' '}
+            <Link className={styles['link']} to="/">
+              Home Page
+            </Link>{' '}
+            and browse through our topics for the information you want
           </li>
           <li>
-            Looking for <Link to="/services">Services</Link> or <Link to="/help">Help</Link>
+            Looking for{' '}
+            <Link className={styles['link']} to="/services">
+              Services
+            </Link>{' '}
+            or{' '}
+            <Link className={styles['link']} to="/help">
+              Help
+            </Link>
           </li>
         </ul>
       </div>

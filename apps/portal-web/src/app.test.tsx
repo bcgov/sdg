@@ -178,6 +178,9 @@ describe('portal-web app shell', () => {
       expect(within(main).getByRole('link', { name: 'Home Page' })).toHaveAttribute('href', '/');
       expect(within(main).getByRole('link', { name: 'Services' })).toHaveAttribute('href', '/services');
       expect(within(main).getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
+      for (const name of ['Home Page', 'Services', 'Help']) {
+        expect(within(main).getByRole('link', { name }).className).toMatch(/link/);
+      }
       expect(within(main).getAllByRole('listitem')).toHaveLength(3);
       expect(within(main).getByTestId('not-found-placeholder').previousElementSibling).toHaveTextContent('We suggest:');
       expect((await headerQueries()).getByRole('banner')).toBeInTheDocument();

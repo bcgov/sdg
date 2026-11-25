@@ -8,18 +8,27 @@
 
 /* No design token is exactly 18px/30px (regular-large-body is 30.6px), so the type is set explicitly. */
 .body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
   color: var(--typography-color-primary);
   font:
     400 1.125rem/1.875rem 'BC Sans',
     sans-serif;
 }
 
+/* The gap owns the 8px between the paragraphs and the list, so they drop their own margins. */
 .body > * {
   margin: 0;
 }
 
 .body > .lead {
   font-weight: 700;
+}
+
+/* The design system's links set their own (16px) type; inline in this copy they match the 18px text around them. */
+.body a.link {
+  font: inherit;
 }
 
 /* A full-width, 375px light grey block standing in for content still to come. */
