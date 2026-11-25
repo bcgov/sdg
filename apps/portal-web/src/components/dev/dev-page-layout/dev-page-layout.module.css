@@ -1,0 +1,62 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xlarge);
+}
+
+/* B.C. gold rule under the header, as on the earlier site's dev pages. */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-medium);
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: var(--layout-padding-medium);
+  border-bottom: var(--layout-border-width-medium) solid var(--theme-primary-gold);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+}
+
+.intro > * {
+  margin: var(--layout-margin-none);
+}
+
+.eyebrow {
+  color: var(--typography-color-secondary);
+  font-size: var(--typography-font-size-small-body);
+  font-weight: var(--typography-font-weights-bold);
+}
+
+.description {
+  color: var(--typography-color-secondary);
+}
+
+.body {
+  display: grid;
+  gap: var(--layout-margin-xlarge);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xxlarge);
+  min-width: 0;
+}
+
+/* Narrow: the nav sits above the content. Wide: in a column beside it. The main element is the container. */
+@container (min-width: 900px) {
+  .body[data-has-nav] {
+    grid-template-columns: 12rem minmax(0, 1fr);
+  }
+
+  /* Stays in view beside the content while it scrolls. */
+  .aside {
+    position: sticky;
+    top: var(--layout-margin-large);
+    align-self: start;
+  }
+}

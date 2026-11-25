@@ -1,0 +1,27 @@
+.codeBlock {
+  position: relative;
+}
+
+.pre {
+  overflow-x: auto;
+  margin: var(--layout-margin-none);
+  padding: var(--layout-padding-medium);
+  border-radius: var(--layout-border-radius-medium);
+  background-color: var(--surface-color-background-light-gray);
+  color: var(--typography-color-primary);
+  /* No design token for a code font. */
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: var(--typography-font-size-small-body);
+  line-height: 1.5;
+}
+
+/* Over the top-right corner of the code; the code keeps clear of it. */
+.copy {
+  position: absolute;
+  top: var(--layout-margin-xsmall);
+  right: var(--layout-margin-xsmall);
+}
+
+.codeBlock:has(.copy) .pre {
+  padding-right: calc(var(--layout-padding-medium) * 3);
+}

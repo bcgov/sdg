@@ -1,0 +1,21 @@
+.example {
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background-color: var(--surface-color-background-white);
+}
+
+.preview {
+  padding: var(--layout-padding-large) var(--layout-padding-medium);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--layout-padding-xsmall);
+  border-top: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+/* Square bottom corners inside the frame's rounded ones. */
+.code pre {
+  border-radius: 0 0 var(--layout-border-radius-medium) var(--layout-border-radius-medium);
+}

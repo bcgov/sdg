@@ -1,0 +1,26 @@
+.heading {
+  margin: 0 0 var(--layout-margin-small);
+  color: var(--typography-color-secondary);
+  font-size: var(--typography-font-size-small-body);
+  font-weight: var(--typography-font-weights-bold);
+}
+
+.list {
+  margin: var(--layout-margin-none);
+  padding: var(--layout-padding-none);
+  list-style: none;
+  border-left: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+/* Each entry sits on the rail; the current one gets a B.C. blue bar over it. */
+.item {
+  margin-left: calc(var(--layout-border-width-small) * -1);
+  padding: var(--layout-padding-xsmall) var(--layout-padding-small);
+  border-left: var(--layout-border-width-medium) solid transparent;
+  font-size: var(--typography-font-size-small-body);
+}
+
+.item[data-current] {
+  border-left-color: var(--surface-color-border-active);
+  font-weight: var(--typography-font-weights-bold);
+}

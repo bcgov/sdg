@@ -120,7 +120,18 @@ Co-locate `<name>.test.tsx`, and query by role (`getByRole('article', { name })`
 
 ## Trying it out
 
-portal-web has unlinked local helper pages under [`/dev`](../../apps/portal-web/src/routes/dev/): `/dev` lists them, and each component has its own page (`/dev/button`, `/dev/card`). Add a page and a link on `/dev` for each new component, showing every variant and state.
+portal-web has unlinked local helper pages under [`/dev`](../../apps/portal-web/src/routes/dev/), one for each extended or custom component (`/dev/button`, `/dev/card`, …). BCDS components used as is don't get one. The pages only exist under `vite dev`: in a production build every `/dev` route is a 404.
+
+To add a page for a new component:
+
+1. Add an entry to `DEV_PAGES` in [`components/dev/dev-pages`](../../apps/portal-web/src/components/dev/dev-pages/index.ts). The `/dev` index, the "Dev pages" menu and the route tests all read that list.
+2. Add `routes/dev/<kebab-name>.tsx`. Start it as a placeholder (`<PlaceholderPage to="/dev/<kebab-name>" />`), or point it at a page component in `components/dev/<kebab-name>-page/`, as [button-page](../../apps/portal-web/src/components/dev/button-page/index.tsx) does.
+3. Build the page from the helpers in [`components/dev/`](../../apps/portal-web/src/components/dev/), showing every variant and state:
+   - `DevPageLayout` with a `sections` list for the "On this page" nav.
+   - A `DevSection` for each section. Follow the order Full example, Usage, the variants, then API.
+   - `ExamplePreview` around each live example. Wrap the example in `#region <name>` / `#endregion <name>` comments and pass `extractExample(source, '<name>')` as its code, so "Show code" shows exactly what renders.
+   - `CodeBlock` for the usage snippet, and `PropTable` for the props.
+4. When the page is built, set its entry's `status` to `ready`.
 
 In the Docker stack, the `portal-web` container's file watcher can miss changes. If the page shows old code, run `docker compose restart portal-web`.
 
