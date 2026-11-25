@@ -1,9 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { Section } from './section';
 
 afterEach(cleanup);
+
+// fileURLToPath on the string: jsdom replaces the global URL class.
+const stylesheet = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'section.module.css'), 'utf8');
 
 const bar = (container: HTMLElement) => container.querySelector('[class*="bar"]');
 
@@ -59,5 +66,9 @@ describe('Section', () => {
   it('merges className onto the section element', () => {
     const { container } = render(<Section title="Profile" className="extra" />);
     expect(container.querySelector('section')?.className).toMatch(/\bextra\b/);
+  });
+
+  it('sets the title in 24px bold (bold-h4)', () => {
+    expect(stylesheet).toMatch(/\.title \{[^}]*font: var\(--typography-bold-h4\);/u);
   });
 });

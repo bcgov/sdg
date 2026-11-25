@@ -1,8 +1,9 @@
 import { Details, type DetailsItem } from '@repo/design-system/components/details';
+import { FontAwesomeIcon, faUser } from '@repo/design-system/icons';
 import { useMemo } from 'react';
 
 import type { Profile } from '../../profile/api';
-import { formatBirthdate, formatGender, NOT_PROVIDED, orNotProvided } from '../../profile/format';
+import { formatBirthdate, NOT_PROVIDED, orNotProvided } from '../../profile/format';
 import { ChangeLink } from './change-link';
 
 import styles from './settings-page.module.css';
@@ -28,33 +29,30 @@ function addressValue(address: string[] | null) {
   );
 }
 
+/** A stand-in for the resident's photograph until the portal can show it. */
+const PHOTOGRAPH_PLACEHOLDER = (
+  <span className={styles['photograph']}>
+    <FontAwesomeIcon icon={faUser} aria-hidden={false} aria-label="Photograph not available" />
+  </span>
+);
+
 /** The Profile section's rows (R11): identity details from the resident's BC Services Card. */
 export function ProfileDetails({ profile }: Readonly<{ profile: Profile }>) {
   const items = useMemo(
     (): DetailsItem[] => [
-      {
-        id: 'name',
-        label: 'Full Name',
-        value: orNotProvided(profile.name),
-        extra: <ChangeLink anchor="name" field="full name" />,
-      },
+      { id: 'photograph', label: 'Photograph', value: PHOTOGRAPH_PLACEHOLDER },
+      { id: 'name', label: 'Full Name', value: orNotProvided(profile.name) },
       { id: 'birthdate', label: 'Date of Birth', value: formatBirthdate(profile.birthdate) },
-      {
-        id: 'gender',
-        label: 'Gender',
-        value: formatGender(profile.gender),
-        extra: <ChangeLink anchor="gender" field="gender" />,
-      },
       {
         id: 'address',
         label: 'Address',
         value: addressValue(profile.address),
-        extra: <ChangeLink anchor="address" field="address" />,
+        extra: <ChangeLink anchor="address">Change my address</ChangeLink>,
       },
     ],
     [profile],
   );
-  return <Details items={items} />;
+  return <Details items={items} bordered />;
 }
 
 /** The Communication section's rows (R16): contact details, with nowhere to change them yet. */
@@ -66,5 +64,5 @@ export function CommunicationDetails({ profile }: Readonly<{ profile: Profile }>
     ],
     [profile],
   );
-  return <Details items={items} />;
+  return <Details items={items} bordered />;
 }

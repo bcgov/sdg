@@ -1,0 +1,149 @@
+/* Figma: Developer Handoff 83:105568 (wide), 36:68956 (medium sheet), 37:71668 (small sheet). */
+
+/* Wide screens: a 261px column (at most 356px) ruled off from the results, or a rail when collapsed. */
+.sidebar {
+  box-sizing: border-box;
+  flex: 0 0 261px;
+  max-width: 356px;
+  padding-block-start: var(--layout-margin-medium);
+  padding-inline-end: var(--layout-margin-medium);
+  border-inline-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+/* Collapsed: just the Open sidebar button, the rule still running down to the footer. */
+.rail {
+  flex-basis: auto;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-small);
+  margin-block-end: var(--layout-margin-large);
+  padding-block: var(--layout-margin-small) var(--layout-margin-large);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.title {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--typography-color-secondary);
+  font: var(--typography-bold-large-body);
+}
+
+.sidebarBody {
+  padding-block-end: var(--layout-margin-large);
+}
+
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+}
+
+.filterTitle {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  margin: 0;
+  color: var(--typography-color-secondary);
+  font: var(--typography-bold-body);
+}
+
+/* Medium and small screens use the sheet; the sidebar and its rail go. */
+@media (max-width: 1024px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+/* The sheet's dimmed backdrop. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--surface-color-overlay-default);
+}
+
+/* Medium screens: a 320px sheet along the right edge. */
+.sheet {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(320px, 100%);
+  background-color: var(--surface-color-background-white);
+  box-shadow: var(--surface-shadow-large);
+  outline: none;
+}
+
+/* The design-system Dialog wraps its content in one container; stretch it so the footer sits at the bottom. */
+.sheet > div {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.overlay[data-entering] .sheet {
+  animation: slide-in-right 200ms ease-out;
+}
+
+.sheetHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-small);
+  padding: var(--layout-padding-small) var(--layout-padding-small) var(--layout-padding-small)
+    var(--layout-padding-medium);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.sheetHeader > .title {
+  color: var(--typography-color-primary);
+}
+
+.sheetBody {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--layout-padding-large) var(--layout-padding-medium);
+}
+
+.sheetFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--layout-margin-small);
+  padding: var(--layout-padding-medium);
+  border-block-start: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+/* Small screens: the sheet rises from the bottom, leaving the top of the page showing above it. */
+@media (max-width: 768px) {
+  .sheet {
+    inset-block-start: 56px;
+    inset-inline-start: 0;
+    width: auto;
+  }
+
+  .overlay[data-entering] .sheet {
+    animation-name: slide-in-up;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay[data-entering] .sheet {
+    animation: none;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    transform: translateY(100%);
+  }
+}

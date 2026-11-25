@@ -1,0 +1,87 @@
+/*
+ * A full-bleed light-grey band, like the hero: `cqw` is relative to <main>, whose width excludes the scrollbar, so the
+ * negative margin reaches both edges without a horizontal scroll, and the matching padding keeps the content in the column.
+ * `section.band` (0,1,1) outranks the home page's `.page > *` margin reset.
+ */
+section.band {
+  margin-inline: calc(50% - 50cqw);
+  padding-block: var(--layout-margin-xxxlarge); /* 48px; the padding scale stops at 32px */
+  padding-inline: calc(50cqw - 50%);
+  background-color: var(--surface-color-background-light-gray);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--layout-margin-large);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Icon on the left; title and description stacked to its right. */
+.card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--layout-margin-medium);
+}
+
+.icon {
+  flex: none;
+  color: var(--theme-primary-blue);
+  font-size: 1.5rem;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+  min-width: 0;
+}
+
+.text > * {
+  margin: 0;
+}
+
+.title {
+  color: var(--typography-color-primary);
+  font: var(--typography-bold-large-body);
+}
+
+/* bcgov blue, in the title's type; (0,2,1) outranks the design system's link colours in every state. */
+.title a.link,
+.title a.link:hover,
+.title a.link:visited {
+  color: var(--theme-primary-blue);
+  font: inherit;
+}
+
+.description {
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+/* Log in, with the set-up link on the line below, both centred. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--layout-margin-medium);
+}
+
+/* Log in is a button-styled link, which reads as a button, so no underline in any state. */
+.actions > a:first-child,
+.actions > a:first-child:hover,
+.actions > a:first-child:focus-visible {
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: var(--layout-padding-small);
+  }
+}

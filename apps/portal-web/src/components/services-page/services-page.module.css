@@ -1,0 +1,111 @@
+/* Figma: Developer Handoff, node 26:21014. */
+.layout {
+  display: flex;
+  align-items: stretch;
+  gap: var(--layout-margin-large);
+}
+
+.primary {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: var(--layout-margin-large);
+  min-width: 0;
+  padding-block: var(--layout-margin-large);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  padding-block-end: var(--layout-margin-large);
+  border-block-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+/* The title, and on medium and small screens the Search tools button beside it. */
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-medium);
+}
+
+.toolsTrigger {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+@media (min-width: 1025px) {
+  .toolsTrigger {
+    display: none;
+  }
+}
+
+/* No design token is exactly 28px/42px bold (bold-h3 is 28px/48px), so the type is set explicitly. */
+.title {
+  margin: 0;
+  color: var(--typography-color-primary);
+  font:
+    700 1.75rem/2.625rem 'BC Sans',
+    sans-serif;
+}
+
+.description {
+  margin: 0;
+  padding-block: var(--layout-margin-xsmall);
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-large-body);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-margin-large);
+}
+
+/* Wide screens with the sidebar collapsed have the room for three a row. */
+@media (min-width: 1025px) {
+  .cardsWide {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.placeholder {
+  height: 203px;
+  border-radius: var(--layout-border-radius-medium);
+  background-color: var(--surface-color-background-light-gray);
+}
+
+/* The pagination row under a rule: the controls, then the results count 32px along. */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--layout-margin-xlarge);
+  padding-block: calc(var(--layout-margin-small) + var(--layout-margin-medium)) var(--layout-margin-medium);
+  border-block-start: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.pages {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-margin-small);
+}
+
+.count {
+  margin: 0;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+/* A button-styled link reads as a button, so no underline in any state. */
+.helpActions > a,
+.helpActions > a:hover,
+.helpActions > a:focus-visible {
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}

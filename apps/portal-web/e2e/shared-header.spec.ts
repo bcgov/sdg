@@ -231,12 +231,12 @@ test.describe('portal-web shared header', () => {
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeVisible();
     await expect(header.getByRole('link', { name: 'Start' })).toBeVisible();
 
-    // Signed in, Account Settings links back to the SDG that served the header, not to the partner's own origin.
+    // Signed in, Settings links back to the SDG that served the header, not to the partner's own origin.
     await header.evaluate((el) => el.setAttribute('user-name', 'Ada Lovelace'));
     await header.getByRole('button', { name: 'Ada Lovelace' }).click();
-    await expect(header.getByRole('menuitem', { name: 'Account Settings' })).toHaveAttribute(
+    await expect(header.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute(
       'href',
-      new URL('/account-settings', baseURL).href,
+      new URL('/settings', baseURL).href,
     );
 
     // Log Out is the site's to handle: the header only dispatches sdg-logout.

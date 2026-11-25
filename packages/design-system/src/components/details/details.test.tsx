@@ -80,6 +80,23 @@ describe('Details', () => {
     expect(list?.className).toMatch(/\bextra\b/);
   });
 
+  it('adds the bordered class only when bordered', () => {
+    const { container, rerender } = render(<Details items={PROFILE} />);
+    expect(container.querySelector('dl')?.className).not.toMatch(/bordered/);
+    rerender(<Details items={PROFILE} bordered />);
+    expect(container.querySelector('dl')?.className).toMatch(/bordered/);
+  });
+
+  it('borders the list and divides its rows', () => {
+    expect(stylesheet).toMatch(/\.bordered \{[^}]*border: [^}]*;/u);
+    expect(stylesheet).toMatch(/\.bordered > \.row \+ \.row \{[^}]*border-top: [^}]*;/u);
+  });
+
+  it('aligns extra content to the end of the row, and to the start once stacked', () => {
+    expect(stylesheet).toMatch(/\n\.extra \{[^}]*text-align: end;/u);
+    expect(stylesheet).toMatch(/@media \(max-width: 768px\) \{[^@]*\.extra \{[^}]*text-align: start;/u);
+  });
+
   it('stacks rows into one column at phone width', () => {
     const phone = /@media \(max-width: 768px\) \{[^@]*\.row \{[^}]*grid-template-columns: 1fr;/u;
     expect(stylesheet).toMatch(phone);

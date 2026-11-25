@@ -15,13 +15,20 @@ export interface DetailsItem {
 
 export interface DetailsProps {
   items: readonly DetailsItem[];
+  /** Draws a border around the list and a divider between rows. */
+  bordered?: boolean;
   className?: string;
   'aria-label'?: string;
 }
 
 /** A description list laid out as label / value / extra columns, stacking into one column on narrow screens. */
-export function Details({ items, className, 'aria-label': ariaLabel }: Readonly<DetailsProps>): JSX.Element {
-  const classes = [styles['details'], className].filter(Boolean).join(' ');
+export function Details({
+  items,
+  bordered = false,
+  className,
+  'aria-label': ariaLabel,
+}: Readonly<DetailsProps>): JSX.Element {
+  const classes = [styles['details'], bordered && styles['bordered'], className].filter(Boolean).join(' ');
   return (
     <dl className={classes} aria-label={ariaLabel}>
       {items.map(({ id, label, value, extra }) => (

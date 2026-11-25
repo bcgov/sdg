@@ -78,25 +78,28 @@ test.describe('portal-web layout', () => {
     expect(m.marginLeft).toBeCloseTo(m.marginRight, 0);
   });
 
-  // On /services: the home page's hero cancels the top padding on purpose, so it is checked there instead.
-  test('spaces content from the container edges by the container padding alone', async ({ page }) => {
+  test('pads the container only at the sides, so pages sit flush against the header and footer', async ({ page }) => {
     await page.goto('/services');
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeVisible();
 
     const m = await page.evaluate(() => {
+      const main = document.querySelector('main')!.getBoundingClientRect();
       const container = document.querySelector('main > div')!;
       const style = getComputedStyle(container);
       const rect = container.getBoundingClientRect();
       return {
         paddingTop: Number.parseFloat(style.paddingTop),
         paddingBottom: Number.parseFloat(style.paddingBottom),
-        gapTop: container.firstElementChild!.getBoundingClientRect().top - rect.top,
+        paddingLeft: Number.parseFloat(style.paddingLeft),
+        gapTop: container.firstElementChild!.getBoundingClientRect().top - main.top,
         gapBottom: rect.bottom - container.lastElementChild!.getBoundingClientRect().bottom,
       };
     });
-    expect(m.paddingTop).toBeGreaterThan(0);
-    expect(m.gapTop).toBeCloseTo(m.paddingTop, 0);
-    expect(m.gapBottom).toBeCloseTo(m.paddingBottom, 0);
+    expect(m.paddingTop).toBe(0);
+    expect(m.paddingBottom).toBe(0);
+    expect(m.paddingLeft).toBeGreaterThan(0);
+    expect(m.gapTop).toBeCloseTo(0, 0);
+    expect(m.gapBottom).toBeCloseTo(0, 0);
   });
 
   test('moves focus to main content via the skip link', async ({ page }) => {
@@ -112,11 +115,12 @@ test.describe('portal-web layout', () => {
   test('renders the not-found page inside the layout for an unknown path', async ({ page }) => {
     await page.goto('/does-not-exist');
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Page not found');
+    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Oops, looks like we’re lost');
+    await expect(main.getByText('Error 404 - Page not found')).toBeVisible();
     await expect(page.getByRole('banner')).toContainText('SDG');
     await expect(page.getByRole('contentinfo')).toBeVisible();
 
-    await main.getByRole('link', { name: 'Go to the home page' }).click();
+    await main.getByRole('link', { name: 'Home Page' }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(main.getByRole('heading', { level: 1 })).toHaveText('Access services online');
   });
@@ -195,7 +199,9 @@ test.describe('portal-web home page layout', () => {
     });
   }
 
-  test('lays the placeholders out 3 × 2 on desktop and in one column on a phone', async ({ page }) => {
+  test('lays the placeholders out 3 × 2 on desktop, 2 × 3 at medium width and in one column on a phone', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/');
     await expect(page.getByRole('region', { name: 'Find a service' })).toBeVisible();
@@ -203,6 +209,11 @@ test.describe('portal-web home page layout', () => {
     expect(m.placeholders).toHaveLength(6);
     expect(new Set(m.placeholders.map((p) => Math.round(p.top))).size).toBe(2);
     expect(new Set(m.placeholders.map((p) => Math.round(p.left))).size).toBe(3);
+
+    await page.setViewportSize({ width: 900, height: 900 });
+    m = await measureHome(page);
+    expect(new Set(m.placeholders.map((p) => Math.round(p.top))).size).toBe(3);
+    expect(new Set(m.placeholders.map((p) => Math.round(p.left))).size).toBe(2);
 
     await page.setViewportSize({ width: 375, height: 900 });
     m = await measureHome(page);
