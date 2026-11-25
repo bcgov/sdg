@@ -2,7 +2,7 @@ import { Button } from '@repo/design-system/components/button';
 import { TextField } from '@repo/design-system/components/text-field';
 import { faMagnifyingGlass, FontAwesomeIcon } from '@repo/design-system/icons';
 import { useNavigate } from '@tanstack/react-router';
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useState, type SubmitEvent } from 'react';
 
 import styles from './service-search.module.css';
 
@@ -27,7 +27,7 @@ export function ServiceSearch({ className, defaultQuery = '' }: Readonly<Service
   const navigate = useNavigate();
 
   const submit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
+    (event: SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
       const q = query.trim();
       void navigate({ to: '/services', search: q ? { q } : {} });

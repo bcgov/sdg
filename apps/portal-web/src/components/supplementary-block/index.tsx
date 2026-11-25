@@ -17,6 +17,18 @@ interface SupplementaryBlockProps {
   children: ReactNode;
 }
 
+type Size = 'medium' | 'large';
+
+const HEADING_INSETS: Record<Size, string | undefined> = {
+  medium: styles['inset-medium'],
+  large: styles['inset-large'],
+};
+const BODY_PADDING: Record<Size, string | undefined> = {
+  medium: styles['padding-medium'],
+  large: styles['padding-large'],
+};
+const BODY_GAPS: Record<Size, string | undefined> = { medium: styles['gap-medium'], large: styles['gap-large'] };
+
 /** The Figma supplementary block: a bordered, shadowed panel with a title bar over a white body. */
 export function SupplementaryBlock({
   title,
@@ -28,12 +40,14 @@ export function SupplementaryBlock({
   children,
 }: Readonly<SupplementaryBlockProps>) {
   const headingId = useId();
+  const headingClass = [styles['heading'], styles[tone], HEADING_INSETS[headingInset]].join(' ');
+  const bodyClass = [styles['body'], BODY_PADDING[spacing], BODY_GAPS[gap]].join(' ');
   return (
     <section className={styles['panel']} aria-labelledby={headingId}>
-      <h2 id={headingId} className={`${styles['heading']} ${styles[tone]} ${styles[`inset-${headingInset}`]}`}>
+      <h2 id={headingId} className={headingClass}>
         {title}
       </h2>
-      <div className={`${styles['body']} ${styles[`padding-${spacing}`]} ${styles[`gap-${gap}`]}`}>
+      <div className={bodyClass}>
         {description !== undefined && <p className={styles['description']}>{description}</p>}
         {children}
       </div>
