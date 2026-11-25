@@ -29,9 +29,11 @@ test.describe('portal-web layout', () => {
     await expect(page.getByRole('contentinfo')).toBeVisible();
   });
 
+  // /help is a title alone, so it stays shorter than the viewport (the home page now runs well past it).
   test('fills at least the viewport height with the footer at the bottom when content is short', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1600 });
-    await page.goto('/');
+    await page.goto('/help');
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Help');
     await expect(page.getByRole('contentinfo')).toBeVisible();
 
     const m = await measureLayout(page);

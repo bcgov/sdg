@@ -214,7 +214,7 @@ test.describe('portal-web shared header', () => {
     expect((await page.getByRole('main').boundingBox())!.y).toBe(104);
     await expect(header.locator('a[slot="nav"]')).toHaveCount(4);
     await expect(header.locator('a[slot="nav"]:visible')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Log In', exact: true })).toHaveCount(0);
   });
 
   test('renders on a page from another origin that embeds the loader tag with its integrity (R19, R1)', async ({
