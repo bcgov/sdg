@@ -1,0 +1,63 @@
+/* Figma: supplementary-block (SDG Demos 194:11562, Developer Handoff 1:1986). */
+.panel {
+  overflow: hidden;
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  box-shadow: var(--surface-shadow-small);
+}
+
+/* Border-box like Figma's auto layout, so the 48px minimum includes the padding. */
+.heading {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  margin: 0;
+  font: var(--typography-bold-body);
+}
+
+.inset-medium {
+  padding: var(--layout-margin-xsmall) var(--layout-padding-medium);
+}
+
+.inset-large {
+  padding: var(--layout-margin-small) var(--layout-padding-large);
+}
+
+.dark {
+  background-color: var(--theme-blue-90);
+  color: var(--typography-color-primary-invert);
+}
+
+.light {
+  background-color: var(--surface-color-background-light-blue);
+  color: var(--typography-color-primary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-color-background-white);
+}
+
+.padding-medium {
+  padding: var(--layout-margin-medium);
+}
+
+.padding-large {
+  padding: var(--layout-margin-large);
+}
+
+.gap-medium {
+  gap: var(--layout-margin-medium);
+}
+
+.gap-large {
+  gap: var(--layout-margin-large);
+}
+
+.description {
+  margin: 0;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}

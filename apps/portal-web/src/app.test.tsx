@@ -181,8 +181,10 @@ describe('portal-web app shell', () => {
       for (const name of ['Home Page', 'Services', 'Help']) {
         expect(within(main).getByRole('link', { name }).className).toMatch(/link/);
       }
-      expect(within(main).getAllByRole('listitem')).toHaveLength(3);
-      expect(within(main).getByTestId('not-found-placeholder').previousElementSibling).toHaveTextContent('We suggest:');
+      expect(within(within(main).getAllByRole('list')[0]!).getAllByRole('listitem')).toHaveLength(3);
+      const contact = within(main).getByRole('region', { name: 'Contact information' });
+      expect(contact.previousElementSibling).toHaveTextContent('We suggest:');
+      expect(within(contact).getByRole('link', { name: '711' })).toHaveAttribute('href', 'tel:711');
       expect((await headerQueries()).getByRole('banner')).toBeInTheDocument();
       expect(screen.getByRole('contentinfo')).toBeInTheDocument();
     });

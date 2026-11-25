@@ -30,10 +30,3 @@
 .body a.link {
   font: inherit;
 }
-
-/* A full-width, 375px light grey block standing in for content still to come. */
-.placeholder {
-  width: 100%;
-  height: 375px;
-  background-color: var(--surface-color-background-light-gray);
-}
