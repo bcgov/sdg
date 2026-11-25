@@ -14,7 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as ContactUsRouteImport } from './routes/contact-us'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ServicesRouteImport } from './routes/services'
-import { Route as AuthenticatedAccountSettingsRouteImport } from './routes/_authenticated/account-settings'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,26 +40,25 @@ const ServicesRoute = ServicesRouteImport.update({
   path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAccountSettingsRoute =
-  AuthenticatedAccountSettingsRouteImport.update({
-    id: '/account-settings',
-    path: '/account-settings',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/contact-us': typeof ContactUsRoute
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
-  '/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contact-us': typeof ContactUsRoute
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
-  '/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,13 +67,13 @@ export interface FileRoutesById {
   '/contact-us': typeof ContactUsRoute
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
-  '/_authenticated/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/contact-us' | '/help' | '/services' | '/account-settings'
+  fullPaths: '/' | '/contact-us' | '/help' | '/services' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/contact-us' | '/help' | '/services' | '/account-settings'
+  to: '/' | '/contact-us' | '/help' | '/services' | '/settings'
   id:
     | '__root__'
     | '/'
@@ -82,7 +81,7 @@ export interface FileRouteTypes {
     | '/contact-us'
     | '/help'
     | '/services'
-    | '/_authenticated/account-settings'
+    | '/_authenticated/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -130,22 +129,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/account-settings': {
-      id: '/_authenticated/account-settings'
-      path: '/account-settings'
-      fullPath: '/account-settings'
-      preLoaderRoute: typeof AuthenticatedAccountSettingsRouteImport
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
   }
 }
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedAccountSettingsRoute: typeof AuthenticatedAccountSettingsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedAccountSettingsRoute: AuthenticatedAccountSettingsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

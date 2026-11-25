@@ -1,22 +1,17 @@
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--layout-margin-large);
-}
-
-/* The page's gaps own the spacing between blocks, so its children drop their own margins. */
-.page > * {
-  margin: 0;
-}
-
-/* R18: no design token is exactly 28px/42px bold (bold-h3 is 28px/48px), so the type is set explicitly. */
-.page > .title {
-  font:
-    700 1.75rem/2.625rem 'BC Sans',
-    sans-serif;
-}
-
 .lines {
   display: flex;
   flex-direction: column;
+}
+
+/* The resident's photograph, an icon until the portal can show the real one. */
+.photograph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 200px;
+  border-radius: var(--layout-border-radius-medium);
+  background-color: var(--surface-color-secondary-default);
+  color: var(--icons-color-secondary);
+  font-size: 6rem;
 }

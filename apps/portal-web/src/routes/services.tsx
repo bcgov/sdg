@@ -1,5 +1,6 @@
-import { Heading } from '@repo/design-system/components/heading';
 import { createFileRoute } from '@tanstack/react-router';
+
+import { PageLayout } from '../components/page-layout';
 
 interface ServicesSearch {
   q?: string;
@@ -18,5 +19,5 @@ export const Route = createFileRoute('/services')({
 });
 
 function ServicesPage() {
-  return <Heading level={1}>Services</Heading>;
+  return <PageLayout title="Services" />;
 }

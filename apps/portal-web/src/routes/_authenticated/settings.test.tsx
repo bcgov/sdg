@@ -42,42 +42,40 @@ function renderAt(path: string) {
   return { router, documentNavigations };
 }
 
-describe('account settings route', () => {
-  it('renders Account Settings with the Profile, Communication and Data & Privacy sections when signed in', async () => {
+describe('settings route', () => {
+  it('renders Settings with the Profile and Communication sections when signed in', async () => {
     stubCurrentUser(() => Response.json(user));
-    renderAt('/account-settings');
+    renderAt('/settings');
     const main = await screen.findByRole('main');
 
-    expect(await within(main).findByRole('heading', { level: 1 })).toHaveTextContent('Account Settings');
+    expect(await within(main).findByRole('heading', { level: 1 })).toHaveTextContent('Settings');
     expect(within(main).getByRole('separator')).toBeInTheDocument();
     expect(
       within(main)
         .getAllByRole('heading', { level: 2 })
         .map((h) => h.textContent),
-    ).toEqual(['Profile', 'Communication', 'Data & Privacy']);
+    ).toEqual(['Profile', 'Communication']);
     expect(within(main).getByRole('region', { name: 'Profile' })).toHaveTextContent(
-      'Habitant sit ut scelerisque a metus BC Services Card.',
+      'Review or change your personal information.',
     );
   });
 
   it('sends a signed-out visitor to the BFF login, returning to the page they asked for', async () => {
     stubCurrentUser(unauthorized);
-    const { documentNavigations } = renderAt('/account-settings?tab=profile');
+    const { documentNavigations } = renderAt('/settings?tab=profile');
 
-    await waitFor(() =>
-      expect(documentNavigations).toEqual(['/api/auth/login?returnTo=%2Faccount-settings%3Ftab%3Dprofile']),
-    );
-    expect(screen.queryByRole('heading', { name: 'Account Settings' })).not.toBeInTheDocument();
+    await waitFor(() => expect(documentNavigations).toEqual(['/api/auth/login?returnTo=%2Fsettings%3Ftab%3Dprofile']));
+    expect(screen.queryByRole('heading', { name: 'Settings' })).not.toBeInTheDocument();
   });
 
   it('sends the visitor to the BFF login when portal-api fails, and logs the failure', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     stubCurrentUser(() => new Response('Bad gateway', { status: 502 }));
-    const { documentNavigations } = renderAt('/account-settings');
+    const { documentNavigations } = renderAt('/settings');
 
-    await waitFor(() => expect(documentNavigations).toEqual(['/api/auth/login?returnTo=%2Faccount-settings']));
+    await waitFor(() => expect(documentNavigations).toEqual(['/api/auth/login?returnTo=%2Fsettings']));
     expect(consoleError).toHaveBeenCalledWith('portal-web: could not load the current user', expect.any(Error));
-    expect(screen.queryByRole('heading', { name: 'Account Settings' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Settings' })).not.toBeInTheDocument();
   });
 
   it("routes the header's sdg-settings client-side for a signed-in user", async () => {
@@ -88,7 +86,7 @@ describe('account settings route', () => {
     document.querySelector('sdg-header')!.dispatchEvent(settings);
 
     expect(settings.defaultPrevented).toBe(true);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Account Settings' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/account-settings');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/settings');
   });
 });

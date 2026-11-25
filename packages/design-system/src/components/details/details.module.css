@@ -4,6 +4,15 @@
   font: var(--typography-regular-body);
 }
 
+.bordered {
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+}
+
+.bordered > .row + .row {
+  border-top: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
 /* Content-independent tracks, so every row's columns line up with every other row's. */
 .row {
   display: grid;
@@ -25,9 +34,10 @@
   overflow-wrap: anywhere;
 }
 
-/* Always the third column, so a row without extra content leaves that column empty. */
+/* Always the third column, so a row without extra content leaves that column empty; aligned to the row's end. */
 .extra {
   grid-column: 3;
+  text-align: end;
 }
 
 @media (max-width: 768px) {
@@ -37,6 +47,7 @@
 
   .extra {
     grid-column: auto;
+    text-align: start;
   }
 
   .label {
