@@ -26,3 +26,10 @@
     700 1.75rem/2.625rem 'BC Sans',
     sans-serif;
 }
+
+/* No design token is exactly 18px/30px (regular-large-body is 30.6px), so the type is set explicitly. */
+.header > .subtitle {
+  font:
+    400 1.125rem/1.875rem 'BC Sans',
+    sans-serif;
+}

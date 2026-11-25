@@ -112,11 +112,12 @@ test.describe('portal-web layout', () => {
   test('renders the not-found page inside the layout for an unknown path', async ({ page }) => {
     await page.goto('/does-not-exist');
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Page not found');
+    await expect(main.getByRole('heading', { level: 1 })).toHaveText('Oops, looks like we’re lost');
+    await expect(main.getByText('Error 404 - Page not found')).toBeVisible();
     await expect(page.getByRole('banner')).toContainText('SDG');
     await expect(page.getByRole('contentinfo')).toBeVisible();
 
-    await main.getByRole('link', { name: 'Go to the home page' }).click();
+    await main.getByRole('link', { name: 'Home Page' }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(main.getByRole('heading', { level: 1 })).toHaveText('Access services online');
   });

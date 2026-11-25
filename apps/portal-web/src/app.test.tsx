@@ -73,7 +73,7 @@ describe('portal-web app shell', () => {
       renderAt('/');
       const heading = await screen.findByRole('heading', { level: 1 });
       expect(heading).toHaveTextContent('Access services online');
-      expect(screen.queryByText('Page not found')).not.toBeInTheDocument();
+      expect(screen.queryByText('Error 404 - Page not found')).not.toBeInTheDocument();
     });
 
     it('Should fetch the flags once and still render the page when the flag list fails (R7, R8, AE8)', async () => {
@@ -167,11 +167,19 @@ describe('portal-web app shell', () => {
   });
 
   describe('not found', () => {
-    it('renders "Page not found" and a link home inside the layout for an unknown path', async () => {
+    it('renders the 404 page, with links home, to Services and to Help, inside the layout for an unknown path', async () => {
       renderAt('/does-not-exist');
       const main = await screen.findByRole('main');
-      expect(await within(main).findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
-      expect(within(main).getByRole('link', { name: 'Go to the home page' })).toHaveAttribute('href', '/');
+      expect(
+        await within(main).findByRole('heading', { level: 1, name: 'Oops, looks like we’re lost' }),
+      ).toBeInTheDocument();
+      expect(within(main).getByText('Error 404 - Page not found')).toBeInTheDocument();
+      expect(within(main).getByRole('separator')).toBeInTheDocument();
+      expect(within(main).getByRole('link', { name: 'Home Page' })).toHaveAttribute('href', '/');
+      expect(within(main).getByRole('link', { name: 'Services' })).toHaveAttribute('href', '/services');
+      expect(within(main).getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
+      expect(within(main).getAllByRole('listitem')).toHaveLength(3);
+      expect(within(main).getByTestId('not-found-placeholder').previousElementSibling).toHaveTextContent('We suggest:');
       expect((await headerQueries()).getByRole('banner')).toBeInTheDocument();
       expect(screen.getByRole('contentinfo')).toBeInTheDocument();
     });

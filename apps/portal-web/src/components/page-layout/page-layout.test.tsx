@@ -31,6 +31,19 @@ describe('PageLayout', () => {
     expect(stylesheet).not.toMatch(/\.rule/u);
   });
 
+  it('renders a subtitle between the title and the rule when given', () => {
+    render(<PageLayout title="Oops" subtitle="Error 404 - Page not found" />);
+    const subtitle = screen.getByText('Error 404 - Page not found');
+    expect(subtitle.tagName).toBe('P');
+    expect(subtitle.previousElementSibling).toBe(screen.getByRole('heading', { level: 1, name: 'Oops' }));
+    expect(subtitle.nextElementSibling).toBe(screen.getByRole('separator'));
+  });
+
+  it('renders no subtitle when none is given', () => {
+    render(<PageLayout title="Help" />);
+    expect(screen.getByRole('heading', { level: 1 }).nextElementSibling).toBe(screen.getByRole('separator'));
+  });
+
   it('sets the title in 28px bold', () => {
     expect(stylesheet).toMatch(/\.header > \.title \{[^}]*700 1\.75rem\/2\.625rem/u);
   });
