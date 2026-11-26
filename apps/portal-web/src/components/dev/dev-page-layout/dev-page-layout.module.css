@@ -1,7 +1,9 @@
+/* The page's own vertical padding, as PageLayout's: the root container only pads the sides. */
 .page {
   display: flex;
   flex-direction: column;
   gap: var(--layout-margin-xlarge);
+  padding-block: var(--layout-padding-large);
 }
 
 /* B.C. gold rule under the header, as on the earlier site's dev pages. */
