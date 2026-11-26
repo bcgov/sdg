@@ -79,11 +79,13 @@ describe('BffModule', () => {
     const paths: Record<string, Record<string, { security?: unknown }>> = res.body.paths;
     expect(Object.keys(paths).toSorted()).toEqual([
       '/api/auth/callback',
+      '/api/auth/keep-alive',
       '/api/auth/login',
       '/api/auth/logout',
       '/api/auth/me',
     ]);
     expect(paths['/api/auth/me']?.['get']?.security).toEqual([{ session: [] }]);
+    expect(paths['/api/auth/keep-alive']?.['post']?.security).toEqual([{ session: [] }]);
   });
 
   it("logs an idle client's error on its pool instead of crashing the process", () => {

@@ -15,6 +15,11 @@ export const REFRESH_WINDOW_MS = 30_000;
  * loaded the session just before the new tokens were saved would otherwise redeem the rotated-out refresh token.
  */
 const SETTLED_REUSE_MS = 30_000;
+/**
+ * A keep-alive refreshes tokens older than this, so each one renews the refresh token (Keycloak's idle limit) without
+ * asking Keycloak more than once a minute per session.
+ */
+export const KEEP_ALIVE_MIN_AGE_MS = 60_000;
 
 /** The session's access token, or why there is none. */
 export type SessionToken =
@@ -25,6 +30,11 @@ export type SessionToken =
   | { readonly kind: 'ended' }
   /** The IdP could not be reached or failed; the session is kept for a retry: 503. */
   | { readonly kind: 'unavailable' };
+
+/** A keep-alive's answer: the session's idle deadline, or why it has none (as `SessionToken`). */
+export type KeepAlive =
+  /** `idleExpiresAt`: when the refresh token lapses unless renewed (epoch ms), `null` when the IdP gave no limit. */
+  { readonly kind: 'alive'; readonly idleExpiresAt: number | null } | Exclude<SessionToken, { kind: 'token' }>;
 
 interface Refresh {
   /** The refresh token this refresh redeems. */
@@ -70,19 +80,39 @@ export class TokenRefreshService {
     const auth = req.session?.auth;
     if (!auth) return { kind: 'signed-out' };
     if (!expiresSoon(auth.tokens)) return { kind: 'token', token: auth.tokens.accessToken };
+    return this.refreshAndSave(req, auth.tokens);
+  }
 
-    let refreshed: OidcTokens;
-    try {
-      refreshed = await this.refreshOnce(req.sessionID, auth.tokens);
-    } catch (error) {
-      return this.refreshFailed(req, auth.tokens, error);
+  /**
+   * Renews the session for a resident who is still using the app: refreshes unless the tokens are under
+   * KEEP_ALIVE_MIN_AGE_MS old (and not about to expire), then reports the new idle deadline. A session without a
+   * refresh token can't be renewed but isn't ended for it.
+   */
+  async keepAlive(req: Request): Promise<KeepAlive> {
+    const auth = req.session?.auth;
+    if (!auth) return { kind: 'signed-out' };
+    const { tokens } = auth;
+    const fresh = tokens.obtainedAt !== undefined && Date.now() - tokens.obtainedAt < KEEP_ALIVE_MIN_AGE_MS;
+    if (tokens.refreshToken !== null && (!fresh || expiresSoon(tokens))) {
+      const result = await this.refreshAndSave(req, tokens);
+      if (result.kind !== 'token') return result;
     }
-    return this.saveTokens(req, refreshed);
+    return { kind: 'alive', idleExpiresAt: req.session.auth?.tokens.refreshExpiresAt ?? null };
   }
 
   /** Ends the session: core-api rejected its token, or its refresh was rejected. */
   async endSession(req: Request): Promise<void> {
     if (req.session) await sessionOp(req, 'destroy');
+  }
+
+  private async refreshAndSave(req: Request, current: OidcTokens): Promise<SessionToken> {
+    let refreshed: OidcTokens;
+    try {
+      refreshed = await this.refreshOnce(req.sessionID, current);
+    } catch (error) {
+      return this.refreshFailed(req, current, error);
+    }
+    return this.saveTokens(req, refreshed);
   }
 
   private async saveTokens(req: Request, tokens: OidcTokens): Promise<SessionToken> {

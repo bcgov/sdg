@@ -37,8 +37,17 @@ function stubViewport() {
 
 const RESIDENT: CurrentUser = { id: 'p-1', name: 'Ada Lovelace', email: null };
 
-/** Signed out unless a `user` is given, which is seeded into the session cache as if portal-api had answered. */
+/**
+ * Signed out unless a `user` is given, which is seeded into the session cache as if portal-api had answered; the
+ * session's keep-alive then answers too, or its 401 would sign the user out.
+ */
 async function renderServices(path = '/services', user: CurrentUser | null = null) {
+  if (user) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() => Promise.resolve(Response.json({ idleExpiresAt: Date.now() + 1_800_000 }))),
+    );
+  }
   const queryClient = new QueryClient();
   queryClient.setQueryData(currentUserQueryKey, user);
   const router = createAppRouter({ queryClient, history: createMemoryHistory({ initialEntries: [path] }) });

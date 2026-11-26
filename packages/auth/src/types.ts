@@ -40,6 +40,13 @@ export interface OidcTokens {
   refreshToken: string | null;
   /** Access-token expiry as epoch milliseconds, when the IdP sent `expires_in`. */
   expiresAt: number | null;
+  /**
+   * Refresh-token expiry as epoch milliseconds, from Keycloak's `refresh_expires_in` (its client session idle limit):
+   * `null` when the IdP sent none or `0` (no idle limit). Missing on tokens saved before it was recorded.
+   */
+  refreshExpiresAt?: number | null;
+  /** When these tokens were received, as epoch milliseconds. Missing on tokens saved before it was recorded. */
+  obtainedAt?: number;
 }
 
 export interface AuthorizationRequest {
