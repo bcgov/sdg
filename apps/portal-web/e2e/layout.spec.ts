@@ -239,3 +239,20 @@ test.describe('portal-web home page layout', () => {
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Services');
   });
 });
+
+test.describe('portal-web services search tools sheet', () => {
+  // The sheet comes in from the right at medium widths and up from the bottom on phones; either way the top-left
+  // corner is dimmed backdrop, and clicking it closes the sheet.
+  for (const width of [900, 375]) {
+    test(`closes when the dimmed area is clicked at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/services');
+      await page.getByRole('button', { name: 'Search tools' }).click();
+      const sheet = page.getByRole('dialog', { name: 'Search tools' });
+      await expect(sheet).toBeVisible();
+
+      await page.mouse.click(10, 10);
+      await expect(sheet).toBeHidden();
+    });
+  }
+});

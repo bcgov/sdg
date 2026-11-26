@@ -130,6 +130,17 @@ describe('services page', () => {
     expect(screen.getByRole('radio', { name: 'Service' })).toBeChecked();
   });
 
+  it('closes the sheet when the dimmed area around it is clicked', async () => {
+    await renderServices();
+    await userEvent.click(screen.getByRole('button', { name: 'Search tools' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Search tools' });
+    // The dimmed backdrop is react-aria's overlay around the sheet, outside the modal box.
+    const backdrop = sheet.closest('.react-aria-ModalOverlay');
+    if (!backdrop) throw new Error('the sheet has no modal overlay');
+    await userEvent.click(backdrop);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
   it('resets the type to All from Clear all, and closes from the close button', async () => {
     await renderServices();
     await userEvent.click(screen.getByRole('button', { name: 'Search tools' }));

@@ -57,8 +57,11 @@
   }
 }
 
-/* The sheet's dimmed backdrop. */
-.overlay {
+/* The sheet's dimmed backdrop. The bcgov Modal hands its className to the modal box inside react-aria's overlay, not to
+   the overlay itself; a full-screen modal box would swallow clicks on the dimmed area, so they'd never count as
+   outside the sheet. The backdrop is react-aria's own overlay instead (as console-web's mobile panel does), and the
+   modal box stays an unsized wrapper around the fixed-position sheet. */
+:global(.react-aria-ModalOverlay):has(.sheetModal) {
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -86,7 +89,7 @@
   min-height: 0;
 }
 
-.overlay[data-entering] .sheet {
+.sheetModal[data-entering] .sheet {
   animation: slide-in-right 200ms ease-out;
 }
 
@@ -125,13 +128,13 @@
     width: auto;
   }
 
-  .overlay[data-entering] .sheet {
+  .sheetModal[data-entering] .sheet {
     animation-name: slide-in-up;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .overlay[data-entering] .sheet {
+  .sheetModal[data-entering] .sheet {
     animation: none;
   }
 }
