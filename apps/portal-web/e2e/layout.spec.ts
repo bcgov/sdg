@@ -234,7 +234,7 @@ test.describe('portal-web home page layout', () => {
     await page.goto('/');
     const search = page.getByRole('search');
     await search.getByRole('textbox', { name: 'Search for services' }).fill('dog licence');
-    await search.getByRole('button', { name: 'Search' }).click();
+    await search.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(page).toHaveURL(/\/services\?q=dog(\+|%20)licence$/);
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Services');
   });
