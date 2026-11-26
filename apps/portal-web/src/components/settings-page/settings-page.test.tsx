@@ -146,6 +146,17 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
   });
 
+  it('keeps loading rather than showing an error when the session has ended, while sign-in takes over', async () => {
+    const requests = stubProfile(() => Promise.resolve(Response.json({ statusCode: 401 }, { status: 401 })));
+    const queryClient = renderPage();
+    await vi.waitFor(() => expect(queryClient.getQueryState(['portal', 'profile'])?.status).toBe('error'));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    expect(screen.queryByText('We couldn’t load your details')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('progressbar', { name: 'Loading your details' }).length).toBeGreaterThan(0);
+    expect(requests()).toBe(1);
+  });
+
   it.each([
     ['a non-string name', () => Response.json({ ...fullProfile, name: 5 })],
     ['a non-string address line', () => Response.json({ ...fullProfile, address: [1] })],
