@@ -8,23 +8,23 @@ const CHANGE_PERSONAL_INFORMATION_URL =
 interface ChangeLinkProps {
   /** The section anchor on the gov.bc.ca page, e.g. `name`. */
   anchor: string;
-  /** The field, as read in the accessible name: "Change full name". */
-  field: string;
+  /** The link text, e.g. "Change my address"; the accessible name adds that it opens in a new tab. */
+  children: string;
 }
 
 const EXTERNAL_ICON = <FontAwesomeIcon icon={faArrowUpRightFromSquare} aria-hidden="true" />;
 
-/** "Change", opening the field's gov.bc.ca page in a new tab, marked external visually and for screen readers (R15). */
-export function ChangeLink({ anchor, field }: Readonly<ChangeLinkProps>) {
+/** Opens the field's gov.bc.ca page in a new tab, marked external visually and for screen readers (R15). */
+export function ChangeLink({ anchor, children }: Readonly<ChangeLinkProps>) {
   return (
     <Link
       href={`${CHANGE_PERSONAL_INFORMATION_URL}#${anchor}`}
       target="_blank"
       rel="noopener noreferrer"
-      ariaLabel={`Change ${field} (opens in a new tab)`}
+      ariaLabel={`${children} (opens in a new tab)`}
       iconRight={EXTERNAL_ICON}
     >
-      Change
+      {children}
     </Link>
   );
 }

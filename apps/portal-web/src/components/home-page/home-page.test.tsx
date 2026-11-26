@@ -61,6 +61,23 @@ describe('home page', () => {
       expect(router.state.location.searchStr).toBe('?q=fishing');
     });
 
+    it('offers Clear search only once the field has text, and clearing empties and refocuses the field', async () => {
+      await renderHome();
+      const field = screen.getByRole('textbox', { name: 'Search for services' });
+      expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+
+      await userEvent.type(field, 'fishing');
+      const clear = screen.getByRole('button', { name: 'Clear search' });
+      // react-aria opens tooltips on hover only after a pointer interaction, and typing was the last one.
+      await userEvent.click(document.body);
+      await userEvent.hover(clear);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Clear search');
+      await userEvent.click(clear);
+      expect(field).toHaveValue('');
+      expect(field).toHaveFocus();
+      expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+    });
+
     it('writes a number-like query into the URL as plain text', async () => {
       const router = await renderHome();
       await userEvent.type(screen.getByRole('textbox', { name: 'Search for services' }), '007{Enter}');
@@ -96,6 +113,94 @@ describe('home page', () => {
       await userEvent.click(screen.getByRole('link', { name: 'View all services' }));
       expect(await landedOnServices(router)).toEqual({});
     });
+  });
+
+  describe('do more with a BC Services Card Account', () => {
+    it('follows Find a service, with its description and three cards in a list', async () => {
+      await renderHome();
+      const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      const findService = screen.getByRole('region', { name: 'Find a service' });
+      expect(findService.compareDocumentPosition(region)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(region).toHaveTextContent(
+        'You can use your BC Services Card Account to securely access and manage government services online.',
+      );
+
+      const cards = within(region).getAllByRole('listitem');
+      expect(cards.map((card) => within(card).getByRole('heading', { level: 3 }).textContent)).toEqual([
+        'Discover Services',
+        'Apply and track your requests',
+        'Manage your information',
+      ]);
+      expect(cards[0]).toHaveTextContent('Browse and search for government services');
+      expect(cards[1]).toHaveTextContent('Submit applications online and check the status of your requests.');
+      expect(cards[2]).toHaveTextContent('View and update your information in one place.');
+      for (const card of cards) expect(card.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+      expect(region.className).toMatch(/band/);
+    });
+
+    it('offers a signed-out visitor Log in, back to the home page, then the account set-up link', async () => {
+      await renderHome();
+      const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      const login = await within(region).findByRole('link', { name: 'Log in with BC Services Card Account' });
+      expect(login).toHaveAttribute('href', '/api/auth/login?returnTo=%2F');
+      expect(login.querySelector('svg')).toHaveAttribute('data-icon', 'arrow-right-to-bracket');
+      const setup = within(region).getByRole('link', {
+        name: 'Set up a BC Services Card Account (opens in a new tab)',
+      });
+      expect(setup).toHaveAttribute('href', 'https://id.gov.bc.ca/account/setup-instruction');
+      expect(setup).toHaveAttribute('target', '_blank');
+      expect(setup).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(login.nextElementSibling).toBe(setup);
+    });
+
+    it('shows neither Log in nor the set-up link to a signed-in user', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn<typeof fetch>((input) => {
+          const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+          return Promise.resolve(
+            url === '/api/auth/me'
+              ? Response.json({ id: 'p-1', name: 'Ada Lovelace', email: 'ada@example.com' })
+              : Response.json({ statusCode: 401 }, { status: 401 }),
+          );
+        }),
+      );
+      const queryClient = new QueryClient();
+      const router = createAppRouter({ queryClient, history: createMemoryHistory({ initialEntries: ['/'] }) });
+      render(<App queryClient={queryClient} router={router} />);
+      await screen.findByRole('heading', { level: 1, name: 'Access services online' });
+      // Only once the session check has answered is the absence meaningful.
+      await waitFor(() => expect(queryClient.getQueryData(['auth', 'me'])).toMatchObject({ name: 'Ada Lovelace' }));
+      const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      expect(within(region).queryByRole('link', { name: /Set up a BC Services Card Account/ })).toBeNull();
+      expect(within(region).queryByRole('link', { name: /Log in/ })).toBeNull();
+    });
+
+    it('links every title to #', async () => {
+      await renderHome();
+      const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      expect(
+        within(within(region).getByRole('list'))
+          .getAllByRole('link')
+          .map((link) => [link.textContent, link.getAttribute('href')]),
+      ).toEqual([
+        ['Discover Services', '#'],
+        ['Apply and track your requests', '#'],
+        ['Manage your information', '#'],
+      ]);
+    });
+  });
+
+  it('ends with Find more services, then Contact information, after the account section', async () => {
+    await renderHome();
+    const account = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+    const findMore = screen.getByRole('region', { name: 'Find more services' });
+    const contact = screen.getByRole('region', { name: 'Contact information' });
+    expect(account.nextElementSibling).toBe(findMore);
+    expect(findMore.nextElementSibling).toBe(contact);
+    expect(contact.nextElementSibling).toBeNull();
+    expect(screen.queryByTestId('home-placeholder')).toBeNull();
+    expect(contact).toHaveTextContent('We’re here to help, Monday to Friday from 7:30 am to 5 pm.');
   });
 
   it('still shows and dismisses an auth-error notice above the hero', async () => {

@@ -214,7 +214,7 @@ test.describe('portal-web shared header', () => {
     expect((await page.getByRole('main').boundingBox())!.y).toBe(104);
     await expect(header.locator('a[slot="nav"]')).toHaveCount(4);
     await expect(header.locator('a[slot="nav"]:visible')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Log In', exact: true })).toHaveCount(0);
   });
 
   test('renders on a page from another origin that embeds the loader tag with its integrity (R19, R1)', async ({
@@ -231,12 +231,12 @@ test.describe('portal-web shared header', () => {
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeVisible();
     await expect(header.getByRole('link', { name: 'Start' })).toBeVisible();
 
-    // Signed in, Account Settings links back to the SDG that served the header, not to the partner's own origin.
+    // Signed in, Settings links back to the SDG that served the header, not to the partner's own origin.
     await header.evaluate((el) => el.setAttribute('user-name', 'Ada Lovelace'));
     await header.getByRole('button', { name: 'Ada Lovelace' }).click();
-    await expect(header.getByRole('menuitem', { name: 'Account Settings' })).toHaveAttribute(
+    await expect(header.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute(
       'href',
-      new URL('/account-settings', baseURL).href,
+      new URL('/settings', baseURL).href,
     );
 
     // Log Out is the site's to handle: the header only dispatches sdg-logout.

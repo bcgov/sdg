@@ -66,61 +66,69 @@ describe('SettingsPage', () => {
     const profile = screen.getByRole('region', { name: 'Profile' });
     await within(profile).findByText('Ada Lovelace');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Account Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
       'Profile',
       'Communication',
-      'Data & Privacy',
     ]);
+    expect(profile).toHaveTextContent('Review or change your personal information.');
     expect([...profile.querySelectorAll('dt')].map((dt) => dt.textContent)).toEqual([
+      'Photograph',
       'Full Name',
       'Date of Birth',
-      'Gender',
       'Address',
     ]);
+    expect(
+      within(valueOf(profile, 'Photograph')).getByRole('img', { name: 'Photograph not available' }),
+    ).toBeInTheDocument();
     expect(valueOf(profile, 'Date of Birth')).toHaveTextContent('January 5, 1980');
-    expect(valueOf(profile, 'Gender')).toHaveTextContent('Female');
     expect(within(valueOf(profile, 'Address')).getByText('12 St James Sq')).toBeInTheDocument();
     expect(within(valueOf(profile, 'Address')).getByText('V8W 1A1')).toBeInTheDocument();
 
     const communication = screen.getByRole('region', { name: 'Communication' });
+    expect(communication).toHaveTextContent('Review or change your contact information');
     expect([...communication.querySelectorAll('dt')].map((dt) => dt.textContent)).toEqual(['Email', 'Phone Number']);
     expect(valueOf(communication, 'Email')).toHaveTextContent('ada@example.com');
     expect(valueOf(communication, 'Phone Number')).toHaveTextContent('+1 250 555 0100');
     expect(within(communication).queryByRole('link')).toBeNull();
   });
 
-  it('links each changeable profile field to its BC Services Card page in a new tab', async () => {
+  it('links only the address to its BC Services Card page, in a new tab', async () => {
     stubProfile(() => Promise.resolve(Response.json(fullProfile)));
     renderPage();
     const profile = screen.getByRole('region', { name: 'Profile' });
     await within(profile).findByText('Ada Lovelace');
 
-    const links = within(profile).getAllByRole('link');
-    expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      `${CHANGE_URL}#name`,
-      `${CHANGE_URL}#gender`,
-      `${CHANGE_URL}#address`,
-    ]);
-    expect(links.map((link) => link.textContent)).toEqual(['Change', 'Change', 'Change']);
-    expect(links.map((link) => link.getAttribute('target'))).toEqual(['_blank', '_blank', '_blank']);
-    expect(within(profile).getByRole('link', { name: 'Change full name (opens in a new tab)' })).toBeInTheDocument();
-    expect(within(profile).getByRole('link', { name: 'Change gender (opens in a new tab)' })).toBeInTheDocument();
-    expect(within(profile).getByRole('link', { name: 'Change address (opens in a new tab)' })).toBeInTheDocument();
+    const [link, ...others] = within(profile).getAllByRole('link');
+    expect(others).toEqual([]);
+    expect(link).toHaveAccessibleName('Change my address (opens in a new tab)');
+    expect(link).toHaveTextContent('Change my address');
+    expect(link).toHaveAttribute('href', `${CHANGE_URL}#address`);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(valueOf(profile, 'Full Name').nextElementSibling).toBeNull();
     expect(valueOf(profile, 'Date of Birth').nextElementSibling).toBeNull();
   });
 
-  it('shows Not provided for missing values and keeps the change links (AE3, AE4)', async () => {
-    stubProfile(() => Promise.resolve(Response.json({ ...emptyProfile, name: 'Ada Lovelace', gender: 'unknown' })));
+  it('borders both detail lists', async () => {
+    stubProfile(() => Promise.resolve(Response.json(fullProfile)));
+    renderPage();
+    await screen.findByText('Ada Lovelace');
+
+    const lists = screen.getAllByRole('region').map((region) => region.querySelector('dl'));
+    expect(lists).toHaveLength(2);
+    for (const list of lists) expect(list?.className).toMatch(/bordered/);
+  });
+
+  it('shows Not provided for missing values and keeps the change link (AE3, AE4)', async () => {
+    stubProfile(() => Promise.resolve(Response.json({ ...emptyProfile, name: 'Ada Lovelace' })));
     renderPage();
     const profile = screen.getByRole('region', { name: 'Profile' });
     await within(profile).findByText('Ada Lovelace');
     const communication = screen.getByRole('region', { name: 'Communication' });
 
     expect(valueOf(profile, 'Date of Birth')).toHaveTextContent('Not provided');
-    expect(valueOf(profile, 'Gender')).toHaveTextContent('Not provided');
     expect(valueOf(profile, 'Address')).toHaveTextContent('Not provided');
-    expect(within(profile).getByRole('link', { name: /^Change address/ })).toBeInTheDocument();
+    expect(within(profile).getByRole('link', { name: /^Change my address/ })).toBeInTheDocument();
     expect(valueOf(communication, 'Email')).toHaveTextContent('Not provided');
     expect(valueOf(communication, 'Phone Number')).toHaveTextContent('Not provided');
   });
@@ -135,8 +143,7 @@ describe('SettingsPage', () => {
     expect(within(communication).getByText('We couldn’t load your details')).toBeInTheDocument();
     expect(profile.querySelector('dl')).toBeNull();
     expect(requests()).toBe(1);
-    expect(screen.getByRole('heading', { level: 1, name: 'Account Settings' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Data & Privacy' })).toHaveTextContent('At tellus nunc nisl aliquam');
+    expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
   });
 
   it.each([
@@ -177,8 +184,7 @@ describe('SettingsPage', () => {
 
     expect(within(profile).getByRole('progressbar', { name: 'Loading your details' })).toBeInTheDocument();
     expect(within(communication).getByRole('progressbar', { name: 'Loading your details' })).toBeInTheDocument();
-    expect(profile).toHaveTextContent('Habitant sit ut scelerisque a metus BC Services Card.');
+    expect(profile).toHaveTextContent('Review or change your personal information.');
     expect(screen.queryByText('Not provided')).toBeNull();
-    expect(screen.getByRole('region', { name: 'Data & Privacy' })).toBeInTheDocument();
   });
 });

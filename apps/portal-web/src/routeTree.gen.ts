@@ -15,7 +15,7 @@ import { Route as ContactUsRouteImport } from './routes/contact-us'
 import { Route as DevRouteRouteImport } from './routes/dev/route'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ServicesRouteImport } from './routes/services'
-import { Route as AuthenticatedAccountSettingsRouteImport } from './routes/_authenticated/account-settings'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as DevIndexRouteImport } from './routes/dev/index'
 import { Route as DevAvatarRouteImport } from './routes/dev/avatar'
 import { Route as DevButtonRouteImport } from './routes/dev/button'
@@ -55,12 +55,11 @@ const ServicesRoute = ServicesRouteImport.update({
   path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAccountSettingsRoute =
-  AuthenticatedAccountSettingsRouteImport.update({
-    id: '/account-settings',
-    path: '/account-settings',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const DevIndexRoute = DevIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -113,7 +112,7 @@ export interface FileRoutesByFullPath {
   '/contact-us': typeof ContactUsRoute
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
-  '/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/dev/avatar': typeof DevAvatarRoute
   '/dev/button': typeof DevButtonRoute
   '/dev/card': typeof DevCardRoute
@@ -129,7 +128,7 @@ export interface FileRoutesByTo {
   '/contact-us': typeof ContactUsRoute
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
-  '/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/dev/avatar': typeof DevAvatarRoute
   '/dev/button': typeof DevButtonRoute
   '/dev/card': typeof DevCardRoute
@@ -148,7 +147,7 @@ export interface FileRoutesById {
   '/contact-us': typeof ContactUsRoute
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
-  '/_authenticated/account-settings': typeof AuthenticatedAccountSettingsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/dev/avatar': typeof DevAvatarRoute
   '/dev/button': typeof DevButtonRoute
   '/dev/card': typeof DevCardRoute
@@ -167,7 +166,7 @@ export interface FileRouteTypes {
     | '/contact-us'
     | '/help'
     | '/services'
-    | '/account-settings'
+    | '/settings'
     | '/dev/avatar'
     | '/dev/button'
     | '/dev/card'
@@ -183,7 +182,7 @@ export interface FileRouteTypes {
     | '/contact-us'
     | '/help'
     | '/services'
-    | '/account-settings'
+    | '/settings'
     | '/dev/avatar'
     | '/dev/button'
     | '/dev/card'
@@ -201,7 +200,7 @@ export interface FileRouteTypes {
     | '/contact-us'
     | '/help'
     | '/services'
-    | '/_authenticated/account-settings'
+    | '/_authenticated/settings'
     | '/dev/avatar'
     | '/dev/button'
     | '/dev/card'
@@ -266,11 +265,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/account-settings': {
-      id: '/_authenticated/account-settings'
-      path: '/account-settings'
-      fullPath: '/account-settings'
-      preLoaderRoute: typeof AuthenticatedAccountSettingsRouteImport
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/dev/': {
@@ -368,11 +367,11 @@ const DevRouteRouteWithChildren = DevRouteRoute._addFileChildren(
 )
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedAccountSettingsRoute: typeof AuthenticatedAccountSettingsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedAccountSettingsRoute: AuthenticatedAccountSettingsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

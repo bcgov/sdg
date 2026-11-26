@@ -3,8 +3,12 @@ import { Section } from '@repo/design-system/components/section';
 import { faChevronRight, FontAwesomeIcon } from '@repo/design-system/icons';
 import type { ReactNode } from 'react';
 
+import { ContactInformation } from '../contact-information';
+import { SERVICE_BC_CONTACTS, SERVICE_BC_HOURS } from '../contact-information/service-bc';
+import { FindMoreServices } from '../find-more-services';
 import { Link } from '../link';
-import { HomeSearch } from './home-search';
+import { ServiceSearch } from '../service-search';
+import { AccountSection } from './account-section';
 
 import styles from './home-page.module.css';
 
@@ -25,7 +29,7 @@ export function HomePage({ children }: Readonly<HomePageProps>) {
             Access services online
           </Heading>
           <p className={styles['lede']}>Find services, track application statuses and manage your profile</p>
-          <HomeSearch />
+          <ServiceSearch className={styles['search']} />
         </div>
       </div>
       <Section title="Find a service" description="Choose from popular options or browse the full list.">
@@ -41,6 +45,9 @@ export function HomePage({ children }: Readonly<HomePageProps>) {
           </Link>
         </div>
       </Section>
+      <AccountSection />
+      <FindMoreServices />
+      <ContactInformation description={SERVICE_BC_HOURS} items={SERVICE_BC_CONTACTS} />
     </div>
   );
 }

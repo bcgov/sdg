@@ -11,15 +11,15 @@ afterEach(() => {
 });
 
 describe('SETTINGS_HREF', () => {
-  it("links to /account-settings on the origin that served the header's script", async () => {
+  it("links to /settings on the origin that served the header's script", async () => {
     const script = document.createElement('script');
     script.src = 'https://sdg-test.apps.example.gov.bc.ca/shared-ui/header/v1/sdg-header.js';
     Object.defineProperty(document, 'currentScript', { configurable: true, value: script });
 
-    expect(await freshSettingsHref()).toBe('https://sdg-test.apps.example.gov.bc.ca/account-settings');
+    expect(await freshSettingsHref()).toBe('https://sdg-test.apps.example.gov.bc.ca/settings');
   });
 
   it("falls back to the page's origin when there is no current script (the module build)", async () => {
-    expect(await freshSettingsHref()).toBe(`${window.location.origin}/account-settings`);
+    expect(await freshSettingsHref()).toBe(`${window.location.origin}/settings`);
   });
 });

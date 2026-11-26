@@ -16,7 +16,7 @@ export interface SdgHeaderProps {
   /** Called on a plain Log In click; call `event.preventDefault()` to handle sign-in instead of following the link. */
   onLogin?: (event: SdgLoginEvent) => void;
   /**
-   * Called on a plain Account Settings click (a link to SDG's `/account-settings`); on SDG, call `event.preventDefault()` and route
+   * Called on a plain Settings click (a link to SDG's `/settings`); on SDG, call `event.preventDefault()` and route
    * there client-side instead of following the link.
    */
   onSettings?: (event: SdgSettingsEvent) => void;

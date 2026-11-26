@@ -1,28 +1,20 @@
-import { Heading } from '@repo/design-system/components/heading';
 import { Section } from '@repo/design-system/components/section';
-import { Separator } from '@repo/design-system/components/separator';
 
 import { useProfile } from '../../profile/use-profile';
+import { PageLayout } from '../page-layout';
 import { CommunicationDetails, ProfileDetails } from './profile-details';
 import { ProfileQueryState } from './profile-query-state';
-
-import styles from './settings-page.module.css';
 
 export function SettingsPage() {
   const profile = useProfile();
   return (
-    <div className={styles['page']}>
-      <Heading level={1} className={styles['title']}>
-        Account Settings
-      </Heading>
-      <Separator />
-      <Section title="Profile" description="Habitant sit ut scelerisque a metus BC Services Card.">
+    <PageLayout title="Settings">
+      <Section title="Profile" description="Review or change your personal information.">
         <ProfileQueryState query={profile}>{(data) => <ProfileDetails profile={data} />}</ProfileQueryState>
       </Section>
-      <Section title="Communication" description="At vitae blandit habitant purus.">
+      <Section title="Communication" description="Review or change your contact information">
         <ProfileQueryState query={profile}>{(data) => <CommunicationDetails profile={data} />}</ProfileQueryState>
       </Section>
-      <Section title="Data & Privacy" description="At tellus nunc nisl aliquam" />
-    </div>
+    </PageLayout>
   );
 }

@@ -1,0 +1,78 @@
+/* Figma: Developer Handoff, node 1:1986; the panel itself is SupplementaryBlock. */
+.services {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--layout-margin-large);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Icon badge on the left; title, description and links stacked to its right. */
+.service {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--layout-margin-medium);
+  min-width: 0;
+}
+
+/* A 40px light-blue circle around a 16px link-blue glyph (the design's 20px icon box with FontAwesome's inset). */
+.badge {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--layout-border-radius-circular);
+  background-color: var(--surface-color-background-light-blue);
+  color: var(--icons-color-link);
+}
+
+.icon {
+  display: block;
+  height: 16px;
+}
+
+.text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Vertically centred against the 40px badge. */
+.title {
+  margin: 0;
+  padding-block: 6.5px;
+  color: var(--typography-color-primary);
+  font: var(--typography-bold-body);
+}
+
+.description {
+  margin: 0;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+.links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  padding-block: var(--layout-margin-small);
+  font: var(--typography-regular-body);
+}
+
+/* The design's subtle rule between links (#f3f2f1; the installed tokens name it only as gray 20). */
+.link + .link {
+  border-top: var(--layout-border-width-small) solid var(--theme-gray-20);
+}
+
+@media (max-width: 768px) {
+  .services {
+    grid-template-columns: 1fr;
+  }
+}

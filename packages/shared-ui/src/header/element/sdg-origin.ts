@@ -1,5 +1,5 @@
-/** The SDG account settings page, which the user menu's Account Settings item links to on every site. */
-export const SETTINGS_PATH = '/account-settings';
+/** The SDG settings page, which the user menu's Settings item links to on every site. */
+export const SETTINGS_PATH = '/settings';
 
 /**
  * SDG's origin, read once while this module first evaluates. In the CDN bundle that happens during the classic

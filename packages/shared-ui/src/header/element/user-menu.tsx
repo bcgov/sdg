@@ -12,7 +12,7 @@ export interface UserMenuProps {
   userName: string;
   /** SDG's settings page (`SETTINGS_HREF`). */
   settingsHref: string;
-  /** The Account Settings link's click; decides whether to dispatch `sdg-settings`. */
+  /** The Settings link's click; decides whether to dispatch `sdg-settings`. */
   onSettingsClick: (event: MouseEvent) => void;
   onLogoutClick: () => void;
 }
@@ -82,7 +82,7 @@ function useMenuBehaviour(
   }, [openFocus, menuRef, buttonRef, close]);
 }
 
-// The WAI-ARIA menu button pattern: a primary button with the user's name opens a menu of Account Settings (a link, so
+// The WAI-ARIA menu button pattern: a primary button with the user's name opens a menu of Settings (a link, so
 // modified clicks open it in a new tab) and Log Out (a button: signing out is the host's action, not a URL).
 export function UserMenu({
   userName,
@@ -119,7 +119,7 @@ export function UserMenu({
         ref={buttonRef}
         id={BUTTON_ID}
         type="button"
-        className="button button-primary button-icon button-collapsible user-menu-button"
+        className="button button-secondary button-icon button-collapsible user-menu-button"
         aria-haspopup="menu"
         aria-expanded={open ? 'true' : 'false'}
         aria-controls={MENU_ID}
@@ -133,7 +133,7 @@ export function UserMenu({
       <div ref={menuRef} id={MENU_ID} className="menu" role="menu" aria-labelledby={BUTTON_ID} hidden={!open}>
         <a className="menu-item" role="menuitem" tabIndex={-1} href={settingsHref} onClick={onSettings}>
           <Icon icon={faGear} />
-          Account Settings
+          Settings
         </a>
         <button type="button" className="menu-item menu-item-danger" role="menuitem" tabIndex={-1} onClick={onLogout}>
           <Icon icon={faRightFromBracket} />
