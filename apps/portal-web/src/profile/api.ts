@@ -1,3 +1,5 @@
+import { apiRequest } from '../api/http';
+
 /** The resident's profile as core-api reads it live from userinfo (GET /api/v1/portal/profile). Never stored (R17). */
 export interface Profile {
   name: string | null;
@@ -25,18 +27,12 @@ function isProfile(value: unknown): value is Profile {
   return address === null || (Array.isArray(address) && address.every((line) => typeof line === 'string'));
 }
 
-/** Any non-2xx answer throws, so Settings shows its error state (R14). */
+/**
+ * Any non-2xx answer rejects with an `ApiError`: a 401 (the session ended) goes to sign-in through
+ * `useSessionEndedRedirect`, and anything else shows Settings' error state (R14).
+ */
 export async function fetchProfile(): Promise<Profile> {
-  const response = await fetch(PROFILE_PATH, {
-    credentials: 'same-origin',
-    headers: { accept: 'application/json' },
-  });
-  if (!response.ok) {
-    // Read the unused body anyway: Chromium never finishes a request whose body is left unread.
-    await response.text();
-    throw new Error(`GET ${PROFILE_PATH} failed with ${response.status}`);
-  }
-  const body: unknown = await response.json();
+  const body = await apiRequest(PROFILE_PATH);
   if (!isProfile(body)) throw new Error(`GET ${PROFILE_PATH} returned an unexpected body`);
   return body;
 }

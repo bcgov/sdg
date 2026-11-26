@@ -1,12 +1,14 @@
 import { Footer } from '@repo/design-system/components/footer';
 import { Outlet } from '@tanstack/react-router';
 
+import { useSessionEndedRedirect } from '../../auth/use-session-ended-redirect';
 import { Devtools } from '../devtools';
 import { SiteHeader } from '../site-header';
 
 import styles from './root-layout.module.css';
 
 export function RootLayout() {
+  useSessionEndedRedirect();
   return (
     <>
       <div className={styles.layout}>
