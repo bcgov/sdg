@@ -86,6 +86,8 @@ Tests (Vitest, `apps/portal-web`):
   - Holds `idleExpiresAt` in state, falling back to `lastRefresh + 30 min` when the server says `null`.
   - On `visibilitychange` to visible, a past `idleExpiresAt` triggers one `/me` refetch and one keep-alive, so the 401 path takes over after a laptop sleep.
   - Timers clean up on sign-out and unmount.
+  - Tabs share the deadline over a `BroadcastChannel` (`src/auth/session-channel.ts`): every renewal announces its `idleExpiresAt`, and each tab keeps the later of its own and what it hears. A tab another tab kept alive doesn't warn, and each tab still renews only for its own activity.
+  - Sign-out is shared on the same channel. `logout()` announces `ended` once portal-api confirms the session is gone (not on a failed logout), and `useSessionEndedRedirect` announces it on this tab's first 401. Other tabs handle it as their own 401: clear the user, and send `_authenticated` pages to the BFF login. A tab that heard the news doesn't re-announce it.
 - **New `src/components/session-timeout-dialog/`**: BCDS `AlertDialog` used as is (`@repo/design-system/components/alert-dialog`; no extension, so no `/dev` page, per the design-system README).
   - Opens at `idleExpiresAt − 2 min` with "You'll be signed out soon" and a countdown in minutes (`aria-live="polite"`, not per second).
   - **Stay signed in** runs `postKeepAlive()` and closes the dialog.

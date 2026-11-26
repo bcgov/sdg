@@ -130,6 +130,7 @@ describe('createOidcClient', () => {
       expect(tokens).toMatchObject({ accessToken: 'access-token', refreshToken: 'refresh-token' });
       expect(tokens.idToken.split('.')).toHaveLength(3);
       expect(tokens.expiresAt).toBeGreaterThanOrEqual(before + 299_000);
+      expect(tokens.refreshExpiresAt).toBe(tokens.obtainedAt! + 1_800_000);
     });
     it('throws AuthError(invalid_state) on a missing or mismatched state', async () => {
       const client = newClient();
@@ -188,6 +189,24 @@ describe('createOidcClient', () => {
       expect(tokens.refreshToken).toMatch(/^refreshed-refresh-\d+$/);
       expect(tokens.refreshToken).not.toBe(refreshToken);
       expect(tokens.expiresAt).toBeGreaterThanOrEqual(before + 299_000);
+    });
+    it("records when the tokens arrived and Keycloak's refresh_expires_in as refreshExpiresAt", async () => {
+      const before = Date.now();
+      const tokens = await newClient().refresh({ ...current, refreshToken: idp.issueRefreshToken() });
+      expect(tokens.obtainedAt).toBeGreaterThanOrEqual(before);
+      expect(tokens.refreshExpiresAt).toBe(tokens.obtainedAt! + 1_800_000);
+    });
+    it.each([
+      ['0 (no idle limit)', 0],
+      ['missing', undefined],
+    ])('leaves refreshExpiresAt null when refresh_expires_in is %s', async (_case, refreshExpiresIn) => {
+      idp.refreshExpiresIn = refreshExpiresIn;
+      try {
+        const tokens = await newClient().refresh({ ...current, refreshToken: idp.issueRefreshToken() });
+        expect(tokens.refreshExpiresAt).toBeNull();
+      } finally {
+        idp.refreshExpiresIn = 1800;
+      }
     });
     it('replaces the ID token when the response has one', async () => {
       const refreshToken = idp.issueRefreshToken({ idTokenClaims: { sub: 'user-1' } });

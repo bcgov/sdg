@@ -1,11 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import { createMemoryHistory } from '@tanstack/react-router';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '../api/http';
 import { App } from '../app';
 import { createAppRouter } from '../router';
+import { SESSION_CHANNEL } from './session-channel';
 import { currentUserQueryKey } from './use-current-user';
 
 vi.mock('../components/devtools', () => ({ Devtools: () => null }));
@@ -51,6 +52,9 @@ function renderAt(path: string) {
   render(<App queryClient={queryClient} router={router} />);
   return { queryClient, router, documentNavigations };
 }
+
+/** Lets BroadcastChannel messages arrive. */
+const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)));
 
 const sessionEnded = (queryClient: QueryClient, key: string) =>
   queryClient
@@ -121,5 +125,74 @@ describe('useSessionEndedRedirect', () => {
     });
     await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     expect(documentNavigations).toEqual([]);
+  });
+
+  describe('across tabs', () => {
+    let otherTab: BroadcastChannel;
+    let heard: unknown[];
+    const endedElsewhere = () => {
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin -- BroadcastChannel.postMessage has no targetOrigin: a channel only reaches its own origin.
+      otherTab.postMessage({ type: 'ended' });
+    };
+
+    beforeEach(() => {
+      heard = [];
+      otherTab = new BroadcastChannel(SESSION_CHANNEL);
+      otherTab.addEventListener('message', (event: MessageEvent<unknown>) => heard.push(event.data));
+    });
+
+    afterEach(() => {
+      otherTab.close();
+    });
+
+    it('sends a resident on Settings to sign in when another tab signs out', async () => {
+      stubApi({
+        '/api/auth/me': () => Response.json(user),
+        '/api/v1/portal/profile': () => Response.json(fullProfile),
+      });
+      const { queryClient, documentNavigations } = renderAt('/settings');
+      await screen.findAllByText('Ada Lovelace');
+
+      endedElsewhere();
+      await waitFor(() => expect(documentNavigations).toEqual(['/api/auth/login?returnTo=%2Fsettings']));
+      expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull();
+      // Heard, not found out: this tab doesn't announce it again.
+      expect(heard).toEqual([]);
+    });
+
+    it('only signs the header out on a public page when another tab signs out', async () => {
+      stubApi({ '/api/auth/me': () => Response.json(user) });
+      const { queryClient, documentNavigations } = renderAt('/');
+      await waitFor(() => expect(queryClient.getQueryData(currentUserQueryKey)).toEqual(user));
+
+      endedElsewhere();
+      await waitFor(() => expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull());
+      expect(documentNavigations).toEqual([]);
+    });
+
+    it('tells the other tabs once when its calls find the session ended', async () => {
+      stubApi({
+        '/api/auth/me': () => Response.json(user),
+        '/api/v1/portal/profile': () => Response.json(fullProfile),
+      });
+      const { queryClient } = renderAt('/settings');
+      await screen.findAllByText('Ada Lovelace');
+
+      await act(() => Promise.all([sessionEnded(queryClient, 'a'), sessionEnded(queryClient, 'b')]));
+      await settle();
+      expect(heard).toEqual([{ type: 'ended' }]);
+    });
+
+    it('leaves a signed-out visitor alone, and a signed-out tab announces nothing', async () => {
+      stubApi({ '/api/auth/me': () => status(401) });
+      const { queryClient, documentNavigations } = renderAt('/');
+      await waitFor(() => expect(queryClient.getQueryData(currentUserQueryKey)).toBeNull());
+
+      endedElsewhere();
+      await act(() => sessionEnded(queryClient, 'a'));
+      await settle();
+      expect(documentNavigations).toEqual([]);
+      expect(heard).toEqual([]);
+    });
   });
 });

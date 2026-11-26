@@ -1,3 +1,5 @@
+import { announceSessionEnded } from './session-channel';
+
 /** The signed-in user as portal-api reports it (GET /api/auth/me). */
 export interface CurrentUser {
   id: string;
@@ -43,14 +45,17 @@ export function loginHref(returnTo: string): string {
 }
 
 /**
- * Ends the BFF session, then hands the browser to Keycloak's logout (which returns to the app).
- * If the request fails the session may still exist server-side, but the app falls back to the home page.
+ * Ends the BFF session, tells the other tabs, then hands the browser to Keycloak's logout (which returns to the app).
+ * If the request fails the session may still exist server-side: this tab falls back to the home page and the other
+ * tabs are left as they are.
  */
 export async function logout(onSignedOut: () => void, navigate: Navigate = assignLocation): Promise<void> {
   let redirectUrl = '/';
   try {
     const response = await fetch(`${AUTH_PATH}/logout`, { method: 'POST', credentials: 'same-origin' });
     if (!response.ok) throw new Error(`POST ${AUTH_PATH}/logout failed with ${response.status}`);
+    // The session is gone server-side: sign the other tabs out too. Not on a failure, when it may still exist.
+    announceSessionEnded();
     const body: unknown = await response.json();
     if (typeof body === 'object' && body !== null && 'redirectUrl' in body && typeof body.redirectUrl === 'string') {
       redirectUrl = body.redirectUrl;

@@ -40,30 +40,42 @@ function lazyDiscovery(options: OidcClientOptions): Discover {
   };
 }
 
-function toTokens(response: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers): OidcTokens {
+type TokenResponse = client.TokenEndpointResponse & client.TokenEndpointResponseHelpers;
+
+/** The expiry fields of a token response, as of `now`. Keycloak adds `refresh_expires_in`; `0` means no idle limit. */
+function expiries(
+  response: TokenResponse,
+  now: number,
+): Pick<OidcTokens, 'expiresAt' | 'refreshExpiresAt' | 'obtainedAt'> {
+  const expiresIn = response.expiresIn();
+  const refreshExpiresIn = response['refresh_expires_in'];
+  return {
+    expiresAt: expiresIn === undefined ? null : now + expiresIn * 1000,
+    refreshExpiresAt:
+      typeof refreshExpiresIn === 'number' && refreshExpiresIn > 0 ? now + refreshExpiresIn * 1000 : null,
+    obtainedAt: now,
+  };
+}
+
+function toTokens(response: TokenResponse): OidcTokens {
   if (response.id_token === undefined) {
     throw new AuthError('callback_failed', { detail: 'token response has no id_token' });
   }
-  const expiresIn = response.expiresIn();
   return {
     idToken: response.id_token,
     accessToken: response.access_token,
     refreshToken: response.refresh_token ?? null,
-    expiresAt: expiresIn === undefined ? null : Date.now() + expiresIn * 1000,
+    ...expiries(response, Date.now()),
   };
 }
 
 /** Maps a refresh response; unlike `toTokens`, a missing ID token or refresh token keeps the current one. */
-function toRefreshedTokens(
-  response: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-  current: OidcTokens,
-): OidcTokens {
-  const expiresIn = response.expiresIn();
+function toRefreshedTokens(response: TokenResponse, current: OidcTokens): OidcTokens {
   return {
     idToken: response.id_token ?? current.idToken,
     accessToken: response.access_token,
     refreshToken: response.refresh_token ?? current.refreshToken,
-    expiresAt: expiresIn === undefined ? null : Date.now() + expiresIn * 1000,
+    ...expiries(response, Date.now()),
   };
 }
 

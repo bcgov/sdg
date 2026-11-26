@@ -3,6 +3,7 @@ import { Outlet } from '@tanstack/react-router';
 
 import { useSessionEndedRedirect } from '../../auth/use-session-ended-redirect';
 import { Devtools } from '../devtools';
+import { SessionTimeoutDialog } from '../session-timeout-dialog';
 import { SiteHeader } from '../site-header';
 
 import styles from './root-layout.module.css';
@@ -24,6 +25,7 @@ export function RootLayout() {
         </main>
         <Footer />
       </div>
+      <SessionTimeoutDialog />
       <Devtools />
     </>
   );

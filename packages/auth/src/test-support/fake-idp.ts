@@ -43,6 +43,8 @@ export interface FakeIdp {
   failDiscovery: boolean;
   /** When true, the JWKS endpoint responds 500. */
   failJwks: boolean;
+  /** The `refresh_expires_in` token responses carry, as Keycloak sends (default 1800); `undefined` leaves it out. */
+  refreshExpiresIn: number | undefined;
   issueCode(code: IssuedCode): string;
   /**
    * Registers a refresh token the token endpoint accepts once; each refresh rotates it to a new one. A back-channel
@@ -100,6 +102,7 @@ export async function startFakeIdp(): Promise<FakeIdp> {
     discoveryRequests: 0,
     failDiscovery: false,
     failJwks: false,
+    refreshExpiresIn: 1800,
     issueCode(code) {
       counter += 1;
       const value = `code-${counter}`;
@@ -134,6 +137,7 @@ export async function startFakeIdp(): Promise<FakeIdp> {
       ...(idToken === undefined ? {} : { id_token: idToken }),
       token_type: 'Bearer',
       expires_in: 300,
+      ...(idp.refreshExpiresIn === undefined ? {} : { refresh_expires_in: idp.refreshExpiresIn }),
     });
   }
 
@@ -163,6 +167,7 @@ export async function startFakeIdp(): Promise<FakeIdp> {
       id_token: idToken,
       token_type: 'Bearer',
       expires_in: 300,
+      ...(idp.refreshExpiresIn === undefined ? {} : { refresh_expires_in: idp.refreshExpiresIn }),
     });
   }
 

@@ -21,6 +21,7 @@ import { createCoreApiLogin, type LoginHook } from '../auth/core-api-login.js';
 import { SessionAuthGuard } from '../auth/session-auth.guard.js';
 import { BffForwardController } from '../forward/bff-forward.controller.js';
 import { OriginGuard } from '../origin/origin.guard.js';
+import { KeepAliveController } from '../refresh/keep-alive.controller.js';
 import { TokenRefreshService } from '../refresh/token-refresh.service.js';
 import { PostgresSessionStore } from '../session/postgres-session.store.js';
 import { deriveSessionKey } from '../session/session-cipher.js';
@@ -113,7 +114,7 @@ export class BffModule implements NestModule, OnApplicationShutdown {
       global: true,
       imports: options.imports ?? [],
       // The forwarder's catch-all goes last, after the routes it must not shadow.
-      controllers: [AuthController, BffForwardController],
+      controllers: [AuthController, KeepAliveController, BffForwardController],
       providers: [
         { provide: BFF_OPTIONS, inject: options.inject ?? [], useFactory: options.useFactory },
         ...sessionProviders,
