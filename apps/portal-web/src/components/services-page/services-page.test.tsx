@@ -5,6 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { App } from '../../app';
+import type { CurrentUser } from '../../auth/api';
+import { currentUserQueryKey } from '../../auth/use-current-user';
 import { createAppRouter } from '../../router';
 
 vi.mock('../devtools', () => ({ Devtools: () => null }));
@@ -33,8 +35,12 @@ function stubViewport() {
   };
 }
 
-async function renderServices(path = '/services') {
+const RESIDENT: CurrentUser = { id: 'p-1', name: 'Ada Lovelace', email: null };
+
+/** Signed out unless a `user` is given, which is seeded into the session cache as if portal-api had answered. */
+async function renderServices(path = '/services', user: CurrentUser | null = null) {
   const queryClient = new QueryClient();
+  queryClient.setQueryData(currentUserQueryKey, user);
   const router = createAppRouter({ queryClient, history: createMemoryHistory({ initialEntries: [path] }) });
   render(<App queryClient={queryClient} router={router} />);
   await screen.findByRole('heading', { level: 1, name: 'Services' });
@@ -222,5 +228,45 @@ describe('services page', () => {
     expect(screen.getByRole('navigation', { name: 'Pagination' }).compareDocumentPosition(panel)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
+  });
+
+  it('has no tabs for a signed-out visitor', async () => {
+    await renderServices();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.getByTestId('service-placeholders').children).toHaveLength(12);
+  });
+
+  it('gives a signed-in resident All Services and Bookmarks tabs, on All Services', async () => {
+    await renderServices('/services', RESIDENT);
+    const tabs = await screen.findByRole('tablist', { name: 'Services' });
+    expect(
+      within(tabs)
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['All Services', 'Bookmarks']);
+    expect(within(tabs).getByRole('tab', { name: 'All Services' })).toHaveAttribute('aria-selected', 'true');
+    // The tabs sit between the header and the cards.
+    const header = screen.getByRole('heading', { level: 1, name: 'Services' }).closest('header')!;
+    expect(header.compareDocumentPosition(tabs)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const panel = screen.getByRole('tabpanel', { name: 'All Services' });
+    expect(within(panel).getByTestId('service-placeholders').children).toHaveLength(12);
+    expect(within(panel).getByRole('navigation', { name: 'Pagination' })).toHaveTextContent(
+      'Showing results 1 - 12 of 36 services',
+    );
+  });
+
+  it('shows three placeholder bookmarks on one page in the Bookmarks tab', async () => {
+    await renderServices('/services', RESIDENT);
+    await userEvent.click(await screen.findByRole('tab', { name: 'Bookmarks' }));
+    const panel = screen.getByRole('tabpanel', { name: 'Bookmarks' });
+    expect(within(panel).getByTestId('bookmark-placeholders').children).toHaveLength(3);
+    expect(screen.queryByTestId('service-placeholders')).toBeNull();
+    const pagination = within(panel).getByRole('navigation', { name: 'Pagination' });
+    expect(within(pagination).getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+    expect(within(pagination).queryByRole('button', { name: 'Page 2' })).toBeNull();
+    expect(within(pagination).getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(pagination).toHaveTextContent('Showing results 1 - 3 of 3 bookmarks');
+    // The help panel stays under whichever tab is showing.
+    expect(screen.getByRole('region', { name: 'Still can’t find what you’re looking for?' })).toBeInTheDocument();
   });
 });

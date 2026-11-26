@@ -3,8 +3,9 @@ import { Tooltip, TooltipTrigger } from '@repo/design-system/components/tooltip'
 import { faFilter, FontAwesomeIcon } from '@repo/design-system/icons';
 import { useCallback, useState } from 'react';
 
+import { useCurrentUser } from '../../auth/use-current-user';
 import { ServiceSearch } from '../service-search';
-import { ServicesPagination } from './pagination';
+import { AllServicesResults, ServicesTabs } from './results';
 import { SearchToolsSheet } from './search-tools-sheet';
 import { SearchToolsSidebar } from './search-tools-sidebar';
 import { StillLooking } from './still-looking';
@@ -12,9 +13,6 @@ import { DEFAULT_SERVICE_TYPE, type ServiceType } from './type-filter';
 import { useOnEnterWideLayout } from './use-wide-layout';
 
 import styles from './services-page.module.css';
-
-/** Placeholder cards stand in for the services until there's a catalogue to list (one page of 12). */
-const PLACEHOLDER_COUNT = 12;
 
 const TOOLS_ICON = <FontAwesomeIcon icon={faFilter} aria-hidden="true" />;
 
@@ -25,7 +23,8 @@ interface ServicesPageProps {
 
 /**
  * The Services page (Figma: Developer Handoff 26:21014): Search tools beside the page header (a filter button beside the search on narrower screens), a grid of service
- * cards, pagination and a way to get help. The filters and pagination are presentational for now.
+ * cards, pagination and a way to get help. A signed-in resident also gets All Services and Bookmarks tabs above the
+ * cards. The filters, pagination and bookmarks are presentational for now.
  */
 export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
   // One Type choice for both the sidebar (wide screens) and the sheet (medium and small), so they always agree.
@@ -33,6 +32,9 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
   const [isSidebarExpanded, setSidebarExpanded] = useState(true);
   const [isSheetOpen, setSheetOpen] = useState(false);
   const openSheet = useCallback(() => setSheetOpen(true), []);
+  const { data: user } = useCurrentUser();
+  const isSignedIn = Boolean(user);
+  const isWide = !isSidebarExpanded;
 
   // Growing into the wide layout with the sheet open: the sheet goes and the sidebar shows the same tools, open even
   // if it was collapsed. With the sheet closed, the sidebar stays as the visitor left it.
@@ -52,7 +54,8 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
         onTypeChange={setType}
       />
       <div className={styles['primary']}>
-        <header className={styles['header']}>
+        {/* Signed in, the tab row's rule takes the place of the header's. */}
+        <header className={`${styles['header']} ${isSignedIn ? styles['headerAboveTabs'] : ''}`}>
           <h1 className={styles['title']}>Services</h1>
           <p className={styles['description']}>Find online application forms, service websites and government apps.</p>
           <ServiceSearch key={query ?? ''} defaultQuery={query}>
@@ -67,17 +70,7 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
             </span>
           </ServiceSearch>
         </header>
-        {/* Holds the space for the service cards; decorative until they exist. */}
-        <div
-          className={`${styles['cards']} ${isSidebarExpanded ? '' : styles['cardsWide']}`}
-          data-testid="service-placeholders"
-          aria-hidden="true"
-        >
-          {Array.from({ length: PLACEHOLDER_COUNT }, (_, index) => (
-            <div key={index} className={styles['placeholder']} />
-          ))}
-        </div>
-        <ServicesPagination />
+        {isSignedIn ? <ServicesTabs isWide={isWide} /> : <AllServicesResults isWide={isWide} />}
         <StillLooking />
       </div>
       <SearchToolsSheet isOpen={isSheetOpen} onOpenChange={setSheetOpen} type={type} onTypeChange={setType} />
