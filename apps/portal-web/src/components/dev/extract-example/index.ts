@@ -19,16 +19,16 @@ export function extractExample(source: string, name: string): string {
 }
 
 function markerRegex(kind: 'region' | 'endregion', name: string): RegExp {
-  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedName = name.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   return new RegExp(
-    `^[ \\t]*(?://\\s*#${kind}\\s+${escapedName}\\s*|\\{/\\*\\s*#${kind}\\s+${escapedName}\\s*\\*/\\})\\s*$`,
+    String.raw`^[ \t]*(?://\s*#${kind}\s+${escapedName}\s*|\{/\*\s*#${kind}\s+${escapedName}\s*\*/\})\s*$`,
     'm',
   );
 }
 
 function dedent(text: string): string {
-  const lines = text.replace(/^\n/, '').replace(/\s+$/, '').split('\n');
-  const indents = lines.filter((l) => l.trim()).map((l) => l.match(/^[ \t]*/)![0].length);
+  const lines = text.replace(/^\n/, '').trimEnd().split('\n');
+  const indents = lines.filter((l) => l.trim()).map((l) => /^[ \t]*/.exec(l)![0].length);
   const min = indents.length ? Math.min(...indents) : 0;
   return lines.map((l) => l.slice(min)).join('\n');
 }

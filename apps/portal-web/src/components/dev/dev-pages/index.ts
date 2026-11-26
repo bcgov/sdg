@@ -17,6 +17,24 @@ export interface DevPage {
   importNames: string;
 }
 
+/** The slug after `/dev/`, which is also the component's design-system subpath. */
+type DevPageSlug = DevPagePath extends `/dev/${infer Slug}` ? Slug : never;
+
+const COMPONENTS_PATH = '@repo/design-system/components';
+
+/** A custom component whose page is still a placeholder: its route and import path both come from `slug`. */
+function placeholder(slug: DevPageSlug, title: string, description: string, importNames: string): DevPage {
+  return {
+    to: `/dev/${slug}`,
+    title,
+    kind: 'custom',
+    status: 'placeholder',
+    description,
+    importPath: `${COMPONENTS_PATH}/${slug}`,
+    importNames,
+  };
+}
+
 /**
  * The /dev pages, one per design-system component that isn't used as BCDS ships it. The index page, the pages menu
  * and the route tests all read this list: add an entry here when adding a page.
@@ -28,72 +46,26 @@ export const DEV_PAGES: readonly DevPage[] = [
     kind: 'extended',
     status: 'ready',
     description: 'The BCDS button with an added warning variant. (As an example)',
-    importPath: '@repo/design-system/components/button',
+    importPath: `${COMPONENTS_PATH}/button`,
     importNames: 'Button',
   },
-  {
-    to: '/dev/avatar',
-    title: 'Avatar',
-    kind: 'custom',
-    status: 'placeholder',
-    description: "A person's photo, or their initials when there's no photo.",
-    importPath: '@repo/design-system/components/avatar',
-    importNames: 'Avatar, getInitials',
-  },
-  {
-    to: '/dev/card',
-    title: 'Card',
-    kind: 'custom',
-    status: 'placeholder',
-    description: 'A bordered container for a titled item, optionally linked.',
-    importPath: '@repo/design-system/components/card',
-    importNames: 'Card',
-  },
-  {
-    to: '/dev/data-table',
-    title: 'Data table',
-    kind: 'custom',
-    status: 'placeholder',
-    description: 'A sortable, paged table whose sort and page live in the URL.',
-    importPath: '@repo/design-system/components/data-table',
-    importNames: 'DataTable, dataTableColumnHelper',
-  },
-  {
-    to: '/dev/details',
-    title: 'Details',
-    kind: 'custom',
-    status: 'placeholder',
-    description: 'A description list laid out as label, value and extra columns.',
-    importPath: '@repo/design-system/components/details',
-    importNames: 'Details',
-  },
-  {
-    to: '/dev/nav-link',
-    title: 'Nav link',
-    kind: 'custom',
-    status: 'placeholder',
-    description: 'A navigation item: plain text that underlines on hover.',
-    importPath: '@repo/design-system/components/nav-link',
-    importNames: 'NavLink',
-  },
-  {
-    to: '/dev/section',
-    title: 'Section',
-    kind: 'custom',
-    status: 'placeholder',
-    description: 'A page section with an optional title and description above its content.',
-    importPath: '@repo/design-system/components/section',
-    importNames: 'Section',
-  },
-  {
-    to: '/dev/tabs',
-    title: 'Tabs',
-    kind: 'custom',
-    status: 'placeholder',
-    description: 'A row of tabs, each switching to its own panel.',
-    importPath: '@repo/design-system/components/tabs',
-    importNames: 'Tab, TabList, TabPanel, Tabs',
-  },
+  placeholder('avatar', 'Avatar', "A person's photo, or their initials when there's no photo.", 'Avatar, getInitials'),
+  placeholder('card', 'Card', 'A bordered container for a titled item, optionally linked.', 'Card'),
+  placeholder(
+    'data-table',
+    'Data table',
+    'A sortable, paged table whose sort and page live in the URL.',
+    'DataTable, dataTableColumnHelper',
+  ),
+  placeholder('details', 'Details', 'A description list laid out as label, value and extra columns.', 'Details'),
+  placeholder('nav-link', 'Nav link', 'A navigation item: plain text that underlines on hover.', 'NavLink'),
+  placeholder(
+    'section',
+    'Section',
+    'A page section with an optional title and description above its content.',
+    'Section',
+  ),
+  placeholder('tabs', 'Tabs', 'A row of tabs, each switching to its own panel.', 'Tab, TabList, TabPanel, Tabs'),
 ];
 
 /** The entry for a path. Every dev route has one, so a missing entry is a mistake that should fail loudly. */

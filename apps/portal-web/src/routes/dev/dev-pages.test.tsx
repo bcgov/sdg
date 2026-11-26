@@ -71,7 +71,7 @@ describe('/dev pages', () => {
     vi.stubEnv('DEV', false);
     renderAt('/dev/button');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
+    expect(await screen.findByText('Error 404 - Page not found')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1, name: 'Button' })).not.toBeInTheDocument();
   });
 });
