@@ -2,7 +2,7 @@ import { Button } from '@repo/design-system/components/button';
 import { TextField } from '@repo/design-system/components/text-field';
 import { faMagnifyingGlass, FontAwesomeIcon } from '@repo/design-system/icons';
 import { useNavigate } from '@tanstack/react-router';
-import { useCallback, useState, type SubmitEvent } from 'react';
+import { useCallback, useState, type ReactNode, type SubmitEvent } from 'react';
 
 import styles from './service-search.module.css';
 
@@ -19,10 +19,12 @@ interface ServiceSearchProps {
   className?: string;
   /** The query to start with, e.g. the Services page's current `q`. */
   defaultQuery?: string;
+  /** Extra controls after the Search button, e.g. the Services page's Search tools button. */
+  children?: ReactNode;
 }
 
 /** The services search: a field and a Search button that go to /services with the trimmed query. */
-export function ServiceSearch({ className, defaultQuery = '' }: Readonly<ServiceSearchProps>) {
+export function ServiceSearch({ className, defaultQuery = '', children }: Readonly<ServiceSearchProps>) {
   const [query, setQuery] = useState(defaultQuery);
   const navigate = useNavigate();
 
@@ -49,6 +51,7 @@ export function ServiceSearch({ className, defaultQuery = '' }: Readonly<Service
         <Button type="submit" variant="primary">
           Search
         </Button>
+        {children}
       </form>
     </search>
   );

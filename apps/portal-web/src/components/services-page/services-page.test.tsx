@@ -100,6 +100,17 @@ describe('services page', () => {
     expect(screen.getByTestId('service-placeholders').children).toHaveLength(12);
   });
 
+  it('puts the Search tools icon button right after the Search button', async () => {
+    await renderServices();
+    const form = screen.getByRole('button', { name: 'Search' }).closest('form');
+    if (!form) throw new Error('the Search button is not in a form');
+    const buttons = within(form).getAllByRole('button');
+    expect(buttons.map((button) => button.textContent || button.getAttribute('aria-label'))).toEqual([
+      'Search',
+      'Search tools',
+    ]);
+  });
+
   it('opens Search tools as a dialog that shares the sidebar’s choice, and Show results closes it', async () => {
     await renderServices();
     await userEvent.click(screen.getByRole('radio', { name: 'Platform' }));
