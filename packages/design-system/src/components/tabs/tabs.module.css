@@ -27,14 +27,16 @@
   outline: none;
 }
 
+/* A paler gold than the selected tab's, previewing the selection. */
 .tab[data-hovered] {
   color: var(--typography-color-primary);
-  border-bottom-color: var(--surface-color-border-medium);
+  border-bottom-color: var(--theme-gold-50);
 }
 
+/* B.C. blue text over a B.C. Primary Gold indicator. */
 .tab[data-selected] {
   color: var(--surface-color-primary-default);
-  border-bottom-color: var(--surface-color-primary-default);
+  border-bottom-color: var(--theme-primary-gold);
 }
 
 .tab[data-focus-visible] {
