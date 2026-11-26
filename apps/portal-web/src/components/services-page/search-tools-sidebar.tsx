@@ -17,7 +17,7 @@ interface SearchToolsSidebarProps {
   onTypeChange: (type: ServiceType) => void;
 }
 
-/** A labelled icon button with a matching tooltip (Figma: "Open sidebar"). */
+/** A labelled icon button with a matching tooltip (e.g. "Show sidebar"). */
 function SidebarToggle({ label, icon, onPress }: Readonly<{ label: string; icon: ReactElement; onPress: () => void }>) {
   return (
     <TooltipTrigger delay={300}>
@@ -45,7 +45,7 @@ export function SearchToolsSidebar({
   if (!isExpanded) {
     return (
       <aside className={`${styles['sidebar']} ${styles['rail']}`} aria-label="Search tools">
-        <SidebarToggle label="Open sidebar" icon={OPEN_ICON} onPress={open} />
+        <SidebarToggle label="Show sidebar" icon={OPEN_ICON} onPress={open} />
       </aside>
     );
   }
@@ -55,7 +55,7 @@ export function SearchToolsSidebar({
         <h2 id={headingId} className={styles['title']}>
           Search tools
         </h2>
-        <SidebarToggle label="Close sidebar" icon={CLOSE_ICON} onPress={close} />
+        <SidebarToggle label="Hide sidebar" icon={CLOSE_ICON} onPress={close} />
       </div>
       <div className={styles['sidebarBody']}>
         <TypeFilter value={type} onChange={onTypeChange} />

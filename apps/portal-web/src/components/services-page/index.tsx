@@ -1,4 +1,5 @@
 import { Button } from '@repo/design-system/components/button';
+import { Tooltip, TooltipTrigger } from '@repo/design-system/components/tooltip';
 import { faFilter, FontAwesomeIcon } from '@repo/design-system/icons';
 import { useCallback, useState } from 'react';
 
@@ -57,9 +58,12 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
           <ServiceSearch key={query ?? ''} defaultQuery={query}>
             {/* Medium and small screens only: the sidebar's place is taken by the sheet. */}
             <span className={styles['toolsTrigger']}>
-              <Button variant="secondary" isIconButton aria-label="Search tools" onPress={openSheet}>
-                {TOOLS_ICON}
-              </Button>
+              <TooltipTrigger delay={300}>
+                <Button variant="secondary" isIconButton aria-label="Search tools" onPress={openSheet}>
+                  {TOOLS_ICON}
+                </Button>
+                <Tooltip placement="top">Search tools</Tooltip>
+              </TooltipTrigger>
             </span>
           </ServiceSearch>
         </header>

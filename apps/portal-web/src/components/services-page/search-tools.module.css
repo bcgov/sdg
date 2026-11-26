@@ -10,7 +10,7 @@
   border-inline-end: var(--layout-border-width-small) solid var(--surface-color-border-default);
 }
 
-/* Collapsed: just the Open sidebar button, the rule still running down to the footer. */
+/* Collapsed: just the Show sidebar button, the rule still running down to the footer. */
 .rail {
   flex-basis: auto;
 }
