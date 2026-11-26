@@ -21,7 +21,7 @@
   padding: var(--layout-padding-small) var(--layout-padding-xsmall);
   border-bottom: var(--layout-border-width-large) solid transparent;
   color: var(--typography-color-secondary);
-  font: var(--typography-bold-body);
+  font: var(--typography-regular-body);
   white-space: nowrap;
   cursor: pointer;
   outline: none;
