@@ -20,14 +20,15 @@ interface SearchToolsSheetProps {
 /**
  * Search tools as a modal sheet on medium screens (from the right, Figma 36:68956) and small ones (from the bottom,
  * Figma 37:71668). A filter applies as soon as it's selected, so Show results only closes the sheet; Clear all resets
- * the filter. The results are placeholders for now, so nothing visibly changes yet.
+ * the filter, and clicking the dimmed area outside the sheet closes it. The results are placeholders for now, so nothing
+ * visibly changes yet.
  */
 export function SearchToolsSheet({ isOpen, onOpenChange, type, onTypeChange }: Readonly<SearchToolsSheetProps>) {
   const headingId = useId();
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
   const clear = useCallback(() => onTypeChange(DEFAULT_SERVICE_TYPE), [onTypeChange]);
   return (
-    <Modal className={styles['overlay']} isOpen={isOpen} onOpenChange={onOpenChange} isDismissable>
+    <Modal className={styles['sheetModal']} isOpen={isOpen} onOpenChange={onOpenChange} isDismissable>
       <Dialog className={styles['sheet']} isCloseable={false} aria-labelledby={headingId}>
         <div className={styles['sheetHeader']}>
           <h2 id={headingId} className={styles['title']}>

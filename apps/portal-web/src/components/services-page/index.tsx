@@ -1,5 +1,6 @@
 import { Button } from '@repo/design-system/components/button';
-import { faSliders, FontAwesomeIcon } from '@repo/design-system/icons';
+import { Tooltip, TooltipTrigger } from '@repo/design-system/components/tooltip';
+import { faFilter, FontAwesomeIcon } from '@repo/design-system/icons';
 import { useCallback, useState } from 'react';
 
 import { ServiceSearch } from '../service-search';
@@ -15,7 +16,7 @@ import styles from './services-page.module.css';
 /** Placeholder cards stand in for the services until there's a catalogue to list (one page of 12). */
 const PLACEHOLDER_COUNT = 12;
 
-const TOOLS_ICON = <FontAwesomeIcon icon={faSliders} aria-hidden="true" />;
+const TOOLS_ICON = <FontAwesomeIcon icon={faFilter} aria-hidden="true" />;
 
 interface ServicesPageProps {
   /** The search the visitor arrived with, shown in the field. */
@@ -23,7 +24,7 @@ interface ServicesPageProps {
 }
 
 /**
- * The Services page (Figma: Developer Handoff 26:21014): Search tools beside the page header, a grid of service
+ * The Services page (Figma: Developer Handoff 26:21014): Search tools beside the page header (a filter button beside the search on narrower screens), a grid of service
  * cards, pagination and a way to get help. The filters and pagination are presentational for now.
  */
 export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
@@ -52,18 +53,19 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
       />
       <div className={styles['primary']}>
         <header className={styles['header']}>
-          <div className={styles['titleRow']}>
-            <h1 className={styles['title']}>Services</h1>
+          <h1 className={styles['title']}>Services</h1>
+          <p className={styles['description']}>Find online application forms, service websites and government apps.</p>
+          <ServiceSearch key={query ?? ''} defaultQuery={query}>
             {/* Medium and small screens only: the sidebar's place is taken by the sheet. */}
             <span className={styles['toolsTrigger']}>
-              <Button variant="secondary" onPress={openSheet}>
-                {TOOLS_ICON}
-                Search tools
-              </Button>
+              <TooltipTrigger delay={300}>
+                <Button variant="secondary" isIconButton aria-label="Search tools" onPress={openSheet}>
+                  {TOOLS_ICON}
+                </Button>
+                <Tooltip placement="top">Search tools</Tooltip>
+              </TooltipTrigger>
             </span>
-          </div>
-          <p className={styles['description']}>Find online application forms, service websites and government apps.</p>
-          <ServiceSearch key={query ?? ''} defaultQuery={query} />
+          </ServiceSearch>
         </header>
         {/* Holds the space for the service cards; decorative until they exist. */}
         <div
