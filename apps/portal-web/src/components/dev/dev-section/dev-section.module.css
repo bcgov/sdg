@@ -1,0 +1,29 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+}
+
+/*
+ * Styled from here because a className on the BCDS heading would replace its own classes.
+ * Clear of the top of the viewport when the nav jumps here.
+ */
+.section > h2 {
+  margin: var(--layout-margin-none);
+  scroll-margin-top: var(--layout-margin-large);
+}
+
+/* The section's gap spaces its paragraphs and lists, the description included. */
+.section > p,
+.section > ul {
+  margin: var(--layout-margin-none);
+}
+
+/* A sub-heading sits a little further from the text above it than from its own. */
+.section > h3 {
+  margin: var(--layout-margin-small) 0 0;
+}
+
+.description {
+  color: var(--typography-color-secondary);
+}
