@@ -15,7 +15,7 @@ catalog:
   '@fortawesome/react-fontawesome': ^3.5.0
   '@grafana/faro-web-sdk': ^2.13.0
   '@grafana/faro-web-tracing': ^2.13.0
-  '@nestjs/cli': 12.0.13
+  '@nestjs/cli': 12.0.15
   '@nestjs/common': ^12.2.0
   '@nestjs/config': ^12.0.1
   '@nestjs/core': ^12.2.0
