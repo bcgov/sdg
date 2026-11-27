@@ -32,6 +32,7 @@ export interface PlaywrightOptions {
   clientPassword?: string;
   overrides?: PlaywrightTestConfig;
 }
+const targetDevices = ['Desktop Chrome', 'iPhone 14', 'Pixel 7'];
 
 /** Playwright config for an app-level e2e suite in `./e2e`. */
 export function definePlaywrightConfig({
@@ -58,9 +59,10 @@ export function definePlaywrightConfig({
       reuseContext: true,
     },
     projects: [
-      { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: '**/signed-in/**' },
       { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
       { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+      { name: 'chromium', testDir: './e2e/unauthenticated', use: { ...devices['Desktop Chrome'] } },
+      { name: 'accessibility', testDir: './e2e/accessibility', use: { ...devices['Desktop Chrome'] } },
       {
         name: 'client-setup',
         testMatch: 'client.setup.ts',
@@ -73,7 +75,7 @@ export function definePlaywrightConfig({
       },
       {
         name: 'client-tests',
-        testDir: './e2e/signed-in',
+        testDir: './e2e/authenticated',
         use: { ...devices['Desktop Chrome'], clientURL: baseURL, storageState: './e2e/setup/client-auth.json' },
       },
       {
@@ -87,6 +89,11 @@ export function definePlaywrightConfig({
           clientPassword: clientPassword,
         },
       },
+      ...targetDevices.map((deviceName) => ({
+        name: deviceName,
+        use: { ...devices[deviceName] },
+        // Shared project settings go here (e.g., testDir, retries)
+      })),
     ],
     ...(webServer ? { webServer: { ...webServer, url: baseURL, reuseExistingServer: !ci } } : {}),
     ...overrides,

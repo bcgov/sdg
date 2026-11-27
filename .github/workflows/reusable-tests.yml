@@ -262,14 +262,14 @@ jobs:
             run_unauthenticated: true
             run_client: false
             report: playwright-report-chromium-2
-          - name: portal-web (signed-in)
+          - name: portal-web (authenticated)
             app: portal-web
             url: ${{ inputs.url }}
             shard: ''
             run_unauthenticated: false
             run_client: true
-            report: playwright-report-chromium-signed-in
-          # console-web's signed-out specs against the console host (the signed-in ones need an admin test account and
+            report: playwright-report-chromium-authenticated
+          # console-web's signed-out specs against the console host (the authenticated ones need an admin test account and
           # skip). Without console_url the job runs no steps.
           - name: console-web
             app: console-web
