@@ -164,6 +164,20 @@ describe('portal-web app shell', () => {
       );
       expect(header.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
     });
+
+    it("goes home client-side from the header's logo, cancelling its link", async () => {
+      const { router } = renderAt('/contact-us');
+      expect(await screen.findByRole('heading', { level: 1, name: 'Contact us' })).toBeInTheDocument();
+      const logo = (await headerQueries()).getByRole('link', { name: /Government of British Columbia/ });
+      let navigated = true;
+      document.addEventListener('click', (event) => (navigated = !event.defaultPrevented), { once: true });
+
+      await userEvent.click(logo);
+
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Access services online');
+      expect(router.state.location.pathname).toBe('/');
+      expect(navigated).toBe(false);
+    });
   });
 
   describe('not found', () => {
