@@ -63,7 +63,7 @@ export function definePlaywrightConfig({
       {
         name: 'chromium',
         testDir: './e2e',
-        testIgnore: ['./e2e/authenticated', './e2e/accessibility'],
+        testIgnore: ['**/authenticated/**', '**/accessibility/**'],
         use: { ...devices['Desktop Chrome'] },
       },
       { name: 'accessibility', testDir: './e2e/accessibility', use: { ...devices['Desktop Chrome'] } },

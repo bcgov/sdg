@@ -83,6 +83,8 @@ async function expectNavigationAtBreakpoints(page: Page, browserName: string, ur
       await page.keyboard.press('Enter');
       await tabThrough(searchToolsControls);
       await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog', { name: 'Search tools' })).toHaveCount(0);
+      await expect(searchToolsToggle).toBeFocused();
     }
 
     await tabThrough(paginationControls);
