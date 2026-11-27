@@ -61,6 +61,23 @@ describe('home page', () => {
       expect(router.state.location.searchStr).toBe('?q=fishing');
     });
 
+    it('offers Clear search only once the field has text, and clearing empties and refocuses the field', async () => {
+      await renderHome();
+      const field = screen.getByRole('textbox', { name: 'Search for services' });
+      expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+
+      await userEvent.type(field, 'fishing');
+      const clear = screen.getByRole('button', { name: 'Clear search' });
+      // react-aria opens tooltips on hover only after a pointer interaction, and typing was the last one.
+      await userEvent.click(document.body);
+      await userEvent.hover(clear);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Clear search');
+      await userEvent.click(clear);
+      expect(field).toHaveValue('');
+      expect(field).toHaveFocus();
+      expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+    });
+
     it('writes a number-like query into the URL as plain text', async () => {
       const router = await renderHome();
       await userEvent.type(screen.getByRole('textbox', { name: 'Search for services' }), '007{Enter}');

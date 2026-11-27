@@ -5,17 +5,24 @@ import styles from './services-page.module.css';
 
 const PREVIOUS_ICON = <FontAwesomeIcon icon={faAngleLeft} aria-hidden="true" />;
 const NEXT_ICON = <FontAwesomeIcon icon={faAngleRight} aria-hidden="true" />;
-const PAGES = [1, 2, 3] as const;
 
-/** Previous, the page numbers, Next and the results count. Presentational for now: page 1 of 3, nothing pages. */
-export function ServicesPagination() {
+interface ServicesPaginationProps {
+  /** How many page buttons to show; page 1 is always the current one. */
+  pageCount: number;
+  /** The results count beside the controls. */
+  summary: string;
+}
+
+/** Previous, the page numbers, Next and the results count. Presentational for now: page 1 is current, nothing pages. */
+export function ServicesPagination({ pageCount, summary }: Readonly<ServicesPaginationProps>) {
+  const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
   return (
     <nav className={styles['pagination']} aria-label="Pagination">
       <div className={styles['pages']}>
         <Button variant="tertiary" isIconButton isDisabled aria-label="Previous page">
           {PREVIOUS_ICON}
         </Button>
-        {PAGES.map((page) => (
+        {pages.map((page) => (
           <Button
             key={page}
             variant="tertiary"
@@ -25,11 +32,11 @@ export function ServicesPagination() {
             {page}
           </Button>
         ))}
-        <Button variant="tertiary" isIconButton aria-label="Next page">
+        <Button variant="tertiary" isIconButton isDisabled={pageCount <= 1} aria-label="Next page">
           {NEXT_ICON}
         </Button>
       </div>
-      <p className={styles['count']}>Showing results 1 - 12 of 36 services</p>
+      <p className={styles['count']}>{summary}</p>
     </nav>
   );
 }

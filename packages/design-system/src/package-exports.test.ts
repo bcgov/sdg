@@ -131,11 +131,13 @@ describe('build output', () => {
     expect(readFileSync(join(outDir, 'components/avatar/index.d.ts'), 'utf8')).toMatch(/AvatarProps/);
     expect(readFileSync(join(outDir, 'components/nav-link/index.d.ts'), 'utf8')).toMatch(/NavLinkProps/);
     expect(readFileSync(join(outDir, 'components/data-table/index.d.ts'), 'utf8')).toMatch(/DataTableProps/);
+    expect(readFileSync(join(outDir, 'components/button/index.d.ts'), 'utf8')).toMatch(/ButtonProps/);
+    expect(readFileSync(join(outDir, 'components/card/index.d.ts'), 'utf8')).toMatch(/CardProps/);
   });
 
   it('emits Props type aliases in the component declarations', () => {
-    const dts = readFileSync(join(outDir, 'components/button/index.d.ts'), 'utf8');
-    expect(dts).toMatch(/export type ButtonProps\b/);
+    const dts = readFileSync(join(outDir, 'components/button-group/index.d.ts'), 'utf8');
+    expect(dts).toMatch(/export type ButtonGroupProps\b/);
     expect(dts).not.toMatch(/Svg/);
   });
 

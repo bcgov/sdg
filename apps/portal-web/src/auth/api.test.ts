@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { fetchCurrentUser, loginHref, logout } from './api';
+import { SESSION_CHANNEL } from './session-channel';
+
+/** Lets BroadcastChannel messages arrive. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 const fetchMock = vi.fn<typeof fetch>();
 const originalLocation = window.location;
@@ -112,6 +116,26 @@ describe('Auth API Integration Test Suite', () => {
       expect(onSignedOut).toHaveBeenCalledTimes(1);
       expect(navigate).toHaveBeenCalledWith('/');
       expect(consoleError).toHaveBeenCalledWith('portal-web: logout request failed', expect.any(Error));
+    });
+
+    it('tells the other tabs once the session is gone, and not when logging out failed', async () => {
+      const otherTab = new BroadcastChannel(SESSION_CHANNEL);
+      const heard: unknown[] = [];
+      otherTab.addEventListener('message', (event: MessageEvent<unknown>) => heard.push(event.data));
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        fetchMock.mockResolvedValueOnce(new Response('nope', { status: 500 }));
+        await logout(vi.fn(), vi.fn());
+        await settle();
+        expect(heard).toEqual([]);
+
+        fetchMock.mockResolvedValueOnce(Response.json({ redirectUrl: 'https://idp.example/logout' }));
+        await logout(vi.fn(), vi.fn());
+        await settle();
+        expect(heard).toEqual([{ type: 'ended' }]);
+      } finally {
+        otherTab.close();
+      }
     });
 
     it('Should fall back to / when response body has invalid or missing redirectUrl', async () => {

@@ -3,11 +3,20 @@ import { test } from '@repo/playwright-config';
 
 const user = { id: 'p-1', name: 'Ada Lovelace', email: 'ada@example.com' };
 
-/** Fakes portal-api's /api/auth/me in the browser, so the suite needs no API or Keycloak. */
+/**
+ * Fakes portal-api's /api/auth/me in the browser, so the suite needs no API or Keycloak, and its session keep-alive,
+ * which the signed-in app calls on load: the real portal-api has no session for a faked user and would answer 401,
+ * which signs the app out.
+ */
 async function mockCurrentUser(page: Page, signedIn: boolean) {
   await page.route('**/api/auth/me', (route) =>
     signedIn
       ? route.fulfill({ json: user })
+      : route.fulfill({ status: 401, json: { statusCode: 401, message: 'Unauthorized' } }),
+  );
+  await page.route('**/api/auth/keep-alive', (route) =>
+    signedIn
+      ? route.fulfill({ json: { idleExpiresAt: Date.now() + 30 * 60_000 } })
       : route.fulfill({ status: 401, json: { statusCode: 401, message: 'Unauthorized' } }),
   );
 }

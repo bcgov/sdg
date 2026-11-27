@@ -1,0 +1,96 @@
+.card {
+  /* Anchors the title link's ::after, which covers the card to make all of it clickable. */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  box-sizing: border-box;
+  padding: var(--layout-padding-medium);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background-color: var(--surface-color-background-white);
+  color: var(--typography-color-primary);
+}
+
+.column {
+  flex-direction: row;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.centered {
+  align-items: center;
+  text-align: center;
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--icons-color-primary);
+  font-size: var(--icons-size-xlarge);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  min-width: 0;
+}
+
+/* The upstream Heading keeps its own classes, so reset browser margins from here. */
+.content > * {
+  margin: var(--layout-margin-none);
+}
+
+.description {
+  color: var(--typography-color-secondary);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-margin-small);
+  margin-top: var(--layout-margin-small);
+}
+
+.centered .buttons {
+  justify-content: center;
+}
+
+/* Interactive content sits above the title link's overlay so it stays clickable on its own. */
+.buttons,
+.body :is(a, button, input, select, textarea, [tabindex]) {
+  position: relative;
+  z-index: 1;
+}
+
+.titleLink {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.titleLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.titleLink:focus-visible {
+  outline: none;
+}
+
+.card:has(.titleLink:hover) {
+  border-color: var(--surface-color-border-medium);
+}
+
+.card:has(.titleLink:hover) .titleLink {
+  text-decoration: underline;
+  text-underline-offset: var(--layout-margin-hair);
+}
+
+.card:has(.titleLink:focus-visible) {
+  outline: var(--layout-border-width-medium) solid var(--surface-color-border-active);
+  outline-offset: var(--layout-margin-hair);
+}

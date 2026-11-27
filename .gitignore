@@ -17,6 +17,9 @@ charts/*/charts/
 # Turborepo
 .turbo/
 
+# TanStack Router generator scratch files
+.tanstack/
+
 # Testing
 coverage/
 test-results/

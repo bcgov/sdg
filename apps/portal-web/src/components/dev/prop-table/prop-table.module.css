@@ -1,0 +1,38 @@
+/* Wide tables scroll inside the page rather than widening it. */
+.scroller {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--typography-font-size-small-body);
+}
+
+.caption {
+  margin-bottom: var(--layout-margin-small);
+  color: var(--typography-color-secondary);
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: var(--layout-padding-small);
+  border-bottom: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  border-bottom-color: var(--surface-color-border-dark);
+  font-weight: var(--typography-font-weights-bold);
+}
+
+.table tbody th {
+  font-weight: var(--typography-font-weights-regular);
+}
+
+/* Code font, no design token for one. */
+.table code {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}

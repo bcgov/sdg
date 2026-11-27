@@ -79,15 +79,6 @@
   cursor: pointer;
 }
 
-.button-primary {
-  background-color: var(--surface-color-primary-button-default, #013366);
-  color: var(--typography-color-primary-invert, #ffffff);
-}
-
-.button-primary:hover {
-  background-color: var(--surface-color-primary-button-hover, #1e5189);
-}
-
 .button-secondary {
   background-color: var(--surface-color-secondary-button-default, #ffffff);
   border-color: var(--surface-color-border-medium, #898785);

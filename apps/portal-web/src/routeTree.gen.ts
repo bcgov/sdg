@@ -12,9 +12,19 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as ContactUsRouteImport } from './routes/contact-us'
+import { Route as DevRouteRouteImport } from './routes/dev/route'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as DevIndexRouteImport } from './routes/dev/index'
+import { Route as DevAvatarRouteImport } from './routes/dev/avatar'
+import { Route as DevButtonRouteImport } from './routes/dev/button'
+import { Route as DevCardRouteImport } from './routes/dev/card'
+import { Route as DevDataTableRouteImport } from './routes/dev/data-table'
+import { Route as DevDetailsRouteImport } from './routes/dev/details'
+import { Route as DevNavLinkRouteImport } from './routes/dev/nav-link'
+import { Route as DevSectionRouteImport } from './routes/dev/section'
+import { Route as DevTabsRouteImport } from './routes/dev/tabs'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,6 +38,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const ContactUsRoute = ContactUsRouteImport.update({
   id: '/contact-us',
   path: '/contact-us',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevRouteRoute = DevRouteRouteImport.update({
+  id: '/dev',
+  path: '/dev',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRoute = HelpRouteImport.update({
@@ -45,13 +60,68 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const DevIndexRoute = DevIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DevRouteRoute,
+} as any)
+const DevAvatarRoute = DevAvatarRouteImport.update({
+  id: '/avatar',
+  path: '/avatar',
+  getParentRoute: () => DevRouteRoute,
+} as any)
+const DevButtonRoute = DevButtonRouteImport.update({
+  id: '/button',
+  path: '/button',
+  getParentRoute: () => DevRouteRoute,
+} as any)
+const DevCardRoute = DevCardRouteImport.update({
+  id: '/card',
+  path: '/card',
+  getParentRoute: () => DevRouteRoute,
+} as any)
+const DevDataTableRoute = DevDataTableRouteImport.update({
+  id: '/data-table',
+  path: '/data-table',
+  getParentRoute: () => DevRouteRoute,
+} as any)
+const DevDetailsRoute = DevDetailsRouteImport.update({
+  id: '/details',
+  path: '/details',
+  getParentRoute: () => DevRouteRoute,
+} as any)
+const DevNavLinkRoute = DevNavLinkRouteImport.update({
+  id: '/nav-link',
+  path: '/nav-link',
+  getParentRoute: () => DevRouteRoute,
+} as any)
+const DevSectionRoute = DevSectionRouteImport.update({
+  id: '/section',
+  path: '/section',
+  getParentRoute: () => DevRouteRoute,
+} as any)
+const DevTabsRoute = DevTabsRouteImport.update({
+  id: '/tabs',
+  path: '/tabs',
+  getParentRoute: () => DevRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dev': typeof DevRouteRouteWithChildren
   '/contact-us': typeof ContactUsRoute
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/dev/avatar': typeof DevAvatarRoute
+  '/dev/button': typeof DevButtonRoute
+  '/dev/card': typeof DevCardRoute
+  '/dev/data-table': typeof DevDataTableRoute
+  '/dev/details': typeof DevDetailsRoute
+  '/dev/nav-link': typeof DevNavLinkRoute
+  '/dev/section': typeof DevSectionRoute
+  '/dev/tabs': typeof DevTabsRoute
+  '/dev/': typeof DevIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -59,33 +129,92 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/dev/avatar': typeof DevAvatarRoute
+  '/dev/button': typeof DevButtonRoute
+  '/dev/card': typeof DevCardRoute
+  '/dev/data-table': typeof DevDataTableRoute
+  '/dev/details': typeof DevDetailsRoute
+  '/dev/nav-link': typeof DevNavLinkRoute
+  '/dev/section': typeof DevSectionRoute
+  '/dev/tabs': typeof DevTabsRoute
+  '/dev': typeof DevIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dev': typeof DevRouteRouteWithChildren
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/contact-us': typeof ContactUsRoute
   '/help': typeof HelpRoute
   '/services': typeof ServicesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/dev/avatar': typeof DevAvatarRoute
+  '/dev/button': typeof DevButtonRoute
+  '/dev/card': typeof DevCardRoute
+  '/dev/data-table': typeof DevDataTableRoute
+  '/dev/details': typeof DevDetailsRoute
+  '/dev/nav-link': typeof DevNavLinkRoute
+  '/dev/section': typeof DevSectionRoute
+  '/dev/tabs': typeof DevTabsRoute
+  '/dev/': typeof DevIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/contact-us' | '/help' | '/services' | '/settings'
+  fullPaths:
+    | '/'
+    | '/dev'
+    | '/contact-us'
+    | '/help'
+    | '/services'
+    | '/settings'
+    | '/dev/avatar'
+    | '/dev/button'
+    | '/dev/card'
+    | '/dev/data-table'
+    | '/dev/details'
+    | '/dev/nav-link'
+    | '/dev/section'
+    | '/dev/tabs'
+    | '/dev/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/contact-us' | '/help' | '/services' | '/settings'
+  to:
+    | '/'
+    | '/contact-us'
+    | '/help'
+    | '/services'
+    | '/settings'
+    | '/dev/avatar'
+    | '/dev/button'
+    | '/dev/card'
+    | '/dev/data-table'
+    | '/dev/details'
+    | '/dev/nav-link'
+    | '/dev/section'
+    | '/dev/tabs'
+    | '/dev'
   id:
     | '__root__'
     | '/'
+    | '/dev'
     | '/_authenticated'
     | '/contact-us'
     | '/help'
     | '/services'
     | '/_authenticated/settings'
+    | '/dev/avatar'
+    | '/dev/button'
+    | '/dev/card'
+    | '/dev/data-table'
+    | '/dev/details'
+    | '/dev/nav-link'
+    | '/dev/section'
+    | '/dev/tabs'
+    | '/dev/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DevRouteRoute: typeof DevRouteRouteWithChildren
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   ContactUsRoute: typeof ContactUsRoute
   HelpRoute: typeof HelpRoute
@@ -115,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactUsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev': {
+      id: '/dev'
+      path: '/dev'
+      fullPath: '/dev'
+      preLoaderRoute: typeof DevRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/help': {
       id: '/help'
       path: '/help'
@@ -136,8 +272,99 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/dev/': {
+      id: '/dev/'
+      path: '/'
+      fullPath: '/dev/'
+      preLoaderRoute: typeof DevIndexRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
+    '/dev/avatar': {
+      id: '/dev/avatar'
+      path: '/avatar'
+      fullPath: '/dev/avatar'
+      preLoaderRoute: typeof DevAvatarRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
+    '/dev/button': {
+      id: '/dev/button'
+      path: '/button'
+      fullPath: '/dev/button'
+      preLoaderRoute: typeof DevButtonRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
+    '/dev/card': {
+      id: '/dev/card'
+      path: '/card'
+      fullPath: '/dev/card'
+      preLoaderRoute: typeof DevCardRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
+    '/dev/data-table': {
+      id: '/dev/data-table'
+      path: '/data-table'
+      fullPath: '/dev/data-table'
+      preLoaderRoute: typeof DevDataTableRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
+    '/dev/details': {
+      id: '/dev/details'
+      path: '/details'
+      fullPath: '/dev/details'
+      preLoaderRoute: typeof DevDetailsRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
+    '/dev/nav-link': {
+      id: '/dev/nav-link'
+      path: '/nav-link'
+      fullPath: '/dev/nav-link'
+      preLoaderRoute: typeof DevNavLinkRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
+    '/dev/section': {
+      id: '/dev/section'
+      path: '/section'
+      fullPath: '/dev/section'
+      preLoaderRoute: typeof DevSectionRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
+    '/dev/tabs': {
+      id: '/dev/tabs'
+      path: '/tabs'
+      fullPath: '/dev/tabs'
+      preLoaderRoute: typeof DevTabsRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
   }
 }
+
+interface DevRouteRouteChildren {
+  DevAvatarRoute: typeof DevAvatarRoute
+  DevButtonRoute: typeof DevButtonRoute
+  DevCardRoute: typeof DevCardRoute
+  DevDataTableRoute: typeof DevDataTableRoute
+  DevDetailsRoute: typeof DevDetailsRoute
+  DevNavLinkRoute: typeof DevNavLinkRoute
+  DevSectionRoute: typeof DevSectionRoute
+  DevTabsRoute: typeof DevTabsRoute
+  DevIndexRoute: typeof DevIndexRoute
+}
+
+const DevRouteRouteChildren: DevRouteRouteChildren = {
+  DevAvatarRoute: DevAvatarRoute,
+  DevButtonRoute: DevButtonRoute,
+  DevCardRoute: DevCardRoute,
+  DevDataTableRoute: DevDataTableRoute,
+  DevDetailsRoute: DevDetailsRoute,
+  DevNavLinkRoute: DevNavLinkRoute,
+  DevSectionRoute: DevSectionRoute,
+  DevTabsRoute: DevTabsRoute,
+  DevIndexRoute: DevIndexRoute,
+}
+
+const DevRouteRouteWithChildren = DevRouteRoute._addFileChildren(
+  DevRouteRouteChildren,
+)
 
 interface AuthenticatedRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -153,6 +380,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DevRouteRoute: DevRouteRouteWithChildren,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   ContactUsRoute: ContactUsRoute,
   HelpRoute: HelpRoute,

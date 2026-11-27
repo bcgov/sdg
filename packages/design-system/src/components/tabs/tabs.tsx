@@ -32,7 +32,7 @@ export function TabList<T extends object>({ className, ...props }: Readonly<TabL
   return <AriaTabList {...props} className={join(styles['tabList'], className)} />;
 }
 
-/** One tab: its label, and the selected one underlined in B.C. blue. */
+/** One tab: its label, and the selected one in B.C. blue, underlined in B.C. Primary Gold. */
 export function Tab({ className, ...props }: Readonly<TabProps>): JSX.Element {
   return <AriaTab {...props} className={join(styles['tab'], className)} />;
 }

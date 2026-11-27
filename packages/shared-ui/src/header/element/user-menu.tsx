@@ -119,7 +119,7 @@ export function UserMenu({
         ref={buttonRef}
         id={BUTTON_ID}
         type="button"
-        className="button button-primary button-icon button-collapsible user-menu-button"
+        className="button button-secondary button-icon button-collapsible user-menu-button"
         aria-haspopup="menu"
         aria-expanded={open ? 'true' : 'false'}
         aria-controls={MENU_ID}

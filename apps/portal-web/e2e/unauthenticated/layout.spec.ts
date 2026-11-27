@@ -29,9 +29,11 @@ test.describe('portal-web layout', () => {
     await expect(page.getByRole('contentinfo')).toBeVisible();
   });
 
+  // /help is a title alone, so it stays shorter than the viewport (the home page now runs well past it).
   test('fills at least the viewport height with the footer at the bottom when content is short', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1600 });
-    await page.goto('/');
+    await page.goto('/help');
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Help');
     await expect(page.getByRole('contentinfo')).toBeVisible();
 
     const m = await measureLayout(page);
@@ -232,8 +234,25 @@ test.describe('portal-web home page layout', () => {
     await page.goto('/');
     const search = page.getByRole('search');
     await search.getByRole('textbox', { name: 'Search for services' }).fill('dog licence');
-    await search.getByRole('button', { name: 'Search' }).click();
+    await search.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(page).toHaveURL(/\/services\?q=dog(\+|%20)licence$/);
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Services');
   });
+});
+
+test.describe('portal-web services search tools sheet', () => {
+  // The sheet comes in from the right at medium widths and up from the bottom on phones; either way the top-left
+  // corner is dimmed backdrop, and clicking it closes the sheet.
+  for (const width of [900, 375]) {
+    test(`closes when the dimmed area is clicked at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/services');
+      await page.getByRole('button', { name: 'Search tools' }).click();
+      const sheet = page.getByRole('dialog', { name: 'Search tools' });
+      await expect(sheet).toBeVisible();
+
+      await page.mouse.click(10, 10);
+      await expect(sheet).toBeHidden();
+    });
+  }
 });
