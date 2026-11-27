@@ -1,5 +1,5 @@
 import { Button } from '@repo/design-system/components/button';
-import { TextField } from '@repo/design-system/components/text-field';
+import { TextField, type TextFieldProps } from '@repo/design-system/components/text-field';
 import { Tooltip, TooltipTrigger } from '@repo/design-system/components/tooltip';
 import { faMagnifyingGlass, faXmark, FontAwesomeIcon } from '@repo/design-system/icons';
 import { useNavigate } from '@tanstack/react-router';
@@ -23,13 +23,20 @@ interface ServiceSearchProps {
   defaultQuery?: string;
   /** Extra controls after the Search button, e.g. the Services page's Search tools button. */
   children?: ReactNode;
+  /** The field's and Search button's size. Defaults to `large`. */
+  size?: 'xsmall' | 'small' | 'medium' | 'large';
 }
 
 /**
  * The services search: a field (with a clear button once it has text) and a Search button that go to /services with
  * the trimmed query.
  */
-export function ServiceSearch({ className, defaultQuery = '', children }: Readonly<ServiceSearchProps>) {
+export function ServiceSearch({
+  className,
+  defaultQuery = '',
+  children,
+  size = 'large',
+}: Readonly<ServiceSearchProps>) {
   const [query, setQuery] = useState(defaultQuery);
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
@@ -68,6 +75,7 @@ export function ServiceSearch({ className, defaultQuery = '', children }: Readon
       <form ref={formRef} className={styles['searchForm']} onSubmit={submit}>
         <TextField
           className={styles['searchField']}
+          size={size satisfies TextFieldProps['size']}
           aria-label="Search for services"
           {...PLACEHOLDER_PROPS}
           iconLeft={SEARCH_ICON}
@@ -75,7 +83,7 @@ export function ServiceSearch({ className, defaultQuery = '', children }: Readon
           value={query}
           onChange={setQuery}
         />
-        <Button type="submit" variant="primary" size="large">
+        <Button type="submit" variant="primary" size={size}>
           Search
         </Button>
         {children}

@@ -1,0 +1,39 @@
+/*
+ * Border, colours, states and the input's font family come from the upstream .bcds-react-aria-TextField classes;
+ * this only resizes the input box. Upstream marks any size but `small` as `medium` on the container, so the
+ * selectors name `.medium` to outrank its sizing.
+ */
+.xsmall > :global(.bcds-react-aria-TextField--container.medium) {
+  height: var(--layout-margin-large);
+  min-height: var(--layout-margin-large);
+  /* Figma has 4px sides, which leaves a left icon against the border: 8px gives it room. */
+  padding: var(--layout-padding-none) var(--layout-padding-small);
+}
+
+/* Icons passed as iconLeft/iconRight. Font Awesome sizes itself in em, so this shrinks it to the smallest icon size. */
+.xsmall > :global(.bcds-react-aria-TextField--container) > :global(svg) {
+  font-size: var(--icons-size-xsmall);
+}
+
+/*
+ * Icon buttons (e.g. a clear button): upstream's xsmall icon button is 24px (and every upstream button has a 24px
+ * minimum), so its hover would cover the field's border. At 16px it leaves 3px above and below, and pulling it 2px
+ * right puts a Font Awesome glyph about as far from the right border as a left icon's glyph is from the left one.
+ */
+.xsmall > :global(.bcds-react-aria-TextField--container) :global(.bcds-react-aria-Button.icon) {
+  width: var(--icons-size-small);
+  height: var(--icons-size-small);
+  min-width: 0;
+  min-height: 0;
+  margin-inline-end: calc(-1 * var(--layout-padding-hair));
+}
+
+.xsmall :global(.bcds-react-aria-TextField--Input) {
+  font: var(--typography-regular-label);
+}
+
+.large > :global(.bcds-react-aria-TextField--container.medium) {
+  height: var(--layout-margin-xxxlarge);
+  min-height: var(--layout-margin-xxxlarge);
+  padding: var(--layout-padding-xsmall) 12px;
+}

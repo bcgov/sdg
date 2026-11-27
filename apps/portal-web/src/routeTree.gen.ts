@@ -25,6 +25,7 @@ import { Route as DevDetailsRouteImport } from './routes/dev/details'
 import { Route as DevNavLinkRouteImport } from './routes/dev/nav-link'
 import { Route as DevSectionRouteImport } from './routes/dev/section'
 import { Route as DevTabsRouteImport } from './routes/dev/tabs'
+import { Route as DevTextFieldRouteImport } from './routes/dev/text-field'
 import { Route as AuthenticatedServicesBookmarksRouteImport } from './routes/_authenticated/services.bookmarks'
 
 const IndexRoute = IndexRouteImport.update({
@@ -106,6 +107,11 @@ const DevTabsRoute = DevTabsRouteImport.update({
   path: '/tabs',
   getParentRoute: () => DevRouteRoute,
 } as any)
+const DevTextFieldRoute = DevTextFieldRouteImport.update({
+  id: '/text-field',
+  path: '/text-field',
+  getParentRoute: () => DevRouteRoute,
+} as any)
 const AuthenticatedServicesBookmarksRoute =
   AuthenticatedServicesBookmarksRouteImport.update({
     id: '/services/bookmarks',
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/dev/nav-link': typeof DevNavLinkRoute
   '/dev/section': typeof DevSectionRoute
   '/dev/tabs': typeof DevTabsRoute
+  '/dev/text-field': typeof DevTextFieldRoute
   '/dev/': typeof DevIndexRoute
   '/services/bookmarks': typeof AuthenticatedServicesBookmarksRoute
 }
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/dev/nav-link': typeof DevNavLinkRoute
   '/dev/section': typeof DevSectionRoute
   '/dev/tabs': typeof DevTabsRoute
+  '/dev/text-field': typeof DevTextFieldRoute
   '/dev': typeof DevIndexRoute
   '/services/bookmarks': typeof AuthenticatedServicesBookmarksRoute
 }
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/dev/nav-link': typeof DevNavLinkRoute
   '/dev/section': typeof DevSectionRoute
   '/dev/tabs': typeof DevTabsRoute
+  '/dev/text-field': typeof DevTextFieldRoute
   '/dev/': typeof DevIndexRoute
   '/_authenticated/services/bookmarks': typeof AuthenticatedServicesBookmarksRoute
 }
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/dev/nav-link'
     | '/dev/section'
     | '/dev/tabs'
+    | '/dev/text-field'
     | '/dev/'
     | '/services/bookmarks'
   fileRoutesByTo: FileRoutesByTo
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/dev/nav-link'
     | '/dev/section'
     | '/dev/tabs'
+    | '/dev/text-field'
     | '/dev'
     | '/services/bookmarks'
   id:
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/dev/nav-link'
     | '/dev/section'
     | '/dev/tabs'
+    | '/dev/text-field'
     | '/dev/'
     | '/_authenticated/services/bookmarks'
   fileRoutesById: FileRoutesById
@@ -348,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevTabsRouteImport
       parentRoute: typeof DevRouteRoute
     }
+    '/dev/text-field': {
+      id: '/dev/text-field'
+      path: '/text-field'
+      fullPath: '/dev/text-field'
+      preLoaderRoute: typeof DevTextFieldRouteImport
+      parentRoute: typeof DevRouteRoute
+    }
     '/_authenticated/services/bookmarks': {
       id: '/_authenticated/services/bookmarks'
       path: '/services/bookmarks'
@@ -367,6 +386,7 @@ interface DevRouteRouteChildren {
   DevNavLinkRoute: typeof DevNavLinkRoute
   DevSectionRoute: typeof DevSectionRoute
   DevTabsRoute: typeof DevTabsRoute
+  DevTextFieldRoute: typeof DevTextFieldRoute
   DevIndexRoute: typeof DevIndexRoute
 }
 
@@ -379,6 +399,7 @@ const DevRouteRouteChildren: DevRouteRouteChildren = {
   DevNavLinkRoute: DevNavLinkRoute,
   DevSectionRoute: DevSectionRoute,
   DevTabsRoute: DevTabsRoute,
+  DevTextFieldRoute: DevTextFieldRoute,
   DevIndexRoute: DevIndexRoute,
 }
 

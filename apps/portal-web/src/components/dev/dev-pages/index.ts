@@ -65,6 +65,15 @@ export const DEV_PAGES: readonly DevPage[] = [
     'A page section with an optional title and description above its content.',
     'Section',
   ),
+  {
+    to: '/dev/text-field',
+    title: 'Text field',
+    kind: 'extended',
+    status: 'placeholder',
+    description: 'The BCDS text field with added xsmall and large sizes.',
+    importPath: `${COMPONENTS_PATH}/text-field`,
+    importNames: 'TextField',
+  },
   placeholder('tabs', 'Tabs', 'A row of tabs, each switching to its own panel.', 'Tab, TabList, TabPanel, Tabs'),
 ];
 

@@ -21,7 +21,7 @@ const wrapped: Record<string, Record<string, unknown>> = Object.fromEntries(
   Object.entries(subpaths).filter(([subpath]) => !(subpath in custom)),
 );
 // Wrapped subpaths that extend the upstream component (same name, own implementation) instead of re-exporting it.
-const extended = new Set(['button']);
+const extended = new Set(['button', 'text-field']);
 
 // The expected subpath table: one entry per wrapped component subpath.
 const expected: Record<string, string[]> = {
