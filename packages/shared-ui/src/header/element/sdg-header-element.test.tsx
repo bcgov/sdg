@@ -133,6 +133,18 @@ describe('<sdg-header> main row', () => {
     expect(root.querySelector('[data-part="title-row"]')).toBeNull();
   });
 
+  it("links the logo and brand, not the site title, to SDG's home page", () => {
+    const root = shadow(mount({ 'site-title': 'Service Portal' }));
+    const lockup = root.querySelector('[data-part="main"] [data-part="lockup"]');
+
+    expect(lockup).toBeInstanceOf(HTMLAnchorElement);
+    // jsdom serves the header from the page's own origin, as SDG's own pages do.
+    expect(lockup?.getAttribute('href')).toBe(`${window.location.origin}/`);
+    expect(lockup?.querySelector('[data-part="logo-full"]')).not.toBeNull();
+    expect(lockup?.querySelector('[data-part="brand"]')).not.toBeNull();
+    expect(root.querySelector('[data-part="main"] [data-part="title"]')?.closest('a')).toBeNull();
+  });
+
   it('shows the site title after SDG and a divider, and in the small-screen title row, and updates both', () => {
     const element = mount({ 'site-title': 'Service Portal' });
     const root = shadow(element);

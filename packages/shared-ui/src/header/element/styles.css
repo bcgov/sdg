@@ -153,12 +153,21 @@
   display: none;
 }
 
-/* The logo and "SDG" sit closer together than the row's other items: half its gap. */
+/* The logo and "SDG" sit closer together than the row's other items: half its gap. A link to SDG's home page that
+   looks like plain text. */
 .lockup {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   gap: calc(var(--layout-padding-medium, 1rem) / 2);
+  border-radius: var(--layout-border-radius-small, 2px);
+  color: inherit;
+  text-decoration: none;
+}
+
+.lockup:focus-visible {
+  outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
+  outline-offset: 2px;
 }
 
 /* The brand: fixed, bold, never shrinks. */

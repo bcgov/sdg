@@ -3,7 +3,7 @@ import { h, render } from 'preact';
 import { HEADER_ATTRIBUTES, HEADER_EVENTS, HEADER_TAG } from '../contract.js';
 import { backToSdgHref } from './back-to-sdg.js';
 import { Header } from './header.js';
-import { SETTINGS_HREF } from './sdg-origin.js';
+import { HOME_HREF, SETTINGS_HREF } from './sdg-origin.js';
 import { isPlainPrimaryClick } from './shadow.js';
 
 import navCss from './nav.css?inline';
@@ -75,6 +75,7 @@ export class SdgHeaderElement extends HTMLElement {
       h(Header, {
         siteTitle: this.getAttribute(HEADER_ATTRIBUTES.siteTitle) ?? '',
         fluid: this.hasAttribute(HEADER_ATTRIBUTES.fluid),
+        homeHref: HOME_HREF,
         returnHref: this.#returnHref ?? '',
         userName: this.getAttribute(HEADER_ATTRIBUTES.userName) ?? '',
         loginHref: this.getAttribute(HEADER_ATTRIBUTES.loginHref) ?? '',

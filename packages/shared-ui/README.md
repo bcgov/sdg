@@ -131,6 +131,12 @@ The header shows one of three auth states:
 
 Change the attributes at any time; the header re-renders.
 
+### Home link
+
+The logo and "Single Digital Gateway" (or "SDG") link to SDG's home page. Like Settings, the header reads SDG's address
+from where its own script was served, so on your site it points at the same environment (PR, test or production) as
+the loader you load, and on SDG it is SDG's own `/`. Your `site-title` is not a link.
+
 ### Back to SDG
 
 When a visitor reaches your site from SDG, the grey row shows "← Back to SDG" at its start, linking to the SDG page
