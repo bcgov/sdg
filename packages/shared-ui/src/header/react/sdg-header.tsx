@@ -2,7 +2,7 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 
 import { HEADER_EVENTS, type HeaderEventName } from '../contract.js';
-import type { SdgLoginEvent, SdgLogoutEvent, SdgSettingsEvent } from '../types.js';
+import type { SdgHomeEvent, SdgLoginEvent, SdgLogoutEvent, SdgSettingsEvent } from '../types.js';
 import type { SdgHeaderIntrinsicProps } from './jsx.js';
 import { DEFAULT_LOADER_CONFIG_URL, loadSdgHeader } from './load-script.js';
 
@@ -20,6 +20,11 @@ export interface SdgHeaderProps {
    * there client-side instead of following the link.
    */
   onSettings?: (event: SdgSettingsEvent) => void;
+  /**
+   * Called on a plain click on the logo and brand (a link to SDG's home page); on SDG, call `event.preventDefault()`
+   * and route there client-side instead of following the link.
+   */
+  onHome?: (event: SdgHomeEvent) => void;
   /** Called on Log Out. Required in practice for signed-in visitors: the header does not sign anyone out itself. */
   onLogout?: (event: SdgLogoutEvent) => void;
   /**
@@ -55,6 +60,7 @@ export function SdgHeader({
   fluid = false,
   onLogin,
   onSettings,
+  onHome,
   onLogout,
   configUrl = DEFAULT_LOADER_CONFIG_URL,
   className,
@@ -69,6 +75,7 @@ export function SdgHeader({
 
   useHeaderEvent(ref, HEADER_EVENTS.login, onLogin);
   useHeaderEvent(ref, HEADER_EVENTS.settings, onSettings);
+  useHeaderEvent(ref, HEADER_EVENTS.home, onHome);
   useHeaderEvent(ref, HEADER_EVENTS.logout, onLogout);
 
   // Typed through jsx.ts, which also declares <sdg-header> in React's JSX. undefined leaves an attribute off.

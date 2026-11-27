@@ -22,10 +22,14 @@ export type SdgLogoutEvent = CustomEvent<null>;
 /** `sdg-settings`: cancelable; `preventDefault()` stops the Settings link (SDG's `/settings`) from navigating. */
 export type SdgSettingsEvent = CustomEvent<null>;
 
+/** `sdg-home`: cancelable; `preventDefault()` stops the logo's link (SDG's home page) from navigating. */
+export type SdgHomeEvent = CustomEvent<null>;
+
 declare global {
   interface HTMLElementEventMap {
     'sdg-login': SdgLoginEvent;
     'sdg-logout': SdgLogoutEvent;
     'sdg-settings': SdgSettingsEvent;
+    'sdg-home': SdgHomeEvent;
   }
 }

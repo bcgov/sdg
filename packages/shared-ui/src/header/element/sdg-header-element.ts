@@ -52,7 +52,7 @@ export class SdgHeaderElement extends HTMLElement {
     render(null, this.#root);
   }
 
-  // Log In and Settings stay real links: modified clicks (new tab, window) are the browser's, and a plain click
+  // Log In, Settings and the logo's home link stay real links: modified clicks (new tab, window) are the browser's, and a plain click
   // navigates unless a listener cancels the event, e.g. to route client-side (KTD9).
   #linkClick(type: string): (event: MouseEvent) => void {
     return (event) => {
@@ -64,6 +64,7 @@ export class SdgHeaderElement extends HTMLElement {
 
   readonly #onLoginClick = this.#linkClick(HEADER_EVENTS.login);
   readonly #onSettingsClick = this.#linkClick(HEADER_EVENTS.settings);
+  readonly #onHomeClick = this.#linkClick(HEADER_EVENTS.home);
 
   // Log Out only tells the host: signing out is an action the host performs (for example, a POST), not a URL.
   readonly #onLogoutClick = (): void => {
@@ -76,6 +77,7 @@ export class SdgHeaderElement extends HTMLElement {
         siteTitle: this.getAttribute(HEADER_ATTRIBUTES.siteTitle) ?? '',
         fluid: this.hasAttribute(HEADER_ATTRIBUTES.fluid),
         homeHref: HOME_HREF,
+        onHomeClick: this.#onHomeClick,
         returnHref: this.#returnHref ?? '',
         userName: this.getAttribute(HEADER_ATTRIBUTES.userName) ?? '',
         loginHref: this.getAttribute(HEADER_ATTRIBUTES.loginHref) ?? '',

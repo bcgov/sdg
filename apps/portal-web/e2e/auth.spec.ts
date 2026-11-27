@@ -76,6 +76,20 @@ test.describe('portal-web auth', () => {
     await expect(banner.getByRole('menu')).toBeHidden();
   });
 
+  test("goes home client-side from the header's logo", async ({ page }) => {
+    await mockCurrentUser(page, () => false);
+    await page.goto('/services');
+    await page.evaluate(() => Object.assign(window, { notReloaded: true }));
+
+    await page
+      .locator('sdg-header')
+      .getByRole('link', { name: /Government of British Columbia/ })
+      .click();
+
+    await expect(page).toHaveURL((url) => url.pathname === '/');
+    expect(await page.evaluate(() => 'notReloaded' in window)).toBe(true);
+  });
+
   test('sends a signed-out visitor from /settings to the BFF login, returning to Settings', async ({ page }) => {
     await mockCurrentUser(page, () => false);
     await page.route('**/api/auth/login**', (route) => route.fulfill({ body: 'login', contentType: 'text/plain' }));

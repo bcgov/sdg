@@ -21,6 +21,7 @@ export const HEADER_EVENTS = {
   login: 'sdg-login',
   logout: 'sdg-logout',
   settings: 'sdg-settings',
+  home: 'sdg-home',
 } as const;
 
 /**
