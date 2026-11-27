@@ -58,9 +58,15 @@ export function definePlaywrightConfig({
       reuseContext: true,
     },
     projects: [
-      { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: '**/signed-in/**' },
       { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
       { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+      {
+        name: 'chromium',
+        testDir: './e2e',
+        testIgnore: ['**/authenticated/**', '**/accessibility/**'],
+        use: { ...devices['Desktop Chrome'] },
+      },
+      { name: 'accessibility', testDir: './e2e/accessibility', use: { ...devices['Desktop Chrome'] } },
       {
         name: 'client-setup',
         testMatch: 'client.setup.ts',
@@ -73,7 +79,7 @@ export function definePlaywrightConfig({
       },
       {
         name: 'client-tests',
-        testDir: './e2e/signed-in',
+        testDir: './e2e/authenticated',
         use: { ...devices['Desktop Chrome'], clientURL: baseURL, storageState: './e2e/setup/client-auth.json' },
       },
       {

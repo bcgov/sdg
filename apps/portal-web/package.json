@@ -25,6 +25,7 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@axe-core/playwright": "catalog:",
     "@playwright/test": "catalog:",
     "@repo/playwright-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
