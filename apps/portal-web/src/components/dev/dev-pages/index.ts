@@ -69,7 +69,7 @@ export const DEV_PAGES: readonly DevPage[] = [
     to: '/dev/text-field',
     title: 'Text field',
     kind: 'extended',
-    status: 'placeholder',
+    status: 'ready',
     description: 'The BCDS text field with added xsmall and large sizes.',
     importPath: `${COMPONENTS_PATH}/text-field`,
     importNames: 'TextField',

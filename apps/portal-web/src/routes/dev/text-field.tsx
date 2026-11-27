@@ -1,11 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PlaceholderPage } from '../../components/dev/placeholder-page';
+import { TextFieldPage } from '../../components/dev/text-field-page';
 
 export const Route = createFileRoute('/dev/text-field')({
   component: TextFieldPage,
 });
-
-function TextFieldPage() {
-  return <PlaceholderPage to="/dev/text-field" />;
-}
