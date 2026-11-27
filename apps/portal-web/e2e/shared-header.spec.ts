@@ -109,11 +109,15 @@ test.describe('portal-web shared header', () => {
     const toggleBox = (await toggle.boundingBox())!;
     expect(toggleBox.width).toBe(toggleBox.height);
 
-    // Tab from the top of the page: the skip link, Log In, then the menu button.
+    // Tab from the top of the page: the skip link, Set up, Log In, the logo's home link, then the menu button.
     await page.keyboard.press(tab);
     await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
     await page.keyboard.press(tab);
+    await expect(header.getByRole('link', { name: 'Set up' })).toBeFocused();
+    await page.keyboard.press(tab);
     await expect(header.getByRole('link', { name: 'Log In' })).toBeFocused();
+    await page.keyboard.press(tab);
+    await expect(header.getByRole('link', { name: 'Government of British Columbia SDG' })).toBeFocused();
     await page.keyboard.press(tab);
     await expect(toggle).toBeFocused();
 
