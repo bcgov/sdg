@@ -253,6 +253,6 @@ describe('<sdg-header> narrow-screen menu', () => {
     const element = await mount([link('Home')], { 'login-href': '/auth/login' });
 
     expect(requireButton(element)).toBeDefined();
-    expect(shadow(element).querySelector('[data-part="utility"] a')?.textContent).toBe('Log In');
+    expect(shadow(element).querySelector('[data-part="utility"] [data-part="login"]')?.textContent).toBe('Log In');
   });
 });

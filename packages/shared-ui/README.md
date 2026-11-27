@@ -122,7 +122,8 @@ Then handle the logout event (see [Events](#events)) if visitors can sign in.
 
 The header shows one of three auth states:
 
-- **Signed out:** `login-href` set, no `user-name`. The grey row shows Log In.
+- **Signed out:** `login-href` set, no `user-name`. The grey row shows Set up, a link to BC Services Card's account
+  set-up instructions (`https://id.gov.bc.ca/account/setup-instruction`, in every environment), then Log In.
 - **Signed in:** `user-name` set. The grey row shows a menu button with the name; it opens Settings and Log Out.
   Settings always links to the SDG settings page: the header reads SDG's address from where its own script was
   served, so it points at the same environment (PR, test or production) as the loader you load.

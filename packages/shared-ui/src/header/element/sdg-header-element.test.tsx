@@ -31,7 +31,11 @@ function containers(element: SdgHeaderElement): HTMLElement[] {
 }
 
 function loginLink(element: SdgHeaderElement): HTMLAnchorElement | null {
-  return utilityRow(element).querySelector('a');
+  return utilityRow(element).querySelector('a[data-part="login"]');
+}
+
+function setupLink(element: SdgHeaderElement): HTMLAnchorElement | null {
+  return utilityRow(element).querySelector('a[data-part="setup"]');
 }
 
 function menuButton(element: SdgHeaderElement): HTMLButtonElement | null {
@@ -71,6 +75,20 @@ describe('<sdg-header> auth states', () => {
     expect(menuButton(element)).toBeNull();
   });
 
+  it('shows Set up, linking to the BC Services Card account set-up page, right before Log In when signed out', () => {
+    const element = mount({ 'login-href': '/auth/login' });
+
+    expect(setupLink(element)?.textContent).toBe('Set up');
+    expect(setupLink(element)?.getAttribute('href')).toBe('https://id.gov.bc.ca/account/setup-instruction');
+    expect(setupLink(element)?.nextElementSibling).toBe(loginLink(element));
+  });
+
+  it('shows no Set up when a user is signed in', () => {
+    const element = mount({ 'login-href': '/auth/login', 'user-name': 'Jane Doe' });
+
+    expect(setupLink(element)).toBeNull();
+  });
+
   it('shows a user menu button with the name, and no Log In, when a user is signed in', () => {
     const element = mount({ 'login-href': '/auth/login', 'user-name': 'Jane Doe' });
 
@@ -98,12 +116,12 @@ describe('<sdg-header> auth states', () => {
 });
 
 describe('<sdg-header> Back to SDG', () => {
-  it('links back to the SDG page the visitor came from, at the start of the utility row before Log In', () => {
+  it('links back to the SDG page the visitor came from, at the start of the utility row before Set up and Log In', () => {
     vi.mocked(backToSdgHref).mockReturnValueOnce('https://sdg.gov.bc.ca/services');
     const element = mount({ 'login-href': '/auth/login' });
 
     const links = [...utilityRow(element).querySelectorAll('a')];
-    expect(links.map((link) => link.textContent)).toEqual(['Back to SDG', 'Log In']);
+    expect(links.map((link) => link.textContent)).toEqual(['Back to SDG', 'Set up', 'Log In']);
     expect(links[0]?.getAttribute('href')).toBe('https://sdg.gov.bc.ca/services');
   });
 

@@ -89,6 +89,21 @@
   background-color: var(--surface-color-secondary-button-hover, #edebe9);
 }
 
+/* Ghost: no fill or border until hovered, like BCDS's tertiary button. */
+.button-ghost {
+  background-color: var(--surface-color-tertiary-button-default, rgba(255, 255, 255, 0));
+  color: var(--typography-color-primary, #2d2d2d);
+  font-weight: var(--typography-font-weights-regular, 400);
+}
+
+.button-ghost:hover {
+  background-color: var(--surface-color-tertiary-button-hover, #eceae8);
+}
+
+.button-ghost:active {
+  background-color: var(--surface-color-tertiary-pressed, #e0dedc);
+}
+
 .button-icon {
   gap: var(--layout-margin-xsmall, 0.25rem);
   padding: var(--layout-padding-none, 0) 0.75rem;
