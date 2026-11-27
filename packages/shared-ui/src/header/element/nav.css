@@ -53,18 +53,6 @@
 }
 
 /*
- * Selected (R5, R11): bold. Outer-document rules beat ::slotted rules whatever their specificity, so only !important
- * holds it against host link styles (KTD5). Bold is faux bold: a text-shadow does not change the text's width, so the
- * links never move when the selection changes.
- */
-::slotted([aria-current='page']) {
-  /* NOSONAR: a ::slotted rule can't win on specificity against the page's own CSS, so this needs !important. */
-  text-shadow:
-    0 0 0.6px currentColor,
-    0 0 0.6px currentColor !important; /* NOSONAR */
-}
-
-/*
  * Narrow (below 768px, tracked by the element): a menu button on the main row, and the panel as a stacked list that
  * overlays the page under the main row, so the header's reserved 104px never changes (R6, KTD10).
  */

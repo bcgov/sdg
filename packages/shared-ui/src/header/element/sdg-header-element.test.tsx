@@ -31,7 +31,17 @@ function containers(element: SdgHeaderElement): HTMLElement[] {
 }
 
 function loginLink(element: SdgHeaderElement): HTMLAnchorElement | null {
-  return utilityRow(element).querySelector('a');
+  return utilityRow(element).querySelector('a[data-part="login"]');
+}
+
+function setupLink(element: SdgHeaderElement): HTMLAnchorElement | null {
+  return utilityRow(element).querySelector('a[data-part="setup"]');
+}
+
+function homeLink(element: SdgHeaderElement): HTMLAnchorElement {
+  const link = shadow(element).querySelector<HTMLAnchorElement>('[data-part="main"] a[data-part="lockup"]');
+  if (!link) throw new Error('sdg-header has no home link');
+  return link;
 }
 
 function menuButton(element: SdgHeaderElement): HTMLButtonElement | null {
@@ -71,6 +81,20 @@ describe('<sdg-header> auth states', () => {
     expect(menuButton(element)).toBeNull();
   });
 
+  it('shows Set up, linking to the BC Services Card account set-up page, right before Log In when signed out', () => {
+    const element = mount({ 'login-href': '/auth/login' });
+
+    expect(setupLink(element)?.textContent).toBe('Set up');
+    expect(setupLink(element)?.getAttribute('href')).toBe('https://id.gov.bc.ca/account/setup-instruction');
+    expect(setupLink(element)?.nextElementSibling).toBe(loginLink(element));
+  });
+
+  it('shows no Set up when a user is signed in', () => {
+    const element = mount({ 'login-href': '/auth/login', 'user-name': 'Jane Doe' });
+
+    expect(setupLink(element)).toBeNull();
+  });
+
   it('shows a user menu button with the name, and no Log In, when a user is signed in', () => {
     const element = mount({ 'login-href': '/auth/login', 'user-name': 'Jane Doe' });
 
@@ -98,12 +122,12 @@ describe('<sdg-header> auth states', () => {
 });
 
 describe('<sdg-header> Back to SDG', () => {
-  it('links back to the SDG page the visitor came from, at the start of the utility row before Log In', () => {
+  it('links back to the SDG page the visitor came from, at the start of the utility row before Set up and Log In', () => {
     vi.mocked(backToSdgHref).mockReturnValueOnce('https://sdg.gov.bc.ca/services');
     const element = mount({ 'login-href': '/auth/login' });
 
     const links = [...utilityRow(element).querySelectorAll('a')];
-    expect(links.map((link) => link.textContent)).toEqual(['Back to SDG', 'Log In']);
+    expect(links.map((link) => link.textContent)).toEqual(['Back to SDG', 'Set up', 'Log In']);
     expect(links[0]?.getAttribute('href')).toBe('https://sdg.gov.bc.ca/services');
   });
 
@@ -115,7 +139,7 @@ describe('<sdg-header> Back to SDG', () => {
 });
 
 describe('<sdg-header> main row', () => {
-  it('shows the full logo, its mark for small screens and the fixed "SDG", with no divider or title by default', () => {
+  it('shows the full logo, its mark for small screens and the fixed brand, with no divider or title by default', () => {
     const root = shadow(mount({}));
     const main = root.querySelector('[data-part="main"]');
 
@@ -125,10 +149,50 @@ describe('<sdg-header> main row', () => {
     expect(main?.querySelector('[data-part="logo-mark"]')?.getAttribute('aria-label')).toBe(
       'Government of British Columbia',
     );
-    expect(main?.querySelector('[data-part="brand"]')?.textContent).toBe('SDG');
+    // Both names render; styles.css shows "Single Digital Gateway" from 1025px and "SDG" below.
+    expect(main?.querySelector('[data-part="brand"] .brand-full')?.textContent).toBe('Single Digital Gateway');
+    expect(main?.querySelector('[data-part="brand"] .brand-short')?.textContent).toBe('SDG');
     expect(main?.querySelector('[data-part="separator"]')).toBeNull();
     expect(main?.querySelector('[data-part="title"]')).toBeNull();
     expect(root.querySelector('[data-part="title-row"]')).toBeNull();
+  });
+
+  it('dispatches a cancelable sdg-home on a plain click on the logo and lets the link navigate', () => {
+    const element = mount({});
+    const onHome = vi.fn<(event: Event) => void>();
+    element.addEventListener(HEADER_EVENTS.home, onHome);
+
+    expect(click(homeLink(element))).toBe(false);
+    expect(onHome).toHaveBeenCalledOnce();
+    expect(onHome.mock.calls[0]?.[0]).toMatchObject({ bubbles: true, composed: true, cancelable: true });
+  });
+
+  it('prevents the navigation when a listener cancels sdg-home', () => {
+    const element = mount({});
+    element.addEventListener(HEADER_EVENTS.home, (event) => event.preventDefault());
+
+    expect(click(homeLink(element))).toBe(true);
+  });
+
+  it('dispatches no sdg-home on a modified click', () => {
+    const element = mount({});
+    const onHome = vi.fn<(event: Event) => void>();
+    element.addEventListener(HEADER_EVENTS.home, onHome);
+
+    expect(click(homeLink(element), { metaKey: true })).toBe(false);
+    expect(onHome).not.toHaveBeenCalled();
+  });
+
+  it("links the logo and brand, not the site title, to SDG's home page", () => {
+    const root = shadow(mount({ 'site-title': 'Service Portal' }));
+    const lockup = root.querySelector('[data-part="main"] [data-part="lockup"]');
+
+    expect(lockup).toBeInstanceOf(HTMLAnchorElement);
+    // jsdom serves the header from the page's own origin, as SDG's own pages do.
+    expect(lockup?.getAttribute('href')).toBe(`${window.location.origin}/`);
+    expect(lockup?.querySelector('[data-part="logo-full"]')).not.toBeNull();
+    expect(lockup?.querySelector('[data-part="brand"]')).not.toBeNull();
+    expect(root.querySelector('[data-part="main"] [data-part="title"]')?.closest('a')).toBeNull();
   });
 
   it('shows the site title after SDG and a divider, and in the small-screen title row, and updates both', () => {

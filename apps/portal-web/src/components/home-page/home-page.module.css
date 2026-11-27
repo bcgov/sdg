@@ -1,6 +1,6 @@
 /* Flush under the header (the hero band starts the page); the page's own padding keeps the footer off the content. */
 .page {
-  --home-search-height: 40px; /* bcgov's medium TextField and Button */
+  --home-search-height: 48px; /* the search's large Button, its tallest control */
 
   display: flex;
   flex-direction: column;

@@ -37,12 +37,16 @@ test.describe('portal-web shared header', () => {
     expect(help).toEqual(none);
     expect(contactUs).toEqual(none);
 
-    // Links look like tertiary buttons; only the selected one is bold (faux bold).
+    // Links look like tertiary buttons, and the selected one looks like the rest: no bold or other active state.
     const nav = page.locator('sdg-header');
     const selected = nav.getByRole('link', { name: 'Contact us' });
     const other = nav.getByRole('link', { name: 'Home' });
-    await expect(selected).not.toHaveCSS('text-shadow', 'none');
-    await expect(other).toHaveCSS('text-shadow', 'none');
+    await Promise.all(
+      [selected, other].flatMap((link) => [
+        expect(link).toHaveCSS('text-shadow', 'none'),
+        expect(link).toHaveCSS('font-weight', '400'),
+      ]),
+    );
     await Promise.all(
       [selected, other].flatMap((link) => [
         expect(link).toHaveCSS('background-color', 'rgba(255, 255, 255, 0)'),
@@ -105,11 +109,15 @@ test.describe('portal-web shared header', () => {
     const toggleBox = (await toggle.boundingBox())!;
     expect(toggleBox.width).toBe(toggleBox.height);
 
-    // Tab from the top of the page: the skip link, Log In, then the menu button.
+    // Tab from the top of the page: the skip link, Set up, Log In, the logo's home link, then the menu button.
     await page.keyboard.press(tab);
     await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
     await page.keyboard.press(tab);
+    await expect(header.getByRole('link', { name: 'Set up' })).toBeFocused();
+    await page.keyboard.press(tab);
     await expect(header.getByRole('link', { name: 'Log In' })).toBeFocused();
+    await page.keyboard.press(tab);
+    await expect(header.getByRole('link', { name: 'Government of British Columbia SDG' })).toBeFocused();
     await page.keyboard.press(tab);
     await expect(toggle).toBeFocused();
 
@@ -130,14 +138,16 @@ test.describe('portal-web shared header', () => {
     await expect(header.getByRole('link', { name: 'Contact us' })).toBeHidden();
   });
 
-  test('shows SDG, a divider and the site title inline, cut off with an ellipsis, on wide screens', async ({
+  test('shows Single Digital Gateway, a divider and the site title inline, cut off with an ellipsis, on wide screens', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await signedOut(page);
     await page.goto('/');
     const header = page.locator('sdg-header');
-    await expect(header.locator('[data-part="brand"]')).toHaveText('SDG');
+    await expect(header.locator('[data-part="brand"]')).toHaveText('Single Digital GatewaySDG');
+    await expect(header.locator('.brand-full')).toBeVisible();
+    await expect(header.locator('.brand-short')).toBeHidden();
     await expect(header.locator('[data-part="separator"]')).toHaveCount(0);
 
     await header.evaluate((el) => el.setAttribute('site-title', 'A very long service title '.repeat(8).trim()));
@@ -148,7 +158,7 @@ test.describe('portal-web shared header', () => {
     await expect(header.locator('[data-part="logo-full"]')).toBeVisible();
     await expect(header.locator('[data-part="logo-mark"]')).toBeHidden();
     expect((await header.locator('[data-part="logo-full"]').boundingBox())!.height).toBe(44);
-    // The logo and SDG sit 8px apart: half the row's 16px gap.
+    // The logo and the brand sit 8px apart: half the row's 16px gap.
     const [logoBox, brandBox] = await Promise.all(
       ['logo-full', 'brand'].map((part) => header.locator(`[data-part="${part}"]`).boundingBox()),
     );
@@ -160,6 +170,19 @@ test.describe('portal-web shared header', () => {
     expect((await title.boundingBox())!.height).toBeLessThan(32);
     await expect(header.getByRole('link', { name: 'Contact us' })).toBeVisible();
     expect((await page.getByRole('main').boundingBox())!.y).toBe(104);
+  });
+
+  test('shortens the brand to SDG at medium and narrow widths', async ({ page }) => {
+    await signedOut(page);
+    await page.setViewportSize({ width: 1024, height: 800 });
+    await page.goto('/');
+    const header = page.locator('sdg-header');
+    await expect(header.locator('.brand-short')).toBeVisible();
+    await expect(header.locator('.brand-full')).toBeHidden();
+
+    await page.setViewportSize({ width: 375, height: 800 });
+    await expect(header.locator('.brand-short')).toBeVisible();
+    await expect(header.locator('.brand-full')).toBeHidden();
   });
 
   test('shows the logo mark and moves the site title to its own 38px row on small screens', async ({ page }) => {

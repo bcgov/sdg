@@ -1,0 +1,11 @@
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+}
+
+/* A text field only stretches to its container's width in a flex column. */
+.example {
+  display: flex;
+  flex-direction: column;
+}

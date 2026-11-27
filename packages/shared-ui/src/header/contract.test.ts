@@ -31,7 +31,12 @@ describe('header contract', () => {
       loginHref: 'login-href',
       fluid: 'fluid',
     });
-    expect(HEADER_EVENTS).toEqual({ login: 'sdg-login', logout: 'sdg-logout', settings: 'sdg-settings' });
+    expect(HEADER_EVENTS).toEqual({
+      login: 'sdg-login',
+      logout: 'sdg-logout',
+      settings: 'sdg-settings',
+      home: 'sdg-home',
+    });
     expect(RETURN_TO_PARAM).toBe('return-to');
   });
 

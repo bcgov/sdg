@@ -113,16 +113,17 @@ Then handle the logout event (see [Events](#events)) if visitors can sign in.
 
 ## Attributes
 
-| Attribute    | Meaning                                                                                                                                                 |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `site-title` | Your site's title, shown after "SDG" and a divider, cut off with an ellipsis when it doesn't fit. Below 576px it moves to its own row under the header. |
-| `user-name`  | The signed-in visitor's name. When set, the header shows a menu button with the name, opening Settings and Log Out.                                     |
-| `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input.                                    |
-| `fluid`      | Boolean: present (any value) makes the contents full width. Without it, see below.                                                                      |
+| Attribute    | Meaning                                                                                                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `site-title` | Your site's title, shown after the brand ("Single Digital Gateway", or "SDG" below 1025px) and a divider, cut off with an ellipsis when it doesn't fit. Below 576px it moves to its own row under the header. |
+| `user-name`  | The signed-in visitor's name. When set, the header shows a menu button with the name, opening Settings and Log Out.                                                                                           |
+| `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input.                                                                                          |
+| `fluid`      | Boolean: present (any value) makes the contents full width. Without it, see below.                                                                                                                            |
 
 The header shows one of three auth states:
 
-- **Signed out:** `login-href` set, no `user-name`. The grey row shows Log In.
+- **Signed out:** `login-href` set, no `user-name`. The grey row shows Set up, a link to BC Services Card's account
+  set-up instructions (`https://id.gov.bc.ca/account/setup-instruction`, in every environment), then Log In.
 - **Signed in:** `user-name` set. The grey row shows a menu button with the name; it opens Settings and Log Out.
   Settings always links to the SDG settings page: the header reads SDG's address from where its own script was
   served, so it points at the same environment (PR, test or production) as the loader you load.
@@ -130,6 +131,12 @@ The header shows one of three auth states:
   height and shows no control, so nothing moves when you set one of them.
 
 Change the attributes at any time; the header re-renders.
+
+### Home link
+
+The logo and "Single Digital Gateway" (or "SDG") link to SDG's home page. Like Settings, the header reads SDG's address
+from where its own script was served, so on your site it points at the same environment (PR, test or production) as
+the loader you load, and on SDG it is SDG's own `/`. Your `site-title` is not a link.
 
 ### Back to SDG
 
@@ -166,9 +173,9 @@ reserves the right height either way.
 Nav items are your own links, placed in the `nav` slot with `slot="nav"`. The header never navigates by itself, so
 plain `<a href>` links and client-side router links (for example TanStack Router's `Link`) both work.
 
-Mark the current page with `aria-current="page"`. The header styles that link as selected (bold, light blue
-background, 2px bottom border) and your CSS cannot override that look. Your other CSS rules aimed at links inside the
-header (spacing, colour, underline) still apply to them, because they stay your elements. On narrow screens the links
+Mark the current page with `aria-current="page"` so assistive technology announces it; the header gives that link no
+visual active state. Your CSS rules aimed at links inside the header (spacing, colour, underline) still apply to them,
+because they stay your elements. On narrow screens the links
 move behind a menu button.
 
 ## Events
@@ -179,6 +186,7 @@ All events bubble, cross the shadow boundary (`composed`) and are dispatched on 
 | -------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sdg-login`    | A plain left click on Log In.   | Nothing, and the link goes to `login-href`. Or call `event.preventDefault()` to stop the navigation and handle sign-in yourself. Modified clicks (new tab, middle click) are left to the browser and dispatch nothing. |
 | `sdg-settings` | A plain left click on Settings. | Nothing, and the link goes to the SDG settings page. On SDG itself, call `event.preventDefault()` to route there client-side. Modified clicks are left to the browser and dispatch nothing.                            |
+| `sdg-home`     | A plain left click on the logo. | Nothing, and the link goes to SDG's home page. On SDG itself, call `event.preventDefault()` to route there client-side. Modified clicks are left to the browser and dispatch nothing.                                  |
 | `sdg-logout`   | A click on Log Out.             | **Required:** sign the visitor out, for example with a POST to your session endpoint. The header does nothing else: Log Out is a button with no URL, so no other site can link a visitor into a sign-out.              |
 
 ```js
@@ -253,8 +261,7 @@ import { SdgHeader } from '@repo/shared-ui/header/react';
 </SdgHeader>;
 ```
 
-TanStack Router's `Link` sets `aria-current="page"` on itself while its route is active, so the header shows it as
-selected with no extra props.
+TanStack Router's `Link` sets `aria-current="page"` on itself while its route is active, with no extra props.
 
 | Prop                                 | Maps to                                                                      |
 | ------------------------------------ | ---------------------------------------------------------------------------- |

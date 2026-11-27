@@ -20,5 +20,5 @@ export const Route = createFileRoute('/services')({
 
 function ServicesRoute() {
   const { q } = Route.useSearch();
-  return <ServicesPage query={q} />;
+  return <ServicesPage query={q} tab="all" />;
 }

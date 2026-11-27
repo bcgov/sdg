@@ -1,4 +1,4 @@
-import { faAngleDown, faCircleUser, faGear, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
+import { faAngleDown, faAngleUp, faCircleUser, faGear, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
 import type { JSX, RefObject } from 'preact';
 import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
@@ -128,14 +128,14 @@ export function UserMenu({
       >
         <Icon icon={faCircleUser} />
         <span className="user-name button-label">{userName}</span>
-        <Icon icon={faAngleDown} className="button-caret" />
+        <Icon icon={open ? faAngleUp : faAngleDown} className="button-caret" />
       </button>
       <div ref={menuRef} id={MENU_ID} className="menu" role="menu" aria-labelledby={BUTTON_ID} hidden={!open}>
         <a className="menu-item" role="menuitem" tabIndex={-1} href={settingsHref} onClick={onSettings}>
           <Icon icon={faGear} />
           Settings
         </a>
-        <button type="button" className="menu-item menu-item-danger" role="menuitem" tabIndex={-1} onClick={onLogout}>
+        <button type="button" className="menu-item" role="menuitem" tabIndex={-1} onClick={onLogout}>
           <Icon icon={faRightFromBracket} />
           Log Out
         </button>

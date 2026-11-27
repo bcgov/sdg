@@ -1,5 +1,7 @@
+/* The large field and large Search button are both 48px: keep them on one line. */
 .searchForm {
   display: flex;
+  align-items: center;
   gap: var(--layout-margin-small);
 }
 

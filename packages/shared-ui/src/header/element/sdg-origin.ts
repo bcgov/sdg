@@ -18,3 +18,6 @@ function sdgOrigin(): string {
 export const SDG_ORIGIN: string = sdgOrigin();
 
 export const SETTINGS_HREF: string = `${SDG_ORIGIN}${SETTINGS_PATH}`;
+
+/** SDG's home page, which the logo and brand link to on every site. */
+export const HOME_HREF: string = `${SDG_ORIGIN}/`;

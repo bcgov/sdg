@@ -69,12 +69,3 @@
   outline: var(--layout-border-width-medium, 2px) solid var(--surface-color-border-active, #2e5dd7);
   outline-offset: -2px;
 }
-
-.menu-item-danger {
-  color: var(--typography-color-danger, #ce3e39);
-}
-
-.menu-item-danger:hover,
-.menu-item-danger:focus-visible {
-  background-color: var(--support-surface-color-danger, #f4e1e2);
-}
