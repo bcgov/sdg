@@ -113,12 +113,12 @@ Then handle the logout event (see [Events](#events)) if visitors can sign in.
 
 ## Attributes
 
-| Attribute    | Meaning                                                                                                                                                 |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `site-title` | Your site's title, shown after "SDG" and a divider, cut off with an ellipsis when it doesn't fit. Below 576px it moves to its own row under the header. |
-| `user-name`  | The signed-in visitor's name. When set, the header shows a menu button with the name, opening Settings and Log Out.                                     |
-| `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input.                                    |
-| `fluid`      | Boolean: present (any value) makes the contents full width. Without it, see below.                                                                      |
+| Attribute    | Meaning                                                                                                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `site-title` | Your site's title, shown after the brand ("Single Digital Gateway", or "SDG" below 1025px) and a divider, cut off with an ellipsis when it doesn't fit. Below 576px it moves to its own row under the header. |
+| `user-name`  | The signed-in visitor's name. When set, the header shows a menu button with the name, opening Settings and Log Out.                                                                                           |
+| `login-href` | Where Log In links to. Shown only when `user-name` is not set. Must be an http(s) URL you control, never page input.                                                                                          |
+| `fluid`      | Boolean: present (any value) makes the contents full width. Without it, see below.                                                                                                                            |
 
 The header shows one of three auth states:
 
@@ -166,9 +166,9 @@ reserves the right height either way.
 Nav items are your own links, placed in the `nav` slot with `slot="nav"`. The header never navigates by itself, so
 plain `<a href>` links and client-side router links (for example TanStack Router's `Link`) both work.
 
-Mark the current page with `aria-current="page"`. The header styles that link as selected (bold, light blue
-background, 2px bottom border) and your CSS cannot override that look. Your other CSS rules aimed at links inside the
-header (spacing, colour, underline) still apply to them, because they stay your elements. On narrow screens the links
+Mark the current page with `aria-current="page"` so assistive technology announces it; the header gives that link no
+visual active state. Your CSS rules aimed at links inside the header (spacing, colour, underline) still apply to them,
+because they stay your elements. On narrow screens the links
 move behind a menu button.
 
 ## Events
@@ -253,8 +253,7 @@ import { SdgHeader } from '@repo/shared-ui/header/react';
 </SdgHeader>;
 ```
 
-TanStack Router's `Link` sets `aria-current="page"` on itself while its route is active, so the header shows it as
-selected with no extra props.
+TanStack Router's `Link` sets `aria-current="page"` on itself while its route is active, with no extra props.
 
 | Prop                                 | Maps to                                                                      |
 | ------------------------------------ | ---------------------------------------------------------------------------- |

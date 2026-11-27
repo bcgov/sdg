@@ -18,7 +18,7 @@ export async function startHeader(): Promise<void> {
 
 /**
  * The edge-served `<sdg-header>` wired to the router and the BFF session. The nav items are router links, so they
- * navigate client-side; an active `Link` sets `aria-current="page"` itself, which the header styles as selected.
+ * navigate client-side; an active `Link` sets `aria-current="page"` itself (announced, not styled).
  * The user menu's Settings is the header's own link to this site's /settings, so the router takes it over too.
  */
 export function SiteHeader() {

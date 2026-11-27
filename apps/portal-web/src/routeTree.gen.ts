@@ -25,6 +25,7 @@ import { Route as DevDetailsRouteImport } from './routes/dev/details'
 import { Route as DevNavLinkRouteImport } from './routes/dev/nav-link'
 import { Route as DevSectionRouteImport } from './routes/dev/section'
 import { Route as DevTabsRouteImport } from './routes/dev/tabs'
+import { Route as AuthenticatedServicesBookmarksRouteImport } from './routes/_authenticated/services.bookmarks'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -105,6 +106,12 @@ const DevTabsRoute = DevTabsRouteImport.update({
   path: '/tabs',
   getParentRoute: () => DevRouteRoute,
 } as any)
+const AuthenticatedServicesBookmarksRoute =
+  AuthenticatedServicesBookmarksRouteImport.update({
+    id: '/services/bookmarks',
+    path: '/services/bookmarks',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/dev/section': typeof DevSectionRoute
   '/dev/tabs': typeof DevTabsRoute
   '/dev/': typeof DevIndexRoute
+  '/services/bookmarks': typeof AuthenticatedServicesBookmarksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -138,6 +146,7 @@ export interface FileRoutesByTo {
   '/dev/section': typeof DevSectionRoute
   '/dev/tabs': typeof DevTabsRoute
   '/dev': typeof DevIndexRoute
+  '/services/bookmarks': typeof AuthenticatedServicesBookmarksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -157,6 +166,7 @@ export interface FileRoutesById {
   '/dev/section': typeof DevSectionRoute
   '/dev/tabs': typeof DevTabsRoute
   '/dev/': typeof DevIndexRoute
+  '/_authenticated/services/bookmarks': typeof AuthenticatedServicesBookmarksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/dev/section'
     | '/dev/tabs'
     | '/dev/'
+    | '/services/bookmarks'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/dev/section'
     | '/dev/tabs'
     | '/dev'
+    | '/services/bookmarks'
   id:
     | '__root__'
     | '/'
@@ -210,6 +222,7 @@ export interface FileRouteTypes {
     | '/dev/section'
     | '/dev/tabs'
     | '/dev/'
+    | '/_authenticated/services/bookmarks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -335,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevTabsRouteImport
       parentRoute: typeof DevRouteRoute
     }
+    '/_authenticated/services/bookmarks': {
+      id: '/_authenticated/services/bookmarks'
+      path: '/services/bookmarks'
+      fullPath: '/services/bookmarks'
+      preLoaderRoute: typeof AuthenticatedServicesBookmarksRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -368,10 +388,12 @@ const DevRouteRouteWithChildren = DevRouteRoute._addFileChildren(
 
 interface AuthenticatedRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedServicesBookmarksRoute: typeof AuthenticatedServicesBookmarksRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedServicesBookmarksRoute: AuthenticatedServicesBookmarksRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

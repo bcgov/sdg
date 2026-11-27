@@ -13,6 +13,7 @@ export function Icon({ icon, className }: Readonly<{ icon: IconDefinition; class
       xmlns="http://www.w3.org/2000/svg"
       viewBox={`0 0 ${width} ${height}`}
       aria-hidden="true"
+      data-icon={icon.iconName}
     >
       {(Array.isArray(path) ? path : [path]).map((d) => (
         <path key={d} fill="currentColor" d={d} />

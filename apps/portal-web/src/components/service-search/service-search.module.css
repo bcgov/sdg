@@ -1,5 +1,7 @@
+/* The large Search button is 48px and bcgov's medium field 40px: centre them on one line. */
 .searchForm {
   display: flex;
+  align-items: center;
   gap: var(--layout-margin-small);
 }
 

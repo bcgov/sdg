@@ -108,6 +108,24 @@ describe('<sdg-header> user menu', () => {
     expect(focused(element)).toBe('Settings');
   });
 
+  it('shows Log Out as an ordinary item, styled like Settings', async () => {
+    const element = mount(signedIn);
+    await openByClick(element);
+    expect(item(element, 'Log Out').className).toBe('menu-item');
+    expect(item(element, 'Settings').className).toBe('menu-item');
+  });
+
+  it('points the caret down while closed and up while open', async () => {
+    const element = mount(signedIn);
+    const caret = (): string | null | undefined =>
+      button(element).querySelector('.button-caret')?.getAttribute('data-icon');
+    expect(caret()).toBe('angle-down');
+    await openByClick(element);
+    expect(caret()).toBe('angle-up');
+    await openByClick(element);
+    expect(caret()).toBe('angle-down');
+  });
+
   it('closes on a second button click', async () => {
     const element = mount(signedIn);
     await openByClick(element);

@@ -161,12 +161,30 @@
   gap: calc(var(--layout-padding-medium, 1rem) / 2);
 }
 
-/* "SDG": fixed, bold, never shrinks. */
+/* The brand: fixed, bold, never shrinks. */
 .brand {
   flex-shrink: 0;
   font-size: var(--typography-font-size-large-body, 1.125rem);
   font-weight: var(--typography-font-weights-bold, 700);
   white-space: nowrap;
+}
+
+/*
+ * "Single Digital Gateway" on wide screens (from 1025px, portal-web's wide layout); "SDG" at medium and narrow widths.
+ * The hidden one is display: none, so assistive technology reads only the name on screen.
+ */
+.brand-full {
+  display: none;
+}
+
+@media (min-width: 1025px) {
+  .brand-full {
+    display: inline;
+  }
+
+  .brand-short {
+    display: none;
+  }
 }
 
 .separator {

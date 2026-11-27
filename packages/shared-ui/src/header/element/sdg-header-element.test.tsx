@@ -115,7 +115,7 @@ describe('<sdg-header> Back to SDG', () => {
 });
 
 describe('<sdg-header> main row', () => {
-  it('shows the full logo, its mark for small screens and the fixed "SDG", with no divider or title by default', () => {
+  it('shows the full logo, its mark for small screens and the fixed brand, with no divider or title by default', () => {
     const root = shadow(mount({}));
     const main = root.querySelector('[data-part="main"]');
 
@@ -125,7 +125,9 @@ describe('<sdg-header> main row', () => {
     expect(main?.querySelector('[data-part="logo-mark"]')?.getAttribute('aria-label')).toBe(
       'Government of British Columbia',
     );
-    expect(main?.querySelector('[data-part="brand"]')?.textContent).toBe('SDG');
+    // Both names render; styles.css shows "Single Digital Gateway" from 1025px and "SDG" below.
+    expect(main?.querySelector('[data-part="brand"] .brand-full')?.textContent).toBe('Single Digital Gateway');
+    expect(main?.querySelector('[data-part="brand"] .brand-short')?.textContent).toBe('SDG');
     expect(main?.querySelector('[data-part="separator"]')).toBeNull();
     expect(main?.querySelector('[data-part="title"]')).toBeNull();
     expect(root.querySelector('[data-part="title-row"]')).toBeNull();

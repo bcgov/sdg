@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 
 import { useCurrentUser } from '../../auth/use-current-user';
 import { ServiceSearch } from '../service-search';
-import { AllServicesResults, ServicesTabs } from './results';
+import { AllServicesResults, type ServicesTab, ServicesTabs } from './results';
 import { SearchToolsSheet } from './search-tools-sheet';
 import { SearchToolsSidebar } from './search-tools-sidebar';
 import { StillLooking } from './still-looking';
@@ -19,14 +19,16 @@ const TOOLS_ICON = <FontAwesomeIcon icon={faFilter} aria-hidden="true" />;
 interface ServicesPageProps {
   /** The search the visitor arrived with, shown in the field. */
   query?: string;
+  /** The signed-in resident's tab, from the URL: `/services` or `/services/bookmarks`. */
+  tab: ServicesTab;
 }
 
 /**
  * The Services page (Figma: Developer Handoff 26:21014): Search tools beside the page header (a filter button beside the search on narrower screens), a grid of service
  * cards, pagination and a way to get help. A signed-in resident also gets All Services and Bookmarks tabs above the
- * cards. The filters, pagination and bookmarks are presentational for now.
+ * cards, each with its own URL. The filters, pagination and bookmarks are presentational for now.
  */
-export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
+export function ServicesPage({ query, tab }: Readonly<ServicesPageProps>) {
   // One Type choice for both the sidebar (wide screens) and the sheet (medium and small), so they always agree.
   const [type, setType] = useState<ServiceType>(DEFAULT_SERVICE_TYPE);
   const [isSidebarExpanded, setSidebarExpanded] = useState(true);
@@ -62,7 +64,7 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
             {/* Medium and small screens only: the sidebar's place is taken by the sheet. */}
             <span className={styles['toolsTrigger']}>
               <TooltipTrigger delay={300}>
-                <Button variant="secondary" isIconButton aria-label="Search tools" onPress={openSheet}>
+                <Button variant="secondary" size="large" isIconButton aria-label="Search tools" onPress={openSheet}>
                   {TOOLS_ICON}
                 </Button>
                 <Tooltip placement="top">Search tools</Tooltip>
@@ -70,7 +72,7 @@ export function ServicesPage({ query }: Readonly<ServicesPageProps>) {
             </span>
           </ServiceSearch>
         </header>
-        {isSignedIn ? <ServicesTabs isWide={isWide} /> : <AllServicesResults isWide={isWide} />}
+        {isSignedIn ? <ServicesTabs isWide={isWide} selected={tab} /> : <AllServicesResults isWide={isWide} />}
         <StillLooking />
       </div>
       <SearchToolsSheet isOpen={isSheetOpen} onOpenChange={setSheetOpen} type={type} onTypeChange={setType} />

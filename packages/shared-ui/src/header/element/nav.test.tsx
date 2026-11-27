@@ -99,18 +99,14 @@ describe('<sdg-header> nav', () => {
     stubViewport(true);
   });
 
-  it('marks only the aria-current link as selected, bold by an !important rule that does not change width', async () => {
+  it('slots the links as given and adds no selected style for the aria-current one', async () => {
     const links = [link('Home'), link('Services', true), link('Help')];
     const element = await mount(links);
 
     const slot = shadow(element).querySelector<HTMLSlotElement>('slot[name="nav"]');
     expect(slot?.assignedElements()).toEqual(links);
-    expect(links.map((anchor) => anchor.matches('[aria-current="page"]'))).toEqual([false, true, false]);
-
-    const selected = /::slotted\(\[aria-current='page'\]\)\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    expect(selected).toMatch(/text-shadow:[^;]*!important/);
-    expect(selected).not.toMatch(/border|background/);
-    expect(selected).not.toMatch(/font-weight/);
+    expect(links[1]?.getAttribute('aria-current')).toBe('page');
+    expect(css).not.toMatch(/aria-current/);
   });
 
   it('is a labelled nav landmark around the slot', async () => {

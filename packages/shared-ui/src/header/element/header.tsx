@@ -41,7 +41,7 @@ function Auth({ userName, loginHref, onLoginClick, ...menu }: Readonly<AuthProps
 }
 
 // Each row keeps its full-width background and border; its contents sit in a container that is capped at the
-// Bootstrap 5 container widths, or spans the full width when the host sets `fluid`. "SDG" is fixed; the host's own
+// Bootstrap 5 container widths, or spans the full width when the host sets `fluid`. The brand is fixed; the host's own
 // title follows it after a divider on the main row, and on small screens moves to a row of its own under the header.
 export function Header({ siteTitle, fluid, returnHref, ...auth }: Readonly<HeaderProps>): JSX.Element {
   const container = fluid ? 'container container-fluid' : 'container';
@@ -62,8 +62,10 @@ export function Header({ siteTitle, fluid, returnHref, ...auth }: Readonly<Heade
         <div className={container} data-part="container">
           <span className="lockup" data-part="lockup">
             <BcLogo />
+            {/* The full name on wide screens; "SDG" at medium and narrow widths (styles.css). */}
             <span className="brand" data-part="brand">
-              SDG
+              <span className="brand-full">Single Digital Gateway</span>
+              <span className="brand-short">SDG</span>
             </span>
           </span>
           {siteTitle && (

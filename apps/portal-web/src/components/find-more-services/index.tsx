@@ -1,5 +1,12 @@
 import { Link } from '@repo/design-system/components/link';
-import { faCircleInfo, faLandmark, faShop, FontAwesomeIcon, type IconDefinition } from '@repo/design-system/icons';
+import {
+  faArrowUpRightFromSquare,
+  faCircleInfo,
+  faLandmark,
+  faShop,
+  FontAwesomeIcon,
+  type IconDefinition,
+} from '@repo/design-system/icons';
 
 import { SupplementaryBlock } from '../supplementary-block';
 
@@ -17,7 +24,9 @@ interface OtherService {
   links: readonly ServiceLink[];
 }
 
-// `#` until the destinations are confirmed.
+const EXTERNAL_ICON = <FontAwesomeIcon icon={faArrowUpRightFromSquare} aria-hidden="true" />;
+
+// Every link is a gov.bc.ca page, opened in a new tab.
 const SERVICES: readonly OtherService[] = [
   {
     icon: faCircleInfo,
@@ -25,8 +34,11 @@ const SERVICES: readonly OtherService[] = [
     description:
       'Service BC provides front line support for many of the hundreds of programs and services the provincial government offers to residents, businesses and visitors.',
     links: [
-      { label: 'Learn more about Service BC', href: '#' },
-      { label: 'Book an appointment', href: '#' },
+      {
+        label: 'Learn more about Service BC',
+        href: 'https://www2.gov.bc.ca/gov/content/governments/organizational-structure/ministries-organizations/ministries/citizens-services/servicebc',
+      },
+      { label: 'Book an appointment', href: 'https://appointments.servicebc.gov.bc.ca/appointmentt' },
     ],
   },
   {
@@ -34,24 +46,38 @@ const SERVICES: readonly OtherService[] = [
     title: 'FrontCounter BC',
     description:
       'Learn about and apply for licences, permits, registrations and other authorizations required to utilize the Province’s natural resources.',
-    links: [{ label: 'Learn more about FrontCounter BC', href: '#' }],
+    links: [
+      {
+        label: 'Learn more about FrontCounter BC',
+        href: 'https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/natural-resource-permits/fcbc-locations',
+      },
+    ],
   },
   {
     icon: faLandmark,
     title: 'Courthouses',
     description:
       'Staffed court registries are open to the public from 9 am to 4 pm Monday to Friday, excluding statutory holidays, Easter Monday and Boxing Day.',
-    links: [{ label: 'Find Courthouse locations', href: '#' }],
+    links: [
+      {
+        label: 'Find courthouse locations',
+        href: 'https://www2.gov.bc.ca/gov/content/justice/courthouse-services/courthouse-locations',
+      },
+    ],
   },
 ];
 
-/** "Find more services": other B.C. government services a resident may need, each with its links. */
+/**
+ * "Find more services": other B.C. government services a resident may need, each with its links. The title bar's 24px
+ * inset matches the body's padding, so the title, description and services share one left (and right) edge.
+ */
 export function FindMoreServices() {
   return (
     <SupplementaryBlock
       title="Find more services"
       tone="light"
       spacing="large"
+      headingInset="large"
       description="Looking for a service that isn't available here yet? These resources can help you find and access other B.C. government services."
     >
       <ul className={styles['services']}>
@@ -66,7 +92,15 @@ export function FindMoreServices() {
               <ul className={styles['links']}>
                 {links.map(({ label, href }) => (
                   <li key={label} className={styles['link']}>
-                    <Link href={href}>{label}</Link>
+                    <Link
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      ariaLabel={`${label} (opens in a new tab)`}
+                      iconRight={EXTERNAL_ICON}
+                    >
+                      {label}
+                    </Link>
                   </li>
                 ))}
               </ul>

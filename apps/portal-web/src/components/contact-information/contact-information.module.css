@@ -2,19 +2,22 @@
 .items {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--layout-margin-large) var(--layout-margin-small);
+  gap: var(--layout-margin-large);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* Icon badge on the left; label and value stacked to its right. */
+/*
+ * Icon badge on the left; label and value stacked to its right. No side padding, so the items share the title's and
+ * description's left and right edges; the grid's column gap separates them.
+ */
 .item {
   display: flex;
   align-items: flex-start;
   gap: var(--layout-margin-medium);
   min-width: 0;
-  padding: var(--layout-margin-medium);
+  padding-block: var(--layout-margin-medium);
 }
 
 /* A 40px blue circle around a 16px glyph (the design's 20px icon box with FontAwesome's 2px inset). */

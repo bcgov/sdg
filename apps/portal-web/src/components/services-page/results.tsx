@@ -1,4 +1,6 @@
 import { Tab, TabList, TabPanel, Tabs } from '@repo/design-system/components/tabs';
+import { useNavigate } from '@tanstack/react-router';
+import { useCallback } from 'react';
 
 import { ServicesPagination } from './pagination';
 
@@ -51,10 +53,31 @@ function BookmarkResults({ isWide }: Readonly<ResultsProps>) {
   );
 }
 
-/** Signed-in residents switch between All Services and their Bookmarks; the tab row's rule is the page's separator. */
-export function ServicesTabs({ isWide }: Readonly<ResultsProps>) {
+export type ServicesTab = 'all' | 'bookmarks';
+
+const TAB_PATHS = { all: '/services', bookmarks: '/services/bookmarks' } as const satisfies Record<ServicesTab, string>;
+
+const isServicesTab = (key: unknown): key is ServicesTab => key === 'all' || key === 'bookmarks';
+
+interface ServicesTabsProps extends ResultsProps {
+  /** The tab the URL names; choosing the other one navigates to its path. */
+  selected: ServicesTab;
+}
+
+/**
+ * Signed-in residents switch between All Services (`/services`) and their Bookmarks (`/services/bookmarks`); the URL
+ * holds the choice, so either can be linked to. The tab row's rule is the page's separator.
+ */
+export function ServicesTabs({ isWide, selected }: Readonly<ServicesTabsProps>) {
+  const navigate = useNavigate();
+  const select = useCallback(
+    (key: unknown) => {
+      if (isServicesTab(key) && key !== selected) void navigate({ to: TAB_PATHS[key] });
+    },
+    [navigate, selected],
+  );
   return (
-    <Tabs>
+    <Tabs selectedKey={selected} onSelectionChange={select}>
       <TabList aria-label="Services">
         <Tab id="all">All Services</Tab>
         <Tab id="bookmarks">Bookmarks</Tab>

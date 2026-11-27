@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { App } from '../../app';
+import { currentUserQueryKey } from '../../auth/use-current-user';
 import { createAppRouter } from '../../router';
 
 // Devtools render only in dev; keep them out of jsdom.
@@ -176,18 +177,33 @@ describe('home page', () => {
       expect(within(region).queryByRole('link', { name: /Log in/ })).toBeNull();
     });
 
-    it('links every title to #', async () => {
+    it('shows the card titles as plain text, not links, to a signed-out visitor', async () => {
       await renderHome();
       const region = screen.getByRole('region', { name: 'Do more with a BC Services Card Account' });
+      // Wait for the session check: Log in shows once it says signed out.
+      await within(region).findByRole('link', { name: 'Log in with BC Services Card Account' });
+      const list = within(region).getByRole('list');
+      expect(within(list).queryAllByRole('link')).toEqual([]);
       expect(
-        within(within(region).getByRole('list'))
-          .getAllByRole('link')
-          .map((link) => [link.textContent, link.getAttribute('href')]),
-      ).toEqual([
-        ['Discover Services', '#'],
-        ['Apply and track your requests', '#'],
-        ['Manage your information', '#'],
+        within(list)
+          .getAllByRole('heading', { level: 3 })
+          .map((h) => h.textContent),
+      ).toEqual(['Discover Services', 'Apply and track your requests', 'Manage your information']);
+    });
+
+    it('links a signed-in resident’s card titles to Services, Bookmarks and Settings, in the same tab', async () => {
+      const queryClient = new QueryClient();
+      queryClient.setQueryData(currentUserQueryKey, { id: 'p-1', name: 'Ada Lovelace', email: null });
+      const router = createAppRouter({ queryClient, history: createMemoryHistory({ initialEntries: ['/'] }) });
+      render(<App queryClient={queryClient} router={router} />);
+      const region = await screen.findByRole('region', { name: 'Do more with a BC Services Card Account' });
+      const links = within(within(region).getByRole('list')).getAllByRole('link');
+      expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+        ['Discover Services', '/services'],
+        ['Apply and track your requests', '/services/bookmarks'],
+        ['Manage your information', '/settings'],
       ]);
+      for (const link of links) expect(link).not.toHaveAttribute('target');
     });
   });
 

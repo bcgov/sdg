@@ -75,7 +75,7 @@ export function ServiceSearch({ className, defaultQuery = '', children }: Readon
           value={query}
           onChange={setQuery}
         />
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" size="large">
           Search
         </Button>
         {children}

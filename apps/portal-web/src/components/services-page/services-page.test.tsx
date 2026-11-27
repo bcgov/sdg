@@ -264,9 +264,41 @@ describe('services page', () => {
     );
   });
 
-  it('shows three placeholder bookmarks on one page in the Bookmarks tab', async () => {
-    await renderServices('/services', RESIDENT);
+  it('goes to /services/bookmarks from the Bookmarks tab and back to /services from All Services', async () => {
+    const router = await renderServices('/services', RESIDENT);
     await userEvent.click(await screen.findByRole('tab', { name: 'Bookmarks' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/services/bookmarks'));
+    expect(screen.getByRole('tab', { name: 'Bookmarks' })).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'All Services' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/services'));
+    expect(screen.getByRole('tab', { name: 'All Services' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('sends a signed-out visitor to /services/bookmarks to log in, back to the bookmarks', async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(currentUserQueryKey, null);
+    const router = createAppRouter({
+      queryClient,
+      history: createMemoryHistory({ initialEntries: ['/services/bookmarks'] }),
+    });
+    // jsdom can't leave the page: record the guard's full-page login redirect instead of performing it.
+    const documentNavigations: string[] = [];
+    const original = router.navigate.bind(router);
+    vi.spyOn(router, 'navigate').mockImplementation(async (options) => {
+      if (options.reloadDocument && options.href) {
+        documentNavigations.push(options.href);
+        return;
+      }
+      return original(options);
+    });
+    render(<App queryClient={queryClient} router={router} />);
+    await waitFor(() => expect(documentNavigations).toEqual(['/api/auth/login?returnTo=%2Fservices%2Fbookmarks']));
+  });
+
+  it('shows three placeholder bookmarks on one page at /services/bookmarks', async () => {
+    await renderServices('/services/bookmarks', RESIDENT);
+    expect(await screen.findByRole('tab', { name: 'Bookmarks' })).toHaveAttribute('aria-selected', 'true');
     const panel = screen.getByRole('tabpanel', { name: 'Bookmarks' });
     expect(within(panel).getByTestId('bookmark-placeholders').children).toHaveLength(3);
     expect(screen.queryByTestId('service-placeholders')).toBeNull();

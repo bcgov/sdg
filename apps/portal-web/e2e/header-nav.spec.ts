@@ -45,7 +45,7 @@ test.describe('portal-web header nav', () => {
     // The nav sits on the main row, right of the site title and below Log In's utility row.
     const [title, home, logIn] = await Promise.all(
       [
-        header.getByText('SDG', { exact: true }),
+        header.locator('[data-part="brand"]'),
         header.getByRole('link', { name: 'Home' }),
         header.getByRole('link', { name: 'Log In' }),
       ].map((l) => l.boundingBox()),
