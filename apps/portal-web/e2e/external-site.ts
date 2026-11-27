@@ -7,7 +7,7 @@ export const LOADER_CONFIG_PATH = '/shared-ui/header/v1/loader.json';
 
 /** The pre-load rule the package ships, which every embedding site copies (README, step 2). */
 const PRELOAD_CSS = readFileSync(
-  new URL('../../../../packages/shared-ui/src/header/preload.css', import.meta.url),
+  new URL('../../../packages/shared-ui/src/header/preload.css', import.meta.url),
   'utf8',
 );
 

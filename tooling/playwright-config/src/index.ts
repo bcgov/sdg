@@ -60,7 +60,12 @@ export function definePlaywrightConfig({
     projects: [
       { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
       { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-      { name: 'chromium', testDir: './e2e/unauthenticated', use: { ...devices['Desktop Chrome'] } },
+      {
+        name: 'chromium',
+        testDir: './e2e',
+        testIgnore: ['./e2e/authenticated', './e2e/accessibility'],
+        use: { ...devices['Desktop Chrome'] },
+      },
       { name: 'accessibility', testDir: './e2e/accessibility', use: { ...devices['Desktop Chrome'] } },
       {
         name: 'client-setup',

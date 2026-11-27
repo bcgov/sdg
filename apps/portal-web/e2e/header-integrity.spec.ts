@@ -7,16 +7,16 @@ import { readFileSync } from 'node:fs';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { test } from '@repo/playwright-config';
 
-import { decodeBase64Url, type ManifestEnvelope } from '../../../../packages/shared-ui/src/signing/envelope.ts';
+import { decodeBase64Url, type ManifestEnvelope } from '../../../packages/shared-ui/src/signing/envelope.ts';
 import {
   MANIFEST_SCHEMA,
   type ManifestBundle,
   type ManifestPayload,
-} from '../../../../packages/shared-ui/src/signing/manifest.ts';
-import { signManifest, type SigningKey } from '../../../../packages/shared-ui/src/signing/sign.ts';
+} from '../../../packages/shared-ui/src/signing/manifest.ts';
+import { signManifest, type SigningKey } from '../../../packages/shared-ui/src/signing/sign.ts';
 import { environmentLoader, LOADER_PATH, serveExternalSite } from './external-site';
 
-const SHARED_UI = new URL('../../../../packages/shared-ui/', import.meta.url);
+const SHARED_UI = new URL('../../../packages/shared-ui/', import.meta.url);
 const read = (path: string): string => readFileSync(new URL(path, SHARED_UI), 'utf8');
 
 const FIXTURE_ORIGIN = 'https://sdg-fixture.example';
