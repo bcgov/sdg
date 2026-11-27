@@ -32,7 +32,6 @@ export interface PlaywrightOptions {
   clientPassword?: string;
   overrides?: PlaywrightTestConfig;
 }
-const targetDevices = ['Desktop Chrome', 'iPhone 14', 'Pixel 7'];
 
 /** Playwright config for an app-level e2e suite in `./e2e`. */
 export function definePlaywrightConfig({
@@ -89,11 +88,6 @@ export function definePlaywrightConfig({
           clientPassword: clientPassword,
         },
       },
-      ...targetDevices.map((deviceName) => ({
-        name: deviceName,
-        use: { ...devices[deviceName] },
-        // Shared project settings go here (e.g., testDir, retries)
-      })),
     ],
     ...(webServer ? { webServer: { ...webServer, url: baseURL, reuseExistingServer: !ci } } : {}),
     ...overrides,

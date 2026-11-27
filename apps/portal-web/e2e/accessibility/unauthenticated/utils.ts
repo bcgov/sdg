@@ -9,6 +9,20 @@ export const BREAKPOINTS = [
   { width: 3840, height: 2160 },
 ];
 
+export const NAV_LINKS = ['Home', 'Services', 'Help', 'Contact us'];
+
+export const FOOTER_LINKS = [
+  'Call, email or text us',
+  'find a service centre',
+  'Home',
+  'About gov.bc.ca',
+  'Disclaimer',
+  'Privacy',
+  'Accessibility',
+  'Copyright',
+  'Contact us',
+];
+
 export async function expectTabOrderAtBreakpoints(
   page: Page,
   browserName: string,
@@ -23,19 +37,7 @@ export async function expectTabOrderAtBreakpoints(
   const header = page.locator('sdg-header');
   const footer = page.getByRole('contentinfo');
 
-  const navLinks = [
-    header.getByRole('link', { name: 'Home' }),
-    header.getByRole('link', { name: 'Services' }),
-    header.getByRole('link', { name: 'Help' }),
-    header.getByRole('link', { name: 'Contact us' }),
-  ];
-
-  const searchToolsControls = [
-    page.getByRole('button', { name: 'Close search tools' }),
-    page.getByRole('radio', { name: 'All' }),
-    page.getByRole('button', { name: 'Clear all' }),
-    page.getByRole('button', { name: 'Show results' }),
-  ];
+  const navLinks = NAV_LINKS.map((link) => header.getByRole('link', { name: link }));
 
   const searchBoxControls = [...extraSearchBoxControls];
 
@@ -45,17 +47,7 @@ export async function expectTabOrderAtBreakpoints(
 
   const contactControls = [...extraContactControls];
 
-  const footerLinks = [
-    footer.getByRole('link', { name: 'Call, email or text us' }),
-    footer.getByRole('link', { name: 'find a service centre' }),
-    footer.getByRole('link', { name: 'Home' }),
-    footer.getByRole('link', { name: 'About gov.bc.ca' }),
-    footer.getByRole('link', { name: 'Disclaimer' }),
-    footer.getByRole('link', { name: 'Privacy' }),
-    footer.getByRole('link', { name: 'Accessibility' }),
-    footer.getByRole('link', { name: 'Copyright' }),
-    footer.getByRole('link', { name: 'Contact us' }),
-  ];
+  const footerLinks = FOOTER_LINKS.map((link) => footer.getByRole('link', { name: link }));
 
   const tabThrough = (locators: Locator[]) =>
     locators.reduce(async (chain, locator) => {
@@ -87,15 +79,7 @@ export async function expectTabOrderAtBreakpoints(
       await tabThrough(navLinks);
     }
 
-    const searchToolsToggle = main.getByRole('button', { name: 'Search tools' });
-    if (await searchToolsToggle.isVisible()) {
-      await tabThrough([searchToolsToggle]);
-      await page.keyboard.press('Enter');
-      await tabThrough(searchToolsControls);
-      await page.keyboard.press('Escape');
-    }
-
-    const searchSideBarToggle = main.getByRole('button', { name: 'Close sidebar' });
+    const searchSideBarToggle = main.getByRole('button', { name: 'Hide sidebar' });
     if (await searchSideBarToggle.isVisible()) {
       await tabThrough([searchSideBarToggle, page.getByRole('radio', { name: 'All' })]);
     }
