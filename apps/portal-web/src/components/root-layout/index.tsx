@@ -1,9 +1,9 @@
-import { Footer } from '@repo/design-system/components/footer';
 import { Outlet } from '@tanstack/react-router';
 
 import { useSessionEndedRedirect } from '../../auth/use-session-ended-redirect';
 import { Devtools } from '../devtools';
 import { SessionTimeoutDialog } from '../session-timeout-dialog';
+import { SiteFooter } from '../site-footer';
 import { SiteHeader } from '../site-header';
 
 import styles from './root-layout.module.css';
@@ -23,7 +23,7 @@ export function RootLayout() {
             <Outlet />
           </div>
         </main>
-        <Footer />
+        <SiteFooter />
       </div>
       <SessionTimeoutDialog />
       <Devtools />

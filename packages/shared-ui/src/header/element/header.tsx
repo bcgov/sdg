@@ -10,6 +10,8 @@ export interface HeaderProps {
   siteTitle: string;
   /** Full-width contents instead of the responsive max-width container. */
   fluid: boolean;
+  /** SDG's home page, which the logo and brand link to. */
+  homeHref: string;
   /** The SDG page the visitor came from, for "Back to SDG"; empty when they did not come from SDG. */
   returnHref: string;
   userName: string;
@@ -23,27 +25,41 @@ export interface HeaderProps {
   onLogoutClick: () => void;
 }
 
-type AuthProps = Omit<HeaderProps, 'siteTitle' | 'fluid' | 'returnHref'>;
+/** BC Services Card's page on getting an account set up: production's in every environment, like portal-web's. */
+export const ACCOUNT_SETUP_HREF = 'https://id.gov.bc.ca/account/setup-instruction';
+
+type AuthProps = Omit<HeaderProps, 'siteTitle' | 'fluid' | 'homeHref' | 'returnHref'>;
 
 // Signed in (a user name), signed out (a login-href only), or unknown (neither: the host is still checking the
-// session), which renders no control so nobody clicks Log In for a session that turns out to exist (R3, R4).
+// session), which renders no control so nobody clicks Log In for a session that turns out to exist (R3, R4). Signed out,
+// "Set up" (getting a BC Services Card Account) sits before Log In.
 function Auth({ userName, loginHref, onLoginClick, ...menu }: Readonly<AuthProps>): JSX.Element | null {
   if (userName) return <UserMenu userName={userName} {...menu} />;
   if (loginHref) {
     return (
-      <a className="button button-secondary button-icon button-collapsible" href={loginHref} onClick={onLoginClick}>
-        <Icon icon={faArrowRightToBracket} />
-        <span className="button-label">Log In</span>
-      </a>
+      <>
+        <a className="button button-ghost" data-part="setup" href={ACCOUNT_SETUP_HREF}>
+          Set up
+        </a>
+        <a
+          className="button button-secondary button-icon button-collapsible"
+          data-part="login"
+          href={loginHref}
+          onClick={onLoginClick}
+        >
+          <Icon icon={faArrowRightToBracket} />
+          <span className="button-label">Log In</span>
+        </a>
+      </>
     );
   }
   return null;
 }
 
 // Each row keeps its full-width background and border; its contents sit in a container that is capped at the
-// Bootstrap 5 container widths, or spans the full width when the host sets `fluid`. "SDG" is fixed; the host's own
+// Bootstrap 5 container widths, or spans the full width when the host sets `fluid`. The brand is fixed; the host's own
 // title follows it after a divider on the main row, and on small screens moves to a row of its own under the header.
-export function Header({ siteTitle, fluid, returnHref, ...auth }: Readonly<HeaderProps>): JSX.Element {
+export function Header({ siteTitle, fluid, homeHref, returnHref, ...auth }: Readonly<HeaderProps>): JSX.Element {
   const container = fluid ? 'container container-fluid' : 'container';
   return (
     <header className="header">
@@ -60,12 +76,15 @@ export function Header({ siteTitle, fluid, returnHref, ...auth }: Readonly<Heade
       </div>
       <div className="row main" data-part="main">
         <div className={container} data-part="container">
-          <span className="lockup" data-part="lockup">
+          {/* The logo and brand link to the home page of the SDG that served the header; the site title does not. */}
+          <a className="lockup" data-part="lockup" href={homeHref}>
             <BcLogo />
+            {/* The full name on wide screens; "SDG" at medium and narrow widths (styles.css). */}
             <span className="brand" data-part="brand">
-              SDG
+              <span className="brand-full">Single Digital Gateway</span>
+              <span className="brand-short">SDG</span>
             </span>
-          </span>
+          </a>
           {siteTitle && (
             <>
               <span className="separator" data-part="separator" aria-hidden="true" />

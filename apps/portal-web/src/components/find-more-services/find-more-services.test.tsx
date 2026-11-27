@@ -15,14 +15,36 @@ describe('FindMoreServices', () => {
     ).toEqual(['Service BC', 'FrontCounter BC', 'Courthouses']);
   });
 
-  it('lists each service’s links in order', () => {
+  it('lists each service’s links in order, each opening in a new tab', () => {
     render(<FindMoreServices />);
-    expect(screen.getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['Learn more about Service BC', '#'],
-      ['Book an appointment', '#'],
-      ['Learn more about FrontCounter BC', '#'],
-      ['Find Courthouse locations', '#'],
+    const links = screen.getAllByRole('link');
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      [
+        'Learn more about Service BC',
+        'https://www2.gov.bc.ca/gov/content/governments/organizational-structure/ministries-organizations/ministries/citizens-services/servicebc',
+      ],
+      ['Book an appointment', 'https://appointments.servicebc.gov.bc.ca/appointmentt'],
+      [
+        'Learn more about FrontCounter BC',
+        'https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/natural-resource-permits/fcbc-locations',
+      ],
+      [
+        'Find courthouse locations',
+        'https://www2.gov.bc.ca/gov/content/justice/courthouse-services/courthouse-locations',
+      ],
     ]);
+    for (const link of links) {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(link).toHaveAccessibleName(`${link.textContent} (opens in a new tab)`);
+    }
+  });
+
+  it('insets its title bar by the body’s 24px padding, so the title lines up with the content', () => {
+    render(<FindMoreServices />);
+    const heading = screen.getByRole('heading', { level: 2, name: 'Find more services' });
+    expect(heading.className).toMatch(/inset-large/);
+    expect(heading.nextElementSibling?.className).toMatch(/padding-large/);
   });
 
   it('shows each service’s icon, hidden from assistive technology', () => {
