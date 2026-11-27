@@ -49,7 +49,9 @@ async function expectNavigationAtBreakpoints(page: Page, browserName: string, ur
 
     await tabThrough([
       page.getByRole('link', { name: 'Skip to main content' }),
+      header.getByRole('link', { name: 'Set up' }),
       header.getByRole('link', { name: 'Log In' }),
+      page.locator('[data-part="lockup"]'),
     ]);
 
     const menuToggle = header.getByRole('button', { name: 'Menu' });

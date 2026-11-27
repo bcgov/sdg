@@ -27,9 +27,10 @@ describe('definePlaywrightConfig', () => {
   it('defines chromium, firefox and webkit projects', () => {
     const config = definePlaywrightConfig({ baseURL: 'http://localhost:5173' });
     expect(config.projects?.map((p) => p.name)).toEqual([
-      'chromium',
       'firefox',
       'webkit',
+      'chromium',
+      'accessibility',
       'client-setup',
       'client-tests',
       'load-setup',

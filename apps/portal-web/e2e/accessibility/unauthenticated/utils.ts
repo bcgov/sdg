@@ -14,13 +14,10 @@ export const NAV_LINKS = ['Home', 'Services', 'Help', 'Contact us'];
 export const FOOTER_LINKS = [
   'Call, email or text us',
   'find a service centre',
-  'Home',
-  'About gov.bc.ca',
   'Disclaimer',
   'Privacy',
   'Accessibility',
   'Copyright',
-  'Contact us',
 ];
 
 export async function expectTabOrderAtBreakpoints(
@@ -64,7 +61,9 @@ export async function expectTabOrderAtBreakpoints(
 
     await tabThrough([
       page.getByRole('link', { name: 'Skip to main content' }),
+      header.getByRole('link', { name: 'Set up' }),
       header.getByRole('link', { name: 'Log In' }),
+      page.locator('[data-part="lockup"]'),
     ]);
 
     const menuToggle = header.getByRole('button', { name: 'Menu' });

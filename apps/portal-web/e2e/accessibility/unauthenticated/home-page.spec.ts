@@ -25,9 +25,6 @@ test.describe('Home Page Accessibility Testing', () => {
     ];
 
     const accountControls = [
-      main.getByRole('link', { name: 'Discover Services' }),
-      main.getByRole('link', { name: 'Apply and track your requests' }),
-      main.getByRole('link', { name: 'Manage your information' }),
       main.getByRole('link', { name: 'Log in with BC Services Card Account' }),
       main.getByRole('link', { name: 'Set up a BC Services Card Account' }),
     ];
