@@ -38,6 +38,12 @@ function setupLink(element: SdgHeaderElement): HTMLAnchorElement | null {
   return utilityRow(element).querySelector('a[data-part="setup"]');
 }
 
+function homeLink(element: SdgHeaderElement): HTMLAnchorElement {
+  const link = shadow(element).querySelector<HTMLAnchorElement>('[data-part="main"] a[data-part="lockup"]');
+  if (!link) throw new Error('sdg-header has no home link');
+  return link;
+}
+
 function menuButton(element: SdgHeaderElement): HTMLButtonElement | null {
   return utilityRow(element).querySelector('button[aria-haspopup="menu"]');
 }
@@ -149,6 +155,32 @@ describe('<sdg-header> main row', () => {
     expect(main?.querySelector('[data-part="separator"]')).toBeNull();
     expect(main?.querySelector('[data-part="title"]')).toBeNull();
     expect(root.querySelector('[data-part="title-row"]')).toBeNull();
+  });
+
+  it('dispatches a cancelable sdg-home on a plain click on the logo and lets the link navigate', () => {
+    const element = mount({});
+    const onHome = vi.fn<(event: Event) => void>();
+    element.addEventListener(HEADER_EVENTS.home, onHome);
+
+    expect(click(homeLink(element))).toBe(false);
+    expect(onHome).toHaveBeenCalledOnce();
+    expect(onHome.mock.calls[0]?.[0]).toMatchObject({ bubbles: true, composed: true, cancelable: true });
+  });
+
+  it('prevents the navigation when a listener cancels sdg-home', () => {
+    const element = mount({});
+    element.addEventListener(HEADER_EVENTS.home, (event) => event.preventDefault());
+
+    expect(click(homeLink(element))).toBe(true);
+  });
+
+  it('dispatches no sdg-home on a modified click', () => {
+    const element = mount({});
+    const onHome = vi.fn<(event: Event) => void>();
+    element.addEventListener(HEADER_EVENTS.home, onHome);
+
+    expect(click(homeLink(element), { metaKey: true })).toBe(false);
+    expect(onHome).not.toHaveBeenCalled();
   });
 
   it("links the logo and brand, not the site title, to SDG's home page", () => {

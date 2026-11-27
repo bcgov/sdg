@@ -1,4 +1,4 @@
-import { loadSdgHeader, SdgHeader, type SdgSettingsEvent } from '@repo/shared-ui/header/react';
+import { loadSdgHeader, SdgHeader, type SdgHomeEvent, type SdgSettingsEvent } from '@repo/shared-ui/header/react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
 
@@ -19,7 +19,8 @@ export async function startHeader(): Promise<void> {
 /**
  * The edge-served `<sdg-header>` wired to the router and the BFF session. The nav items are router links, so they
  * navigate client-side; an active `Link` sets `aria-current="page"` itself (announced, not styled).
- * The user menu's Settings is the header's own link to this site's /settings, so the router takes it over too.
+ * The user menu's Settings and the logo are the header's own links to this site's /settings and /, so the router takes
+ * them over too.
  */
 export function SiteHeader() {
   const auth = useHeaderAuth();
@@ -31,9 +32,16 @@ export function SiteHeader() {
     },
     [navigate],
   );
+  const onHome = useCallback(
+    (event: SdgHomeEvent) => {
+      event.preventDefault();
+      void navigate({ to: '/' });
+    },
+    [navigate],
+  );
 
   return (
-    <SdgHeader {...auth} onSettings={onSettings}>
+    <SdgHeader {...auth} onSettings={onSettings} onHome={onHome}>
       <Link slot="nav" to="/" activeOptions={exactMatch}>
         Home
       </Link>

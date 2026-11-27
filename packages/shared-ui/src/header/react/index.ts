@@ -9,7 +9,7 @@ export {
   RETURN_TO_PARAM,
   withReturnTo,
 } from '../contract.js';
-export type { SdgHeaderAttributes, SdgLoginEvent, SdgLogoutEvent, SdgSettingsEvent } from '../types.js';
+export type { SdgHeaderAttributes, SdgHomeEvent, SdgLoginEvent, SdgLogoutEvent, SdgSettingsEvent } from '../types.js';
 export type { SdgHeaderIntrinsicProps } from './jsx.js';
 export { DEFAULT_LOADER_CONFIG_URL, loadSdgHeader } from './load-script.js';
 export { SdgHeader, type SdgHeaderProps } from './sdg-header.js';

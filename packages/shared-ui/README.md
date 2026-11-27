@@ -186,6 +186,7 @@ All events bubble, cross the shadow boundary (`composed`) and are dispatched on 
 | -------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sdg-login`    | A plain left click on Log In.   | Nothing, and the link goes to `login-href`. Or call `event.preventDefault()` to stop the navigation and handle sign-in yourself. Modified clicks (new tab, middle click) are left to the browser and dispatch nothing. |
 | `sdg-settings` | A plain left click on Settings. | Nothing, and the link goes to the SDG settings page. On SDG itself, call `event.preventDefault()` to route there client-side. Modified clicks are left to the browser and dispatch nothing.                            |
+| `sdg-home`     | A plain left click on the logo. | Nothing, and the link goes to SDG's home page. On SDG itself, call `event.preventDefault()` to route there client-side. Modified clicks are left to the browser and dispatch nothing.                                  |
 | `sdg-logout`   | A click on Log Out.             | **Required:** sign the visitor out, for example with a POST to your session endpoint. The header does nothing else: Log Out is a button with no URL, so no other site can link a visitor into a sign-out.              |
 
 ```js

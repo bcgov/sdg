@@ -12,6 +12,8 @@ export interface HeaderProps {
   fluid: boolean;
   /** SDG's home page, which the logo and brand link to. */
   homeHref: string;
+  /** The home link's click; decides whether to dispatch `sdg-home`. */
+  onHomeClick: (event: MouseEvent) => void;
   /** The SDG page the visitor came from, for "Back to SDG"; empty when they did not come from SDG. */
   returnHref: string;
   userName: string;
@@ -28,7 +30,7 @@ export interface HeaderProps {
 /** BC Services Card's page on getting an account set up: production's in every environment, like portal-web's. */
 export const ACCOUNT_SETUP_HREF = 'https://id.gov.bc.ca/account/setup-instruction';
 
-type AuthProps = Omit<HeaderProps, 'siteTitle' | 'fluid' | 'homeHref' | 'returnHref'>;
+type AuthProps = Omit<HeaderProps, 'siteTitle' | 'fluid' | 'homeHref' | 'onHomeClick' | 'returnHref'>;
 
 // Signed in (a user name), signed out (a login-href only), or unknown (neither: the host is still checking the
 // session), which renders no control so nobody clicks Log In for a session that turns out to exist (R3, R4). Signed out,
@@ -59,7 +61,14 @@ function Auth({ userName, loginHref, onLoginClick, ...menu }: Readonly<AuthProps
 // Each row keeps its full-width background and border; its contents sit in a container that is capped at the
 // Bootstrap 5 container widths, or spans the full width when the host sets `fluid`. The brand is fixed; the host's own
 // title follows it after a divider on the main row, and on small screens moves to a row of its own under the header.
-export function Header({ siteTitle, fluid, homeHref, returnHref, ...auth }: Readonly<HeaderProps>): JSX.Element {
+export function Header({
+  siteTitle,
+  fluid,
+  homeHref,
+  onHomeClick,
+  returnHref,
+  ...auth
+}: Readonly<HeaderProps>): JSX.Element {
   const container = fluid ? 'container container-fluid' : 'container';
   return (
     <header className="header">
@@ -77,7 +86,7 @@ export function Header({ siteTitle, fluid, homeHref, returnHref, ...auth }: Read
       <div className="row main" data-part="main">
         <div className={container} data-part="container">
           {/* The logo and brand link to the home page of the SDG that served the header; the site title does not. */}
-          <a className="lockup" data-part="lockup" href={homeHref}>
+          <a className="lockup" data-part="lockup" href={homeHref} onClick={onHomeClick}>
             <BcLogo />
             {/* The full name on wide screens; "SDG" at medium and narrow widths (styles.css). */}
             <span className="brand" data-part="brand">
