@@ -1,0 +1,108 @@
+/* Figma: Product Discussions, node 752:5712. Two cards to a row, each row as tall as its tallest card. */
+.topics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-margin-large);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.topic {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--layout-margin-medium);
+  min-width: 0;
+  padding: var(--layout-padding-medium);
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  background-color: var(--surface-color-background-white);
+}
+
+/* A 40px light-blue square around a 16px glyph (the design's 20px icon box with Font Awesome's 2px inset), centred on the 34px title line. */
+.badge {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-block-start: 6px;
+  border-radius: var(--layout-border-radius-small);
+  background-color: var(--theme-blue-10);
+  color: var(--theme-blue-80);
+}
+
+.icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/* The app's icon fills the 20px box with the design's rounded corners (a seventh of its size). */
+.appLogo {
+  display: block;
+  border-radius: 3px;
+}
+
+.main {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--typography-color-primary);
+  font: var(--typography-bold-h5);
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  padding-block: var(--layout-margin-hair);
+}
+
+.details > * {
+  margin: 0;
+}
+
+.description {
+  color: var(--typography-color-secondary);
+  font: var(--typography-regular-body);
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-small);
+  padding-inline-start: var(--layout-padding-large);
+  /* Nested in the topics list, so the browser would otherwise draw circles. */
+  list-style-type: disc;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+  overflow-wrap: anywhere;
+}
+
+.token {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--layout-margin-small);
+  padding: var(--layout-margin-small) 0 var(--layout-margin-small) var(--layout-padding-large);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-small-body);
+}
+
+.token > img {
+  display: block;
+  object-fit: cover;
+}
+
+@media (max-width: 768px) {
+  .topics {
+    grid-template-columns: 1fr;
+  }
+}

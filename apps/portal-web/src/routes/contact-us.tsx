@@ -1,11 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PageLayout } from '../components/page-layout';
+import { ContactUsPage } from '../components/contact-us-page';
 
 export const Route = createFileRoute('/contact-us')({
   component: ContactUsPage,
 });
-
-function ContactUsPage() {
-  return <PageLayout title="Contact us" />;
-}

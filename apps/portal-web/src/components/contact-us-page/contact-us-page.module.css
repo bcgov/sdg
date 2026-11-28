@@ -1,0 +1,93 @@
+/* Figma: Product Discussions, node 756:16822. The blocks under the page header sit 48px apart. */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xxxlarge);
+}
+
+/* The design's title-section sits 16px above its content; (0,1,1) outranks the Section's own 24px gap. */
+.sections > section {
+  gap: var(--layout-margin-medium);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+.intro > * {
+  margin: 0;
+}
+
+.bullets {
+  padding-inline-start: var(--layout-padding-large);
+}
+
+/* Two numbered steps side by side, stacking on narrow screens. */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-margin-large);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--layout-margin-medium);
+  min-width: 0;
+}
+
+/* A 40px blue circle with the step's number in white. */
+.number {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--layout-border-radius-circular);
+  background-color: var(--theme-blue-90);
+  color: var(--typography-color-primary-invert);
+  font: var(--typography-bold-body);
+}
+
+.stepBody {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+  min-width: 0;
+}
+
+/* Vertically centred against the 40px circle. */
+.stepTitle {
+  margin: 0;
+  padding-block: 6.5px;
+  color: var(--typography-color-primary);
+  font: var(--typography-bold-body);
+}
+
+.entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  padding-block: var(--layout-margin-small);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .steps {
+    grid-template-columns: 1fr;
+  }
+}
