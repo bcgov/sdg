@@ -1,0 +1,88 @@
+/* Figma: Product Discussions, node 752:5695. The blocks under the page header sit 48px apart. */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xxxlarge);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+}
+
+/* The design's title-section sits 16px above its content; (0,1,1) outranks the Section's own 24px gap. */
+.sections section {
+  gap: var(--layout-margin-medium);
+}
+
+.sections p {
+  margin: 0;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+}
+
+.contents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-xsmall);
+}
+
+.contentsTitle {
+  font: var(--typography-bold-body);
+}
+
+/* Two columns of links, three in the first, filled top to bottom, 16px apart. */
+.contentsList {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, auto);
+  justify-content: start;
+  column-gap: var(--layout-margin-medium);
+  margin: 0;
+  padding: 0;
+}
+
+/* Each item keeps room for its own bullet, so the second column's bullets clear the first column's links. */
+.contentsList > li {
+  margin-inline-start: var(--layout-padding-large);
+}
+
+/* A button-styled link reads as a button, so no underline in any state. */
+.actions > a,
+.actions > a:hover,
+.actions > a:focus-visible {
+  text-decoration: none;
+}
+
+/* "Learn more about BC Services:" then its links on one line, wrapping on narrow screens. */
+.learnMore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--layout-margin-large);
+  row-gap: var(--layout-margin-small);
+  min-height: 40px;
+}
+
+.learnMore > ul {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--layout-margin-xlarge);
+  row-gap: var(--layout-margin-small);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The design sets the contact panel in its own band: 72px below the last section and 48px above the footer. */
+.contact {
+  margin-block: var(--layout-margin-large);
+}
+
+@media (max-width: 768px) {
+  .contentsList {
+    grid-auto-flow: row;
+    grid-template-rows: none;
+  }
+}

@@ -1,0 +1,75 @@
+/* Figma: Product Discussions, node 752:6037 (the design system's table). */
+.table {
+  width: 100%;
+  border: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  border-radius: var(--layout-border-radius-medium);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  background-color: var(--surface-color-background-white);
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-body);
+  text-align: left;
+}
+
+.table th {
+  height: 64px;
+  box-sizing: border-box;
+  padding: var(--layout-padding-medium) 0;
+  border-bottom: var(--layout-border-width-small) solid var(--surface-color-border-default);
+  font: var(--typography-bold-body);
+  vertical-align: middle;
+}
+
+/* Each heading's label carries a short rule on its left, inside the cell's vertical padding. */
+.table th > span {
+  display: block;
+  padding-inline: var(--layout-padding-medium);
+}
+
+.table th + th > span {
+  border-left: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.tagColumn {
+  width: 240px;
+}
+
+.table td {
+  padding: var(--layout-padding-medium);
+  vertical-align: middle;
+}
+
+.table tbody tr:not(:last-child) td {
+  border-bottom: var(--layout-border-width-small) solid var(--surface-color-border-default);
+}
+
+.logo {
+  display: block;
+}
+
+.flag {
+  display: block;
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.flag > img {
+  position: absolute;
+  top: calc(50% - 0.39px);
+  left: 50%;
+  width: 32px;
+  height: 15.216px;
+  max-width: none;
+  object-fit: cover;
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 768px) {
+  .tagColumn {
+    width: auto;
+  }
+}
