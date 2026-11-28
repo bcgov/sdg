@@ -29,11 +29,12 @@ test.describe('portal-web layout', () => {
     await expect(page.getByRole('contentinfo')).toBeVisible();
   });
 
-  // /help is a title alone, so it stays shorter than the viewport (the home page now runs well past it).
+  // The not-found page is a title, an illustration and a few lines, so it stays shorter than the viewport (the home,
+  // Help and Contact us pages run well past it).
   test('fills at least the viewport height with the footer at the bottom when content is short', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1600 });
-    await page.goto('/help');
-    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Help');
+    await page.goto('/does-not-exist');
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Oops, looks like we’re lost');
     await expect(page.getByRole('contentinfo')).toBeVisible();
 
     const m = await measureLayout(page);
